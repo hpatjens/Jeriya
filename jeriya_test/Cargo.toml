@@ -1,0 +1,13 @@
+[package]
+name = "jeriya_test"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+jeriya_shared = { path = "../jeriya_shared" }
+
+[dependencies]
+chrono = "0.4.24"
+image = "0.24.5"
+image-compare = "0.2.4"
+spectral = "0.6.0"
