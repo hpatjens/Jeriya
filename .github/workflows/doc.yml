@@ -1,0 +1,21 @@
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+name: doc
+jobs:
+  doc:
+    runs-on: ubuntu-latest
+    name: doc
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install nightly
+        uses: dtolnay/rust-toolchain@nightly
+      - name: cargo doc
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: --cfg docsrs
