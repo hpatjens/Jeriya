@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          submodules: true
+          lfs: true
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
         with:
