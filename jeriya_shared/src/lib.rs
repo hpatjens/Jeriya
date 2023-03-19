@@ -1,3 +1,7 @@
+mod debug_info;
+
+pub use debug_info::*;
+
 #[macro_export]
 macro_rules! function {
     () => {{
