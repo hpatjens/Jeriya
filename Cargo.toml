@@ -1,6 +1,6 @@
 [workspace]
 members = [
-#    "jeriya", 
+    "jeriya", 
     "jeriya_shared", 
     "jeriya_test"
 ]
