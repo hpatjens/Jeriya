@@ -381,6 +381,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "jeriya_ash"
+version = "0.1.0"
+
+[[package]]
 name = "jeriya_shared"
 version = "0.1.0"
 

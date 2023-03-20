@@ -1,6 +1,2 @@
 [workspace]
-members = [
-    "jeriya", 
-    "jeriya_shared", 
-    "jeriya_test"
-]
+members = ["jeriya", "jeriya_ash", "jeriya_shared", "jeriya_test"]
