@@ -46,9 +46,7 @@ where
         &self.backend
     }
 
-    pub fn render_frame(&self) {
-        
-    }
+    pub fn render_frame(&self) {}
 }
 
 /// Builder type to create an instance of the [`Renderer`]
