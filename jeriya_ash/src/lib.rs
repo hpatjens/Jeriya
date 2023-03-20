@@ -1,14 +1,12 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+use jeriya::Backend;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub struct Ash {}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+impl Backend for Ash {
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self {}
     }
 }

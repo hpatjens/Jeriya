@@ -1,8 +1,9 @@
 mod resources;
 
 pub use resources::*;
+use winit::window::{Window, WindowId};
 
-use std::{marker::PhantomData, result};
+use std::{collections::HashMap, marker::PhantomData, result};
 
 #[derive(Debug)]
 pub enum Error {}
@@ -33,8 +34,8 @@ where
     }
 
     /// Creates a new [`RendererBuilder`] to create an instance of the `Renderer`
-    pub fn builder() -> RendererBuilder<B> {
-        RendererBuilder { _phantom: PhantomData }
+    pub fn builder<'a>() -> RendererBuilder<'a, B> {
+        RendererBuilder::new()
     }
 
     pub fn create_resource_container(&self) -> ResourceContainerBuilder {
@@ -44,20 +45,37 @@ where
     pub fn backend(&self) -> &B {
         &self.backend
     }
+
+    pub fn render_frame(&self) {
+        
+    }
 }
 
 /// Builder type to create an instance of the [`Renderer`]
-pub struct RendererBuilder<B>
+pub struct RendererBuilder<'a, B>
 where
     B: Backend,
 {
     _phantom: PhantomData<B>,
+    windows: HashMap<WindowId, &'a Window>,
 }
 
-impl<B> RendererBuilder<B>
+impl<'a, B> RendererBuilder<'a, B>
 where
     B: Backend,
 {
+    fn new() -> Self {
+        Self {
+            _phantom: PhantomData,
+            windows: HashMap::new(),
+        }
+    }
+
+    pub fn add_windows(mut self, windows: &[&'a Window]) -> Self {
+        self.windows.extend(windows.into_iter().map(|w| (w.id(), *w)));
+        self
+    }
+
     pub fn build(self) -> Result<Renderer<B>> {
         Ok(Renderer::new(B::new()))
     }

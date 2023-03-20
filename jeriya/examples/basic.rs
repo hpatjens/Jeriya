@@ -1,5 +1,6 @@
 use std::io;
 
+use jeriya_ash::Ash;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoop,
@@ -24,10 +25,12 @@ fn main() -> io::Result<()> {
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title("A fantastic window!")
+        .with_title("Example")
         .with_inner_size(winit::dpi::LogicalSize::new(640.0, 480.0))
         .build(&event_loop)
         .unwrap();
+
+    let renderer = jeriya::Renderer::<Ash>::builder().add_windows(&[&window]).build().unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_wait();
@@ -39,6 +42,8 @@ fn main() -> io::Result<()> {
             } if window_id == window.id() => control_flow.set_exit(),
             Event::MainEventsCleared => {
                 window.request_redraw();
+
+                renderer.render_frame();
             }
             _ => (),
         }
