@@ -43,25 +43,9 @@ impl DebugInfo {
     }
 
     pub fn format_one_line(&self) -> String {
-        let name = self
-            .name
-            .as_ref()
-            .map(|n| format!("name: {}", n))
-            .unwrap_or_else(|| "unknown".to_owned());
+        let name = format!("{:?}", self.name);
         format!("DebugInfo {{ name: {name} }}")
     }
-}
-
-#[macro_export]
-macro_rules! function_name {
-    () => {{
-        fn f() {}
-        fn type_name_of<T>(_: T) -> &'static str {
-            std::any::type_name::<T>()
-        }
-        let name = type_name_of(f);
-        &name[..name.len() - 3]
-    }};
 }
 
 #[macro_export]
@@ -97,16 +81,35 @@ mod tests {
     use super::*;
 
     mod debug_info {
+        use crate::function_name;
+
         use super::*;
 
         #[test]
-        fn borrowed_name() {
+        fn with_name_borrowed() {
             DebugInfo::default().with_name(Cow::Borrowed("my_texture"));
         }
 
         #[test]
-        fn owned_name() {
+        fn with_name_owned() {
             DebugInfo::default().with_name(Cow::Owned("my_texture".to_owned()));
+        }
+
+        #[test]
+        fn with_created_now() {
+            DebugInfo::default().with_created_now();
+        }
+
+        #[test]
+        fn format_one_line_with_name() {
+            let line = DebugInfo::default().with_name(Cow::Borrowed("my_texture")).format_one_line();
+            assert_eq!(line, "DebugInfo { name: Some(\"my_texture\") }");
+        }
+
+        #[test]
+        fn format_one_line_without_name() {
+            let line = DebugInfo::default().format_one_line();
+            assert_eq!(line, "DebugInfo { name: None }");
         }
 
         #[test]

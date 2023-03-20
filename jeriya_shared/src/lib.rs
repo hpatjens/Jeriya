@@ -3,7 +3,7 @@ mod debug_info;
 pub use debug_info::*;
 
 #[macro_export]
-macro_rules! function {
+macro_rules! function_name {
     () => {{
         fn f() {}
         fn type_name_of<T>(_: T) -> &'static str {

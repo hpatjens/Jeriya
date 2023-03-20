@@ -12,7 +12,7 @@ use image::{codecs::png::PngEncoder, DynamicImage, ImageBuffer, ImageEncoder, Im
 macro_rules! test_context {
     () => {{
         const TEST_RESULT_FOLDER: &str = "test_results";
-        let test_name = jeriya_shared::function!().replace("::", ".").replace("jeriya_test.", "");
+        let test_name = jeriya_shared::function_name!().replace("::", ".").replace("jeriya_test.", "");
         TestContext::new(&test_name, &PathBuf::from(TEST_RESULT_FOLDER))
     }};
 }
