@@ -4,5 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+chrono = "0.4.24"
 jeriya_shared = { path = "../jeriya_shared" }
+log = "0.4.17"
 parking_lot = "0.12.1"
+
+[dev-dependencies]
+winit = "0.28.3"
+fern = "0.6.1"
