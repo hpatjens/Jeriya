@@ -1,4 +1,4 @@
-name: build
+name: examples
 
 on:
   push:
@@ -18,5 +18,5 @@ jobs:
     - uses: actions/checkout@v3
       with:
         lfs: true
-    - name: Test
-      run: cargo test --verbose
+    - name: Examples
+      run: cargo build --examples
