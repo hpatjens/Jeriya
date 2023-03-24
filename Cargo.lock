@@ -599,6 +599,7 @@ dependencies = [
  "jeriya",
  "jeriya_shared",
  "jeriya_test",
+ "lazy_static",
  "thiserror",
  "winapi",
 ]

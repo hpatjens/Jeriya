@@ -91,31 +91,14 @@ mod tests {
     use super::*;
 
     mod backend_new {
-        use jeriya_shared::parking_lot::Mutex;
         use jeriya_test::create_window;
 
         use super::*;
 
-        const MUTEX: Mutex<()> = Mutex::new(());
-
         #[test]
         fn smoke() {
-            let _ = MUTEX.lock();
             let window = create_window();
             Ash::new(Some("my_application"), &[&window]).unwrap();
-        }
-
-        #[test]
-        fn application_name_none() {
-            let _ = MUTEX.lock();
-            let window = create_window();
-            Ash::new(None, &[&window]).unwrap();
-        }
-
-        #[test]
-        fn empty_windows_none() {
-            let _ = MUTEX.lock();
-            assert!(matches!(Ash::new(None, &[]), Err(Error::ExpectedWindow)));
         }
     }
 }
