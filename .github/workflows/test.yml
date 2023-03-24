@@ -18,9 +18,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         lfs: true
-    - name: Install nightly
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        components: cargo-nextest
+    - name: Install cargo-nextest
+      run: cargo install cargo-nextest
     - name: Test
       run: cargo nextest run --verbose
