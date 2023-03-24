@@ -95,21 +95,21 @@ mod tests {
 
         use super::*;
 
-        // #[test]
-        // fn smoke() {
-        //     let window = create_window();
-        //     Ash::new(Some("my_application"), &[&window]).unwrap();
-        // }
+        #[test]
+        fn smoke() {
+            let window = create_window();
+            Ash::new(Some("my_application"), &[&window]).unwrap();
+        }
 
-        // #[test]
-        // fn application_name_none() {
-        //     let window = create_window();
-        //     Ash::new(None, &[&window]).unwrap();
-        // }
+        #[test]
+        fn application_name_none() {
+            let window = create_window();
+            Ash::new(None, &[&window]).unwrap();
+        }
 
-        // #[test]
-        // fn empty_windows_none() {
-        //     assert!(matches!(Ash::new(None, &[]), Err(Error::ExpectedWindow)));
-        // }
+        #[test]
+        fn empty_windows_none() {
+            assert!(matches!(Ash::new(None, &[]), Err(Error::ExpectedWindow)));
+        }
     }
 }
