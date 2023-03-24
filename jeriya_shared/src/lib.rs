@@ -33,7 +33,7 @@ macro_rules! function_name {
 /// Creates a String from the given char array. It's expected that `char_array` contains a 0.
 pub fn c_null_terminated_char_array_to_string(char_array: &[i8]) -> result::Result<String, std::str::Utf8Error> {
     assert!(
-        char_array.iter().find(|c| **c == 0).is_some(),
+        char_array.iter().any(|c| *c == 0),
         "\"char_array\" is not null terminated."
     );
     let chars = char_array.iter().take_while(|c| **c != 0).map(|i| *i as u8).collect::<Vec<_>>();
