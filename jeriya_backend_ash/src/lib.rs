@@ -87,6 +87,7 @@ pub fn create_instance(entry: &Entry, application_name: &str) -> Instance {
 }
 
 #[cfg(test)]
+#[cfg(not(feature = "ignore_window_tests"))]
 mod tests {
     use super::*;
 
@@ -99,6 +100,17 @@ mod tests {
         fn smoke() {
             let window = create_window();
             Ash::new(Some("my_application"), &[&window]).unwrap();
+        }
+
+        #[test]
+        fn application_name_none() {
+            let window = create_window();
+            Ash::new(None, &[&window]).unwrap();
+        }
+
+        #[test]
+        fn empty_windows_none() {
+            assert!(matches!(Ash::new(None, &[]), Err(Error::ExpectedWindow)));
         }
     }
 }
