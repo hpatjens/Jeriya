@@ -77,7 +77,7 @@ where
     }
 
     pub fn build(self) -> Result<Renderer<B>> {
-        let backend = B::new(self.application_name, &self.windows)?;
+        let backend = B::new(self.application_name, self.windows)?;
         Ok(Renderer::new(backend))
     }
 }

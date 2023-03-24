@@ -80,7 +80,7 @@ pub fn open_image(path: impl AsRef<Path>) -> DynamicImage {
 pub fn save_image(image: RgbImage, path: impl AsRef<Path>) {
     image
         .save(&path)
-        .expect(&format!("Failed to save image2 to path \"{}\"", path.as_ref().to_string_lossy()));
+        .unwrap_or_else(|_| panic!("Failed to save image2 to path \"{}\"", path.as_ref().to_string_lossy()));
 }
 
 /// Uses the Reinhard tone mapping operator to produce an `ImageBuffer` that can be encoded as PNG.

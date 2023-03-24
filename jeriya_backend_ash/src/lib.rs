@@ -37,7 +37,7 @@ impl Backend for Ash {
 
         let entry = unsafe { Entry::load().map_err(|err| Error::Backend(Box::new(err)))? };
         let application_name = application_name.unwrap_or(env!("CARGO_PKG_NAME"));
-        let instance = create_instance(&entry, &application_name);
+        let instance = create_instance(&entry, application_name);
 
         Ok(Self { instance })
     }
@@ -51,7 +51,7 @@ pub fn create_instance(entry: &Entry, application_name: &str) -> Instance {
         .unwrap()
         .iter()
         .map(|properties| &properties.layer_name)
-        .map(|array| jeriya_shared::c_null_terminated_char_array_to_string(*&array).unwrap())
+        .map(|array| jeriya_shared::c_null_terminated_char_array_to_string(array).unwrap())
         .collect::<Vec<_>>();
 
     let available_layers_string = available_layers.iter().map(|s| format!("\t{}", s)).collect::<Vec<_>>().join("\n");
