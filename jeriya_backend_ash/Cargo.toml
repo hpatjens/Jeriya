@@ -15,4 +15,4 @@ ash = "0.37.2+1.3.238"
 lazy_static = "1.4.0"
 
 [features]
-ignore_window_tests = []
+ignore_in_ci = []

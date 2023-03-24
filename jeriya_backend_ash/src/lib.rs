@@ -87,7 +87,7 @@ pub fn create_instance(entry: &Entry, application_name: &str) -> Instance {
 }
 
 #[cfg(test)]
-#[cfg(not(feature = "ignore_window_tests"))]
+#[cfg(not(feature = "ignore_in_ci"))]
 mod tests {
     use super::*;
 
