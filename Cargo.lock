@@ -579,7 +579,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "fern",
- "jeriya_ash",
+ "jeriya_backend_ash",
  "jeriya_shared",
  "log",
  "parking_lot",
@@ -587,7 +587,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "jeriya_ash"
+name = "jeriya_backend_ash"
 version = "0.1.0"
 dependencies = [
  "jeriya",

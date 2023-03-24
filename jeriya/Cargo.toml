@@ -11,5 +11,5 @@ parking_lot = "0.12.1"
 winit = "0.28.3"
 
 [dev-dependencies]
-jeriya_ash = { path = "../jeriya_ash" }
+jeriya_backend_ash = { path = "../jeriya_backend_ash" }
 fern = "0.6.1"

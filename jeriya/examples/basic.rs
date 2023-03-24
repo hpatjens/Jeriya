@@ -1,6 +1,6 @@
 use std::io;
 
-use jeriya_ash::Ash;
+use jeriya_backend_ash::Ash;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoop,

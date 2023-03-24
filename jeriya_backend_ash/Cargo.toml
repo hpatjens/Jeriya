@@ -1,5 +1,5 @@
 [package]
-name = "jeriya_ash"
+name = "jeriya_backend_ash"
 version = "0.1.0"
 edition = "2021"
 
