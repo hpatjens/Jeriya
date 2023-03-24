@@ -4,10 +4,10 @@ use std::result;
 
 pub use debug_info::*;
 
+pub use chrono;
 pub use log;
 pub use parking_lot;
 pub use winit;
-pub use chrono;
 
 #[derive(Debug)]
 pub enum Error {
