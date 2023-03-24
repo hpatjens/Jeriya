@@ -6,6 +6,11 @@ use std::{
 
 use chrono::Utc;
 use image::{codecs::png::PngEncoder, DynamicImage, ImageBuffer, ImageEncoder, ImageError, PixelWithColorType, Rgb, RgbImage};
+use jeriya_shared::winit::{
+    event_loop::EventLoopBuilder,
+    platform::windows::EventLoopBuilderExtWindows,
+    window::{Window, WindowBuilder},
+};
 
 /// Creates a new `TestContext` for the test function in which the macro is executed.
 #[cfg(test)]
@@ -15,6 +20,12 @@ macro_rules! test_context {
         let test_name = jeriya_shared::function_name!().replace("::", ".").replace("jeriya_test.", "");
         TestContext::new(&test_name, &PathBuf::from(TEST_RESULT_FOLDER))
     }};
+}
+
+/// Create a winit window
+pub fn create_window() -> Window {
+    let event_loop = EventLoopBuilder::new().with_any_thread(true).build();
+    WindowBuilder::new().with_visible(false).build(&event_loop).unwrap()
 }
 
 /// General information for a test

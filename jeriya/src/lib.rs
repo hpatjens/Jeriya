@@ -1,18 +1,13 @@
 mod resources;
 
+use jeriya_shared::{winit::window::Window, Result};
 pub use resources::*;
-use winit::window::{Window, WindowId};
 
-use std::{collections::HashMap, marker::PhantomData, result};
-
-#[derive(Debug)]
-pub enum Error {}
-
-pub type Result<T> = result::Result<T, Error>;
+use std::marker::PhantomData;
 
 /// Rendering backend that is used by the [`Renderer`]
 pub trait Backend {
-    fn new() -> Self
+    fn new(application_name: Option<&str>, windows: &[&Window]) -> Result<Self>
     where
         Self: Sized;
 }
@@ -55,7 +50,8 @@ where
     B: Backend,
 {
     _phantom: PhantomData<B>,
-    windows: HashMap<WindowId, &'a Window>,
+    windows: &'a [&'a Window],
+    application_name: Option<&'a str>,
 }
 
 impl<'a, B> RendererBuilder<'a, B>
@@ -65,16 +61,23 @@ where
     fn new() -> Self {
         Self {
             _phantom: PhantomData,
-            windows: HashMap::new(),
+            windows: &[],
+            application_name: None,
         }
     }
 
-    pub fn add_windows(mut self, windows: &[&'a Window]) -> Self {
-        self.windows.extend(windows.into_iter().map(|w| (w.id(), *w)));
+    pub fn add_application_name(mut self, application_name: &'a str) -> Self {
+        self.application_name = Some(application_name);
+        self
+    }
+
+    pub fn add_windows(mut self, windows: &'a [&'a Window]) -> Self {
+        self.windows = windows;
         self
     }
 
     pub fn build(self) -> Result<Renderer<B>> {
-        Ok(Renderer::new(B::new()))
+        let backend = B::new(self.application_name, &self.windows)?;
+        Ok(Renderer::new(backend))
     }
 }

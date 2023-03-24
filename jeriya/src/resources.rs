@@ -6,8 +6,7 @@ pub use texture2d::*;
 
 use std::sync::Arc;
 
-use jeriya_shared::DebugInfo;
-use parking_lot::Mutex;
+use jeriya_shared::{parking_lot::Mutex, DebugInfo};
 
 /// Data on the GPU that doesn't change frequently and is referenced by the instances in the scene
 pub trait Resource {
@@ -88,17 +87,17 @@ where
 
 #[cfg(test)]
 mod tests {
-    use jeriya_shared::debug_info;
+    use jeriya_shared::{debug_info, winit::window::Window};
 
     use crate::{Backend, Renderer};
 
     struct DummyBackend;
     impl Backend for DummyBackend {
-        fn new() -> Self
+        fn new(_application_name: Option<&str>, _windows: &[&Window]) -> jeriya_shared::Result<Self>
         where
             Self: Sized,
         {
-            Self
+            Ok(Self)
         }
     }
 

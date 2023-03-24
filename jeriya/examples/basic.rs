@@ -1,10 +1,13 @@
 use std::io;
 
 use jeriya_backend_ash::Ash;
-use winit::{
-    event::{Event, WindowEvent},
-    event_loop::EventLoop,
-    window::WindowBuilder,
+use jeriya_shared::{
+    log,
+    winit::{
+        event::{Event, WindowEvent},
+        event_loop::EventLoop,
+        window::WindowBuilder,
+    },
 };
 
 fn main() -> io::Result<()> {
@@ -12,7 +15,7 @@ fn main() -> io::Result<()> {
         .format(|out, message, record| {
             out.finish(format_args!(
                 "{}[{}][{}] {}",
-                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                jeriya_shared::chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
                 record.target(),
                 record.level(),
                 message
@@ -26,7 +29,7 @@ fn main() -> io::Result<()> {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title("Example")
-        .with_inner_size(winit::dpi::LogicalSize::new(640.0, 480.0))
+        .with_inner_size(jeriya_shared::winit::dpi::LogicalSize::new(640.0, 480.0))
         .build(&event_loop)
         .unwrap();
 

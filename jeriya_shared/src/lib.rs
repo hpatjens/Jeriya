@@ -1,7 +1,23 @@
 mod debug_info;
 
+use std::result;
+
 pub use debug_info::*;
 
+pub use log;
+pub use parking_lot;
+pub use winit;
+pub use chrono;
+
+#[derive(Debug)]
+pub enum Error {
+    ExpectedWindow,
+    Backend(Box<dyn std::error::Error>),
+}
+
+pub type Result<T> = result::Result<T, Error>;
+
+/// Name of the function this macro is called in
 #[macro_export]
 macro_rules! function_name {
     () => {{
@@ -12,4 +28,14 @@ macro_rules! function_name {
         let name = type_name_of(f);
         &name[..name.len() - 3]
     }};
+}
+
+/// Creates a String from the given char array. It's expected that `char_array` contains a 0.
+pub fn c_null_terminated_char_array_to_string(char_array: &[i8]) -> result::Result<String, std::str::Utf8Error> {
+    assert!(
+        char_array.iter().find(|c| **c == 0).is_some(),
+        "\"char_array\" is not null terminated."
+    );
+    let chars = char_array.iter().take_while(|c| **c != 0).map(|i| *i as u8).collect::<Vec<_>>();
+    Ok(std::str::from_utf8(chars.as_slice())?.to_owned())
 }
