@@ -42,29 +42,43 @@ unsafe extern "system" fn debug_utils_messenger_callback(
     p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
     _p_user_data: *mut std::ffi::c_void,
 ) -> vk::Bool32 {
-    let message_type = match message_types {
-        vk::DebugUtilsMessageTypeFlagsEXT::GENERAL => "General",
-        vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE => "Performance",
-        vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION => "Validation",
-        _ => panic!("Unknown message type"),
-    };
-    let message = format!("[DebugUtils] [{}] {:?}", message_type, CStr::from_ptr((*p_callback_data).p_message));
-    match message_severity {
-        vk::DebugUtilsMessageSeverityFlagsEXT::INFO => info!("{}", message),
-        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => warn!("{}", message),
-        vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE => info!("{}", message),
-        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => panic!("{}", message),
-        _ => {
-            let message = format!(
-                "Unhandled severity \"{:?}\" in DebugUtils callback. Message: {}",
-                message_severity, message
-            );
-            if PANIC_ON_MESSAGE.load(Ordering::SeqCst) {
-                panic!("{}", message);
-            } else {
-                error!("{}", message);
-            }
+    let types = {
+        let mut types = Vec::new();
+        if message_types.contains(vk::DebugUtilsMessageTypeFlagsEXT::GENERAL) {
+            types.push("General");
         }
+        if message_types.contains(vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE) {
+            types.push("Performance");
+        }
+        if message_types.contains(vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION) {
+            types.push("Validation");
+        }
+        if message_types.is_empty() {
+            panic!("Unknown message type");
+        }
+        types.join(", ")
+    };
+
+    let message = {
+        let message = CStr::from_ptr((*p_callback_data).p_message)
+            .to_str()
+            .expect("failed to convert validation layer message to str");
+        format!("[DebugUtils] [{types}] {message}")
+    };
+
+    let write_function = match message_severity {
+        vk::DebugUtilsMessageSeverityFlagsEXT::INFO => |m| info!("{m}"),
+        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => |m| warn!("{m}"),
+        vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE => |m| info!("{m}"),
+        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => |m| error!("{m}"),
+        _ => panic!("Unhandled severity \"{message_severity:?}\"; message: {message}"),
+    };
+
+    if PANIC_ON_MESSAGE.load(Ordering::SeqCst) {
+        panic!("{}", message);
+    } else {
+        write_function(message);
     }
+
     vk::FALSE
 }
