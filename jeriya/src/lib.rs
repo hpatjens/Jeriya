@@ -1,13 +1,15 @@
 mod resources;
 
-use jeriya_shared::{winit::window::Window, Result};
+use jeriya_shared::{winit::window::Window, RendererConfig, Result};
 pub use resources::*;
 
 use std::marker::PhantomData;
 
 /// Rendering backend that is used by the [`Renderer`]
 pub trait Backend {
-    fn new(application_name: Option<&str>, windows: &[&Window]) -> Result<Self>
+    type BackendConfig: Default;
+
+    fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> Result<Self>
     where
         Self: Sized;
 }
@@ -51,7 +53,8 @@ where
 {
     _phantom: PhantomData<B>,
     windows: &'a [&'a Window],
-    application_name: Option<&'a str>,
+    renderer_config: Option<RendererConfig>,
+    backend_config: Option<B::BackendConfig>,
 }
 
 impl<'a, B> RendererBuilder<'a, B>
@@ -62,12 +65,18 @@ where
         Self {
             _phantom: PhantomData,
             windows: &[],
-            application_name: None,
+            renderer_config: None,
+            backend_config: None,
         }
     }
 
-    pub fn add_application_name(mut self, application_name: &'a str) -> Self {
-        self.application_name = Some(application_name);
+    pub fn add_renderer_config(mut self, renderer_config: RendererConfig) -> Self {
+        self.renderer_config = Some(renderer_config);
+        self
+    }
+
+    pub fn add_backend_config(mut self, backend_config: B::BackendConfig) -> Self {
+        self.backend_config = Some(backend_config);
         self
     }
 
@@ -77,7 +86,9 @@ where
     }
 
     pub fn build(self) -> Result<Renderer<B>> {
-        let backend = B::new(self.application_name, self.windows)?;
+        let renderer_config = self.renderer_config.unwrap_or(RendererConfig::default());
+        let backend_config = self.backend_config.unwrap_or(B::BackendConfig::default());
+        let backend = B::new(renderer_config, backend_config, self.windows)?;
         Ok(Renderer::new(backend))
     }
 }

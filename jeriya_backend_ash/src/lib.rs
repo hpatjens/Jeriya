@@ -1,3 +1,4 @@
+mod debug;
 mod instance;
 
 use std::{ffi::NulError, str::Utf8Error};
@@ -9,9 +10,12 @@ use ash::{
     vk::{self},
     Entry, Instance, LoadingError,
 };
-use jeriya_shared::{log::info, winit::window::Window};
+use jeriya_shared::{log::info, winit::window::Window, RendererConfig};
 
-use crate::instance::create_instance;
+use crate::{
+    debug::{set_panic_on_message, setup_debug_utils},
+    instance::create_instance,
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -47,12 +51,30 @@ impl From<Error> for jeriya_shared::Error {
     }
 }
 
+pub enum ValidationLayerConfig {
+    Disabled,
+    Enabled { panic_on_message: bool },
+}
+
+impl Default for ValidationLayerConfig {
+    fn default() -> Self {
+        Self::Enabled { panic_on_message: true }
+    }
+}
+
+#[derive(Default)]
+pub struct Config {
+    validation_layer: ValidationLayerConfig,
+}
+
 pub struct Ash {
     instance: Instance,
 }
 
 impl Backend for Ash {
-    fn new(application_name: Option<&str>, windows: &[&Window]) -> jeriya_shared::Result<Self>
+    type BackendConfig = Config;
+
+    fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> jeriya_shared::Result<Self>
     where
         Self: Sized,
     {
@@ -64,8 +86,24 @@ impl Backend for Ash {
         let entry = unsafe { Entry::load().map_err(Error::LoadingError)? };
 
         info!("Creating Vulkan Instance");
-        let application_name = application_name.unwrap_or(env!("CARGO_PKG_NAME"));
-        let instance = create_instance(&entry, application_name)?;
+        let application_name = renderer_config.application_name.unwrap_or(env!("CARGO_PKG_NAME").to_owned());
+        let instance = create_instance(
+            &entry,
+            &application_name,
+            matches!(backend_config.validation_layer, ValidationLayerConfig::Enabled { .. }),
+        )?;
+
+        // Validation Layer Callback
+        match backend_config.validation_layer {
+            ValidationLayerConfig::Disabled => {
+                info!("Skippnig validation layer callback setup");
+            }
+            ValidationLayerConfig::Enabled { panic_on_message } => {
+                info!("Setting up validation layer callback");
+                set_panic_on_message(panic_on_message);
+                setup_debug_utils(&entry, &instance)?;
+            }
+        }
 
         Ok(Self { instance })
     }
@@ -84,18 +122,27 @@ mod tests {
         #[test]
         fn smoke() {
             let window = create_window();
-            Ash::new(Some("my_application"), &[&window]).unwrap();
+            let renderer_config = RendererConfig::default();
+            let backend_config = Config::default();
+            Ash::new(renderer_config, backend_config, &[&window]).unwrap();
         }
 
         #[test]
         fn application_name_none() {
             let window = create_window();
-            Ash::new(None, &[&window]).unwrap();
+            let renderer_config = RendererConfig { application_name: None };
+            let backend_config = Config::default();
+            Ash::new(renderer_config, backend_config, &[&window]).unwrap();
         }
 
         #[test]
         fn empty_windows_none() {
-            assert!(matches!(Ash::new(None, &[]), Err(jeriya_shared::Error::ExpectedWindow)));
+            let renderer_config = RendererConfig::default();
+            let backend_config = Config::default();
+            assert!(matches!(
+                Ash::new(renderer_config, backend_config, &[]),
+                Err(jeriya_shared::Error::ExpectedWindow)
+            ));
         }
     }
 }

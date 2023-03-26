@@ -93,7 +93,13 @@ mod tests {
 
     struct DummyBackend;
     impl Backend for DummyBackend {
-        fn new(_application_name: Option<&str>, _windows: &[&Window]) -> jeriya_shared::Result<Self>
+        type BackendConfig = ();
+
+        fn new(
+            _renderer_config: jeriya_shared::RendererConfig,
+            _backend_config: Self::BackendConfig,
+            _windows: &[&Window],
+        ) -> jeriya_shared::Result<Self>
         where
             Self: Sized,
         {

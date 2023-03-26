@@ -31,7 +31,7 @@ fn available_layers(entry: &Entry) -> Result<Vec<String>> {
 }
 
 /// Creates a Vulkan instance with a default configuration of layers and extensions
-pub fn create_instance(entry: &Entry, application_name: &str) -> Result<Instance> {
+pub fn create_instance(entry: &Entry, application_name: &str, enable_validation_layer: bool) -> Result<Instance> {
     let application_name = CString::new(application_name).unwrap();
 
     // Available Layers
@@ -39,21 +39,25 @@ pub fn create_instance(entry: &Entry, application_name: &str) -> Result<Instance
     info!("Available Layers:\n{}", list_strings(&available_layers));
 
     // Active Layers
-    let layer_names = available_layers
-        .into_iter()
-        .filter(|layer| layer == &"VK_LAYER_LUNARG_standard_validation" || layer == &"VK_LAYER_KHRONOS_validation")
-        .collect::<Vec<_>>();
+    let mut layer_names = Vec::new();
+    if enable_validation_layer {
+        layer_names.extend(
+            available_layers
+                .into_iter()
+                .filter(|layer| layer == &"VK_LAYER_LUNARG_standard_validation" || layer == &"VK_LAYER_KHRONOS_validation")
+                .collect::<Vec<_>>(),
+        );
+    }
     info!("Active Layers:\n{}", list_strings(&layer_names));
 
     // Active Extensions
     fn expect_extension(extension_name: &'static CStr) -> &str {
         extension_name.to_str().expect("failed to converte extension name")
     }
-    let extension_names = vec![
-        expect_extension(khr::Surface::name()),
-        expect_extension(khr::Win32Surface::name()),
-        expect_extension(DebugUtils::name()),
-    ];
+    let mut extension_names = vec![expect_extension(khr::Surface::name()), expect_extension(khr::Win32Surface::name())];
+    if enable_validation_layer {
+        extension_names.push(expect_extension(DebugUtils::name()));
+    }
     info!("Active Extensions:\n{}", list_strings(&extension_names));
 
     let layer_names = layer_names

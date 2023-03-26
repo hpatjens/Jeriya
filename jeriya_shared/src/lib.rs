@@ -17,6 +17,12 @@ pub enum Error {
 
 pub type Result<T> = result::Result<T, Error>;
 
+/// Configuration for the [`Renderer`]
+#[derive(Default)]
+pub struct RendererConfig {
+    pub application_name: Option<String>,
+}
+
 /// Name of the function this macro is called in
 #[macro_export]
 macro_rules! function_name {
