@@ -2,21 +2,24 @@ name: examples
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   examples:
-
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
-      with:
-        lfs: true
-    - name: Examples
-      run: cargo build --examples
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2.2.1
+
+      - name: Examples
+        run: cargo build --examples
