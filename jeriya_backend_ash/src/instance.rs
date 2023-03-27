@@ -86,3 +86,20 @@ pub fn create_instance(entry: &Entry, application_name: &str, enable_validation_
 
     unsafe { entry.create_instance(&create_info, None).into_jeriya() }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_instance_validation_active() {
+        let entry = unsafe { Entry::load().map_err(Error::LoadingError).unwrap() };
+        let _instance = create_instance(&entry, "my_test_application", true).unwrap();
+    }
+
+    #[test]
+    fn create_instance_validation_inactive() {
+        let entry = unsafe { Entry::load().map_err(Error::LoadingError).unwrap() };
+        let _instance = create_instance(&entry, "my_test_application", false).unwrap();
+    }
+}
