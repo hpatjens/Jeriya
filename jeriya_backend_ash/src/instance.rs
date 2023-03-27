@@ -1,6 +1,6 @@
 use std::ffi::{CStr, CString};
 
-use crate::{Error, IntoJeriya, Result};
+use crate::{Error, IntoJeriya, RawVulkan, Result};
 
 use ash::{
     extensions::{
@@ -8,9 +8,24 @@ use ash::{
         khr::{self},
     },
     vk::{self},
-    Entry, Instance,
+    Entry,
 };
 use jeriya_shared::log::info;
+
+/// Wrapper for [`ash::Instance`]
+pub struct Instance {
+    ash_instance: ash::Instance,
+    available_layers: Vec<String>,
+    active_layers: Vec<String>,
+    active_extensions: Vec<String>,
+}
+
+impl RawVulkan for Instance {
+    type Output = ash::Instance;
+    fn raw_vulkan(&self) -> &Self::Output {
+        &self.ash_instance
+    }
+}
 
 fn list_strings<'a>(strings: impl IntoIterator<Item = impl AsRef<str>>) -> String {
     strings
@@ -39,38 +54,40 @@ pub fn create_instance(entry: &Entry, application_name: &str, enable_validation_
     info!("Available Layers:\n{}", list_strings(&available_layers));
 
     // Active Layers
-    let mut layer_names = Vec::new();
+    let mut active_layers = Vec::new();
     if enable_validation_layer {
-        layer_names.extend(
+        active_layers.extend(
             available_layers
-                .into_iter()
+                .iter()
+                .cloned()
                 .filter(|layer| layer == &"VK_LAYER_LUNARG_standard_validation" || layer == &"VK_LAYER_KHRONOS_validation")
                 .collect::<Vec<_>>(),
         );
     }
-    info!("Active Layers:\n{}", list_strings(&layer_names));
+    info!("Active Layers:\n{}", list_strings(&active_layers));
 
     // Active Extensions
-    fn expect_extension(extension_name: &'static CStr) -> &str {
-        extension_name.to_str().expect("failed to converte extension name")
+    fn expect_extension(extension_name: &'static CStr) -> String {
+        extension_name.to_str().expect("failed to converte extension name").to_owned()
     }
-    let mut extension_names = vec![expect_extension(khr::Surface::name()), expect_extension(khr::Win32Surface::name())];
+    let mut active_extensions = vec![expect_extension(khr::Surface::name()), expect_extension(khr::Win32Surface::name())];
     if enable_validation_layer {
-        extension_names.push(expect_extension(DebugUtils::name()));
+        active_extensions.push(expect_extension(DebugUtils::name()));
     }
-    info!("Active Extensions:\n{}", list_strings(&extension_names));
+    info!("Active Extensions:\n{}", list_strings(&active_extensions));
 
-    let layer_names = layer_names
-        .into_iter()
+    let active_layers_c = active_layers
+        .iter()
+        .cloned()
         .map(|layer| CString::new(layer.as_str()).map_err(|err| Error::StringNulError(err)))
         .collect::<Result<Vec<_>>>()?;
-    let extension_names = extension_names
+    let active_extension_c = active_extensions
         .iter()
-        .map(|s| CString::new(*s).map_err(|err| Error::StringNulError(err)))
+        .map(|s| CString::new(s.clone()).map_err(|err| Error::StringNulError(err)))
         .collect::<Result<Vec<_>>>()?;
 
-    let layers_names_ptrs: Vec<*const i8> = layer_names.iter().map(|raw_name| raw_name.as_ptr()).collect();
-    let extension_names_ptrs: Vec<*const i8> = extension_names.iter().map(|raw_name| raw_name.as_ptr()).collect();
+    let layers_names_ptrs: Vec<*const i8> = active_layers_c.iter().map(|raw_name| raw_name.as_ptr()).collect();
+    let extension_names_ptrs: Vec<*const i8> = active_extension_c.iter().map(|raw_name| raw_name.as_ptr()).collect();
 
     let appinfo = vk::ApplicationInfo::builder()
         .application_name(&application_name)
@@ -84,7 +101,14 @@ pub fn create_instance(entry: &Entry, application_name: &str, enable_validation_
         .enabled_layer_names(&layers_names_ptrs)
         .enabled_extension_names(&extension_names_ptrs);
 
-    unsafe { entry.create_instance(&create_info, None).into_jeriya() }
+    let ash_instance = unsafe { entry.create_instance(&create_info, None).into_jeriya()? };
+
+    Ok(Instance {
+        ash_instance,
+        available_layers,
+        active_layers,
+        active_extensions,
+    })
 }
 
 #[cfg(test)]

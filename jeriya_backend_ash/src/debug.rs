@@ -3,10 +3,10 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use ash::{extensions::ext::DebugUtils, vk, Entry, Instance};
+use ash::{extensions::ext::DebugUtils, vk, Entry};
 use jeriya_shared::log::{error, info, warn};
 
-use crate::Result;
+use crate::{instance::Instance, RawVulkan, Result};
 
 static PANIC_ON_MESSAGE: AtomicBool = AtomicBool::new(true);
 
@@ -17,7 +17,7 @@ pub fn set_panic_on_message(value: bool) {
 
 /// Sets up the validation layer callback that logs the validation layer messages
 pub fn setup_debug_utils(entry: &Entry, instance: &Instance) -> Result<()> {
-    let debug_utils = DebugUtils::new(&entry, &instance);
+    let debug_utils = DebugUtils::new(&entry, &instance.raw_vulkan());
     let create_info = vk::DebugUtilsMessengerCreateInfoEXT {
         flags: vk::DebugUtilsMessengerCreateFlagsEXT::empty(),
         message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE

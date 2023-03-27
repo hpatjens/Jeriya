@@ -3,12 +3,13 @@ mod instance;
 
 use std::{ffi::NulError, str::Utf8Error};
 
+use instance::Instance;
 use jeriya::Backend;
 
 use ash::{
     prelude::VkResult,
     vk::{self},
-    Entry, Instance, LoadingError,
+    Entry, LoadingError,
 };
 use jeriya_shared::{log::info, winit::window::Window, RendererConfig};
 
@@ -18,6 +19,11 @@ use crate::{
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+pub(crate) trait RawVulkan {
+    type Output;
+    fn raw_vulkan(&self) -> &Self::Output;
+}
 
 pub(crate) trait IntoJeriya {
     type Output;
