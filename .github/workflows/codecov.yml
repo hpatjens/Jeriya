@@ -21,6 +21,13 @@ jobs:
         with:
           components: llvm-tools-preview
 
+      - name: Prepare Vulkan SDK
+        uses: humbletim/setup-vulkan-sdk@v1.2.0
+        with:
+          vulkan-query-version: 1.3.238.0
+          vulkan-components: Vulkan-Headers, Vulkan-Loader
+          vulkan-use-cache: true
+        
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2.2.1
 
