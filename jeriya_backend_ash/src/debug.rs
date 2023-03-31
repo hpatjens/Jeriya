@@ -108,7 +108,6 @@ mod tests {
             }
         }
 
-
         #[test]
         fn smoke() {
             set_panic_on_message(false);
