@@ -1,5 +1,6 @@
 mod debug;
 mod instance;
+mod surface;
 
 use std::{ffi::NulError, str::Utf8Error};
 
@@ -13,7 +14,10 @@ use ash::{
 };
 use jeriya_shared::{log::info, winit::window::Window, RendererConfig};
 
-use crate::debug::{set_panic_on_message, setup_debug_utils};
+use crate::{
+    debug::{set_panic_on_message, setup_debug_utils},
+    surface::Surface,
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -40,6 +44,8 @@ impl<T> IntoJeriya for VkResult<T> {
 pub enum Error {
     #[error("Error while loading Vulkan {:?}", .0)]
     LoadingError(#[from] LoadingError),
+    #[error("Wrong platform")]
+    WrongPlatform,
     #[error("Error while executing a Vulkan operation {:?}", .0)]
     Result(#[from] vk::Result),
     #[error("Error while converting a string: {:?}", .0)]
@@ -107,6 +113,12 @@ impl Backend for Ash {
                 setup_debug_utils(&entry, &instance)?;
             }
         }
+
+        // Surfaces
+        let surfaces = windows
+            .iter()
+            .map(|window| Surface::new(&entry, &instance, &window))
+            .collect::<Result<Vec<Surface>>>()?;
 
         Ok(Self { instance })
     }

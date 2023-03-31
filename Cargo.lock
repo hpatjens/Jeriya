@@ -600,6 +600,7 @@ dependencies = [
  "jeriya_shared",
  "jeriya_test",
  "lazy_static",
+ "raw-window-handle",
  "thiserror",
  "winapi",
 ]
