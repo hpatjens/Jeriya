@@ -13,10 +13,7 @@ use ash::{
 };
 use jeriya_shared::{log::info, winit::window::Window, RendererConfig};
 
-use crate::{
-    debug::{set_panic_on_message, setup_debug_utils},
-    instance::create_instance,
-};
+use crate::debug::{set_panic_on_message, setup_debug_utils};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -93,7 +90,7 @@ impl Backend for Ash {
 
         info!("Creating Vulkan Instance");
         let application_name = renderer_config.application_name.unwrap_or(env!("CARGO_PKG_NAME").to_owned());
-        let instance = create_instance(
+        let instance = Instance::new(
             &entry,
             &application_name,
             matches!(backend_config.validation_layer, ValidationLayerConfig::Enabled { .. }),
