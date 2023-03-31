@@ -82,3 +82,48 @@ unsafe extern "system" fn debug_utils_messenger_callback(
 
     vk::FALSE
 }
+
+#[cfg(test)]
+mod tests {
+    mod debug_utils_messenger_callback {
+        use std::ffi::c_void;
+
+        use super::super::*;
+
+        #[test]
+        #[should_panic]
+        fn panic() {
+            set_panic_on_message(true);
+            let data = vk::DebugUtilsMessengerCallbackDataEXT {
+                p_message: b"my_message\n\0".as_ptr() as *const i8,
+                ..Default::default()
+            };
+            unsafe {
+                debug_utils_messenger_callback(
+                    vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
+                    vk::DebugUtilsMessageTypeFlagsEXT::GENERAL,
+                    &data as *const vk::DebugUtilsMessengerCallbackDataEXT,
+                    std::ptr::null::<()>() as *mut c_void,
+                );
+            }
+        }
+
+
+        #[test]
+        fn smoke() {
+            set_panic_on_message(false);
+            let data = vk::DebugUtilsMessengerCallbackDataEXT {
+                p_message: b"my_message\n\0".as_ptr() as *const i8,
+                ..Default::default()
+            };
+            unsafe {
+                debug_utils_messenger_callback(
+                    vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
+                    vk::DebugUtilsMessageTypeFlagsEXT::GENERAL,
+                    &data as *const vk::DebugUtilsMessengerCallbackDataEXT,
+                    std::ptr::null::<()>() as *mut c_void,
+                );
+            }
+        }
+    }
+}
