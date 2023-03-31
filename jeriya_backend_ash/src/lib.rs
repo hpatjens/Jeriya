@@ -105,7 +105,7 @@ impl Backend for Ash {
         // Validation Layer Callback
         match backend_config.validation_layer {
             ValidationLayerConfig::Disabled => {
-                info!("Skippnig validation layer callback setup");
+                info!("Skipping validation layer callback setup");
             }
             ValidationLayerConfig::Enabled { panic_on_message } => {
                 info!("Setting up validation layer callback");
