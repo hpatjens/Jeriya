@@ -1,5 +1,6 @@
 mod debug;
 mod instance;
+mod physical_device;
 mod surface;
 
 use std::{ffi::NulError, str::Utf8Error};
@@ -52,6 +53,8 @@ pub enum Error {
     StringNulError(#[from] NulError),
     #[error("Error while converting a string to UTF-8: {:?}", .0)]
     StringUtf8Error(#[from] Utf8Error),
+    #[error("Error concerning physical device: {:?}", .0)]
+    PhysicalDeviceError(#[from] physical_device::Error),
 }
 
 impl From<Error> for jeriya_shared::Error {

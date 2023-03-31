@@ -24,6 +24,15 @@ impl Surface {
         let surface = khr::Surface::new(&entry, &instance.raw_vulkan());
         Ok(Surface { surface_khr, surface })
     }
+
+    /// Returns whether the given queue family index of the physical device supports presentation
+    pub fn supports_presentation(&self, physical_device: &vk::PhysicalDevice, queue_family_index: usize) -> crate::Result<bool> {
+        unsafe {
+            Ok(self
+                .surface
+                .get_physical_device_surface_support(*physical_device, queue_family_index as u32, self.surface_khr)?)
+        }
+    }
 }
 
 impl Drop for Surface {
