@@ -1,6 +1,6 @@
 git push
 
-cargo nextext run
+cargo nextest run
 
 $ProgressPreference = 'SilentlyContinue'
 Invoke-WebRequest -Uri https://uploader.codecov.io/latest/windows/codecov.exe -Outfile codecov.exe
