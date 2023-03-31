@@ -1,5 +1,3 @@
-git push
-
 cargo nextest run
 
 $ProgressPreference = 'SilentlyContinue'
