@@ -116,7 +116,6 @@ impl Backend for Ash {
 }
 
 #[cfg(test)]
-#[cfg(not(feature = "ignore_in_ci"))]
 mod tests {
     use super::*;
 
