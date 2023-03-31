@@ -25,7 +25,7 @@ pub struct PhysicalDevice {
 
 impl PhysicalDevice {
     /// Select a physical device that can be used for the device creation
-    pub fn new(instance: &Instance, surface: &Surface) -> crate::Result<PhysicalDevice> {
+    pub fn new(instance: &Instance, surfaces: &[Surface]) -> crate::Result<PhysicalDevice> {
         let instance = instance.raw_vulkan();
 
         // Get Physical Devices
@@ -42,7 +42,7 @@ impl PhysicalDevice {
             let physical_device_properties = unsafe { instance.get_physical_device_properties(physical_device) };
             info!("Available Physical Device: {:#?}", physical_device_properties);
 
-            let queues = get_presentation_graphics_queue_families(instance, &physical_device, surface)?;
+            let queues = get_presentation_graphics_queue_families(instance, &physical_device, surfaces)?;
             if !queues.is_empty() {
                 return Ok(PhysicalDevice {
                     physical_device,
@@ -86,12 +86,18 @@ fn rate_physical_devices(instance: &ash::Instance, physical_devices: Vec<vk::Phy
 fn get_presentation_graphics_queue_families(
     instance: &ash::Instance,
     physical_device: &vk::PhysicalDevice,
-    surface: &Surface,
+    surfaces: &[Surface],
 ) -> crate::Result<Vec<SuitableQueueFamilyInfo>> {
     let physical_device_queue_family_properties = unsafe { instance.get_physical_device_queue_family_properties(*physical_device) };
     let mut queues = Vec::new();
     for (queue_family_index, queue_family_properties) in physical_device_queue_family_properties.iter().enumerate() {
-        if surface.supports_presentation(physical_device, queue_family_index)? {
+        let mut supported = true;
+        for surface in surfaces {
+            if !surface.supports_presentation(physical_device, queue_family_index)? {
+                supported = false;
+            }
+        }
+        if supported {
             queues.push(SuitableQueueFamilyInfo {
                 queue_family_index: queue_family_index as u32,
                 queue_count: queue_family_properties.queue_count,
@@ -114,8 +120,8 @@ mod tests {
             let window = create_window();
             let entry = unsafe { Entry::load().unwrap() };
             let instance = Instance::new(&entry, &"my_application", true).unwrap();
-            let surface = Surface::new(&entry, &instance, &window).unwrap();
-            let _physical_device = PhysicalDevice::new(&instance, &surface).unwrap();
+            let surfaces = [Surface::new(&entry, &instance, &window).unwrap()];
+            let _physical_device = PhysicalDevice::new(&instance, &surfaces).unwrap();
         }
     }
 }

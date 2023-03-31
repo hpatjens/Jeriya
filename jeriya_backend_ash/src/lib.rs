@@ -17,6 +17,7 @@ use jeriya_shared::{log::info, winit::window::Window, RendererConfig};
 
 use crate::{
     debug::{set_panic_on_message, setup_debug_utils},
+    physical_device::PhysicalDevice,
     surface::Surface,
 };
 
@@ -122,6 +123,8 @@ impl Backend for Ash {
             .iter()
             .map(|window| Surface::new(&entry, &instance, &window))
             .collect::<Result<Vec<Surface>>>()?;
+
+        let physical_device = PhysicalDevice::new(&instance, &surfaces)?;
 
         Ok(Self { instance })
     }
