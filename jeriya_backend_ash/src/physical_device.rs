@@ -12,10 +12,10 @@ pub enum Error {
 }
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct SuitableQueueFamilyInfo {
     pub queue_family_index: u32,
     pub queue_count: u32,
-    _private: (),
 }
 
 #[derive(Debug)]
@@ -113,7 +113,6 @@ fn get_presentation_graphics_queue_families(
             queues.push(SuitableQueueFamilyInfo {
                 queue_family_index: queue_family_index as u32,
                 queue_count: queue_family_properties.queue_count,
-                _private: (),
             });
         }
     }
