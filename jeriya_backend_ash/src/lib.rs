@@ -5,6 +5,7 @@ mod instance;
 mod physical_device;
 mod queue;
 mod surface;
+mod swapchain;
 
 use std::{ffi::NulError, str::Utf8Error, sync::Arc};
 
@@ -56,6 +57,8 @@ pub enum Error {
     StringUtf8Error(#[from] Utf8Error),
     #[error("Error concerning physical device: {:?}", .0)]
     PhysicalDeviceError(#[from] physical_device::Error),
+    #[error("Failed to find a suitable swapchain surface format")]
+    SwapchainSurfaceFormatError,
 }
 
 impl From<Error> for jeriya_shared::Error {

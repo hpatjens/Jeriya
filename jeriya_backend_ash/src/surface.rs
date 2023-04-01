@@ -13,8 +13,8 @@ use jeriya_shared::winit;
 
 /// Surface of a window to create the `Swapchain`.
 pub struct Surface {
-    surface_khr: vk::SurfaceKHR,
-    surface: khr::Surface,
+    pub(crate) surface_khr: vk::SurfaceKHR,
+    pub(crate) surface: khr::Surface,
     _entry: Arc<Entry>,
 }
 

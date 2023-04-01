@@ -87,8 +87,8 @@ mod tests {
             let window = create_window();
             let entry = Entry::new().unwrap();
             let instance = Instance::new(&entry, "my_application", false).unwrap();
-            let surfaces = [Surface::new(&entry, &instance, &window).unwrap()];
-            let physical_device = PhysicalDevice::new(&instance, &surfaces).unwrap();
+            let surface = Surface::new(&entry, &instance, &window).unwrap();
+            let physical_device = PhysicalDevice::new(&instance, &[surface]).unwrap();
             let _device = Device::new(physical_device, &instance).unwrap();
         }
     }

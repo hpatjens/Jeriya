@@ -34,8 +34,10 @@ impl AsRawVulkan for PhysicalDevice {
 
 impl PhysicalDevice {
     /// Select a physical device that can be used for the device creation
-    pub fn new(instance: &Instance, surfaces: &[Surface]) -> crate::Result<PhysicalDevice> {
+    pub fn new<'s>(instance: &Instance, surfaces: impl IntoIterator<Item = &'s Surface>) -> crate::Result<PhysicalDevice> {
         let instance = instance.as_raw_vulkan();
+
+        let surfaces = surfaces.into_iter().collect::<Vec<_>>();
 
         // Get Physical Devices
         let physical_devices = unsafe { instance.enumerate_physical_devices()? };
@@ -51,7 +53,7 @@ impl PhysicalDevice {
             let physical_device_properties = unsafe { instance.get_physical_device_properties(physical_device) };
             info!("Available Physical Device: {:#?}", physical_device_properties);
 
-            let queues = get_presentation_graphics_queue_families(instance, &physical_device, surfaces)?;
+            let queues = get_presentation_graphics_queue_families(instance, &physical_device, &surfaces)?;
             if !queues.is_empty() {
                 return Ok(PhysicalDevice {
                     suitable_presentation_graphics_queue_family_infos: queues,
@@ -96,7 +98,7 @@ fn rate_physical_devices(instance: &ash::Instance, physical_devices: Vec<vk::Phy
 fn get_presentation_graphics_queue_families(
     instance: &ash::Instance,
     physical_device: &vk::PhysicalDevice,
-    surfaces: &[Surface],
+    surfaces: &[&Surface],
 ) -> crate::Result<Vec<SuitableQueueFamilyInfo>> {
     let physical_device_queue_family_properties = unsafe { instance.get_physical_device_queue_family_properties(*physical_device) };
     let mut queues = Vec::new();
@@ -130,8 +132,8 @@ mod tests {
             let window = create_window();
             let entry = Entry::new().unwrap();
             let instance = Instance::new(&entry, &"my_application", true).unwrap();
-            let surfaces = [Surface::new(&entry, &instance, &window).unwrap()];
-            let _physical_device = PhysicalDevice::new(&instance, &surfaces).unwrap();
+            let surface = Surface::new(&entry, &instance, &window).unwrap();
+            let _physical_device = PhysicalDevice::new(&instance, &[surface]).unwrap();
         }
     }
 }
