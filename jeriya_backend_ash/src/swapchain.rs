@@ -12,24 +12,17 @@ pub struct Swapchain {
 
 impl Swapchain {
     /// Creates a new swapchain for the given [`Surface`].
-    pub fn new(instance: &Arc<Instance>, device: &Arc<Device>, surface: &Surface, width: u32, height: u32) -> crate::Result<Self> {
-        let inner = Inner::create_swapchain(instance, device, surface, width, height, None)?;
+    pub fn new(instance: &Arc<Instance>, device: &Arc<Device>, surface: &Surface) -> crate::Result<Self> {
+        let inner = Inner::create_swapchain(instance, device, surface, None)?;
         Ok(Self {
             inner: RefCell::new(inner),
         })
     }
 
     /// Recreate the swapchain when the resolution changes.
-    pub fn recreate(
-        &self,
-        instance: &Arc<Instance>,
-        device: &Arc<Device>,
-        surface: &Surface,
-        width: u32,
-        height: u32,
-    ) -> crate::Result<()> {
+    pub fn recreate(&self, instance: &Arc<Instance>, device: &Arc<Device>, surface: &Surface) -> crate::Result<()> {
         let mut inner = self.inner.borrow_mut();
-        *inner = Inner::create_swapchain(instance, device, surface, width, height, Some(&inner.swapchain_khr))?;
+        *inner = Inner::create_swapchain(instance, device, surface, Some(&inner.swapchain_khr))?;
         Ok(())
     }
 
@@ -68,7 +61,7 @@ impl Swapchain {
     }
 
     pub fn extent(&self) -> vk::Extent2D {
-        self.inner.borrow()._extent
+        self.inner.borrow().extent
     }
 
     pub fn surface_format(&self) -> vk::SurfaceFormatKHR {
@@ -86,7 +79,7 @@ struct Inner {
     _images: Vec<vk::Image>,
     image_views: Vec<vk::ImageView>,
     _format: vk::SurfaceFormatKHR,
-    _extent: vk::Extent2D,
+    extent: vk::Extent2D,
     device: Arc<Device>,
 }
 
@@ -108,8 +101,6 @@ impl Inner {
         instance: &Arc<Instance>,
         device: &Arc<Device>,
         surface: &Surface,
-        width: u32,
-        height: u32,
         previous_swapchain: Option<&vk::SwapchainKHR>,
     ) -> crate::Result<Self> {
         let surface_capabilities = unsafe {
@@ -117,6 +108,7 @@ impl Inner {
                 .surface
                 .get_physical_device_surface_capabilities(*device.physical_device.as_raw_vulkan(), surface.surface_khr)?
         };
+        info!("Surface capabilities: {surface_capabilities:?}");
 
         // Image Count
         let desired_image_count = {
@@ -146,19 +138,13 @@ impl Inner {
                 })
                 .next()
                 .ok_or(Error::SwapchainSurfaceFormatError)?;
-            info!("Format: {:?}", format);
+            info!("Format: {format:?}");
             format
         };
 
         // Extent
-        let extent = {
-            let extent = match surface_capabilities.current_extent.width {
-                std::u32::MAX => vk::Extent2D { width, height },
-                _ => surface_capabilities.current_extent,
-            };
-            info!("Extent: {:?}", extent);
-            extent
-        };
+        let extent = surface_capabilities.current_extent;
+        info!("Swapchain extent: {extent:?}");
 
         // Swapchain
         let swapchain_loader = khr::Swapchain::new(instance.as_raw_vulkan(), device.as_raw_vulkan());
@@ -233,7 +219,7 @@ impl Inner {
             _images: images,
             image_views,
             _format: format,
-            _extent: extent,
+            extent,
             device: device.clone(),
         })
     }
@@ -244,6 +230,7 @@ mod tests {
     mod new {
         use std::iter;
 
+        use jeriya_shared::winit::dpi::PhysicalSize;
         use jeriya_test::create_window;
 
         use crate::{
@@ -258,10 +245,31 @@ mod tests {
             let surface = Surface::new(&entry, &instance, &window).unwrap();
             let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
+            let swapchain = Swapchain::new(&instance, &device, &surface).unwrap();
             let size = window.inner_size();
-            let swapchain = Swapchain::new(&instance, &device, &surface, size.width, size.height).unwrap();
             assert_eq!(swapchain.extent().width, size.width);
             assert_eq!(swapchain.extent().height, size.height);
+        }
+
+        #[test]
+        fn recreate() {
+            let window = create_window();
+            let entry = Entry::new().unwrap();
+            let instance = Instance::new(&entry, "my_application", false).unwrap();
+            let surface = Surface::new(&entry, &instance, &window).unwrap();
+            let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
+            let device = Device::new(physical_device, &instance).unwrap();
+            let swapchain = Swapchain::new(&instance, &device, &surface).unwrap();
+            let size = window.inner_size();
+            assert_eq!(swapchain.extent().width, size.width);
+            assert_eq!(swapchain.extent().height, size.height);
+
+            let new_width = size.width + 2;
+            let new_height = size.height + 2;
+            window.set_inner_size(PhysicalSize::new(new_width, new_height));
+            swapchain.recreate(&instance, &device, &surface).unwrap();
+            assert_eq!(swapchain.extent().width, new_width);
+            assert_eq!(swapchain.extent().height, new_height);
         }
     }
 }

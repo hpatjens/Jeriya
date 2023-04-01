@@ -7,7 +7,7 @@ mod queue;
 mod surface;
 mod swapchain;
 
-use std::{ffi::NulError, str::Utf8Error, sync::Arc};
+use std::{collections::HashMap, ffi::NulError, str::Utf8Error, sync::Arc};
 
 use debug::ValidationLayerCallback;
 use instance::Instance;
@@ -18,9 +18,15 @@ use ash::{
     vk::{self},
     LoadingError,
 };
-use jeriya_shared::{log::info, winit::window::Window, RendererConfig};
+use jeriya_shared::{
+    log::info,
+    winit::window::{Window, WindowId},
+    RendererConfig,
+};
 
-use crate::{debug::set_panic_on_message, device::Device, entry::Entry, physical_device::PhysicalDevice, surface::Surface};
+use crate::{
+    debug::set_panic_on_message, device::Device, entry::Entry, physical_device::PhysicalDevice, surface::Surface, swapchain::Swapchain,
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -84,6 +90,8 @@ pub struct Config {
 }
 
 pub struct Ash {
+    _swapchains: HashMap<WindowId, Swapchain>,
+    _surfaces: HashMap<WindowId, Surface>,
     _device: Arc<Device>,
     _validation_layer_callback: Option<ValidationLayerCallback>,
     _instance: Arc<Instance>,
@@ -126,20 +134,35 @@ impl Backend for Ash {
         };
 
         // Surfaces
+        let windows = windows.iter().map(|window| (window.id(), window)).collect::<HashMap<_, _>>();
         let surfaces = windows
             .iter()
-            .map(|window| Surface::new(&entry, &instance, &window))
-            .collect::<Result<Vec<Surface>>>()?;
+            .map(|(window_id, window)| {
+                let surface = Surface::new(&entry, &instance, &window)?;
+                Ok((*window_id, surface))
+            })
+            .collect::<Result<HashMap<WindowId, Surface>>>()?;
 
-        let physical_device = PhysicalDevice::new(&instance, &surfaces)?;
-
+        // Device
+        let physical_device = PhysicalDevice::new(&instance, surfaces.values())?;
         let device = Device::new(physical_device, &instance)?;
+
+        // Swapchains
+        let swapchains = surfaces
+            .iter()
+            .map(|(window_id, surface)| {
+                let swapchain = Swapchain::new(&instance, &device, surface)?;
+                Ok((*window_id, swapchain))
+            })
+            .collect::<Result<HashMap<WindowId, Swapchain>>>()?;
 
         Ok(Self {
             _device: device,
             _validation_layer_callback: validation_layer_callback,
             _entry: entry,
             _instance: instance,
+            _swapchains: swapchains,
+            _surfaces: surfaces,
         })
     }
 }
