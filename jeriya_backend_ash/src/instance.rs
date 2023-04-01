@@ -16,9 +16,9 @@ use jeriya_shared::log::info;
 
 /// Wrapper for [`ash::Instance`]
 pub struct Instance {
-    available_layers: Vec<String>,
-    active_layers: Vec<String>,
-    active_extensions: Vec<String>,
+    pub available_layers: Vec<String>,
+    pub active_layers: Vec<String>,
+    pub active_extensions: Vec<String>,
     ash_instance: ash::Instance,
     _entry: Arc<Entry>,
 }
