@@ -20,14 +20,14 @@ pub struct Surface {
 
 impl Surface {
     /// Creates a new `Surface` for the given window.
-    pub fn new(entry: &Arc<Entry>, instance: &Arc<Instance>, window: &winit::window::Window) -> crate::Result<Surface> {
+    pub fn new(entry: &Arc<Entry>, instance: &Arc<Instance>, window: &winit::window::Window) -> crate::Result<Arc<Surface>> {
         let surface_khr = unsafe { create_surface_khr(entry, instance, window) }?;
         let surface = khr::Surface::new(entry.as_raw_vulkan(), &instance.as_raw_vulkan());
-        Ok(Surface {
+        Ok(Arc::new(Surface {
             surface_khr,
             surface,
             _entry: entry.clone(),
-        })
+        }))
     }
 
     /// Returns whether the given queue family index of the physical device supports presentation

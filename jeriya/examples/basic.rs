@@ -43,6 +43,12 @@ fn main() -> io::Result<()> {
                 event: WindowEvent::CloseRequested,
                 window_id,
             } if window_id == window.id() => control_flow.set_exit(),
+            Event::WindowEvent {
+                window_id,
+                event: WindowEvent::Resized(..),
+            } => {
+                renderer.window_resized(window_id);
+            }
             Event::MainEventsCleared => {
                 window.request_redraw();
 

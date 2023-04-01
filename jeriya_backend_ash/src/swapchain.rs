@@ -8,21 +8,27 @@ use crate::{device::Device, instance::Instance, queue::Queue, surface::Surface, 
 /// Represents the swapchain. This value only changes internally when the swapchain has to be recreated.
 pub struct Swapchain {
     inner: RefCell<Inner>,
+    surface: Arc<Surface>,
+    device: Arc<Device>,
+    instance: Arc<Instance>,
 }
 
 impl Swapchain {
     /// Creates a new swapchain for the given [`Surface`].
-    pub fn new(instance: &Arc<Instance>, device: &Arc<Device>, surface: &Surface) -> crate::Result<Self> {
+    pub fn new(instance: &Arc<Instance>, device: &Arc<Device>, surface: &Arc<Surface>) -> crate::Result<Self> {
         let inner = Inner::create_swapchain(instance, device, surface, None)?;
         Ok(Self {
             inner: RefCell::new(inner),
+            instance: instance.clone(),
+            device: device.clone(),
+            surface: surface.clone(),
         })
     }
 
     /// Recreate the swapchain when the resolution changes.
-    pub fn recreate(&self, instance: &Arc<Instance>, device: &Arc<Device>, surface: &Surface) -> crate::Result<()> {
+    pub fn recreate(&self) -> crate::Result<()> {
         let mut inner = self.inner.borrow_mut();
-        *inner = Inner::create_swapchain(instance, device, surface, Some(&inner.swapchain_khr))?;
+        *inner = Inner::create_swapchain(&self.instance, &self.device, &self.surface, Some(&inner.swapchain_khr))?;
         Ok(())
     }
 
@@ -267,7 +273,7 @@ mod tests {
             let new_width = size.width + 2;
             let new_height = size.height + 2;
             window.set_inner_size(PhysicalSize::new(new_width, new_height));
-            swapchain.recreate(&instance, &device, &surface).unwrap();
+            swapchain.recreate().unwrap();
             assert_eq!(swapchain.extent().width, new_width);
             assert_eq!(swapchain.extent().height, new_height);
         }

@@ -1,6 +1,9 @@
 mod resources;
 
-use jeriya_shared::{winit::window::Window, RendererConfig, Result};
+use jeriya_shared::{
+    winit::window::{Window, WindowId},
+    RendererConfig, Result,
+};
 pub use resources::*;
 
 use std::marker::PhantomData;
@@ -9,9 +12,13 @@ use std::marker::PhantomData;
 pub trait Backend {
     type BackendConfig: Default;
 
+    /// Creates a new [`Backend`]
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> Result<Self>
     where
         Self: Sized;
+
+    /// Is called when a window is resized so that the backend can respond.
+    fn handle_window_resized(&self, window_id: WindowId) -> Result<()>;
 }
 
 /// Instance of the renderer
@@ -44,6 +51,11 @@ where
     }
 
     pub fn render_frame(&self) {}
+
+    /// Has to be called when a window is gets resized.
+    pub fn window_resized(&self, window_id: WindowId) -> Result<()> {
+        self.backend.handle_window_resized(window_id)
+    }
 }
 
 /// Builder type to create an instance of the [`Renderer`]

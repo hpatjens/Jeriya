@@ -65,6 +65,8 @@ pub enum Error {
     PhysicalDeviceError(#[from] physical_device::Error),
     #[error("Failed to find a suitable swapchain surface format")]
     SwapchainSurfaceFormatError,
+    #[error("Failed to find the WindowId: {:?}", .0)]
+    UnknownWindowId(WindowId),
 }
 
 impl From<Error> for jeriya_shared::Error {
@@ -91,7 +93,7 @@ pub struct Config {
 
 pub struct Ash {
     _swapchains: HashMap<WindowId, Swapchain>,
-    _surfaces: HashMap<WindowId, Surface>,
+    _surfaces: HashMap<WindowId, Arc<Surface>>,
     _device: Arc<Device>,
     _validation_layer_callback: Option<ValidationLayerCallback>,
     _instance: Arc<Instance>,
@@ -141,7 +143,7 @@ impl Backend for Ash {
                 let surface = Surface::new(&entry, &instance, &window)?;
                 Ok((*window_id, surface))
             })
-            .collect::<Result<HashMap<WindowId, Surface>>>()?;
+            .collect::<Result<HashMap<WindowId, Arc<Surface>>>>()?;
 
         // Device
         let physical_device = PhysicalDevice::new(&instance, surfaces.values())?;
@@ -151,7 +153,7 @@ impl Backend for Ash {
         let swapchains = surfaces
             .iter()
             .map(|(window_id, surface)| {
-                let swapchain = Swapchain::new(&instance, &device, surface)?;
+                let swapchain = Swapchain::new(&instance, &device, &surface)?;
                 Ok((*window_id, swapchain))
             })
             .collect::<Result<HashMap<WindowId, Swapchain>>>()?;
@@ -164,6 +166,12 @@ impl Backend for Ash {
             _swapchains: swapchains,
             _surfaces: surfaces,
         })
+    }
+
+    fn handle_window_resized(&self, window_id: WindowId) -> jeriya_shared::Result<()> {
+        let swapchain = self._swapchains.get(&window_id).ok_or_else(|| Error::UnknownWindowId(window_id))?;
+        swapchain.recreate()?;
+        Ok(())
     }
 }
 

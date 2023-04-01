@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use ash::vk::{self, PhysicalDeviceType};
 use jeriya_shared::log::info;
 
@@ -34,7 +36,7 @@ impl AsRawVulkan for PhysicalDevice {
 
 impl PhysicalDevice {
     /// Select a physical device that can be used for the device creation
-    pub fn new<'s>(instance: &Instance, surfaces: impl IntoIterator<Item = &'s Surface>) -> crate::Result<PhysicalDevice> {
+    pub fn new<'s>(instance: &Instance, surfaces: impl IntoIterator<Item = &'s Arc<Surface>>) -> crate::Result<PhysicalDevice> {
         let instance = instance.as_raw_vulkan();
 
         let surfaces = surfaces.into_iter().collect::<Vec<_>>();
@@ -98,7 +100,7 @@ fn rate_physical_devices(instance: &ash::Instance, physical_devices: Vec<vk::Phy
 fn get_presentation_graphics_queue_families(
     instance: &ash::Instance,
     physical_device: &vk::PhysicalDevice,
-    surfaces: &[&Surface],
+    surfaces: &[&Arc<Surface>],
 ) -> crate::Result<Vec<SuitableQueueFamilyInfo>> {
     let physical_device_queue_family_properties = unsafe { instance.get_physical_device_queue_family_properties(*physical_device) };
     let mut queues = Vec::new();
