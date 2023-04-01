@@ -1,6 +1,9 @@
-use std::ffi::{CStr, CString};
+use std::{
+    ffi::{CStr, CString},
+    sync::Arc,
+};
 
-use crate::{Error, IntoJeriya, RawVulkan, Result};
+use crate::{entry::Entry, Error, IntoJeriya, RawVulkan, Result};
 
 use ash::{
     extensions::{
@@ -8,12 +11,12 @@ use ash::{
         khr::{self},
     },
     vk::{self},
-    Entry,
 };
 use jeriya_shared::log::info;
 
 /// Wrapper for [`ash::Instance`]
 pub struct Instance {
+    entry: Arc<Entry>,
     ash_instance: ash::Instance,
     available_layers: Vec<String>,
     active_layers: Vec<String>,
@@ -22,7 +25,7 @@ pub struct Instance {
 
 impl Instance {
     /// Creates a Vulkan instance with a default configuration of layers and extensions
-    pub fn new(entry: &Entry, application_name: &str, enable_validation_layer: bool) -> Result<Instance> {
+    pub fn new(entry: &Arc<Entry>, application_name: &str, enable_validation_layer: bool) -> Result<Arc<Instance>> {
         let application_name = CString::new(application_name).unwrap();
 
         // Available Layers
@@ -77,14 +80,15 @@ impl Instance {
             .enabled_layer_names(&layers_names_ptrs)
             .enabled_extension_names(&extension_names_ptrs);
 
-        let ash_instance = unsafe { entry.create_instance(&create_info, None).into_jeriya()? };
+        let ash_instance = unsafe { entry.raw_vulkan().create_instance(&create_info, None).into_jeriya()? };
 
-        Ok(Instance {
+        Ok(Arc::new(Instance {
+            entry: entry.clone(),
             ash_instance,
             available_layers,
             active_layers,
             active_extensions,
-        })
+        }))
     }
 }
 
@@ -104,7 +108,7 @@ fn list_strings<'a>(strings: impl IntoIterator<Item = impl AsRef<str>>) -> Strin
 }
 
 fn available_layers(entry: &Entry) -> Result<Vec<String>> {
-    let layer_properties = entry.enumerate_instance_layer_properties()?;
+    let layer_properties = entry.raw_vulkan().enumerate_instance_layer_properties()?;
     let result = layer_properties
         .iter()
         .map(|properties| &properties.layer_name)
@@ -119,13 +123,13 @@ mod tests {
 
     #[test]
     fn create_instance_validation_active() {
-        let entry = unsafe { Entry::load().map_err(Error::LoadingError).unwrap() };
+        let entry = Entry::new().unwrap();
         let _instance = Instance::new(&entry, "my_test_application", true).unwrap();
     }
 
     #[test]
     fn create_instance_validation_inactive() {
-        let entry = unsafe { Entry::load().map_err(Error::LoadingError).unwrap() };
+        let entry = Entry::new().unwrap();
         let _instance = Instance::new(&entry, "my_test_application", false).unwrap();
     }
 }

@@ -1,28 +1,33 @@
-use std::{default::Default, os::raw::c_void, ptr};
+use std::{default::Default, os::raw::c_void, ptr, sync::Arc};
 
 use ash::{
     extensions::khr::{self},
-    vk, Entry,
+    vk,
 };
 
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use winapi::um::libloaderapi::GetModuleHandleW;
 
-use crate::{instance::Instance, Error, RawVulkan};
+use crate::{entry::Entry, instance::Instance, Error, RawVulkan};
 use jeriya_shared::winit;
 
 /// Surface of a window to create the `Swapchain`.
 pub struct Surface {
     surface_khr: vk::SurfaceKHR,
     surface: khr::Surface,
+    _entry: Arc<Entry>,
 }
 
 impl Surface {
     /// Creates a new `Surface` for the given window.
-    pub fn new(entry: &Entry, instance: &Instance, window: &winit::window::Window) -> crate::Result<Surface> {
+    pub fn new(entry: &Arc<Entry>, instance: &Arc<Instance>, window: &winit::window::Window) -> crate::Result<Surface> {
         let surface_khr = unsafe { create_surface_khr(entry, instance, window) }?;
-        let surface = khr::Surface::new(&entry, &instance.raw_vulkan());
-        Ok(Surface { surface_khr, surface })
+        let surface = khr::Surface::new(entry.raw_vulkan(), &instance.raw_vulkan());
+        Ok(Surface {
+            surface_khr,
+            surface,
+            _entry: entry.clone(),
+        })
     }
 
     /// Returns whether the given queue family index of the physical device supports presentation
@@ -54,7 +59,7 @@ unsafe fn create_surface_khr(entry: &Entry, instance: &Instance, window: &winit:
         hwnd,
         ..Default::default()
     };
-    let win32_surface_loader = khr::Win32Surface::new(entry, instance.raw_vulkan());
+    let win32_surface_loader = khr::Win32Surface::new(entry.raw_vulkan(), instance.raw_vulkan());
     Ok(win32_surface_loader.create_win32_surface(&win32_create_info, None)?)
 }
 
@@ -70,7 +75,7 @@ mod tests {
         #[test]
         fn smoke() {
             let window = create_window();
-            let entry = unsafe { Entry::load().unwrap() };
+            let entry = Entry::new().unwrap();
             let instance = Instance::new(&entry, &"my_application", true).unwrap();
             let _surface = Surface::new(&entry, &instance, &window).unwrap();
         }

@@ -1,25 +1,23 @@
 mod debug;
+mod entry;
 mod instance;
 mod physical_device;
 mod surface;
 
-use std::{ffi::NulError, str::Utf8Error};
+use std::{ffi::NulError, str::Utf8Error, sync::Arc};
 
+use debug::ValidationLayerCallback;
 use instance::Instance;
 use jeriya::Backend;
 
 use ash::{
     prelude::VkResult,
     vk::{self},
-    Entry, LoadingError,
+    LoadingError,
 };
 use jeriya_shared::{log::info, winit::window::Window, RendererConfig};
 
-use crate::{
-    debug::{set_panic_on_message, setup_debug_utils},
-    physical_device::PhysicalDevice,
-    surface::Surface,
-};
+use crate::{debug::set_panic_on_message, entry::Entry, physical_device::PhysicalDevice, surface::Surface};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -81,8 +79,9 @@ pub struct Config {
 }
 
 pub struct Ash {
-    entry: Entry,
-    instance: Instance,
+    _validation_layer_callback: Option<ValidationLayerCallback>,
+    _instance: Arc<Instance>,
+    _entry: Arc<Entry>,
 }
 
 impl Backend for Ash {
@@ -97,7 +96,7 @@ impl Backend for Ash {
         }
 
         info!("Creating Vulkan Entry");
-        let entry = unsafe { Entry::load().map_err(Error::LoadingError)? };
+        let entry = Entry::new()?;
 
         info!("Creating Vulkan Instance");
         let application_name = renderer_config.application_name.unwrap_or(env!("CARGO_PKG_NAME").to_owned());
@@ -108,16 +107,17 @@ impl Backend for Ash {
         )?;
 
         // Validation Layer Callback
-        match backend_config.validation_layer {
+        let validation_layer_callback = match backend_config.validation_layer {
             ValidationLayerConfig::Disabled => {
                 info!("Skipping validation layer callback setup");
+                None
             }
             ValidationLayerConfig::Enabled { panic_on_message } => {
                 info!("Setting up validation layer callback");
                 set_panic_on_message(panic_on_message);
-                setup_debug_utils(&entry, &instance)?;
+                Some(ValidationLayerCallback::new(&entry, &instance)?)
             }
-        }
+        };
 
         // Surfaces
         let surfaces = windows
@@ -125,9 +125,13 @@ impl Backend for Ash {
             .map(|window| Surface::new(&entry, &instance, &window))
             .collect::<Result<Vec<Surface>>>()?;
 
-        let physical_device = PhysicalDevice::new(&instance, &surfaces)?;
+        let _physical_device = PhysicalDevice::new(&instance, &surfaces)?;
 
-        Ok(Self { entry, instance })
+        Ok(Self {
+            _validation_layer_callback: validation_layer_callback,
+            _entry: entry,
+            _instance: instance,
+        })
     }
 }
 

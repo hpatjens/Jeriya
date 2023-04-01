@@ -1,12 +1,15 @@
 use std::{
     ffi::CStr,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
-use ash::{extensions::ext::DebugUtils, vk, Entry};
+use ash::{extensions::ext::DebugUtils, vk};
 use jeriya_shared::log::{error, info, warn};
 
-use crate::{instance::Instance, RawVulkan, Result};
+use crate::{entry::Entry, instance::Instance, RawVulkan, Result};
 
 static PANIC_ON_MESSAGE: AtomicBool = AtomicBool::new(true);
 
@@ -15,25 +18,38 @@ pub fn set_panic_on_message(value: bool) {
     PANIC_ON_MESSAGE.store(value, Ordering::SeqCst);
 }
 
-/// Sets up the validation layer callback that logs the validation layer messages
-pub fn setup_debug_utils(entry: &Entry, instance: &Instance) -> Result<()> {
-    let debug_utils = DebugUtils::new(&entry, &instance.raw_vulkan());
-    let create_info = vk::DebugUtilsMessengerCreateInfoEXT {
-        flags: vk::DebugUtilsMessengerCreateFlagsEXT::empty(),
-        message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
-            | vk::DebugUtilsMessageSeverityFlagsEXT::INFO
-            | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-            | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
-        message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-            | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
-            | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
-        pfn_user_callback: Some(debug_utils_messenger_callback),
-        ..Default::default()
-    };
-    unsafe {
-        debug_utils.create_debug_utils_messenger(&create_info, None)?;
+/// Represents the callback of the validation layer
+pub struct ValidationLayerCallback {
+    entry: Arc<Entry>,
+    instance: Arc<Instance>,
+    debug_utils: DebugUtils,
+}
+
+impl ValidationLayerCallback {
+    /// Sets up the validation layer callback that logs the validation layer messages
+    pub fn new(entry: &Arc<Entry>, instance: &Arc<Instance>) -> Result<ValidationLayerCallback> {
+        let debug_utils = DebugUtils::new(&entry.raw_vulkan(), &instance.raw_vulkan());
+        let create_info = vk::DebugUtilsMessengerCreateInfoEXT {
+            flags: vk::DebugUtilsMessengerCreateFlagsEXT::empty(),
+            message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
+                | vk::DebugUtilsMessageSeverityFlagsEXT::INFO
+                | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+                | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
+            message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+                | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
+                | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
+            pfn_user_callback: Some(debug_utils_messenger_callback),
+            ..Default::default()
+        };
+        unsafe {
+            debug_utils.create_debug_utils_messenger(&create_info, None)?;
+        }
+        Ok(ValidationLayerCallback {
+            debug_utils,
+            entry: entry.clone(),
+            instance: instance.clone(),
+        })
     }
-    Ok(())
 }
 
 unsafe extern "system" fn debug_utils_messenger_callback(

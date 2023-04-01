@@ -110,15 +110,14 @@ fn get_presentation_graphics_queue_families(
 #[cfg(test)]
 mod tests {
     mod new {
-        use ash::Entry;
         use jeriya_test::create_window;
 
-        use crate::{instance::Instance, physical_device::PhysicalDevice, surface::Surface};
+        use crate::{entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface};
 
         #[test]
         fn smoke() {
             let window = create_window();
-            let entry = unsafe { Entry::load().unwrap() };
+            let entry = Entry::new().unwrap();
             let instance = Instance::new(&entry, &"my_application", true).unwrap();
             let surfaces = [Surface::new(&entry, &instance, &window).unwrap()];
             let _physical_device = PhysicalDevice::new(&instance, &surfaces).unwrap();
