@@ -13,14 +13,22 @@ pub enum Error {
 
 #[derive(Debug)]
 pub struct SuitableQueueFamilyInfo {
-    queue_family_index: u32,
-    queue_count: u32,
+    pub queue_family_index: u32,
+    pub queue_count: u32,
 }
 
 #[derive(Debug)]
 pub struct PhysicalDevice {
+    pub suitable_presentation_graphics_queue_family_infos: Vec<SuitableQueueFamilyInfo>,
+    pub physical_device_properties: vk::PhysicalDeviceProperties,
     physical_device: vk::PhysicalDevice,
-    suitable_presentation_graphics_queue_family_infos: Vec<SuitableQueueFamilyInfo>,
+}
+
+impl AsRawVulkan for PhysicalDevice {
+    type Output = vk::PhysicalDevice;
+    fn as_raw_vulkan(&self) -> &Self::Output {
+        &self.physical_device
+    }
 }
 
 impl PhysicalDevice {
@@ -45,8 +53,9 @@ impl PhysicalDevice {
             let queues = get_presentation_graphics_queue_families(instance, &physical_device, surfaces)?;
             if !queues.is_empty() {
                 return Ok(PhysicalDevice {
-                    physical_device,
                     suitable_presentation_graphics_queue_family_infos: queues,
+                    physical_device_properties,
+                    physical_device,
                 });
             }
         }

@@ -1,4 +1,5 @@
 mod debug;
+mod device;
 mod entry;
 mod instance;
 mod physical_device;
@@ -17,7 +18,7 @@ use ash::{
 };
 use jeriya_shared::{log::info, winit::window::Window, RendererConfig};
 
-use crate::{debug::set_panic_on_message, entry::Entry, physical_device::PhysicalDevice, surface::Surface};
+use crate::{debug::set_panic_on_message, device::Device, entry::Entry, physical_device::PhysicalDevice, surface::Surface};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -79,6 +80,7 @@ pub struct Config {
 }
 
 pub struct Ash {
+    _device: Arc<Device>,
     _validation_layer_callback: Option<ValidationLayerCallback>,
     _instance: Arc<Instance>,
     _entry: Arc<Entry>,
@@ -125,9 +127,12 @@ impl Backend for Ash {
             .map(|window| Surface::new(&entry, &instance, &window))
             .collect::<Result<Vec<Surface>>>()?;
 
-        let _physical_device = PhysicalDevice::new(&instance, &surfaces)?;
+        let physical_device = PhysicalDevice::new(&instance, &surfaces)?;
+
+        let device = Device::new(physical_device, &instance)?;
 
         Ok(Self {
+            _device: device,
             _validation_layer_callback: validation_layer_callback,
             _entry: entry,
             _instance: instance,

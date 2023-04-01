@@ -85,7 +85,7 @@ unsafe extern "system" fn debug_utils_messenger_callback(
         let message = CStr::from_ptr((*p_callback_data).p_message)
             .to_str()
             .expect("failed to convert validation layer message to str");
-        format!("[DebugUtils] [{types}] {message}")
+        format!("[ValidationLayer] [{types}] {message}")
     };
 
     let write_function = match message_severity {
@@ -96,7 +96,11 @@ unsafe extern "system" fn debug_utils_messenger_callback(
         _ => panic!("Unhandled severity \"{message_severity:?}\"; message: {message}"),
     };
 
-    if PANIC_ON_MESSAGE.load(Ordering::SeqCst) {
+    let is_ok = matches!(
+        message_severity,
+        vk::DebugUtilsMessageSeverityFlagsEXT::INFO | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
+    );
+    if PANIC_ON_MESSAGE.load(Ordering::SeqCst) && !is_ok {
         panic!("{}", message);
     } else {
         write_function(message);
@@ -122,7 +126,7 @@ mod tests {
             };
             unsafe {
                 debug_utils_messenger_callback(
-                    vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
+                    vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
                     vk::DebugUtilsMessageTypeFlagsEXT::GENERAL,
                     &data as *const vk::DebugUtilsMessengerCallbackDataEXT,
                     std::ptr::null::<()>() as *mut c_void,
