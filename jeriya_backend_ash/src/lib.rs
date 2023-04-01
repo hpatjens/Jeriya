@@ -3,6 +3,7 @@ mod device;
 mod entry;
 mod instance;
 mod physical_device;
+mod queue;
 mod surface;
 
 use std::{ffi::NulError, str::Utf8Error, sync::Arc};
