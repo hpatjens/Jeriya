@@ -66,14 +66,17 @@ impl Swapchain {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn extent(&self) -> vk::Extent2D {
         self.inner.borrow().extent
     }
 
+    #[allow(dead_code)]
     pub fn surface_format(&self) -> vk::SurfaceFormatKHR {
         self.inner.borrow()._format
     }
 
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.inner.borrow()._images.len()
     }

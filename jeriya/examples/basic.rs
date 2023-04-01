@@ -47,7 +47,7 @@ fn main() -> io::Result<()> {
                 window_id,
                 event: WindowEvent::Resized(..),
             } => {
-                renderer.window_resized(window_id);
+                renderer.window_resized(window_id).unwrap();
             }
             Event::MainEventsCleared => {
                 window.request_redraw();

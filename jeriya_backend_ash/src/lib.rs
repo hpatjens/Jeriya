@@ -44,7 +44,7 @@ impl<T> IntoJeriya for VkResult<T> {
     type Output = Result<T>;
 
     fn into_jeriya(self) -> Self::Output {
-        self.map_err(|err| Error::Result(err))
+        self.map_err(Error::Result)
     }
 }
 
@@ -140,7 +140,7 @@ impl Backend for Ash {
         let surfaces = windows
             .iter()
             .map(|(window_id, window)| {
-                let surface = Surface::new(&entry, &instance, &window)?;
+                let surface = Surface::new(&entry, &instance, window)?;
                 Ok((*window_id, surface))
             })
             .collect::<Result<HashMap<WindowId, Arc<Surface>>>>()?;
@@ -153,7 +153,7 @@ impl Backend for Ash {
         let swapchains = surfaces
             .iter()
             .map(|(window_id, surface)| {
-                let swapchain = Swapchain::new(&instance, &device, &surface)?;
+                let swapchain = Swapchain::new(&instance, &device, surface)?;
                 Ok((*window_id, swapchain))
             })
             .collect::<Result<HashMap<WindowId, Swapchain>>>()?;

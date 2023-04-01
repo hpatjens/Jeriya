@@ -22,7 +22,7 @@ impl Surface {
     /// Creates a new `Surface` for the given window.
     pub fn new(entry: &Arc<Entry>, instance: &Arc<Instance>, window: &winit::window::Window) -> crate::Result<Arc<Surface>> {
         let surface_khr = unsafe { create_surface_khr(entry, instance, window) }?;
-        let surface = khr::Surface::new(entry.as_raw_vulkan(), &instance.as_raw_vulkan());
+        let surface = khr::Surface::new(entry.as_raw_vulkan(), instance.as_raw_vulkan());
         Ok(Arc::new(Surface {
             surface_khr,
             surface,

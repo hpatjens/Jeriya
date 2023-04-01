@@ -37,7 +37,7 @@ impl Device {
             .map(|(suitable_queue_family_info, priorities)| {
                 vk::DeviceQueueCreateInfo::builder()
                     .queue_family_index(suitable_queue_family_info.queue_family_index)
-                    .queue_priorities(&priorities)
+                    .queue_priorities(priorities)
                     .build()
             })
             .collect::<Vec<_>>();
@@ -53,7 +53,7 @@ impl Device {
         };
 
         // Queues
-        assert!(physical_device.suitable_presentation_graphics_queue_family_infos.len() > 0);
+        assert!(!physical_device.suitable_presentation_graphics_queue_family_infos.is_empty());
         assert!(physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_count > 0);
         let queue_family_index = physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_family_index;
         let queue_index = 0;

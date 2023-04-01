@@ -45,7 +45,7 @@ impl Instance {
                 available_layers
                     .iter()
                     .cloned()
-                    .filter(|layer| layer == &"VK_LAYER_LUNARG_standard_validation" || layer == &"VK_LAYER_KHRONOS_validation")
+                    .filter(|layer| layer == "VK_LAYER_LUNARG_standard_validation" || layer == "VK_LAYER_KHRONOS_validation")
                     .collect::<Vec<_>>(),
             );
         }
@@ -64,11 +64,11 @@ impl Instance {
         let active_layers_c = active_layers
             .iter()
             .cloned()
-            .map(|layer| CString::new(layer.as_str()).map_err(|err| Error::StringNulError(err)))
+            .map(|layer| CString::new(layer.as_str()).map_err(Error::StringNulError))
             .collect::<Result<Vec<_>>>()?;
         let active_extension_c = active_extensions
             .iter()
-            .map(|s| CString::new(s.clone()).map_err(|err| Error::StringNulError(err)))
+            .map(|s| CString::new(s.clone()).map_err(Error::StringNulError))
             .collect::<Result<Vec<_>>>()?;
 
         let layers_names_ptrs: Vec<*const i8> = active_layers_c.iter().map(|raw_name| raw_name.as_ptr()).collect();
@@ -105,7 +105,7 @@ impl AsRawVulkan for Instance {
     }
 }
 
-fn list_strings<'a>(strings: impl IntoIterator<Item = impl AsRef<str>>) -> String {
+fn list_strings(strings: impl IntoIterator<Item = impl AsRef<str>>) -> String {
     strings
         .into_iter()
         .map(|s| format!("\t{}", s.as_ref()))
@@ -118,7 +118,7 @@ fn available_layers(entry: &Entry) -> Result<Vec<String>> {
     let result = layer_properties
         .iter()
         .map(|properties| &properties.layer_name)
-        .map(|array| Ok(jeriya_shared::c_null_terminated_char_array_to_string(array).map_err(|err| Error::StringUtf8Error(err))?))
+        .map(|array| jeriya_shared::c_null_terminated_char_array_to_string(array).map_err(Error::StringUtf8Error))
         .collect::<Result<Vec<_>>>()?;
     Ok(result)
 }
