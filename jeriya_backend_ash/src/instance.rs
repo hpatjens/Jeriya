@@ -16,11 +16,17 @@ use jeriya_shared::log::info;
 
 /// Wrapper for [`ash::Instance`]
 pub struct Instance {
-    entry: Arc<Entry>,
-    ash_instance: ash::Instance,
     available_layers: Vec<String>,
     active_layers: Vec<String>,
     active_extensions: Vec<String>,
+    ash_instance: ash::Instance,
+    _entry: Arc<Entry>,
+}
+
+impl Drop for Instance {
+    fn drop(&mut self) {
+        unsafe { self.ash_instance.destroy_instance(None) };
+    }
 }
 
 impl Instance {
@@ -83,7 +89,7 @@ impl Instance {
         let ash_instance = unsafe { entry.as_raw_vulkan().create_instance(&create_info, None).into_jeriya()? };
 
         Ok(Arc::new(Instance {
-            entry: entry.clone(),
+            _entry: entry.clone(),
             ash_instance,
             available_layers,
             active_layers,

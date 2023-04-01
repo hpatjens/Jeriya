@@ -20,9 +20,16 @@ pub fn set_panic_on_message(value: bool) {
 
 /// Represents the callback of the validation layer
 pub struct ValidationLayerCallback {
-    entry: Arc<Entry>,
-    instance: Arc<Instance>,
+    messenger: vk::DebugUtilsMessengerEXT,
     debug_utils: DebugUtils,
+    _instance: Arc<Instance>,
+    _entry: Arc<Entry>,
+}
+
+impl Drop for ValidationLayerCallback {
+    fn drop(&mut self) {
+        unsafe { self.debug_utils.destroy_debug_utils_messenger(self.messenger, None) };
+    }
 }
 
 impl ValidationLayerCallback {
@@ -41,13 +48,12 @@ impl ValidationLayerCallback {
             pfn_user_callback: Some(debug_utils_messenger_callback),
             ..Default::default()
         };
-        unsafe {
-            debug_utils.create_debug_utils_messenger(&create_info, None)?;
-        }
+        let messenger = unsafe { debug_utils.create_debug_utils_messenger(&create_info, None)? };
         Ok(ValidationLayerCallback {
+            messenger,
             debug_utils,
-            entry: entry.clone(),
-            instance: instance.clone(),
+            _entry: entry.clone(),
+            _instance: instance.clone(),
         })
     }
 }
