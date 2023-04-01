@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use crate::{Error, RawVulkan};
+use crate::{AsRawVulkan, Error};
 
 pub struct Entry {
     entry: ash::Entry,
 }
 
-impl RawVulkan for Entry {
+impl AsRawVulkan for Entry {
     type Output = ash::Entry;
-    fn raw_vulkan(&self) -> &Self::Output {
+    fn as_raw_vulkan(&self) -> &Self::Output {
         &self.entry
     }
 }

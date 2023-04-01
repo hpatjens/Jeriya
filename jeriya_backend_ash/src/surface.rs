@@ -8,7 +8,7 @@ use ash::{
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use winapi::um::libloaderapi::GetModuleHandleW;
 
-use crate::{entry::Entry, instance::Instance, Error, RawVulkan};
+use crate::{entry::Entry, instance::Instance, AsRawVulkan, Error};
 use jeriya_shared::winit;
 
 /// Surface of a window to create the `Swapchain`.
@@ -22,7 +22,7 @@ impl Surface {
     /// Creates a new `Surface` for the given window.
     pub fn new(entry: &Arc<Entry>, instance: &Arc<Instance>, window: &winit::window::Window) -> crate::Result<Surface> {
         let surface_khr = unsafe { create_surface_khr(entry, instance, window) }?;
-        let surface = khr::Surface::new(entry.raw_vulkan(), &instance.raw_vulkan());
+        let surface = khr::Surface::new(entry.as_raw_vulkan(), &instance.as_raw_vulkan());
         Ok(Surface {
             surface_khr,
             surface,
@@ -59,7 +59,7 @@ unsafe fn create_surface_khr(entry: &Entry, instance: &Instance, window: &winit:
         hwnd,
         ..Default::default()
     };
-    let win32_surface_loader = khr::Win32Surface::new(entry.raw_vulkan(), instance.raw_vulkan());
+    let win32_surface_loader = khr::Win32Surface::new(entry.as_raw_vulkan(), instance.as_raw_vulkan());
     Ok(win32_surface_loader.create_win32_surface(&win32_create_info, None)?)
 }
 

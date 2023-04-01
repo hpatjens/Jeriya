@@ -9,7 +9,7 @@ use std::{
 use ash::{extensions::ext::DebugUtils, vk};
 use jeriya_shared::log::{error, info, warn};
 
-use crate::{entry::Entry, instance::Instance, RawVulkan, Result};
+use crate::{entry::Entry, instance::Instance, AsRawVulkan, Result};
 
 static PANIC_ON_MESSAGE: AtomicBool = AtomicBool::new(true);
 
@@ -28,7 +28,7 @@ pub struct ValidationLayerCallback {
 impl ValidationLayerCallback {
     /// Sets up the validation layer callback that logs the validation layer messages
     pub fn new(entry: &Arc<Entry>, instance: &Arc<Instance>) -> Result<ValidationLayerCallback> {
-        let debug_utils = DebugUtils::new(&entry.raw_vulkan(), &instance.raw_vulkan());
+        let debug_utils = DebugUtils::new(&entry.as_raw_vulkan(), &instance.as_raw_vulkan());
         let create_info = vk::DebugUtilsMessengerCreateInfoEXT {
             flags: vk::DebugUtilsMessengerCreateFlagsEXT::empty(),
             message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE

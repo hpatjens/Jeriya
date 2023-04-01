@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{entry::Entry, Error, IntoJeriya, RawVulkan, Result};
+use crate::{entry::Entry, AsRawVulkan, Error, IntoJeriya, Result};
 
 use ash::{
     extensions::{
@@ -80,7 +80,7 @@ impl Instance {
             .enabled_layer_names(&layers_names_ptrs)
             .enabled_extension_names(&extension_names_ptrs);
 
-        let ash_instance = unsafe { entry.raw_vulkan().create_instance(&create_info, None).into_jeriya()? };
+        let ash_instance = unsafe { entry.as_raw_vulkan().create_instance(&create_info, None).into_jeriya()? };
 
         Ok(Arc::new(Instance {
             entry: entry.clone(),
@@ -92,9 +92,9 @@ impl Instance {
     }
 }
 
-impl RawVulkan for Instance {
+impl AsRawVulkan for Instance {
     type Output = ash::Instance;
-    fn raw_vulkan(&self) -> &Self::Output {
+    fn as_raw_vulkan(&self) -> &Self::Output {
         &self.ash_instance
     }
 }
@@ -108,7 +108,7 @@ fn list_strings<'a>(strings: impl IntoIterator<Item = impl AsRef<str>>) -> Strin
 }
 
 fn available_layers(entry: &Entry) -> Result<Vec<String>> {
-    let layer_properties = entry.raw_vulkan().enumerate_instance_layer_properties()?;
+    let layer_properties = entry.as_raw_vulkan().enumerate_instance_layer_properties()?;
     let result = layer_properties
         .iter()
         .map(|properties| &properties.layer_name)

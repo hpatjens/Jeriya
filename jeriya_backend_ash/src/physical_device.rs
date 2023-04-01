@@ -1,7 +1,7 @@
 use ash::vk::{self, PhysicalDeviceType};
 use jeriya_shared::log::info;
 
-use crate::{instance::Instance, surface::Surface, RawVulkan};
+use crate::{instance::Instance, surface::Surface, AsRawVulkan};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -26,7 +26,7 @@ pub struct PhysicalDevice {
 impl PhysicalDevice {
     /// Select a physical device that can be used for the device creation
     pub fn new(instance: &Instance, surfaces: &[Surface]) -> crate::Result<PhysicalDevice> {
-        let instance = instance.raw_vulkan();
+        let instance = instance.as_raw_vulkan();
 
         // Get Physical Devices
         let physical_devices = unsafe { instance.enumerate_physical_devices()? };

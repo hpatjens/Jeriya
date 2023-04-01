@@ -21,9 +21,9 @@ use crate::{debug::set_panic_on_message, entry::Entry, physical_device::Physical
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-pub(crate) trait RawVulkan {
+pub(crate) trait AsRawVulkan {
     type Output;
-    fn raw_vulkan(&self) -> &Self::Output;
+    fn as_raw_vulkan(&self) -> &Self::Output;
 }
 
 pub(crate) trait IntoJeriya {
