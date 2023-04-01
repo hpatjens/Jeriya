@@ -81,6 +81,7 @@ pub struct Config {
 }
 
 pub struct Ash {
+    entry: Entry,
     instance: Instance,
 }
 
@@ -126,7 +127,7 @@ impl Backend for Ash {
 
         let physical_device = PhysicalDevice::new(&instance, &surfaces)?;
 
-        Ok(Self { instance })
+        Ok(Self { entry, instance })
     }
 }
 
