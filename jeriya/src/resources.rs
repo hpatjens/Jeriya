@@ -87,7 +87,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use jeriya_shared::{debug_info, winit::window::Window};
+    use jeriya_shared::{
+        debug_info,
+        winit::window::{Window, WindowId},
+    };
 
     use crate::{Backend, Renderer};
 
@@ -104,6 +107,10 @@ mod tests {
             Self: Sized,
         {
             Ok(Self)
+        }
+
+        fn handle_window_resized(&self, _window_id: WindowId) -> jeriya_shared::Result<()> {
+            Ok(())
         }
     }
 
