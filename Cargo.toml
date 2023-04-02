@@ -1,2 +1,2 @@
 [workspace]
-members = ["jeriya", "jeriya_backend_ash", "jeriya_shared", "jeriya_test"]
+members = ["jeriya", "jeriya_backend_ash", "jeriya_backend_ash_core", "jeriya_shared", "jeriya_test"]

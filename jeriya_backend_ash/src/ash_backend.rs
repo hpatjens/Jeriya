@@ -1,14 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use jeriya::Backend;
-
-use jeriya_shared::{
-    log::info,
-    winit::window::{Window, WindowId},
-    RendererConfig,
-};
-
-use crate::{
+use jeriya_backend_ash_core as core;
+use jeriya_backend_ash_core::{
     debug::{set_panic_on_message, ValidationLayerCallback},
     device::Device,
     entry::Entry,
@@ -17,6 +11,11 @@ use crate::{
     surface::Surface,
     swapchain::Swapchain,
     Config, ValidationLayerConfig,
+};
+use jeriya_shared::{
+    log::info,
+    winit::window::{Window, WindowId},
+    RendererConfig,
 };
 
 pub struct Ash {
@@ -71,7 +70,7 @@ impl Backend for Ash {
                 let surface = Surface::new(&entry, &instance, window)?;
                 Ok((*window_id, surface))
             })
-            .collect::<crate::Result<HashMap<WindowId, Arc<Surface>>>>()?;
+            .collect::<core::Result<HashMap<WindowId, Arc<Surface>>>>()?;
 
         // Device
         let physical_device = PhysicalDevice::new(&instance, surfaces.values())?;
@@ -84,7 +83,7 @@ impl Backend for Ash {
                 let swapchain = Swapchain::new(&instance, &device, surface)?;
                 Ok((*window_id, swapchain))
             })
-            .collect::<crate::Result<HashMap<WindowId, Swapchain>>>()?;
+            .collect::<core::Result<HashMap<WindowId, Swapchain>>>()?;
 
         Ok(Self {
             _device: device,
@@ -100,7 +99,7 @@ impl Backend for Ash {
         let swapchain = self
             ._swapchains
             .get(&window_id)
-            .ok_or_else(|| crate::Error::UnknownWindowId(window_id))?;
+            .ok_or_else(|| core::Error::UnknownWindowId(window_id))?;
         swapchain.recreate()?;
         Ok(())
     }
