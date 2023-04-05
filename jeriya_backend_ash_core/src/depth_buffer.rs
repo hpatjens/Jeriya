@@ -6,10 +6,10 @@ use crate::{device::Device, swapchain::Swapchain, AsRawVulkan};
 
 /// Depth Buffer for the Swapchain
 pub struct SwapchainDepthBuffer {
+    pub depth_image: vk::Image,
+    pub depth_image_memory: vk::DeviceMemory,
+    pub depth_image_view: vk::ImageView,
     device: Arc<Device>,
-    depth_image: vk::Image,
-    depth_image_memory: vk::DeviceMemory,
-    depth_image_view: vk::ImageView,
 }
 
 impl Drop for SwapchainDepthBuffer {

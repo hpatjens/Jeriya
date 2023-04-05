@@ -76,6 +76,13 @@ impl SwapchainRenderPass {
     }
 }
 
+impl AsRawVulkan for SwapchainRenderPass {
+    type Output = vk::RenderPass;
+    fn as_raw_vulkan(&self) -> &Self::Output {
+        &self.render_pass
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::iter;

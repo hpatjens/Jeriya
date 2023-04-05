@@ -66,6 +66,11 @@ impl Swapchain {
         Ok(())
     }
 
+    /// Returns a copy of the `ImageView`s for the swapchain images
+    pub fn image_views(&self) -> Vec<vk::ImageView> {
+        self.inner.borrow().image_views.clone()
+    }
+
     #[allow(dead_code)]
     pub fn extent(&self) -> vk::Extent2D {
         self.inner.borrow().extent
