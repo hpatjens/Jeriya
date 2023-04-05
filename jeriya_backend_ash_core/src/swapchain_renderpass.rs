@@ -9,6 +9,14 @@ pub struct SwapchainRenderPass {
     device: Arc<Device>,
 }
 
+impl Drop for SwapchainRenderPass {
+    fn drop(&mut self) {
+        unsafe {
+            self.device.as_raw_vulkan().destroy_render_pass(self.render_pass, None);
+        }
+    }
+}
+
 impl SwapchainRenderPass {
     pub fn new(device: &Arc<Device>, swapchain: &Swapchain) -> crate::Result<Self> {
         let renderpass_attachments = [
@@ -65,14 +73,6 @@ impl SwapchainRenderPass {
             render_pass,
             device: device.clone(),
         })
-    }
-}
-
-impl Drop for SwapchainRenderPass {
-    fn drop(&mut self) {
-        unsafe {
-            self.device.as_raw_vulkan().destroy_render_pass(self.render_pass, None);
-        }
     }
 }
 
