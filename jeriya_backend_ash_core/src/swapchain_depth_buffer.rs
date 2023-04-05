@@ -6,19 +6,18 @@ use crate::{device::Device, swapchain::Swapchain, swapchain_vec::SwapchainVec, A
 
 /// Depth Buffer for the Swapchain
 pub struct SwapchainDepthBuffers {
-    _depth_buffers: SwapchainVec<SwapchainDepthBuffer>,
+    pub depth_buffers: SwapchainVec<SwapchainDepthBuffer>,
 }
 
 impl SwapchainDepthBuffers {
     /// Creates a new depth buffer for the given [`Swapchain`]
     pub fn new(device: &Arc<Device>, swapchain: &Swapchain) -> crate::Result<Self> {
         let depth_buffers = SwapchainVec::new(swapchain, |_| SwapchainDepthBuffer::new(device, swapchain))?;
-        Ok(Self {
-            _depth_buffers: depth_buffers,
-        })
+        Ok(Self { depth_buffers })
     }
 }
 
+#[non_exhaustive]
 pub struct SwapchainDepthBuffer {
     device: Arc<Device>,
     pub depth_image: vk::Image,
@@ -38,7 +37,7 @@ impl Drop for SwapchainDepthBuffer {
 }
 
 impl SwapchainDepthBuffer {
-    pub fn new(device: &Arc<Device>, swapchain: &Swapchain) -> crate::Result<Self> {
+    fn new(device: &Arc<Device>, swapchain: &Swapchain) -> crate::Result<Self> {
         // Image
         let format = vk::Format::D24_UNORM_S8_UINT;
         let depth_image = {

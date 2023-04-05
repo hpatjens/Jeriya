@@ -3,7 +3,7 @@ use std::sync::Arc;
 use ash::vk;
 
 use crate::{
-    device::Device, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_render_pass::SwapchainRenderPass,
+    device::Device, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffers, swapchain_render_pass::SwapchainRenderPass,
     AsRawVulkan,
 };
 
@@ -26,14 +26,15 @@ impl SwapchainFramebuffers {
     pub fn new(
         device: &Arc<Device>,
         swapchain: &Swapchain,
-        swapchain_depth_buffer: &SwapchainDepthBuffer,
+        swapchain_depth_buffers: &SwapchainDepthBuffers,
         swapchain_render_pass: &SwapchainRenderPass,
     ) -> crate::Result<Self> {
         let framebuffers = swapchain
             .image_views()
             .iter()
-            .map(|&present_image_view| {
-                let framebuffer_attachments = [present_image_view, swapchain_depth_buffer.depth_image_view];
+            .zip(swapchain_depth_buffers.depth_buffers.iter())
+            .map(|(present_image_view, depth_buffer)| {
+                let framebuffer_attachments = [*present_image_view, depth_buffer.depth_image_view];
                 let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
                     .render_pass(*swapchain_render_pass.as_raw_vulkan())
                     .attachments(&framebuffer_attachments)
@@ -59,7 +60,7 @@ mod tests {
 
         use crate::{
             device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface, swapchain::Swapchain,
-            swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_framebuffers::SwapchainFramebuffers,
+            swapchain_depth_buffer::SwapchainDepthBuffers, swapchain_framebuffers::SwapchainFramebuffers,
             swapchain_render_pass::SwapchainRenderPass,
         };
 
@@ -72,7 +73,7 @@ mod tests {
             let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
             let swapchain = Swapchain::new(&instance, &device, &surface).unwrap();
-            let swapchain_depth_buffer = SwapchainDepthBuffer::new(&device, &swapchain).unwrap();
+            let swapchain_depth_buffer = SwapchainDepthBuffers::new(&device, &swapchain).unwrap();
             let swapchain_render_pass = SwapchainRenderPass::new(&device, &swapchain).unwrap();
             let _swapchain_framebuffers =
                 SwapchainFramebuffers::new(&device, &swapchain, &swapchain_depth_buffer, &swapchain_render_pass).unwrap();

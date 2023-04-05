@@ -3,13 +3,14 @@ use std::sync::Arc;
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
     device::Device, instance::Instance, surface::Surface, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffer,
-    swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass,
+    swapchain_depth_buffer::SwapchainDepthBuffers, swapchain_framebuffers::SwapchainFramebuffers,
+    swapchain_render_pass::SwapchainRenderPass,
 };
 
 /// All the state that is required for presenting to the [`Surface`]
 pub struct Presenter {
     _swapchain: Swapchain,
-    _swapchain_depth_buffer: SwapchainDepthBuffer,
+    _swapchain_depth_buffers: SwapchainDepthBuffers,
     _swapchain_framebuffers: SwapchainFramebuffers,
     _swapchain_render_pass: SwapchainRenderPass,
 }
@@ -18,12 +19,12 @@ impl Presenter {
     /// Creates a new `Presenter` for the [`Surface`]
     pub fn new(instance: &Arc<Instance>, device: &Arc<Device>, surface: &Arc<Surface>) -> core::Result<Self> {
         let swapchain = Swapchain::new(instance, device, surface)?;
-        let swapchain_depth_buffer = SwapchainDepthBuffer::new(device, &swapchain)?;
+        let swapchain_depth_buffers = SwapchainDepthBuffers::new(device, &swapchain)?;
         let swapchain_render_pass = SwapchainRenderPass::new(device, &swapchain)?;
-        let swapchain_framebuffers = SwapchainFramebuffers::new(device, &swapchain, &swapchain_depth_buffer, &swapchain_render_pass)?;
+        let swapchain_framebuffers = SwapchainFramebuffers::new(device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
         Ok(Self {
             _swapchain: swapchain,
-            _swapchain_depth_buffer: swapchain_depth_buffer,
+            _swapchain_depth_buffers: swapchain_depth_buffers,
             _swapchain_framebuffers: swapchain_framebuffers,
             _swapchain_render_pass: swapchain_render_pass,
         })

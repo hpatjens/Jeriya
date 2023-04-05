@@ -16,6 +16,16 @@ impl<T> SwapchainVec<T> {
         })
     }
 
+    /// Returns an iterator over the data
+    pub fn iter(&self) -> std::slice::Iter<'_, T> {
+        self.data.iter()
+    }
+
+    /// Returns a mutable iterator over the data
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
+        self.data.iter_mut()
+    }
+
     /// Length of the `SwapchainVec<T>`. This is always the length of the swapchain.
     pub fn len(&self) -> usize {
         self.data.len()
