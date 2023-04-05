@@ -24,6 +24,7 @@ pub struct SuitableQueueFamilyInfo {
 pub struct PhysicalDevice {
     pub suitable_presentation_graphics_queue_family_infos: Vec<SuitableQueueFamilyInfo>,
     pub physical_device_properties: vk::PhysicalDeviceProperties,
+    pub physical_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     physical_device: vk::PhysicalDevice,
 }
 
@@ -57,9 +58,12 @@ impl PhysicalDevice {
 
             let queues = get_presentation_graphics_queue_families(instance, &physical_device, &surfaces)?;
             if !queues.is_empty() {
+                let physical_device_memory_properties = unsafe { instance.get_physical_device_memory_properties(physical_device) };
+
                 return Ok(PhysicalDevice {
                     suitable_presentation_graphics_queue_family_infos: queues,
                     physical_device_properties,
+                    physical_device_memory_properties,
                     physical_device,
                 });
             }

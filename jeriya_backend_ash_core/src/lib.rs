@@ -1,4 +1,5 @@
 pub mod debug;
+pub mod depth_buffer;
 pub mod device;
 pub mod entry;
 pub mod instance;
@@ -56,6 +57,8 @@ pub enum Error {
     SwapchainSurfaceFormatError,
     #[error("Failed to find the WindowId: {:?}", .0)]
     UnknownWindowId(WindowId),
+    #[error("Failed to find a matching memory type for the memory requirements")]
+    UnsupportedMemoryType(vk::MemoryRequirements),
 }
 
 impl From<Error> for jeriya_shared::Error {

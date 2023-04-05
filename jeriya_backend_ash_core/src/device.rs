@@ -8,7 +8,7 @@ pub struct Device {
     pub presentation_queue: Queue,
     device: ash::Device,
     pub physical_device: PhysicalDevice,
-    _instance: Arc<Instance>,
+    instance: Arc<Instance>,
 }
 
 impl Drop for Device {
@@ -63,9 +63,51 @@ impl Device {
             presentation_queue,
             device,
             physical_device,
-            _instance: instance.clone(),
+            instance: instance.clone(),
         }))
     }
+
+    /// Find a memory type for the given memory requirements
+    pub fn find_memorytype_index(
+        &self,
+        memory_requirements: &vk::MemoryRequirements,
+        memory_properties: vk::MemoryPropertyFlags,
+    ) -> Option<u32> {
+        // Try to find an exactly matching memory flag
+        let perfect_match = find_memorytype_index_by(
+            &self.physical_device.physical_device_memory_properties,
+            memory_requirements,
+            memory_properties,
+            |property_flags, flags| property_flags == flags,
+        );
+        if let Some(best_suitable_index) = perfect_match {
+            Some(best_suitable_index)
+        } else {
+            // Otherwise find a memory flag that works
+            find_memorytype_index_by(
+                &self.physical_device.physical_device_memory_properties,
+                memory_requirements,
+                memory_properties,
+                |property_flags, flags| property_flags & flags == flags,
+            )
+        }
+    }
+}
+
+fn find_memorytype_index_by<F: Fn(vk::MemoryPropertyFlags, vk::MemoryPropertyFlags) -> bool>(
+    memory_prop: &vk::PhysicalDeviceMemoryProperties,
+    memory_req: &vk::MemoryRequirements,
+    flags: vk::MemoryPropertyFlags,
+    f: F,
+) -> Option<u32> {
+    let mut memory_type_bits = memory_req.memory_type_bits;
+    for (index, memory_type) in memory_prop.memory_types.iter().enumerate() {
+        if memory_type_bits & 1 == 1 && f(memory_type.property_flags, flags) {
+            return Some(index as u32);
+        }
+        memory_type_bits >>= 1;
+    }
+    None
 }
 
 impl AsRawVulkan for Device {
