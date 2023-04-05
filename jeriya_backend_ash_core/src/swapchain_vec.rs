@@ -22,6 +22,30 @@ impl<T> SwapchainVec<T> {
     }
 }
 
+impl<T> IntoIterator for SwapchainVec<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.into_iter()
+    }
+}
+
+impl<'s, T> IntoIterator for &'s SwapchainVec<T> {
+    type Item = &'s T;
+    type IntoIter = std::slice::Iter<'s, T>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.iter()
+    }
+}
+
+impl<'s, T> IntoIterator for &'s mut SwapchainVec<T> {
+    type Item = &'s mut T;
+    type IntoIter = std::slice::IterMut<'s, T>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.iter_mut()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     mod new {
@@ -44,6 +68,21 @@ mod tests {
             let device = Device::new(physical_device, &instance).unwrap();
             let swapchain = Swapchain::new(&instance, &device, &surface).unwrap();
             let _vec = SwapchainVec::new(&swapchain, |_| Ok(0)).unwrap();
+        }
+
+        #[test]
+        fn iter() {
+            let window = create_window();
+            let entry = Entry::new().unwrap();
+            let instance = Instance::new(&entry, "my_application", false).unwrap();
+            let surface = Surface::new(&entry, &instance, &window).unwrap();
+            let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
+            let device = Device::new(physical_device, &instance).unwrap();
+            let swapchain = Swapchain::new(&instance, &device, &surface).unwrap();
+            let mut vec = SwapchainVec::new(&swapchain, |_| Ok(0)).unwrap();
+            for _ in &vec {}
+            for _ in &mut vec {}
+            for _ in vec {}
         }
     }
 }

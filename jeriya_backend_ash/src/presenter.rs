@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
-    depth_buffer::SwapchainDepthBuffer, device::Device, instance::Instance, surface::Surface, swapchain::Swapchain,
+    device::Device, instance::Instance, surface::Surface, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffer,
     swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass,
 };
 

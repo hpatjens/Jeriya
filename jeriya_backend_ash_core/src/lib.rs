@@ -1,5 +1,4 @@
 pub mod debug;
-pub mod depth_buffer;
 pub mod device;
 pub mod entry;
 pub mod instance;
@@ -7,6 +6,7 @@ pub mod physical_device;
 pub mod queue;
 pub mod surface;
 pub mod swapchain;
+pub mod swapchain_depth_buffer;
 pub mod swapchain_framebuffers;
 pub mod swapchain_render_pass;
 pub mod swapchain_vec;

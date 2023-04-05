@@ -3,7 +3,8 @@ use std::sync::Arc;
 use ash::vk;
 
 use crate::{
-    depth_buffer::SwapchainDepthBuffer, device::Device, swapchain::Swapchain, swapchain_render_pass::SwapchainRenderPass, AsRawVulkan,
+    device::Device, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_render_pass::SwapchainRenderPass,
+    AsRawVulkan,
 };
 
 /// Framebuffers for the Swapchain
@@ -57,8 +58,8 @@ mod tests {
         use jeriya_test::create_window;
 
         use crate::{
-            depth_buffer::SwapchainDepthBuffer, device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice,
-            surface::Surface, swapchain::Swapchain, swapchain_framebuffers::SwapchainFramebuffers,
+            device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface, swapchain::Swapchain,
+            swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_framebuffers::SwapchainFramebuffers,
             swapchain_render_pass::SwapchainRenderPass,
         };
 
