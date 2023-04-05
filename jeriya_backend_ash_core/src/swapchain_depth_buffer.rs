@@ -19,10 +19,10 @@ impl SwapchainDepthBuffers {
 
 #[non_exhaustive]
 pub struct SwapchainDepthBuffer {
-    device: Arc<Device>,
     pub depth_image: vk::Image,
     pub depth_image_memory: vk::DeviceMemory,
     pub depth_image_view: vk::ImageView,
+    device: Arc<Device>,
 }
 
 impl Drop for SwapchainDepthBuffer {
@@ -69,7 +69,7 @@ impl SwapchainDepthBuffer {
                 .memory_type_index(depth_image_memory_index);
             let depth_image_memory = unsafe { device.as_raw_vulkan().allocate_memory(&depth_image_allocate_info, None)? };
             unsafe {
-                device.as_raw_vulkan().allocate_memory(&depth_image_allocate_info, None)?;
+                device.as_raw_vulkan().bind_image_memory(depth_image, depth_image_memory, 0)?;
             }
             depth_image_memory
         };

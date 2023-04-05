@@ -67,6 +67,11 @@ impl Device {
         }))
     }
 
+    /// Wait for a device to become idle
+    pub fn wait_for_idle(&self) -> crate::Result<()> {
+        Ok(unsafe { self.device.device_wait_idle() }?)
+    }
+
     /// Returns the [`Instance`] on which the `Device` was created.
     pub fn instance(&self) -> &Arc<Instance> {
         &self.instance

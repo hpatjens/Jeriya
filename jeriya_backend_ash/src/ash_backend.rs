@@ -9,7 +9,6 @@ use jeriya_backend_ash_core::{
     instance::Instance,
     physical_device::PhysicalDevice,
     surface::Surface,
-    swapchain::Swapchain,
     Config, ValidationLayerConfig,
 };
 use jeriya_shared::{
@@ -18,8 +17,10 @@ use jeriya_shared::{
     RendererConfig,
 };
 
+use crate::presenter::Presenter;
+
 pub struct Ash {
-    _swapchains: HashMap<WindowId, Swapchain>,
+    _presenters: HashMap<WindowId, Presenter>,
     _surfaces: HashMap<WindowId, Arc<Surface>>,
     _device: Arc<Device>,
     _validation_layer_callback: Option<ValidationLayerCallback>,
@@ -76,31 +77,31 @@ impl Backend for Ash {
         let physical_device = PhysicalDevice::new(&instance, surfaces.values())?;
         let device = Device::new(physical_device, &instance)?;
 
-        // Swapchains
-        let swapchains = surfaces
+        // Presenters
+        let presenters = surfaces
             .iter()
             .map(|(window_id, surface)| {
-                let swapchain = Swapchain::new(&instance, &device, surface)?;
+                let swapchain = Presenter::new(&device, surface)?;
                 Ok((*window_id, swapchain))
             })
-            .collect::<core::Result<HashMap<WindowId, Swapchain>>>()?;
+            .collect::<core::Result<HashMap<WindowId, Presenter>>>()?;
 
         Ok(Self {
             _device: device,
             _validation_layer_callback: validation_layer_callback,
             _entry: entry,
             _instance: instance,
-            _swapchains: swapchains,
+            _presenters: presenters,
             _surfaces: surfaces,
         })
     }
 
     fn handle_window_resized(&self, window_id: WindowId) -> jeriya_shared::Result<()> {
-        let swapchain = self
-            ._swapchains
+        let presenter = self
+            ._presenters
             .get(&window_id)
             .ok_or_else(|| core::Error::UnknownWindowId(window_id))?;
-        swapchain.recreate()?;
+        presenter.recreate()?;
         Ok(())
     }
 }
