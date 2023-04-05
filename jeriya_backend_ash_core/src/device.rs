@@ -67,6 +67,11 @@ impl Device {
         }))
     }
 
+    /// Returns the [`Instance`] on which the `Device` was created.
+    pub fn instance(&self) -> &Arc<Instance> {
+        &self.instance
+    }
+
     /// Find a memory type for the given memory requirements
     pub fn find_memorytype_index(
         &self,
