@@ -7,7 +7,7 @@ pub mod physical_device;
 pub mod queue;
 pub mod surface;
 pub mod swapchain;
-pub mod swapchain_renderpass;
+pub mod swapchain_render_pass;
 
 use std::{ffi::NulError, str::Utf8Error};
 

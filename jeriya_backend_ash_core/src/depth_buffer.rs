@@ -93,7 +93,7 @@ mod tests {
 
     use crate::{
         device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface, swapchain::Swapchain,
-        swapchain_renderpass::SwapchainRenderPass,
+        swapchain_render_pass::SwapchainRenderPass,
     };
 
     use super::SwapchainDepthBuffer;
