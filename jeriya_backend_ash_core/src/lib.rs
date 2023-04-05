@@ -9,6 +9,7 @@ pub mod surface;
 pub mod swapchain;
 pub mod swapchain_framebuffers;
 pub mod swapchain_render_pass;
+pub mod swapchain_vec;
 
 use std::{ffi::NulError, str::Utf8Error};
 
