@@ -1,9 +1,11 @@
 use std::cell::RefCell;
+use std::rc::Rc;
 use std::{collections::HashMap, sync::Arc};
 
 use jeriya::Backend;
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
+    command_pool::CommandPool,
     debug::{set_panic_on_message, ValidationLayerCallback},
     device::Device,
     entry::Entry,
@@ -27,6 +29,7 @@ pub struct Ash {
     _validation_layer_callback: Option<ValidationLayerCallback>,
     _instance: Arc<Instance>,
     _entry: Arc<Entry>,
+    _command_pool: Rc<CommandPool>,
 }
 
 impl Backend for Ash {
@@ -93,6 +96,13 @@ impl Backend for Ash {
             })
             .collect::<core::Result<HashMap<_, _>>>()?;
 
+        // CommandPool
+        let command_pool = CommandPool::new(
+            &device,
+            &device.presentation_queue,
+            core::command_pool::CommandPoolCreateFlags::ResetCommandBuffer,
+        )?;
+
         Ok(Self {
             _device: device,
             _validation_layer_callback: validation_layer_callback,
@@ -100,6 +110,7 @@ impl Backend for Ash {
             _instance: instance,
             _presenters: presenters,
             _surfaces: surfaces,
+            _command_pool: command_pool,
         })
     }
 

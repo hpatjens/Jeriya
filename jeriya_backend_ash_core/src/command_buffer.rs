@@ -45,12 +45,16 @@ impl AsRawVulkan for CommandBuffer {
 #[cfg(test)]
 mod tests {
     mod new {
-        use ash::vk;
         use jeriya_test::create_window;
 
         use crate::{
-            command_buffer::CommandBuffer, command_pool::CommandPool, device::Device, entry::Entry, instance::Instance,
-            physical_device::PhysicalDevice, surface::Surface,
+            command_buffer::CommandBuffer,
+            command_pool::{CommandPool, CommandPoolCreateFlags},
+            device::Device,
+            entry::Entry,
+            instance::Instance,
+            physical_device::PhysicalDevice,
+            surface::Surface,
         };
 
         #[test]
@@ -61,12 +65,7 @@ mod tests {
             let surface = Surface::new(&entry, &instance, &window).unwrap();
             let physical_device = PhysicalDevice::new(&instance, &[surface]).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
-            let command_pool = CommandPool::new(
-                &device,
-                &device.presentation_queue,
-                vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
-            )
-            .unwrap();
+            let command_pool = CommandPool::new(&device, &device.presentation_queue, CommandPoolCreateFlags::ResetCommandBuffer).unwrap();
             let _command_buffer = CommandBuffer::new(&device, &command_pool).unwrap();
         }
     }

@@ -4,6 +4,12 @@ use ash::vk;
 
 use crate::{device::Device, queue::Queue, AsRawVulkan};
 
+pub enum CommandPoolCreateFlags {
+    Transient,
+    ResetCommandBuffer,
+    Protected,
+}
+
 pub struct CommandPool {
     command_pool: vk::CommandPool,
     device: Arc<Device>,
@@ -27,7 +33,12 @@ impl CommandPool {
     }
 
     /// Create a new `CommandPool` for the given `queue`.
-    pub fn new(device: &Arc<Device>, queue: &Queue, command_pool_create_flags: vk::CommandPoolCreateFlags) -> crate::Result<Rc<Self>> {
+    pub fn new(device: &Arc<Device>, queue: &Queue, command_pool_create_flags: CommandPoolCreateFlags) -> crate::Result<Rc<Self>> {
+        let command_pool_create_flags = match command_pool_create_flags {
+            CommandPoolCreateFlags::Transient => vk::CommandPoolCreateFlags::TRANSIENT,
+            CommandPoolCreateFlags::ResetCommandBuffer => vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
+            CommandPoolCreateFlags::Protected => vk::CommandPoolCreateFlags::PROTECTED,
+        };
         unsafe { Self::new_from_family(device, queue.queue_family_index, command_pool_create_flags) }
     }
 }
@@ -50,11 +61,15 @@ impl Drop for CommandPool {
 #[cfg(test)]
 mod tests {
     mod new {
-        use ash::vk;
         use jeriya_test::create_window;
 
         use crate::{
-            command_pool::CommandPool, device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface,
+            command_pool::{CommandPool, CommandPoolCreateFlags},
+            device::Device,
+            entry::Entry,
+            instance::Instance,
+            physical_device::PhysicalDevice,
+            surface::Surface,
         };
 
         #[test]
@@ -65,12 +80,7 @@ mod tests {
             let surface = Surface::new(&entry, &instance, &window).unwrap();
             let physical_device = PhysicalDevice::new(&instance, &[surface]).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
-            let _command_pool = CommandPool::new(
-                &device,
-                &device.presentation_queue,
-                vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
-            )
-            .unwrap();
+            let _command_pool = CommandPool::new(&device, &device.presentation_queue, CommandPoolCreateFlags::ResetCommandBuffer).unwrap();
         }
     }
 }
