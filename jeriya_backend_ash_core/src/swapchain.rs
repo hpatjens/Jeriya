@@ -7,6 +7,7 @@ use crate::{device::Device, instance::Instance, queue::Queue, surface::Surface, 
 
 /// Represents the swapchain. This value only changes internally when the swapchain has to be recreated.
 pub struct Swapchain {
+    desired_swapchain_length: u32,
     inner: RefCell<Inner>,
     surface: Arc<Surface>,
     device: Arc<Device>,
@@ -15,20 +16,32 @@ pub struct Swapchain {
 
 impl Swapchain {
     /// Creates a new swapchain for the given [`Surface`].
-    pub fn new(instance: &Arc<Instance>, device: &Arc<Device>, surface: &Arc<Surface>) -> crate::Result<Self> {
-        let inner = Inner::create_swapchain(instance, device, surface, None)?;
+    pub fn new(
+        instance: &Arc<Instance>,
+        device: &Arc<Device>,
+        surface: &Arc<Surface>,
+        desired_swapchain_length: u32,
+    ) -> crate::Result<Self> {
+        let inner = Inner::create_swapchain(instance, device, surface, desired_swapchain_length, None)?;
         Ok(Self {
             inner: RefCell::new(inner),
             instance: instance.clone(),
             device: device.clone(),
             surface: surface.clone(),
+            desired_swapchain_length,
         })
     }
 
     /// Recreate the swapchain when the resolution changes.
     pub fn recreate(&self) -> crate::Result<()> {
         let mut inner = self.inner.borrow_mut();
-        *inner = Inner::create_swapchain(&self.instance, &self.device, &self.surface, Some(&inner.swapchain_khr))?;
+        *inner = Inner::create_swapchain(
+            &self.instance,
+            &self.device,
+            &self.surface,
+            self.desired_swapchain_length,
+            Some(&inner.swapchain_khr),
+        )?;
         Ok(())
     }
 
@@ -115,6 +128,7 @@ impl Inner {
         instance: &Arc<Instance>,
         device: &Arc<Device>,
         surface: &Surface,
+        desired_swapchain_length: u32,
         previous_swapchain: Option<&vk::SwapchainKHR>,
     ) -> crate::Result<Self> {
         let surface_capabilities = unsafe {
@@ -125,14 +139,9 @@ impl Inner {
         info!("Surface capabilities: {surface_capabilities:?}");
 
         // Image Count
-        let desired_image_count = {
-            let mut desired_image_count = surface_capabilities.min_image_count + 1;
-            if surface_capabilities.max_image_count > 0 && desired_image_count > surface_capabilities.max_image_count {
-                desired_image_count = surface_capabilities.max_image_count;
-            }
-            info!("Desired image count: {}", desired_image_count);
-            desired_image_count
-        };
+        let desired_image_count = desired_swapchain_length
+            .max(surface_capabilities.min_image_count)
+            .min(surface_capabilities.max_image_count);
 
         // Format
         let format = {
@@ -259,7 +268,7 @@ mod tests {
             let surface = Surface::new(&entry, &instance, &window).unwrap();
             let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
-            let swapchain = Swapchain::new(&instance, &device, &surface).unwrap();
+            let swapchain = Swapchain::new(&instance, &device, &surface, 2).unwrap();
             let size = window.inner_size();
             assert_eq!(swapchain.extent().width, size.width);
             assert_eq!(swapchain.extent().height, size.height);
@@ -273,7 +282,7 @@ mod tests {
             let surface = Surface::new(&entry, &instance, &window).unwrap();
             let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
-            let swapchain = Swapchain::new(&instance, &device, &surface).unwrap();
+            let swapchain = Swapchain::new(&instance, &device, &surface, 2).unwrap();
             let size = window.inner_size();
             assert_eq!(swapchain.extent().width, size.width);
             assert_eq!(swapchain.extent().height, size.height);

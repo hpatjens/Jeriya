@@ -18,9 +18,18 @@ pub enum Error {
 pub type Result<T> = result::Result<T, Error>;
 
 /// Configuration for the [`Renderer`]
-#[derive(Default)]
 pub struct RendererConfig {
     pub application_name: Option<String>,
+    pub default_desired_swapchain_length: u32,
+}
+
+impl Default for RendererConfig {
+    fn default() -> Self {
+        Self {
+            application_name: None,
+            default_desired_swapchain_length: 2,
+        }
+    }
 }
 
 /// Name of the function this macro is called in

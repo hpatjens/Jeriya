@@ -37,7 +37,7 @@ struct Inner {
 
 impl Inner {
     pub fn new(device: &Arc<Device>, surface: &Arc<Surface>) -> core::Result<Self> {
-        let swapchain = Swapchain::new(device.instance(), device, surface)?;
+        let swapchain = Swapchain::new(device.instance(), device, surface, 2)?;
         let swapchain_depth_buffers = SwapchainDepthBuffers::new(device, &swapchain)?;
         let swapchain_render_pass = SwapchainRenderPass::new(device, &swapchain)?;
         let swapchain_framebuffers = SwapchainFramebuffers::new(device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;

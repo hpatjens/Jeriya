@@ -118,7 +118,10 @@ mod tests {
         #[test]
         fn smoke() {
             let window = create_window();
-            let renderer_config = RendererConfig::default();
+            let renderer_config = RendererConfig {
+                application_name: Some("my_application".to_owned()),
+                ..RendererConfig::default()
+            };
             let backend_config = Config::default();
             Ash::new(renderer_config, backend_config, &[&window]).unwrap();
         }
@@ -126,7 +129,7 @@ mod tests {
         #[test]
         fn application_name_none() {
             let window = create_window();
-            let renderer_config = RendererConfig { application_name: None };
+            let renderer_config = RendererConfig::default();
             let backend_config = Config::default();
             Ash::new(renderer_config, backend_config, &[&window]).unwrap();
         }
