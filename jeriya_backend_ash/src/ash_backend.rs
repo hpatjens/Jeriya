@@ -20,10 +20,10 @@ use jeriya_shared::{
     RendererConfig,
 };
 
-use crate::presenter_resources::PresenterResources;
+use crate::presenter::Presenter;
 
 pub struct Ash {
-    _presenters: HashMap<WindowId, RefCell<PresenterResources>>,
+    _presenters: HashMap<WindowId, RefCell<Presenter>>,
     _surfaces: HashMap<WindowId, Arc<Surface>>,
     _device: Arc<Device>,
     _validation_layer_callback: Option<ValidationLayerCallback>,
@@ -91,7 +91,7 @@ impl Backend for Ash {
             .iter()
             .map(|(window_id, surface)| {
                 info!("Creating presenter for window {window_id:?}");
-                let presenter = PresenterResources::new(&device, surface, renderer_config.default_desired_swapchain_length)?;
+                let presenter = Presenter::new(&device, surface, renderer_config.default_desired_swapchain_length)?;
                 Ok((*window_id, RefCell::new(presenter)))
             })
             .collect::<core::Result<HashMap<_, _>>>()?;
