@@ -72,7 +72,7 @@ mod tests {
             let surface = Surface::new(&entry, &instance, &window).unwrap();
             let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
-            let swapchain = Swapchain::new(&instance, &device, &surface, 2).unwrap();
+            let swapchain = Swapchain::new(&device, &surface, 2, None).unwrap();
             let swapchain_depth_buffer = SwapchainDepthBuffers::new(&device, &swapchain).unwrap();
             let swapchain_render_pass = SwapchainRenderPass::new(&device, &swapchain).unwrap();
             let _swapchain_framebuffers =

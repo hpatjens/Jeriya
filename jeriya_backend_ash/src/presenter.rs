@@ -14,8 +14,8 @@ pub struct Presenter {
 
 impl Presenter {
     /// Creates a new `Presenter` for the [`Surface`]
-    pub fn new(device: &Arc<Device>, surface: &Arc<Surface>) -> core::Result<Self> {
-        let inner = Inner::new(device, surface)?;
+    pub fn new(device: &Arc<Device>, surface: &Arc<Surface>, desired_swapchain_length: u32) -> core::Result<Self> {
+        let inner = Inner::new(device, surface, desired_swapchain_length)?;
         Ok(Self {
             inner: RefCell::new(inner),
         })
@@ -28,31 +28,35 @@ impl Presenter {
 }
 
 struct Inner {
+    surface: Arc<Surface>,
     swapchain: Swapchain,
     swapchain_depth_buffers: SwapchainDepthBuffers,
     swapchain_framebuffers: SwapchainFramebuffers,
     swapchain_render_pass: SwapchainRenderPass,
+    desired_swapchain_length: u32,
     device: Arc<Device>,
 }
 
 impl Inner {
-    pub fn new(device: &Arc<Device>, surface: &Arc<Surface>) -> core::Result<Self> {
-        let swapchain = Swapchain::new(device.instance(), device, surface, 2)?;
+    pub fn new(device: &Arc<Device>, surface: &Arc<Surface>, desired_swapchain_length: u32) -> core::Result<Self> {
+        let swapchain = Swapchain::new(device, surface, 2, None)?;
         let swapchain_depth_buffers = SwapchainDepthBuffers::new(device, &swapchain)?;
         let swapchain_render_pass = SwapchainRenderPass::new(device, &swapchain)?;
         let swapchain_framebuffers = SwapchainFramebuffers::new(device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
         Ok(Self {
+            surface: surface.clone(),
             swapchain,
             swapchain_depth_buffers,
             swapchain_framebuffers,
             swapchain_render_pass,
             device: device.clone(),
+            desired_swapchain_length,
         })
     }
 
     pub fn recreate(&mut self) -> core::Result<()> {
         self.device.wait_for_idle()?;
-        self.swapchain.recreate()?;
+        self.swapchain = Swapchain::new(&self.device, &self.surface, self.desired_swapchain_length, Some(&self.swapchain))?;
         self.swapchain_depth_buffers = SwapchainDepthBuffers::new(&self.device, &self.swapchain)?;
         self.swapchain_render_pass = SwapchainRenderPass::new(&self.device, &self.swapchain)?;
         self.swapchain_framebuffers = SwapchainFramebuffers::new(
@@ -86,7 +90,7 @@ mod tests {
             let surface = Surface::new(&entry, &instance, &window).unwrap();
             let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
-            let _presenter = Presenter::new(&device, &surface).unwrap();
+            let _presenter = Presenter::new(&device, &surface, 2).unwrap();
         }
     }
 }

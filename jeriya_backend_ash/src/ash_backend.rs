@@ -81,7 +81,7 @@ impl Backend for Ash {
         let presenters = surfaces
             .iter()
             .map(|(window_id, surface)| {
-                let swapchain = Presenter::new(&device, surface)?;
+                let swapchain = Presenter::new(&device, surface, renderer_config.default_desired_swapchain_length)?;
                 Ok((*window_id, swapchain))
             })
             .collect::<core::Result<HashMap<WindowId, Presenter>>>()?;
