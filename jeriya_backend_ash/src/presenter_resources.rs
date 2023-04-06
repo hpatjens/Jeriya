@@ -7,7 +7,7 @@ use jeriya_backend_ash_core::{
 };
 
 /// All the state that is required for presenting to the [`Surface`]
-pub struct Presenter {
+pub struct PresenterResources {
     desired_swapchain_length: u32,
     pub image_available_semaphore: SwapchainVec<Semaphore>,
     pub rendering_complete_semaphore: SwapchainVec<Semaphore>,
@@ -19,7 +19,7 @@ pub struct Presenter {
     device: Arc<Device>,
 }
 
-impl Presenter {
+impl PresenterResources {
     /// Creates a new `Presenter` for the [`Surface`]
     pub fn new(device: &Arc<Device>, surface: &Arc<Surface>, desired_swapchain_length: u32) -> core::Result<Self> {
         let swapchain = Swapchain::new(device, surface, desired_swapchain_length, None)?;
@@ -68,7 +68,7 @@ mod tests {
             device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface,
         };
 
-        use crate::presenter::Presenter;
+        use crate::presenter_resources::PresenterResources;
 
         #[test]
         fn smoke() {
@@ -78,7 +78,7 @@ mod tests {
             let surface = Surface::new(&entry, &instance, &window).unwrap();
             let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
-            let _presenter = Presenter::new(&device, &surface, 2).unwrap();
+            let _presenter = PresenterResources::new(&device, &surface, 2).unwrap();
         }
     }
 }
