@@ -5,7 +5,7 @@ use std::{ops::Drop, sync::Arc};
 
 use crate::{device::Device, queue::Queue, surface::Surface, AsRawVulkan, Error};
 
-/// Represents the swapchain. This value only changes internally when the swapchain has to be recreated.
+/// Represents the swapchain.
 pub struct Swapchain {
     swapchain: khr::Swapchain,
     swapchain_khr: vk::SwapchainKHR,
