@@ -6,6 +6,7 @@ use jeriya::Backend;
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
     command_pool::CommandPool,
+    command_pool::CommandPoolCreateFlags,
     debug::{set_panic_on_message, ValidationLayerCallback},
     device::Device,
     entry::Entry,
@@ -97,11 +98,7 @@ impl Backend for Ash {
             .collect::<core::Result<HashMap<_, _>>>()?;
 
         // CommandPool
-        let command_pool = CommandPool::new(
-            &device,
-            &device.presentation_queue,
-            core::command_pool::CommandPoolCreateFlags::ResetCommandBuffer,
-        )?;
+        let command_pool = CommandPool::new(&device, &device.presentation_queue, CommandPoolCreateFlags::ResetCommandBuffer)?;
 
         Ok(Self {
             _device: device,
