@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::{collections::HashMap, sync::Arc};
 
 use jeriya::Backend;
@@ -20,7 +21,7 @@ use jeriya_shared::{
 use crate::presenter::Presenter;
 
 pub struct Ash {
-    _presenters: HashMap<WindowId, Presenter>,
+    _presenters: HashMap<WindowId, RefCell<Presenter>>,
     _surfaces: HashMap<WindowId, Arc<Surface>>,
     _device: Arc<Device>,
     _validation_layer_callback: Option<ValidationLayerCallback>,
@@ -87,10 +88,10 @@ impl Backend for Ash {
             .iter()
             .map(|(window_id, surface)| {
                 info!("Creating presenter for window {window_id:?}");
-                let swapchain = Presenter::new(&device, surface, renderer_config.default_desired_swapchain_length)?;
-                Ok((*window_id, swapchain))
+                let presenter = Presenter::new(&device, surface, renderer_config.default_desired_swapchain_length)?;
+                Ok((*window_id, RefCell::new(presenter)))
             })
-            .collect::<core::Result<HashMap<WindowId, Presenter>>>()?;
+            .collect::<core::Result<HashMap<_, _>>>()?;
 
         Ok(Self {
             _device: device,
@@ -103,10 +104,11 @@ impl Backend for Ash {
     }
 
     fn handle_window_resized(&self, window_id: WindowId) -> jeriya_shared::Result<()> {
-        let presenter = self
+        let mut presenter = self
             ._presenters
             .get(&window_id)
-            .ok_or_else(|| core::Error::UnknownWindowId(window_id))?;
+            .ok_or_else(|| core::Error::UnknownWindowId(window_id))?
+            .borrow_mut();
         presenter.recreate()?;
         Ok(())
     }

@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::sync::Arc;
 
 use jeriya_backend_ash_core as core;
@@ -9,33 +8,9 @@ use jeriya_backend_ash_core::{
 
 /// All the state that is required for presenting to the [`Surface`]
 pub struct Presenter {
-    inner: RefCell<Inner>,
     desired_swapchain_length: u32,
     pub image_available_semaphore: SwapchainVec<Semaphore>,
     pub rendering_complete_semaphore: SwapchainVec<Semaphore>,
-}
-
-impl Presenter {
-    /// Creates a new `Presenter` for the [`Surface`]
-    pub fn new(device: &Arc<Device>, surface: &Arc<Surface>, desired_swapchain_length: u32) -> core::Result<Self> {
-        let inner = Inner::new(device, surface, desired_swapchain_length)?;
-        let image_available_semaphore = SwapchainVec::new(&inner.swapchain, |_| Semaphore::new(device))?;
-        let rendering_complete_semaphore = SwapchainVec::new(&inner.swapchain, |_| Semaphore::new(device))?;
-        Ok(Self {
-            inner: RefCell::new(inner),
-            desired_swapchain_length,
-            image_available_semaphore,
-            rendering_complete_semaphore,
-        })
-    }
-
-    /// Creates the swapchain and all state that depends on it
-    pub fn recreate(&self) -> core::Result<()> {
-        self.inner.borrow_mut().recreate(self.desired_swapchain_length)
-    }
-}
-
-struct Inner {
     surface: Arc<Surface>,
     swapchain: Swapchain,
     swapchain_depth_buffers: SwapchainDepthBuffers,
@@ -44,13 +19,19 @@ struct Inner {
     device: Arc<Device>,
 }
 
-impl Inner {
+impl Presenter {
+    /// Creates a new `Presenter` for the [`Surface`]
     pub fn new(device: &Arc<Device>, surface: &Arc<Surface>, desired_swapchain_length: u32) -> core::Result<Self> {
         let swapchain = Swapchain::new(device, surface, desired_swapchain_length, None)?;
         let swapchain_depth_buffers = SwapchainDepthBuffers::new(device, &swapchain)?;
         let swapchain_render_pass = SwapchainRenderPass::new(device, &swapchain)?;
         let swapchain_framebuffers = SwapchainFramebuffers::new(device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
+        let image_available_semaphore = SwapchainVec::new(&swapchain, |_| Semaphore::new(device))?;
+        let rendering_complete_semaphore = SwapchainVec::new(&swapchain, |_| Semaphore::new(device))?;
         Ok(Self {
+            desired_swapchain_length,
+            image_available_semaphore,
+            rendering_complete_semaphore,
             surface: surface.clone(),
             swapchain,
             swapchain_depth_buffers,
@@ -60,9 +41,10 @@ impl Inner {
         })
     }
 
-    pub fn recreate(&mut self, desired_swapchain_length: u32) -> core::Result<()> {
+    /// Creates the swapchain and all state that depends on it
+    pub fn recreate(&mut self) -> core::Result<()> {
         self.device.wait_for_idle()?;
-        self.swapchain = Swapchain::new(&self.device, &self.surface, desired_swapchain_length, Some(&self.swapchain))?;
+        self.swapchain = Swapchain::new(&self.device, &self.surface, self.desired_swapchain_length, Some(&self.swapchain))?;
         self.swapchain_depth_buffers = SwapchainDepthBuffers::new(&self.device, &self.swapchain)?;
         self.swapchain_render_pass = SwapchainRenderPass::new(&self.device, &self.swapchain)?;
         self.swapchain_framebuffers = SwapchainFramebuffers::new(
