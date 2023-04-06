@@ -68,19 +68,25 @@ impl Backend for Ash {
         let surfaces = windows
             .iter()
             .map(|(window_id, window)| {
+                info!("Creating Surface for window {window_id:?}");
                 let surface = Surface::new(&entry, &instance, window)?;
                 Ok((*window_id, surface))
             })
             .collect::<core::Result<HashMap<WindowId, Arc<Surface>>>>()?;
 
-        // Device
+        // Physical Device
+        info!("Creating PhysicalDevice");
         let physical_device = PhysicalDevice::new(&instance, surfaces.values())?;
+
+        // Device
+        info!("Creating Device");
         let device = Device::new(physical_device, &instance)?;
 
         // Presenters
         let presenters = surfaces
             .iter()
             .map(|(window_id, surface)| {
+                info!("Creating presenter for window {window_id:?}");
                 let swapchain = Presenter::new(&device, surface, renderer_config.default_desired_swapchain_length)?;
                 Ok((*window_id, swapchain))
             })
