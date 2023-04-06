@@ -123,6 +123,10 @@ impl Backend for Ash {
         presenter.recreate()?;
         Ok(())
     }
+
+    fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]

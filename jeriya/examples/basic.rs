@@ -52,7 +52,7 @@ fn main() -> io::Result<()> {
             Event::MainEventsCleared => {
                 window.request_redraw();
 
-                renderer.render_frame();
+                renderer.render_frame().unwrap();
             }
             _ => (),
         }

@@ -112,6 +112,10 @@ mod tests {
         fn handle_window_resized(&self, _window_id: WindowId) -> jeriya_shared::Result<()> {
             Ok(())
         }
+
+        fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
+            Ok(())
+        }
     }
 
     #[test]

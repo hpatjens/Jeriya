@@ -36,7 +36,10 @@ where
         &self.backend
     }
 
-    pub fn render_frame(&self) {}
+    /// Renders to all `Window`s.
+    pub fn render_frame(&self) -> Result<()> {
+        self.backend.handle_render_frame()
+    }
 
     /// Has to be called when a window is gets resized.
     pub fn window_resized(&self, window_id: WindowId) -> Result<()> {

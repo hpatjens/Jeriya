@@ -14,4 +14,7 @@ pub trait Backend {
 
     /// Is called when a window is resized so that the backend can respond.
     fn handle_window_resized(&self, window_id: WindowId) -> jeriya_shared::Result<()>;
+
+    /// Is called when rendering is requested.
+    fn handle_render_frame(&self) -> jeriya_shared::Result<()>;
 }
