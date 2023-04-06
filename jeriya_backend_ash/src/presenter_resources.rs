@@ -2,15 +2,13 @@ use std::sync::Arc;
 
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
-    device::Device, semaphore::Semaphore, surface::Surface, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffers,
-    swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass, swapchain_vec::SwapchainVec,
+    device::Device, surface::Surface, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffers,
+    swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass,
 };
 
 /// All the state that is required for presenting to the [`Surface`]
 pub struct PresenterResources {
     desired_swapchain_length: u32,
-    pub image_available_semaphore: SwapchainVec<Semaphore>,
-    pub rendering_complete_semaphore: SwapchainVec<Semaphore>,
     surface: Arc<Surface>,
     swapchain: Swapchain,
     swapchain_depth_buffers: SwapchainDepthBuffers,
@@ -26,12 +24,8 @@ impl PresenterResources {
         let swapchain_depth_buffers = SwapchainDepthBuffers::new(device, &swapchain)?;
         let swapchain_render_pass = SwapchainRenderPass::new(device, &swapchain)?;
         let swapchain_framebuffers = SwapchainFramebuffers::new(device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
-        let image_available_semaphore = SwapchainVec::new(&swapchain, |_| Semaphore::new(device))?;
-        let rendering_complete_semaphore = SwapchainVec::new(&swapchain, |_| Semaphore::new(device))?;
         Ok(Self {
             desired_swapchain_length,
-            image_available_semaphore,
-            rendering_complete_semaphore,
             surface: surface.clone(),
             swapchain,
             swapchain_depth_buffers,
@@ -54,6 +48,11 @@ impl PresenterResources {
             &self.swapchain_render_pass,
         )?;
         Ok(())
+    }
+
+    /// Currently used [`Swapchain`]
+    pub fn swapchain(&self) -> &Swapchain {
+        &self.swapchain
     }
 }
 
