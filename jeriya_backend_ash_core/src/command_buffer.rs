@@ -54,6 +54,7 @@ mod tests {
             entry::Entry,
             instance::Instance,
             physical_device::PhysicalDevice,
+            queue::{Queue, QueueType},
             surface::Surface,
         };
 
@@ -65,7 +66,8 @@ mod tests {
             let surface = Surface::new(&entry, &instance, &window).unwrap();
             let physical_device = PhysicalDevice::new(&instance, &[surface]).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
-            let command_pool = CommandPool::new(&device, &device.presentation_queue, CommandPoolCreateFlags::ResetCommandBuffer).unwrap();
+            let presentation_queue = Queue::new(&device, QueueType::Presentation).unwrap();
+            let command_pool = CommandPool::new(&device, &presentation_queue, CommandPoolCreateFlags::ResetCommandBuffer).unwrap();
             let _command_buffer = CommandBuffer::new(&device, &command_pool).unwrap();
         }
     }

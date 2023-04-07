@@ -2,10 +2,9 @@ use std::sync::Arc;
 
 use ash::{extensions::khr, vk};
 
-use crate::{instance::Instance, physical_device::PhysicalDevice, queue::Queue, AsRawVulkan};
+use crate::{instance::Instance, physical_device::PhysicalDevice, AsRawVulkan};
 
 pub struct Device {
-    pub presentation_queue: Queue,
     device: ash::Device,
     pub physical_device: PhysicalDevice,
     instance: Arc<Instance>,
@@ -52,15 +51,7 @@ impl Device {
                 .create_device(*physical_device.as_raw_vulkan(), &device_create_info, None)?
         };
 
-        // Queues
-        assert!(!physical_device.suitable_presentation_graphics_queue_family_infos.is_empty());
-        assert!(physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_count > 0);
-        let queue_family_index = physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_family_index;
-        let queue_index = 0;
-        let presentation_queue = unsafe { Queue::get_from_family(&device, queue_family_index, queue_index) };
-
         Ok(Arc::new(Device {
-            presentation_queue,
             device,
             physical_device,
             instance: instance.clone(),

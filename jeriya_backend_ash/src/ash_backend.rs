@@ -12,6 +12,7 @@ use jeriya_backend_ash_core::{
     entry::Entry,
     instance::Instance,
     physical_device::PhysicalDevice,
+    queue::{Queue, QueueType},
     surface::Surface,
     Config, ValidationLayerConfig,
 };
@@ -31,6 +32,7 @@ pub struct Ash {
     _instance: Arc<Instance>,
     _entry: Arc<Entry>,
     _command_pool: Rc<CommandPool>,
+    _presentation_queue: Queue,
 }
 
 impl Backend for Ash {
@@ -87,6 +89,9 @@ impl Backend for Ash {
         info!("Creating Device");
         let device = Device::new(physical_device, &instance)?;
 
+        // Presentation Queue
+        let presentation_queue = Queue::new(&device, QueueType::Presentation)?;
+
         // Presenters
         let presenters = surfaces
             .iter()
@@ -98,7 +103,7 @@ impl Backend for Ash {
             .collect::<core::Result<HashMap<_, _>>>()?;
 
         // CommandPool
-        let command_pool = CommandPool::new(&device, &device.presentation_queue, CommandPoolCreateFlags::ResetCommandBuffer)?;
+        let command_pool = CommandPool::new(&device, &presentation_queue, CommandPoolCreateFlags::ResetCommandBuffer)?;
 
         Ok(Self {
             _device: device,
@@ -108,6 +113,7 @@ impl Backend for Ash {
             _presenters: presenters,
             _surfaces: surfaces,
             _command_pool: command_pool,
+            _presentation_queue: presentation_queue,
         })
     }
 
