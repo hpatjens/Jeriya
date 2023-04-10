@@ -85,6 +85,7 @@ mod tests {
                 &test_fixture_device.device,
                 &presentation_queue,
                 CommandPoolCreateFlags::ResetCommandBuffer,
+                debug_info!("my_command_pool"),
             )
             .unwrap();
             let _command_buffer = CommandBuffer::new(&test_fixture_device.device, &command_pool, debug_info!("my_command_buffer")).unwrap();

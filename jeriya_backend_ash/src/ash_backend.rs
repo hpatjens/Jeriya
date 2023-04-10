@@ -107,7 +107,12 @@ impl Backend for AshBackend {
             .collect::<core::Result<HashMap<_, _>>>()?;
 
         // CommandPool
-        let command_pool = CommandPool::new(&device, &presentation_queue, CommandPoolCreateFlags::ResetCommandBuffer)?;
+        let command_pool = CommandPool::new(
+            &device,
+            &presentation_queue,
+            CommandPoolCreateFlags::ResetCommandBuffer,
+            debug_info!("Preliminary CommandPool"),
+        )?;
 
         Ok(Self {
             immediate_rendering_backend: AshImmediateRenderingBackend::new(),

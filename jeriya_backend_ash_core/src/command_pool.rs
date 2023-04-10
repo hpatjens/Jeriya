@@ -1,8 +1,9 @@
 use std::{rc::Rc, sync::Arc};
 
 use ash::vk;
+use jeriya_shared::{AsDebugInfo, DebugInfo};
 
-use crate::{device::Device, queue::Queue, AsRawVulkan};
+use crate::{device::Device, queue::Queue, AsRawVulkan, DebugInfoAshExtension};
 
 pub enum CommandPoolCreateFlags {
     Transient,
@@ -14,6 +15,7 @@ pub struct CommandPool {
     command_pool_create_flags: CommandPoolCreateFlags,
     command_pool: vk::CommandPool,
     device: Arc<Device>,
+    debug_info: DebugInfo,
 }
 
 impl CommandPool {
@@ -22,6 +24,7 @@ impl CommandPool {
         device: &Arc<Device>,
         queue_family_index: u32,
         command_pool_create_flags: CommandPoolCreateFlags,
+        debug_info: DebugInfo,
     ) -> crate::Result<Rc<Self>> {
         let vk_command_pool_create_flags = match command_pool_create_flags {
             CommandPoolCreateFlags::Transient => vk::CommandPoolCreateFlags::TRANSIENT,
@@ -32,21 +35,34 @@ impl CommandPool {
             .flags(vk_command_pool_create_flags)
             .queue_family_index(queue_family_index);
         let command_pool = device.as_raw_vulkan().create_command_pool(&command_pool_create_info, None)?;
+        let debug_info = debug_info.with_vulkan_ptr(command_pool);
         Ok(Rc::new(Self {
             command_pool_create_flags,
             device: device.clone(),
             command_pool,
+            debug_info,
         }))
     }
 
     /// Create a new `CommandPool` for the given `queue`.
-    pub fn new(device: &Arc<Device>, queue: &Queue, command_pool_create_flags: CommandPoolCreateFlags) -> crate::Result<Rc<Self>> {
-        unsafe { Self::new_from_family(device, queue.queue_family_index, command_pool_create_flags) }
+    pub fn new(
+        device: &Arc<Device>,
+        queue: &Queue,
+        command_pool_create_flags: CommandPoolCreateFlags,
+        debug_info: DebugInfo,
+    ) -> crate::Result<Rc<Self>> {
+        unsafe { Self::new_from_family(device, queue.queue_family_index, command_pool_create_flags, debug_info) }
     }
 
     /// Returns the [`CommandPoolCreateFlags`] that were used to create the `CommandPool`.
     pub fn command_pool_create_flags(&self) -> &CommandPoolCreateFlags {
         &self.command_pool_create_flags
+    }
+}
+
+impl AsDebugInfo for CommandPool {
+    fn as_debug_info(&self) -> &DebugInfo {
+        &self.debug_info
     }
 }
 
@@ -68,6 +84,8 @@ impl Drop for CommandPool {
 #[cfg(test)]
 mod tests {
     mod new {
+        use jeriya_shared::debug_info;
+
         use crate::{
             command_pool::{CommandPool, CommandPoolCreateFlags},
             device::tests::TestFixtureDevice,
@@ -82,6 +100,7 @@ mod tests {
                 &test_fixture_device.device,
                 &presentation_queue,
                 CommandPoolCreateFlags::ResetCommandBuffer,
+                debug_info!("my_command_pool"),
             )
             .unwrap();
         }
