@@ -24,6 +24,13 @@ impl Semaphore {
     }
 }
 
+impl AsRawVulkan for Semaphore {
+    type Output = vk::Semaphore;
+    fn as_raw_vulkan(&self) -> &Self::Output {
+        &self.semaphore
+    }
+}
+
 #[cfg(test)]
 mod tests {
     mod new {

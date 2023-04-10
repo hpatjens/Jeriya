@@ -5,6 +5,8 @@ use std::{collections::HashMap, sync::Arc};
 use jeriya::Backend;
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
+    command_buffer::CommandBuffer,
+    command_buffer_builder::CommandBufferBuilder,
     command_pool::CommandPool,
     command_pool::CommandPoolCreateFlags,
     debug::{set_panic_on_message, ValidationLayerCallback},
@@ -13,6 +15,7 @@ use jeriya_backend_ash_core::{
     instance::Instance,
     physical_device::PhysicalDevice,
     queue::{Queue, QueueType},
+    semaphore::Semaphore,
     surface::Surface,
     Config, ValidationLayerConfig,
 };
@@ -25,14 +28,14 @@ use jeriya_shared::{
 use crate::presenter::Presenter;
 
 pub struct Ash {
-    _presenters: HashMap<WindowId, RefCell<Presenter>>,
+    presenters: HashMap<WindowId, RefCell<Presenter>>,
     _surfaces: HashMap<WindowId, Arc<Surface>>,
-    _device: Arc<Device>,
+    device: Arc<Device>,
     _validation_layer_callback: Option<ValidationLayerCallback>,
     _instance: Arc<Instance>,
     _entry: Arc<Entry>,
-    _command_pool: Rc<CommandPool>,
-    _presentation_queue: Queue,
+    presentation_queue: RefCell<Queue>,
+    command_pool: Rc<CommandPool>,
 }
 
 impl Backend for Ash {
@@ -106,20 +109,20 @@ impl Backend for Ash {
         let command_pool = CommandPool::new(&device, &presentation_queue, CommandPoolCreateFlags::ResetCommandBuffer)?;
 
         Ok(Self {
-            _device: device,
+            device,
             _validation_layer_callback: validation_layer_callback,
             _entry: entry,
             _instance: instance,
-            _presenters: presenters,
+            presenters,
             _surfaces: surfaces,
-            _command_pool: command_pool,
-            _presentation_queue: presentation_queue,
+            presentation_queue: RefCell::new(presentation_queue),
+            command_pool,
         })
     }
 
     fn handle_window_resized(&self, window_id: WindowId) -> jeriya_shared::Result<()> {
         let mut presenter = self
-            ._presenters
+            .presenters
             .get(&window_id)
             .ok_or_else(|| core::Error::UnknownWindowId(window_id))?
             .borrow_mut();
@@ -128,6 +131,62 @@ impl Backend for Ash {
     }
 
     fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
+        self.presentation_queue.borrow_mut().update()?;
+
+        for presenter in self.presenters.values() {
+            let presenter = &mut *presenter.borrow_mut();
+
+            // Acquire the next swapchain index
+            let image_available_semaphore = Semaphore::new(&self.device)?;
+            presenter.frame_index = presenter
+                .presenter_resources
+                .swapchain()
+                .acquire_next_image(&mut presenter.frame_index, &image_available_semaphore)?;
+            presenter
+                .image_available_semaphore
+                .replace(&presenter.frame_index, image_available_semaphore);
+
+            // Build CommandBuffer
+            let command_buffer = CommandBuffer::new(&self.device, &self.command_pool)?;
+            CommandBufferBuilder::new(&self.device, &command_buffer)?
+                .begin_command_buffer_for_one_time_submit()?
+                .depth_pipeline_barrier(
+                    presenter
+                        .presenter_resources
+                        .depth_buffers()
+                        .depth_buffers
+                        .get(&presenter.frame_index),
+                )?
+                .begin_render_pass(
+                    presenter.presenter_resources.swapchain(),
+                    presenter.presenter_resources.render_pass(),
+                    (
+                        presenter.presenter_resources.framebuffers(),
+                        presenter.frame_index.swapchain_index(),
+                    ),
+                )?
+                .end_render_pass()?
+                .end_command_buffer()?;
+
+            // Insert into Queue
+            let image_available_semaphore = presenter
+                .image_available_semaphore
+                .get(&presenter.frame_index)
+                .as_ref()
+                .expect("not image available semaphore assigned for the frame");
+            self.presentation_queue.borrow_mut().submit_with_wait_at_color_attachment_output(
+                command_buffer,
+                &image_available_semaphore,
+                presenter.rendering_complete_semaphore.get(&presenter.frame_index),
+            )?;
+
+            // Present
+            presenter.presenter_resources.swapchain().present(
+                &presenter.frame_index,
+                &presenter.rendering_complete_semaphore.get(&presenter.frame_index),
+                &self.presentation_queue.borrow(),
+            )?;
+        }
         Ok(())
     }
 }

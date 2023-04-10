@@ -1,10 +1,11 @@
 use std::{rc::Rc, sync::Arc};
 
-use ash::vk;
+use ash::vk::{self};
 
-use crate::{command_pool::CommandPool, device::Device, AsRawVulkan};
+use crate::{command_pool::CommandPool, device::Device, fence::Fence, AsRawVulkan};
 
 pub struct CommandBuffer {
+    completed_fence: Fence,
     command_buffer: vk::CommandBuffer,
     command_pool: Rc<CommandPool>,
     device: Arc<Device>,
@@ -17,11 +18,23 @@ impl CommandBuffer {
             .command_pool(*command_pool.as_raw_vulkan())
             .level(vk::CommandBufferLevel::PRIMARY);
         let command_buffer = unsafe { device.as_raw_vulkan().allocate_command_buffers(&command_buffer_allocate_info)?[0] };
+        let completed_fence = Fence::new(device)?;
         Ok(Self {
-            device: device.clone(),
+            completed_fence,
             command_buffer,
             command_pool: command_pool.clone(),
+            device: device.clone(),
         })
+    }
+
+    /// The [`CommandPool`] from which the `CommandBuffer` is allocating the commands.
+    pub fn command_pool(&self) -> &Rc<CommandPool> {
+        &self.command_pool
+    }
+
+    /// Fence that signals that the command buffer has completed processing
+    pub fn completed_fence(&self) -> &Fence {
+        &self.completed_fence
     }
 }
 

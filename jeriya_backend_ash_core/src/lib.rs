@@ -1,8 +1,11 @@
 pub mod command_buffer;
+pub mod command_buffer_builder;
 pub mod command_pool;
 pub mod debug;
 pub mod device;
 pub mod entry;
+pub mod fence;
+pub mod frame_index;
 pub mod instance;
 pub mod physical_device;
 pub mod queue;

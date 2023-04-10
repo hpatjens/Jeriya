@@ -54,6 +54,21 @@ impl PresenterResources {
     pub fn swapchain(&self) -> &Swapchain {
         &self.swapchain
     }
+
+    /// Currently used [`SwapchainFramebuffers`]
+    pub fn framebuffers(&self) -> &SwapchainFramebuffers {
+        &self.swapchain_framebuffers
+    }
+
+    /// Currently used [`SwapchainRenderPass`]
+    pub fn render_pass(&self) -> &SwapchainRenderPass {
+        &self.swapchain_render_pass
+    }
+
+    /// Currently used [`DepthBuffers`]
+    pub fn depth_buffers(&self) -> &SwapchainDepthBuffers {
+        &self.swapchain_depth_buffers
+    }
 }
 
 #[cfg(test)]

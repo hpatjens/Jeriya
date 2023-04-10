@@ -3,13 +3,13 @@ use jeriya_shared::log::{info, warn};
 
 use std::{ops::Drop, sync::Arc};
 
-use crate::{device::Device, queue::Queue, surface::Surface, AsRawVulkan, Error};
+use crate::{device::Device, frame_index::FrameIndex, queue::Queue, semaphore::Semaphore, surface::Surface, AsRawVulkan, Error};
 
 /// Represents the swapchain.
 pub struct Swapchain {
     swapchain: khr::Swapchain,
     swapchain_khr: vk::SwapchainKHR,
-    _images: Vec<vk::Image>,
+    pub images: Vec<vk::Image>,
     image_views: Vec<vk::ImageView>,
     _format: vk::SurfaceFormatKHR,
     extent: vk::Extent2D,
@@ -145,7 +145,7 @@ impl Swapchain {
         Ok(Self {
             swapchain: swapchain_loader,
             swapchain_khr: swapchain,
-            _images: images,
+            images,
             image_views,
             _format: format,
             extent,
@@ -153,26 +153,25 @@ impl Swapchain {
         })
     }
 
-    pub fn acquire_next_image(&self, semaphore_to_signal: vk::Semaphore) -> VkResult<u32> {
+    pub fn acquire_next_image(&self, frame_index: &FrameIndex, semaphore_to_signal: &Semaphore) -> crate::Result<FrameIndex> {
         let (present_index, is_suboptimal) = unsafe {
-            self.swapchain
-                .acquire_next_image(self.swapchain_khr, std::u64::MAX, semaphore_to_signal, vk::Fence::null())?
+            self.swapchain.acquire_next_image(
+                self.swapchain_khr,
+                std::u64::MAX,
+                *semaphore_to_signal.as_raw_vulkan(),
+                vk::Fence::null(),
+            )?
         };
         if is_suboptimal {
             warn!("Suboptimal swapchain image");
         }
-        Ok(present_index)
+        Ok(frame_index.incremented(present_index as usize))
     }
 
-    pub fn present(
-        &self,
-        swapchain_image_index: u32,
-        rendering_complete_semaphore: vk::Semaphore,
-        present_queue: &Queue,
-    ) -> crate::Result<()> {
-        let wait_semaphors = [rendering_complete_semaphore];
+    pub fn present(&self, frame_index: &FrameIndex, rendering_complete_semaphore: &Semaphore, present_queue: &Queue) -> crate::Result<()> {
+        let wait_semaphors = [*rendering_complete_semaphore.as_raw_vulkan()];
         let swapchains = [self.swapchain_khr];
-        let image_indices = [swapchain_image_index];
+        let image_indices = [frame_index.swapchain_index() as u32];
         let present_info = vk::PresentInfoKHR::builder()
             .wait_semaphores(&wait_semaphors)
             .swapchains(&swapchains)
@@ -200,7 +199,7 @@ impl Swapchain {
 
     #[allow(dead_code)]
     pub fn len(&self) -> usize {
-        self._images.len()
+        self.images.len()
     }
 }
 

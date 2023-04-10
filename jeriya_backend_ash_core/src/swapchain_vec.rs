@@ -1,4 +1,4 @@
-use crate::swapchain::Swapchain;
+use crate::{frame_index::FrameIndex, swapchain::Swapchain};
 
 /// Dynamic array that has the length of the swapchain
 pub struct SwapchainVec<T> {
@@ -6,6 +6,8 @@ pub struct SwapchainVec<T> {
 }
 
 impl<T> SwapchainVec<T> {
+    const OUT_OF_BOUNDS_MSG: &str = "swapchain_index was out of bounds while accessing a SwapchainVec";
+
     /// Creates a new `SwapchainVec<T>` for the given `Swapchain` by using the function `init` to initialize the elements
     pub fn new<F>(swapchain: &Swapchain, init: F) -> crate::Result<Self>
     where
@@ -29,6 +31,21 @@ impl<T> SwapchainVec<T> {
     /// Length of the `SwapchainVec<T>`. This is always the length of the swapchain.
     pub fn len(&self) -> usize {
         self.data.len()
+    }
+
+    /// Returns the entry in the `SwapchainVec` that belongs to the given `FrameIndex`.
+    pub fn get(&self, frame_index: &FrameIndex) -> &T {
+        self.data.get(frame_index.swapchain_index()).expect(Self::OUT_OF_BOUNDS_MSG)
+    }
+}
+
+impl<T> SwapchainVec<Option<T>> {
+    /// Replaces the value at `frame_index` with `value`
+    pub fn replace(&mut self, frame_index: &FrameIndex, value: T) -> Option<T> {
+        self.data
+            .get_mut(frame_index.swapchain_index())
+            .expect(Self::OUT_OF_BOUNDS_MSG)
+            .replace(value)
     }
 }
 
