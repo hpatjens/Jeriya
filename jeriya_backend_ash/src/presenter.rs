@@ -20,7 +20,7 @@ impl Presenter {
         let presenter_resources = PresenterResources::new(device, surface, desired_swapchain_length)?;
         let image_available_semaphore = SwapchainVec::new(presenter_resources.swapchain(), |_| Ok(None))?;
         let rendering_complete_semaphore = SwapchainVec::new(presenter_resources.swapchain(), |_| {
-            Semaphore::new(device, debug_info!("rendering-complete-semaphore"))
+            Semaphore::new(device, debug_info!("rendering-complete-Semaphore"))
         })?;
         let frame_index = FrameIndex::new();
         Ok(Self {

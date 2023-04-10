@@ -20,7 +20,7 @@ impl CommandBuffer {
             .command_pool(*command_pool.as_raw_vulkan())
             .level(vk::CommandBufferLevel::PRIMARY);
         let command_buffer = unsafe { device.as_raw_vulkan().allocate_command_buffers(&command_buffer_allocate_info)?[0] };
-        let completed_fence = Fence::new(device, debug_info!("CommandBuffer-completed"))?;
+        let completed_fence = Fence::new(device, debug_info!("CommandBuffer-completed-Fence"))?;
         let debug_info = debug_info.with_vulkan_ptr(command_buffer);
         Ok(Self {
             completed_fence,
