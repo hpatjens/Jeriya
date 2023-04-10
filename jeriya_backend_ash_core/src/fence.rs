@@ -48,21 +48,12 @@ impl AsRawVulkan for Fence {
 #[cfg(test)]
 mod tests {
     mod new {
-        use std::iter;
-
-        use jeriya_test::create_window;
-
-        use crate::{device::Device, entry::Entry, fence::Fence, instance::Instance, physical_device::PhysicalDevice, surface::Surface};
+        use crate::{device::tests::TestFixtureDevice, fence::Fence};
 
         #[test]
         fn smoke() {
-            let window = create_window();
-            let entry = Entry::new().unwrap();
-            let instance = Instance::new(&entry, "my_application", false).unwrap();
-            let surface = Surface::new(&entry, &instance, &window).unwrap();
-            let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
-            let device = Device::new(physical_device, &instance).unwrap();
-            let _fence = Fence::new(&device).unwrap();
+            let test_fixture_device = TestFixtureDevice::new().unwrap();
+            let _fence = Fence::new(&test_fixture_device.device).unwrap();
         }
     }
 }
