@@ -55,7 +55,8 @@ impl DebugInfo {
 
     pub fn format_one_line(&self) -> String {
         let name = format!("{:?}", self.name);
-        format!("DebugInfo {{ name: {name} }}")
+        let ptr = self.ptr.map(|ptr| format!("{:#x}", ptr)).unwrap_or_else(|| "None".to_owned());
+        format!("DebugInfo {{ name: {name}, ptr: {ptr} }}")
     }
 }
 
@@ -130,13 +131,22 @@ mod tests {
         #[test]
         fn format_one_line_with_name() {
             let line = DebugInfo::default().with_name(Cow::Borrowed("my_texture")).format_one_line();
-            assert_eq!(line, "DebugInfo { name: Some(\"my_texture\") }");
+            assert_eq!(line, "DebugInfo { name: Some(\"my_texture\"), ptr: None }");
+        }
+
+        #[test]
+        fn format_one_line_with_name_and_ptr() {
+            let line = DebugInfo::default()
+                .with_name(Cow::Borrowed("my_texture"))
+                .with_ptr(873465)
+                .format_one_line();
+            assert_eq!(line, "DebugInfo { name: Some(\"my_texture\"), ptr: 0xd53f9 }");
         }
 
         #[test]
         fn format_one_line_without_name() {
             let line = DebugInfo::default().format_one_line();
-            assert_eq!(line, "DebugInfo { name: None }");
+            assert_eq!(line, "DebugInfo { name: None, ptr: None }");
         }
 
         #[test]
