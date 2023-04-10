@@ -4,6 +4,7 @@ use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
     device::Device, frame_index::FrameIndex, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec,
 };
+use jeriya_shared::debug_info;
 
 use crate::presenter_resources::PresenterResources;
 
@@ -18,7 +19,9 @@ impl Presenter {
     pub fn new(device: &Arc<Device>, surface: &Arc<Surface>, desired_swapchain_length: u32) -> core::Result<Self> {
         let presenter_resources = PresenterResources::new(device, surface, desired_swapchain_length)?;
         let image_available_semaphore = SwapchainVec::new(presenter_resources.swapchain(), |_| Ok(None))?;
-        let rendering_complete_semaphore = SwapchainVec::new(presenter_resources.swapchain(), |_| Semaphore::new(device))?;
+        let rendering_complete_semaphore = SwapchainVec::new(presenter_resources.swapchain(), |_| {
+            Semaphore::new(device, debug_info!("rendering-complete-semaphore"))
+        })?;
         let frame_index = FrameIndex::new();
         Ok(Self {
             frame_index,

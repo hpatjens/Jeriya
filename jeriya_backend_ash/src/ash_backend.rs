@@ -144,7 +144,7 @@ impl Backend for AshBackend {
             let presenter = &mut *presenter.borrow_mut();
 
             // Acquire the next swapchain index
-            let image_available_semaphore = Semaphore::new(&self.device)?;
+            let image_available_semaphore = Semaphore::new(&self.device, debug_info!("image-available-semaphore"))?;
             presenter.frame_index = presenter
                 .presenter_resources
                 .swapchain()
