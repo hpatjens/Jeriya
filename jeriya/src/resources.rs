@@ -89,14 +89,48 @@ where
 mod tests {
     use jeriya_shared::{
         debug_info,
+        immediate::{CommandBufferConfig, Line},
         winit::window::{Window, WindowId},
+        Backend, ImmediateRenderingBackend, SubBackendParams,
     };
 
-    use crate::{Backend, Renderer};
+    use crate::Renderer;
 
+    struct DummyImmediateRenderingBackend;
+    impl ImmediateRenderingBackend for DummyImmediateRenderingBackend {
+        type Backend = DummyBackend;
+
+        fn handle_new(
+            &self,
+            _params: &SubBackendParams<Self::Backend>,
+            _config: &CommandBufferConfig,
+            _debug_info: jeriya_shared::DebugInfo,
+        ) -> jeriya_shared::Result<()> {
+            Ok(())
+        }
+
+        fn handle_set_config(&self, _params: &SubBackendParams<Self::Backend>, _config: &CommandBufferConfig) -> jeriya_shared::Result<()> {
+            Ok(())
+        }
+
+        fn handle_push_line(
+            &self,
+            _params: &SubBackendParams<Self::Backend>,
+            _config: &CommandBufferConfig,
+            _line: Line,
+        ) -> jeriya_shared::Result<()> {
+            Ok(())
+        }
+
+        fn handle_build(&self, _params: &SubBackendParams<Self::Backend>, _config: &CommandBufferConfig) -> jeriya_shared::Result<()> {
+            Ok(())
+        }
+    }
     struct DummyBackend;
     impl Backend for DummyBackend {
         type BackendConfig = ();
+
+        type ImmediateRenderingBackend = DummyImmediateRenderingBackend;
 
         fn new(
             _renderer_config: jeriya_shared::RendererConfig,
@@ -115,6 +149,10 @@ mod tests {
 
         fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
             Ok(())
+        }
+
+        fn immediate_rendering_backend(&self) -> &Self::ImmediateRenderingBackend {
+            todo!()
         }
     }
 

@@ -1,6 +1,6 @@
 use std::io;
 
-use jeriya_backend_ash::Ash;
+use jeriya_backend_ash::AshBackend;
 use jeriya_shared::{
     log,
     winit::{
@@ -33,7 +33,7 @@ fn main() -> io::Result<()> {
         .build(&event_loop)
         .unwrap();
 
-    let renderer = jeriya::Renderer::<Ash>::builder().add_windows(&[&window]).build().unwrap();
+    let renderer = jeriya::Renderer::<AshBackend>::builder().add_windows(&[&window]).build().unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_wait();

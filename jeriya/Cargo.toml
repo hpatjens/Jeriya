@@ -7,6 +7,7 @@ edition = "2021"
 jeriya_shared = { path = "../jeriya_shared" }
 
 [dev-dependencies]
+jeriya_test = { path = "../jeriya_test" }
 jeriya_shared = { path = "../jeriya_shared" }
 jeriya_backend_ash = { path = "../jeriya_backend_ash" }
 fern = "0.6.1"

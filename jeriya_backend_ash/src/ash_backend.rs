@@ -1,8 +1,5 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::{collections::HashMap, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
-use jeriya::Backend;
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
     command_buffer::CommandBuffer,
@@ -22,12 +19,13 @@ use jeriya_backend_ash_core::{
 use jeriya_shared::{
     log::info,
     winit::window::{Window, WindowId},
-    RendererConfig,
+    Backend, RendererConfig,
 };
 
-use crate::presenter::Presenter;
+use crate::{ash_immediate_rendering_backend::AshImmediateRenderingBackend, presenter::Presenter};
 
-pub struct Ash {
+pub struct AshBackend {
+    immediate_rendering_backend: AshImmediateRenderingBackend,
     presenters: HashMap<WindowId, RefCell<Presenter>>,
     _surfaces: HashMap<WindowId, Arc<Surface>>,
     device: Arc<Device>,
@@ -38,8 +36,10 @@ pub struct Ash {
     command_pool: Rc<CommandPool>,
 }
 
-impl Backend for Ash {
+impl Backend for AshBackend {
     type BackendConfig = Config;
+
+    type ImmediateRenderingBackend = AshImmediateRenderingBackend;
 
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> jeriya_shared::Result<Self>
     where
@@ -109,6 +109,7 @@ impl Backend for Ash {
         let command_pool = CommandPool::new(&device, &presentation_queue, CommandPoolCreateFlags::ResetCommandBuffer)?;
 
         Ok(Self {
+            immediate_rendering_backend: AshImmediateRenderingBackend::new(),
             device,
             _validation_layer_callback: validation_layer_callback,
             _entry: entry,
@@ -189,6 +190,10 @@ impl Backend for Ash {
         }
         Ok(())
     }
+
+    fn immediate_rendering_backend(&self) -> &Self::ImmediateRenderingBackend {
+        &self.immediate_rendering_backend
+    }
 }
 
 #[cfg(test)]
@@ -208,7 +213,7 @@ mod tests {
                 ..RendererConfig::default()
             };
             let backend_config = Config::default();
-            Ash::new(renderer_config, backend_config, &[&window]).unwrap();
+            AshBackend::new(renderer_config, backend_config, &[&window]).unwrap();
         }
 
         #[test]
@@ -216,7 +221,7 @@ mod tests {
             let window = create_window();
             let renderer_config = RendererConfig::default();
             let backend_config = Config::default();
-            Ash::new(renderer_config, backend_config, &[&window]).unwrap();
+            AshBackend::new(renderer_config, backend_config, &[&window]).unwrap();
         }
 
         #[test]
@@ -224,7 +229,7 @@ mod tests {
             let renderer_config = RendererConfig::default();
             let backend_config = Config::default();
             assert!(matches!(
-                Ash::new(renderer_config, backend_config, &[]),
+                AshBackend::new(renderer_config, backend_config, &[]),
                 Err(jeriya_shared::Error::ExpectedWindow)
             ));
         }
@@ -243,7 +248,7 @@ mod tests {
                 ..RendererConfig::default()
             };
             let backend_config = Config::default();
-            let backend = Ash::new(renderer_config, backend_config, &[&window]).unwrap();
+            let backend = AshBackend::new(renderer_config, backend_config, &[&window]).unwrap();
             backend.handle_render_frame().unwrap();
         }
     }

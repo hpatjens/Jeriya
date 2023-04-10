@@ -1,11 +1,12 @@
 use jeriya_shared::{
+    immediate::CommandBufferBuilder,
     winit::window::{Window, WindowId},
-    RendererConfig, Result,
+    Backend, DebugInfo, RendererConfig, Result,
 };
 
 use std::marker::PhantomData;
 
-use crate::{Backend, ResourceContainerBuilder};
+use crate::ResourceContainerBuilder;
 
 /// Instance of the renderer
 pub struct Renderer<B>
@@ -44,6 +45,11 @@ where
     /// Has to be called when a window is gets resized.
     pub fn window_resized(&self, window_id: WindowId) -> Result<()> {
         self.backend.handle_window_resized(window_id)
+    }
+
+    /// Creates a new [`CommandBufferBuilder`]
+    pub fn create_command_buffer_builder(&self, debug_info: DebugInfo) -> Result<CommandBufferBuilder<'_, B>> {
+        CommandBufferBuilder::new(&self.backend, debug_info)
     }
 }
 
@@ -91,5 +97,35 @@ where
         let backend_config = self.backend_config.unwrap_or(B::BackendConfig::default());
         let backend = B::new(renderer_config, backend_config, self.windows)?;
         Ok(Renderer::new(backend))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    mod create_command_buffer_builder {
+        // use jeriya_backend_ash::AshBackend;
+        // use jeriya_shared::{
+        //     debug_info,
+        //     immediate::{CommandBufferConfig, Line},
+        //     nalgebra::{Vector3, Vector4},
+        // };
+        // use jeriya_test::create_window;
+
+        // use crate::Renderer;
+
+        // #[test]
+        // fn smoke() -> jeriya_shared::Result<()> {
+        //     let window = create_window();
+        //     let renderer = Renderer::<AshBackend>::builder().add_windows(&[&window]).build().unwrap();
+        //     renderer
+        //         .create_command_buffer_builder(debug_info!("test"))?
+        //         .set_config(CommandBufferConfig {
+        //             default_color: Vector4::new(1.0, 0.0, 0.0, 1.0),
+        //             default_line_width: 5.0,
+        //         })?
+        //         .push_line(Line::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0)))?
+        //         .build()?;
+        //     Ok(())
+        // }
     }
 }
