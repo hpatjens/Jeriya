@@ -229,4 +229,22 @@ mod tests {
             ));
         }
     }
+
+    mod render_frame {
+        use jeriya_test::create_window;
+
+        use super::*;
+
+        #[test]
+        fn smoke() {
+            let window = create_window();
+            let renderer_config = RendererConfig {
+                application_name: Some("my_application".to_owned()),
+                ..RendererConfig::default()
+            };
+            let backend_config = Config::default();
+            let backend = Ash::new(renderer_config, backend_config, &[&window]).unwrap();
+            backend.handle_render_frame().unwrap();
+        }
+    }
 }
