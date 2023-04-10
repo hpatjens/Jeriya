@@ -106,3 +106,20 @@ impl Queue {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod new {
+        use crate::device::tests::TestFixtureDevice;
+
+        use super::*;
+
+        #[test]
+        fn smoke() {
+            let device_test_fixture = TestFixtureDevice::new().unwrap();
+            let _queue = Queue::new(&device_test_fixture.device, QueueType::Presentation).unwrap();
+        }
+    }
+}

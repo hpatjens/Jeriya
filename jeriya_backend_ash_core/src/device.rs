@@ -119,20 +119,47 @@ impl AsRawVulkan for Device {
 }
 
 #[cfg(test)]
-mod tests {
-    mod new {
-        use jeriya_test::create_window;
+pub mod tests {
+    use std::sync::Arc;
 
-        use crate::{device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface};
+    use jeriya_shared::winit::window::Window;
+    use jeriya_test::create_window;
+
+    use crate::{device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface};
+
+    /// Test fixture for a [`Device`] and all its dependencies
+    pub struct TestFixtureDevice {
+        pub window: Window,
+        pub entry: Arc<Entry>,
+        pub instance: Arc<Instance>,
+        pub surface: Arc<Surface>,
+        pub device: Arc<Device>,
+    }
+
+    impl TestFixtureDevice {
+        pub fn new() -> crate::Result<Self> {
+            let window = create_window();
+            let entry = Entry::new()?;
+            let instance = Instance::new(&entry, "my_application", true)?;
+            let surface = Surface::new(&entry, &instance, &window)?;
+            let physical_device = PhysicalDevice::new(&instance, std::iter::once(&surface))?;
+            let device = Device::new(physical_device, &instance)?;
+            Ok(Self {
+                window,
+                entry,
+                instance,
+                surface,
+                device,
+            })
+        }
+    }
+
+    mod new {
+        use super::TestFixtureDevice;
 
         #[test]
         fn smoke() {
-            let window = create_window();
-            let entry = Entry::new().unwrap();
-            let instance = Instance::new(&entry, "my_application", false).unwrap();
-            let surface = Surface::new(&entry, &instance, &window).unwrap();
-            let physical_device = PhysicalDevice::new(&instance, &[surface]).unwrap();
-            let _device = Device::new(physical_device, &instance).unwrap();
+            let _device_test_fixture = TestFixtureDevice::new().unwrap();
         }
     }
 }
