@@ -34,23 +34,12 @@ impl AsRawVulkan for Semaphore {
 #[cfg(test)]
 mod tests {
     mod new {
-        use std::iter;
-
-        use jeriya_test::create_window;
-
-        use crate::{
-            device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, semaphore::Semaphore, surface::Surface,
-        };
+        use crate::{device::tests::TestFixtureDevice, semaphore::Semaphore};
 
         #[test]
         fn smoke() {
-            let window = create_window();
-            let entry = Entry::new().unwrap();
-            let instance = Instance::new(&entry, "my_application", false).unwrap();
-            let surface = Surface::new(&entry, &instance, &window).unwrap();
-            let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
-            let device = Device::new(physical_device, &instance).unwrap();
-            let _semaphore = Semaphore::new(&device).unwrap();
+            let test_fixture_device = TestFixtureDevice::new().unwrap();
+            let _semaphore = Semaphore::new(&test_fixture_device.device).unwrap();
         }
     }
 }
