@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::{log::info, AsDebugInfo, DebugInfo};
+use jeriya_shared::{AsDebugInfo, DebugInfo};
 
 use crate::{device::Device, queue::Queue, AsRawVulkan, DebugInfoAshExtension};
 
@@ -36,7 +36,6 @@ impl CommandPool {
             .queue_family_index(queue_family_index);
         let command_pool = device.as_raw_vulkan().create_command_pool(&command_pool_create_info, None)?;
         let debug_info = debug_info.with_vulkan_ptr(command_pool);
-        info!("Creating new CommandBuffer: {}", debug_info.format_one_line());
         Ok(Rc::new(Self {
             command_pool_create_flags,
             device: device.clone(),

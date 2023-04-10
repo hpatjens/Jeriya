@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::{log::info, AsDebugInfo, DebugInfo};
+use jeriya_shared::{AsDebugInfo, DebugInfo};
 
 use crate::{command_pool::CommandPool, device::Device, fence::Fence, AsRawVulkan, DebugInfoAshExtension};
 
@@ -22,7 +22,6 @@ impl CommandBuffer {
         let command_buffer = unsafe { device.as_raw_vulkan().allocate_command_buffers(&command_buffer_allocate_info)?[0] };
         let completed_fence = Fence::new(device)?;
         let debug_info = debug_info.with_vulkan_ptr(command_buffer);
-        info!("Creating new CommandBuffer: {}", debug_info.format_one_line());
         Ok(Self {
             completed_fence,
             command_buffer,
