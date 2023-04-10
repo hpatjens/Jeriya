@@ -1,5 +1,10 @@
 use std::{borrow::Cow, time::Instant};
 
+/// Returns the [`DebugInfo`] of a value.
+pub trait AsDebugInfo {
+    fn as_debug_info(&self) -> &DebugInfo;
+}
+
 /// Indicates where the something happened in the code.
 #[derive(Debug, Clone)]
 pub struct CodeLocation {
@@ -14,6 +19,7 @@ pub struct DebugInfo {
     pub origin_function_name: Option<&'static str>,
     pub code_location: Option<CodeLocation>,
     pub created_instant: Option<Instant>,
+    pub ptr: Option<u64>,
 }
 
 impl DebugInfo {
@@ -39,6 +45,11 @@ impl DebugInfo {
 
     pub fn with_created_now(mut self) -> Self {
         self.created_instant = Some(Instant::now());
+        self
+    }
+
+    pub fn with_ptr(mut self, ptr: u64) -> Self {
+        self.ptr = Some(ptr);
         self
     }
 
@@ -73,6 +84,22 @@ macro_rules! debug_info {
             .with_origin_function_name($crate::function_name!())
             .with_code_location($crate::code_location!())
             .with_created_now()
+    };
+    ($name:literal, $value:expr) => {
+        $crate::DebugInfo::default()
+            .with_name(std::borrow::Cow::Borrowed($name))
+            .with_origin_function_name($crate::function_name!())
+            .with_code_location($crate::code_location!())
+            .with_created_now()
+            .with_ptr($value)
+    };
+    ($name:expr, $value:expr) => {
+        $crate::DebugInfo::default()
+            .with_name(std::borrow::Cow::Owned($name.to_string()))
+            .with_origin_function_name($crate::function_name!())
+            .with_code_location($crate::code_location!())
+            .with_created_now()
+            .with_ptr($value)
     };
 }
 
@@ -116,13 +143,15 @@ mod tests {
         fn all() {
             // Given
             let instant = Instant::now();
+            let value = Box::new(12);
 
             // When
             let debug_info = DebugInfo::default()
                 .with_name(Cow::Borrowed("my_texture"))
                 .with_origin_function_name(function_name!())
                 .with_code_location(CodeLocation { file: "main.rs", line: 1 })
-                .with_created_instant(instant);
+                .with_created_instant(instant)
+                .with_ptr(value.as_ref() as *const i32 as u64);
 
             // Then
             assert_eq!(debug_info.name.unwrap(), Cow::Borrowed("my_texture"));
@@ -133,6 +162,7 @@ mod tests {
             );
             assert_eq!(debug_info.code_location.clone().unwrap().file, "main.rs");
             assert_eq!(debug_info.code_location.clone().unwrap().line, 1);
+            assert_eq!(debug_info.ptr.unwrap(), value.as_ref() as *const i32 as u64);
         }
     }
 }

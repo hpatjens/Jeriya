@@ -16,6 +16,7 @@ use jeriya_backend_ash_core::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
+use jeriya_shared::debug_info;
 use jeriya_shared::{
     log::info,
     winit::window::{Window, WindowId},
@@ -148,7 +149,11 @@ impl Backend for AshBackend {
                 .replace(&presenter.frame_index, image_available_semaphore);
 
             // Build CommandBuffer
-            let command_buffer = CommandBuffer::new(&self.device, &self.command_pool)?;
+            let command_buffer = CommandBuffer::new(
+                &self.device,
+                &self.command_pool,
+                debug_info!("CommandBuffer for swapchain renderpass"),
+            )?;
             CommandBufferBuilder::new(&self.device, &command_buffer)?
                 .begin_command_buffer_for_one_time_submit()?
                 .depth_pipeline_barrier(

@@ -1,29 +1,33 @@
 use std::{rc::Rc, sync::Arc};
 
-use ash::vk::{self};
+use ash::vk;
+use jeriya_shared::{AsDebugInfo, DebugInfo};
 
-use crate::{command_pool::CommandPool, device::Device, fence::Fence, AsRawVulkan};
+use crate::{command_pool::CommandPool, device::Device, fence::Fence, AsRawVulkan, DebugInfoAshExtension};
 
 pub struct CommandBuffer {
     completed_fence: Fence,
     command_buffer: vk::CommandBuffer,
     command_pool: Rc<CommandPool>,
     device: Arc<Device>,
+    debug_info: DebugInfo,
 }
 
 impl CommandBuffer {
-    pub fn new(device: &Arc<Device>, command_pool: &Rc<CommandPool>) -> crate::Result<Self> {
+    pub fn new(device: &Arc<Device>, command_pool: &Rc<CommandPool>, debug_info: DebugInfo) -> crate::Result<Self> {
         let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
             .command_buffer_count(1)
             .command_pool(*command_pool.as_raw_vulkan())
             .level(vk::CommandBufferLevel::PRIMARY);
         let command_buffer = unsafe { device.as_raw_vulkan().allocate_command_buffers(&command_buffer_allocate_info)?[0] };
         let completed_fence = Fence::new(device)?;
+        let debug_info = debug_info.with_vulkan_ptr(command_buffer);
         Ok(Self {
             completed_fence,
             command_buffer,
             command_pool: command_pool.clone(),
             device: device.clone(),
+            debug_info,
         })
     }
 
@@ -35,6 +39,12 @@ impl CommandBuffer {
     /// Fence that signals that the command buffer has completed processing
     pub fn completed_fence(&self) -> &Fence {
         &self.completed_fence
+    }
+}
+
+impl AsDebugInfo for CommandBuffer {
+    fn as_debug_info(&self) -> &DebugInfo {
+        &self.debug_info
     }
 }
 
@@ -58,6 +68,8 @@ impl AsRawVulkan for CommandBuffer {
 #[cfg(test)]
 mod tests {
     mod new {
+        use jeriya_shared::debug_info;
+
         use crate::{
             command_buffer::CommandBuffer,
             command_pool::{CommandPool, CommandPoolCreateFlags},
@@ -75,7 +87,7 @@ mod tests {
                 CommandPoolCreateFlags::ResetCommandBuffer,
             )
             .unwrap();
-            let _command_buffer = CommandBuffer::new(&test_fixture_device.device, &command_pool).unwrap();
+            let _command_buffer = CommandBuffer::new(&test_fixture_device.device, &command_pool, debug_info!("my_command_buffer")).unwrap();
         }
     }
 }

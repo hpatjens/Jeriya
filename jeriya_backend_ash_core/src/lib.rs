@@ -24,10 +24,27 @@ use ash::{
     vk::{self},
     LoadingError,
 };
-use jeriya_shared::winit::window::WindowId;
+use jeriya_shared::{winit::window::WindowId, DebugInfo};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Extension for [`DebugInfo`] to add the memory address of Vulkan handles
+pub(crate) trait DebugInfoAshExtension {
+    fn with_vulkan_ptr<H>(self, ptr: H) -> Self
+    where
+        H: vk::Handle;
+}
+
+impl DebugInfoAshExtension for DebugInfo {
+    fn with_vulkan_ptr<H>(self, ptr: H) -> Self
+    where
+        H: vk::Handle,
+    {
+        self.with_ptr(ptr.as_raw())
+    }
+}
+
+/// Returns the Vulkan equivalent of Self
 pub(crate) trait AsRawVulkan {
     type Output;
     fn as_raw_vulkan(&self) -> &Self::Output;
