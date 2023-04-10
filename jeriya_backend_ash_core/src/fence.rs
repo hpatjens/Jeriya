@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
 use ash::vk;
+use jeriya_shared::{AsDebugInfo, DebugInfo};
 
-use crate::{device::Device, AsRawVulkan};
+use crate::{device::Device, AsRawVulkan, DebugInfoAshExtension};
 
 pub struct Fence {
     fence: vk::Fence,
     device: Arc<Device>,
+    debug_info: DebugInfo,
 }
 
 impl Drop for Fence {
@@ -17,13 +19,21 @@ impl Drop for Fence {
     }
 }
 
+impl AsDebugInfo for Fence {
+    fn as_debug_info(&self) -> &jeriya_shared::DebugInfo {
+        &self.debug_info
+    }
+}
+
 impl Fence {
-    pub fn new(device: &Arc<Device>) -> crate::Result<Self> {
+    pub fn new(device: &Arc<Device>, debug_info: DebugInfo) -> crate::Result<Self> {
         let fence_create_info = vk::FenceCreateInfo::default();
         let fence = unsafe { device.as_raw_vulkan().create_fence(&fence_create_info, None)? };
+        let debug_info = debug_info.with_vulkan_ptr(fence);
         Ok(Self {
             fence,
             device: device.clone(),
+            debug_info,
         })
     }
 
@@ -48,12 +58,14 @@ impl AsRawVulkan for Fence {
 #[cfg(test)]
 mod tests {
     mod new {
+        use jeriya_shared::debug_info;
+
         use crate::{device::tests::TestFixtureDevice, fence::Fence};
 
         #[test]
         fn smoke() {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
-            let _fence = Fence::new(&test_fixture_device.device).unwrap();
+            let _fence = Fence::new(&test_fixture_device.device, debug_info!("my_fence")).unwrap();
         }
     }
 }

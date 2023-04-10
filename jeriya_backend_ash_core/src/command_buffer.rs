@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::{AsDebugInfo, DebugInfo};
+use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
 
 use crate::{command_pool::CommandPool, device::Device, fence::Fence, AsRawVulkan, DebugInfoAshExtension};
 
@@ -20,7 +20,7 @@ impl CommandBuffer {
             .command_pool(*command_pool.as_raw_vulkan())
             .level(vk::CommandBufferLevel::PRIMARY);
         let command_buffer = unsafe { device.as_raw_vulkan().allocate_command_buffers(&command_buffer_allocate_info)?[0] };
-        let completed_fence = Fence::new(device)?;
+        let completed_fence = Fence::new(device, debug_info!("CommandBuffer-completed"))?;
         let debug_info = debug_info.with_vulkan_ptr(command_buffer);
         Ok(Self {
             completed_fence,
