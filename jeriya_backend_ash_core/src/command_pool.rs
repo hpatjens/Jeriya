@@ -68,28 +68,22 @@ impl Drop for CommandPool {
 #[cfg(test)]
 mod tests {
     mod new {
-        use jeriya_test::create_window;
-
         use crate::{
             command_pool::{CommandPool, CommandPoolCreateFlags},
-            device::Device,
-            entry::Entry,
-            instance::Instance,
-            physical_device::PhysicalDevice,
+            device::tests::TestFixtureDevice,
             queue::{Queue, QueueType},
-            surface::Surface,
         };
 
         #[test]
         fn smoke() {
-            let window = create_window();
-            let entry = Entry::new().unwrap();
-            let instance = Instance::new(&entry, "my_application", false).unwrap();
-            let surface = Surface::new(&entry, &instance, &window).unwrap();
-            let physical_device = PhysicalDevice::new(&instance, &[surface]).unwrap();
-            let device = Device::new(physical_device, &instance).unwrap();
-            let presentation_queue = Queue::new(&device, QueueType::Presentation).unwrap();
-            let _command_pool = CommandPool::new(&device, &presentation_queue, CommandPoolCreateFlags::ResetCommandBuffer).unwrap();
+            let test_fixture_device = TestFixtureDevice::new().unwrap();
+            let presentation_queue = Queue::new(&test_fixture_device.device, QueueType::Presentation).unwrap();
+            let _command_pool = CommandPool::new(
+                &test_fixture_device.device,
+                &presentation_queue,
+                CommandPoolCreateFlags::ResetCommandBuffer,
+            )
+            .unwrap();
         }
     }
 }
