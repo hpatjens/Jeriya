@@ -87,11 +87,13 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use jeriya_shared::{
         debug_info,
         immediate::{CommandBufferConfig, Line},
         winit::window::{Window, WindowId},
-        Backend, ImmediateRenderingBackend, SubBackendParams,
+        Backend, ImmediateRenderingBackend,
     };
 
     use crate::Renderer;
@@ -100,30 +102,37 @@ mod tests {
     impl ImmediateRenderingBackend for DummyImmediateRenderingBackend {
         type Backend = DummyBackend;
 
+        type CommandBuffer = ();
+
         fn handle_new(
             &self,
-            _params: &SubBackendParams<Self::Backend>,
-            _config: &CommandBufferConfig,
+            _backend: &Self::Backend,
+            _config: CommandBufferConfig,
             _debug_info: jeriya_shared::DebugInfo,
-        ) -> jeriya_shared::Result<()> {
-            Ok(())
+        ) -> jeriya_shared::Result<Arc<Self::CommandBuffer>> {
+            todo!()
         }
 
-        fn handle_set_config(&self, _params: &SubBackendParams<Self::Backend>, _config: &CommandBufferConfig) -> jeriya_shared::Result<()> {
-            Ok(())
+        fn handle_set_config(
+            &self,
+            _backend: &Self::Backend,
+            _command_buffer: &Arc<Self::CommandBuffer>,
+            _config: CommandBufferConfig,
+        ) -> jeriya_shared::Result<()> {
+            todo!()
         }
 
         fn handle_push_line(
             &self,
-            _params: &SubBackendParams<Self::Backend>,
-            _config: &CommandBufferConfig,
+            _backend: &Self::Backend,
+            _command_buffer: &Arc<Self::CommandBuffer>,
             _line: Line,
         ) -> jeriya_shared::Result<()> {
-            Ok(())
+            todo!()
         }
 
-        fn handle_build(&self, _params: &SubBackendParams<Self::Backend>, _config: &CommandBufferConfig) -> jeriya_shared::Result<()> {
-            Ok(())
+        fn handle_build(&self, _backend: &Self::Backend, _command_buffer: &Arc<Self::CommandBuffer>) -> jeriya_shared::Result<()> {
+            todo!()
         }
     }
     struct DummyBackend;

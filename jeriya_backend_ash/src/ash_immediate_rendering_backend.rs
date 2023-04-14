@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use jeriya_shared::{
     immediate::{CommandBufferConfig, Line},
-    DebugInfo, ImmediateRenderingBackend, SubBackendParams,
+    DebugInfo, ImmediateRenderingBackend,
 };
 
 use crate::AshBackend;
@@ -13,32 +15,41 @@ impl AshImmediateRenderingBackend {
     }
 }
 
+pub struct AshImmediateCommandBuffer {}
+
 impl ImmediateRenderingBackend for AshImmediateRenderingBackend {
     type Backend = AshBackend;
 
+    type CommandBuffer = AshImmediateCommandBuffer;
+
     fn handle_new(
         &self,
-        params: &SubBackendParams<Self::Backend>,
-        config: &CommandBufferConfig,
-        debug_info: DebugInfo,
-    ) -> jeriya_shared::Result<()> {
+        _backend: &Self::Backend,
+        _config: CommandBufferConfig,
+        _debug_info: DebugInfo,
+    ) -> jeriya_shared::Result<Arc<Self::CommandBuffer>> {
         todo!()
     }
 
-    fn handle_set_config(&self, params: &SubBackendParams<Self::Backend>, config: &CommandBufferConfig) -> jeriya_shared::Result<()> {
+    fn handle_set_config(
+        &self,
+        _backend: &Self::Backend,
+        _command_buffer: &Arc<Self::CommandBuffer>,
+        _config: CommandBufferConfig,
+    ) -> jeriya_shared::Result<()> {
         todo!()
     }
 
     fn handle_push_line(
         &self,
-        params: &SubBackendParams<Self::Backend>,
-        config: &CommandBufferConfig,
-        line: Line,
+        _backend: &Self::Backend,
+        _command_buffer: &Arc<Self::CommandBuffer>,
+        _line: Line,
     ) -> jeriya_shared::Result<()> {
         todo!()
     }
 
-    fn handle_build(&self, params: &SubBackendParams<Self::Backend>, config: &CommandBufferConfig) -> jeriya_shared::Result<()> {
+    fn handle_build(&self, _backend: &Self::Backend, _command_buffer: &Arc<Self::CommandBuffer>) -> jeriya_shared::Result<()> {
         todo!()
     }
 }

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     immediate::{CommandBufferConfig, Line},
     winit::window::{Window, WindowId},
@@ -25,34 +27,31 @@ pub trait Backend {
     fn immediate_rendering_backend(&self) -> &Self::ImmediateRenderingBackend;
 }
 
-pub struct SubBackendParams<'back, B: Backend> {
-    pub backend: &'back B,
-}
-
-impl<'back, B: Backend> SubBackendParams<'back, B> {
-    pub fn new(backend: &'back B) -> Self {
-        Self { backend }
-    }
-}
-
 /// Backend functionality for immediate mode rendering
 pub trait ImmediateRenderingBackend {
     type Backend: Backend;
 
+    type CommandBuffer;
+
     /// Is called when `CommandBufferBuilder::new` is called.
     fn handle_new(
         &self,
-        params: &SubBackendParams<Self::Backend>,
-        config: &CommandBufferConfig,
+        backend: &Self::Backend,
+        config: CommandBufferConfig,
         debug_info: DebugInfo,
-    ) -> crate::Result<()>;
+    ) -> crate::Result<Arc<Self::CommandBuffer>>;
 
     /// Is called when `CommandBufferBuilder::set_config` is called
-    fn handle_set_config(&self, params: &SubBackendParams<Self::Backend>, config: &CommandBufferConfig) -> crate::Result<()>;
+    fn handle_set_config(
+        &self,
+        backend: &Self::Backend,
+        command_buffer: &Arc<Self::CommandBuffer>,
+        config: CommandBufferConfig,
+    ) -> crate::Result<()>;
 
     /// Is called when `CommandBufferBuilder::push_line` is called.
-    fn handle_push_line(&self, params: &SubBackendParams<Self::Backend>, config: &CommandBufferConfig, line: Line) -> crate::Result<()>;
+    fn handle_push_line(&self, backend: &Self::Backend, command_buffer: &Arc<Self::CommandBuffer>, line: Line) -> crate::Result<()>;
 
     /// Is called when `CommandBufferBuilder::build` is called.
-    fn handle_build(&self, params: &SubBackendParams<Self::Backend>, config: &CommandBufferConfig) -> crate::Result<()>;
+    fn handle_build(&self, backend: &Self::Backend, command_buffer: &Arc<Self::CommandBuffer>) -> crate::Result<()>;
 }
