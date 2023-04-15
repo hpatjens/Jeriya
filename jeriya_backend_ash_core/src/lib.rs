@@ -10,6 +10,8 @@ pub mod instance;
 pub mod physical_device;
 pub mod queue;
 pub mod semaphore;
+pub mod shader_module;
+pub mod simple_graphics_pipeline;
 pub mod surface;
 pub mod swapchain;
 pub mod swapchain_depth_buffer;
@@ -84,6 +86,8 @@ pub enum Error {
     UnknownWindowId(WindowId),
     #[error("Failed to find a matching memory type for the memory requirements")]
     UnsupportedMemoryType(vk::MemoryRequirements),
+    #[error("Failed to decode SPIR-V code")]
+    SpirvDecode,
 }
 
 impl From<Error> for jeriya_shared::Error {
