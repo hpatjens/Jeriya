@@ -38,39 +38,31 @@ impl Default for CommandBufferConfig {
 /// Creates new command buffers in the [`ImmediateRenderingBackend`].
 pub struct CommandBufferBuilder<'back, B: Backend> {
     backend: &'back B,
-    command_buffer: Arc<<B::ImmediateRenderingBackend as ImmediateRenderingBackend>::CommandBuffer>,
+    command_buffer: Arc<<B as ImmediateRenderingBackend>::CommandBuffer>,
 }
 
 impl<'back, B: Backend> CommandBufferBuilder<'back, B> {
     /// Creates a new `CommandBufferBuilder`.
     pub fn new(backend: &'back B, debug_info: DebugInfo) -> crate::Result<Self> {
         let config = Default::default();
-        let command_buffer = backend
-            .immediate_rendering_backend()
-            .handle_new(backend, config, debug_info.clone())?;
+        let command_buffer = backend.handle_new(config, debug_info.clone())?;
         Ok(Self { backend, command_buffer })
     }
 
     /// Sets the config for the `CommandBufferBuilder`.
     pub fn set_config(self, config: CommandBufferConfig) -> crate::Result<Self> {
-        self.backend
-            .immediate_rendering_backend()
-            .handle_set_config(&self.backend, &self.command_buffer, config)?;
+        self.backend.handle_set_config(&self.command_buffer, config)?;
         Ok(self)
     }
 
     /// Pushes a new [`Line`] to the `CommandBufferBuilder`.
     pub fn push_line(self, line: impl Into<Line>) -> crate::Result<Self> {
-        self.backend
-            .immediate_rendering_backend()
-            .handle_push_line(&self.backend, &self.command_buffer, line.into())?;
+        self.backend.handle_push_line(&self.command_buffer, line.into())?;
         Ok(self)
     }
 
     /// Finalizes the creation of the command buffer.
     pub fn build(self) -> crate::Result<()> {
-        self.backend
-            .immediate_rendering_backend()
-            .handle_build(&self.backend, &self.command_buffer)
+        self.backend.handle_build(&self.command_buffer)
     }
 }

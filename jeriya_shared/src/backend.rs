@@ -7,10 +7,8 @@ use crate::{
 };
 
 /// Rendering backend that is used by the [`Renderer`]
-pub trait Backend {
+pub trait Backend: ImmediateRenderingBackend {
     type BackendConfig: Default;
-
-    type ImmediateRenderingBackend: ImmediateRenderingBackend<Backend = Self>;
 
     /// Creates a new [`Backend`]
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> crate::Result<Self>
@@ -22,36 +20,21 @@ pub trait Backend {
 
     /// Is called when rendering is requested.
     fn handle_render_frame(&self) -> crate::Result<()>;
-
-    /// Returns the [`ImmediateRenderingBackend`]
-    fn immediate_rendering_backend(&self) -> &Self::ImmediateRenderingBackend;
 }
 
 /// Backend functionality for immediate mode rendering
 pub trait ImmediateRenderingBackend {
-    type Backend: Backend;
-
     type CommandBuffer;
 
     /// Is called when `CommandBufferBuilder::new` is called.
-    fn handle_new(
-        &self,
-        backend: &Self::Backend,
-        config: CommandBufferConfig,
-        debug_info: DebugInfo,
-    ) -> crate::Result<Arc<Self::CommandBuffer>>;
+    fn handle_new(&self, config: CommandBufferConfig, debug_info: DebugInfo) -> crate::Result<Arc<Self::CommandBuffer>>;
 
     /// Is called when `CommandBufferBuilder::set_config` is called
-    fn handle_set_config(
-        &self,
-        backend: &Self::Backend,
-        command_buffer: &Arc<Self::CommandBuffer>,
-        config: CommandBufferConfig,
-    ) -> crate::Result<()>;
+    fn handle_set_config(&self, command_buffer: &Arc<Self::CommandBuffer>, config: CommandBufferConfig) -> crate::Result<()>;
 
     /// Is called when `CommandBufferBuilder::push_line` is called.
-    fn handle_push_line(&self, backend: &Self::Backend, command_buffer: &Arc<Self::CommandBuffer>, line: Line) -> crate::Result<()>;
+    fn handle_push_line(&self, command_buffer: &Arc<Self::CommandBuffer>, line: Line) -> crate::Result<()>;
 
     /// Is called when `CommandBufferBuilder::build` is called.
-    fn handle_build(&self, backend: &Self::Backend, command_buffer: &Arc<Self::CommandBuffer>) -> crate::Result<()>;
+    fn handle_build(&self, command_buffer: &Arc<Self::CommandBuffer>) -> crate::Result<()>;
 }

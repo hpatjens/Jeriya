@@ -16,17 +16,16 @@ use jeriya_backend_ash_core::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_shared::debug_info;
+use jeriya_shared::{debug_info, ImmediateRenderingBackend};
 use jeriya_shared::{
     log::info,
     winit::window::{Window, WindowId},
     Backend, RendererConfig,
 };
 
-use crate::{ash_immediate_rendering_backend::AshImmediateRenderingBackend, presenter::Presenter};
+use crate::presenter::Presenter;
 
 pub struct AshBackend {
-    immediate_rendering_backend: AshImmediateRenderingBackend,
     presenters: HashMap<WindowId, RefCell<Presenter>>,
     _surfaces: HashMap<WindowId, Arc<Surface>>,
     device: Arc<Device>,
@@ -39,8 +38,6 @@ pub struct AshBackend {
 
 impl Backend for AshBackend {
     type BackendConfig = Config;
-
-    type ImmediateRenderingBackend = AshImmediateRenderingBackend;
 
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> jeriya_shared::Result<Self>
     where
@@ -115,7 +112,6 @@ impl Backend for AshBackend {
         )?;
 
         Ok(Self {
-            immediate_rendering_backend: AshImmediateRenderingBackend::new(),
             device,
             _validation_layer_callback: validation_layer_callback,
             _entry: entry,
@@ -200,9 +196,39 @@ impl Backend for AshBackend {
         }
         Ok(())
     }
+}
 
-    fn immediate_rendering_backend(&self) -> &Self::ImmediateRenderingBackend {
-        &self.immediate_rendering_backend
+pub struct AshCommandBuffer {}
+
+impl ImmediateRenderingBackend for AshBackend {
+    type CommandBuffer = AshCommandBuffer;
+
+    fn handle_new(
+        &self,
+        _config: jeriya_shared::immediate::CommandBufferConfig,
+        _debug_info: jeriya_shared::DebugInfo,
+    ) -> jeriya_shared::Result<Arc<Self::CommandBuffer>> {
+        todo!()
+    }
+
+    fn handle_set_config(
+        &self,
+        _command_buffer: &Arc<Self::CommandBuffer>,
+        _config: jeriya_shared::immediate::CommandBufferConfig,
+    ) -> jeriya_shared::Result<()> {
+        todo!()
+    }
+
+    fn handle_push_line(
+        &self,
+        _command_buffer: &Arc<Self::CommandBuffer>,
+        _line: jeriya_shared::immediate::Line,
+    ) -> jeriya_shared::Result<()> {
+        todo!()
+    }
+
+    fn handle_build(&self, _command_buffer: &Arc<Self::CommandBuffer>) -> jeriya_shared::Result<()> {
+        todo!()
     }
 }
 

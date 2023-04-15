@@ -98,48 +98,9 @@ mod tests {
 
     use crate::Renderer;
 
-    struct DummyImmediateRenderingBackend;
-    impl ImmediateRenderingBackend for DummyImmediateRenderingBackend {
-        type Backend = DummyBackend;
-
-        type CommandBuffer = ();
-
-        fn handle_new(
-            &self,
-            _backend: &Self::Backend,
-            _config: CommandBufferConfig,
-            _debug_info: jeriya_shared::DebugInfo,
-        ) -> jeriya_shared::Result<Arc<Self::CommandBuffer>> {
-            todo!()
-        }
-
-        fn handle_set_config(
-            &self,
-            _backend: &Self::Backend,
-            _command_buffer: &Arc<Self::CommandBuffer>,
-            _config: CommandBufferConfig,
-        ) -> jeriya_shared::Result<()> {
-            todo!()
-        }
-
-        fn handle_push_line(
-            &self,
-            _backend: &Self::Backend,
-            _command_buffer: &Arc<Self::CommandBuffer>,
-            _line: Line,
-        ) -> jeriya_shared::Result<()> {
-            todo!()
-        }
-
-        fn handle_build(&self, _backend: &Self::Backend, _command_buffer: &Arc<Self::CommandBuffer>) -> jeriya_shared::Result<()> {
-            todo!()
-        }
-    }
     struct DummyBackend;
     impl Backend for DummyBackend {
         type BackendConfig = ();
-
-        type ImmediateRenderingBackend = DummyImmediateRenderingBackend;
 
         fn new(
             _renderer_config: jeriya_shared::RendererConfig,
@@ -159,9 +120,28 @@ mod tests {
         fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
             Ok(())
         }
+    }
+    impl ImmediateRenderingBackend for DummyBackend {
+        type CommandBuffer = ();
 
-        fn immediate_rendering_backend(&self) -> &Self::ImmediateRenderingBackend {
-            todo!()
+        fn handle_new(
+            &self,
+            _config: CommandBufferConfig,
+            _debug_info: jeriya_shared::DebugInfo,
+        ) -> jeriya_shared::Result<Arc<Self::CommandBuffer>> {
+            Ok(Arc::new(()))
+        }
+
+        fn handle_set_config(&self, _command_buffer: &Arc<Self::CommandBuffer>, _config: CommandBufferConfig) -> jeriya_shared::Result<()> {
+            Ok(())
+        }
+
+        fn handle_push_line(&self, _command_buffer: &Arc<Self::CommandBuffer>, _line: Line) -> jeriya_shared::Result<()> {
+            Ok(())
+        }
+
+        fn handle_build(&self, _command_buffer: &Arc<Self::CommandBuffer>) -> jeriya_shared::Result<()> {
+            Ok(())
         }
     }
 
