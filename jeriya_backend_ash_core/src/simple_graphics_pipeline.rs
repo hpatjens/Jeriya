@@ -10,7 +10,9 @@ use crate::{
 
 #[repr(C)]
 #[derive(Debug, Default)]
-pub struct PushConstants {}
+pub struct PushConstants {
+    _non_zero: u32,
+}
 
 pub struct SimpleGraphicsPipeline {
     _vertex_shader: ShaderModule,

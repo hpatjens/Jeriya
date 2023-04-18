@@ -13,10 +13,13 @@ use jeriya_backend_ash_core::{
     physical_device::PhysicalDevice,
     queue::{Queue, QueueType},
     semaphore::Semaphore,
+    simple_graphics_pipeline::SimpleGraphicsPipeline,
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_shared::{debug_info, ImmediateRenderingBackend};
+use jeriya_shared::immediate::{CommandBufferConfig, Line};
+use jeriya_shared::parking_lot::Mutex;
+use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo, ImmediateCommandBufferBuilder};
 use jeriya_shared::{
     log::info,
     winit::window::{Window, WindowId},
@@ -34,10 +37,14 @@ pub struct AshBackend {
     _entry: Arc<Entry>,
     presentation_queue: RefCell<Queue>,
     command_pool: Rc<CommandPool>,
+    immediate_command_buffer_builders: Arc<Mutex<Vec<AshImmediateCommandBuffer>>>,
+    graphics_pipelines: HashMap<WindowId, SimpleGraphicsPipeline>,
 }
 
 impl Backend for AshBackend {
     type BackendConfig = Config;
+
+    type ImmediateCommandBufferBuilder = AshImmediateCommandBufferBuilder;
 
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> jeriya_shared::Result<Self>
     where
@@ -111,6 +118,21 @@ impl Backend for AshBackend {
             debug_info!("preliminary-CommandPool"),
         )?;
 
+        // Graphics Pipeline
+        let graphics_pipelines = presenters
+            .iter()
+            .map(|(window_id, presenter)| {
+                let presenter = presenter.borrow();
+                let graphics_pipeline = SimpleGraphicsPipeline::new(
+                    &device,
+                    presenter.presenter_resources.render_pass(),
+                    presenter.presenter_resources.swapchain(),
+                    debug_info!(format!("GraphicsPipeline-for-Window{:?}", window_id)),
+                )?;
+                Ok((*window_id, graphics_pipeline))
+            })
+            .collect::<core::Result<HashMap<_, _>>>()?;
+
         Ok(Self {
             device,
             _validation_layer_callback: validation_layer_callback,
@@ -120,6 +142,8 @@ impl Backend for AshBackend {
             _surfaces: surfaces,
             presentation_queue: RefCell::new(presentation_queue),
             command_pool,
+            immediate_command_buffer_builders: Arc::new(Mutex::new(Vec::new())),
+            graphics_pipelines,
         })
     }
 
@@ -136,8 +160,10 @@ impl Backend for AshBackend {
     fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
         self.presentation_queue.borrow_mut().update()?;
 
-        for presenter in self.presenters.values() {
+        for (window_id, presenter) in &self.presenters {
             let presenter = &mut *presenter.borrow_mut();
+
+            let graphics_pipeline = self.graphics_pipelines.get(&window_id).expect("no graphics pipeline for window");
 
             // Acquire the next swapchain index
             let image_available_semaphore = Semaphore::new(&self.device, debug_info!("image-available-Semaphore"))?;
@@ -153,7 +179,7 @@ impl Backend for AshBackend {
             let command_buffer = CommandBuffer::new(
                 &self.device,
                 &self.command_pool,
-                debug_info!("CommandBuffer for swapchain renderpass"),
+                debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
             )?;
             CommandBufferBuilder::new(&self.device, &command_buffer)?
                 .begin_command_buffer_for_one_time_submit()?
@@ -165,6 +191,7 @@ impl Backend for AshBackend {
                         .get(&presenter.frame_index),
                 )?
                 .begin_render_pass(
+                    presenter.frame_index.index(),
                     presenter.presenter_resources.swapchain(),
                     presenter.presenter_resources.render_pass(),
                     (
@@ -172,6 +199,8 @@ impl Backend for AshBackend {
                         presenter.frame_index.swapchain_index(),
                     ),
                 )?
+                .bind_graphics_pipeline(graphics_pipeline)
+                .draw_three_vertices()
                 .end_render_pass()?
                 .end_command_buffer()?;
 
@@ -196,39 +225,68 @@ impl Backend for AshBackend {
         }
         Ok(())
     }
+
+    fn create_immediate_command_buffer_builder(
+        &self,
+        config: CommandBufferConfig,
+        debug_info: DebugInfo,
+    ) -> jeriya_shared::Result<Self::ImmediateCommandBufferBuilder> {
+        Ok(AshImmediateCommandBufferBuilder::new(self, config, debug_info)?)
+    }
 }
 
-pub struct AshCommandBuffer {}
+enum ImmediateCommand {
+    Line(Line),
+}
 
-impl ImmediateRenderingBackend for AshBackend {
-    type CommandBuffer = AshCommandBuffer;
+pub struct AshImmediateCommandBuffer {
+    commands: Vec<ImmediateCommand>,
+    debug_info: DebugInfo,
+}
 
-    fn handle_new(
-        &self,
-        _config: jeriya_shared::immediate::CommandBufferConfig,
-        _debug_info: jeriya_shared::DebugInfo,
-    ) -> jeriya_shared::Result<Arc<Self::CommandBuffer>> {
-        todo!()
+pub struct AshImmediateCommandBufferBuilder {
+    commands: Vec<ImmediateCommand>,
+    debug_info: DebugInfo,
+    immerdiate_command_buffer_builders: Arc<Mutex<Vec<AshImmediateCommandBuffer>>>,
+}
+
+impl ImmediateCommandBufferBuilder for AshImmediateCommandBufferBuilder {
+    type Backend = AshBackend;
+
+    fn new(backend: &Self::Backend, _config: CommandBufferConfig, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
+    where
+        Self: Sized,
+    {
+        let immerdiate_command_buffer_builders = backend.immediate_command_buffer_builders.clone();
+        Ok(Self {
+            commands: Vec::new(),
+            debug_info,
+            immerdiate_command_buffer_builders,
+        })
     }
 
-    fn handle_set_config(
-        &self,
-        _command_buffer: &Arc<Self::CommandBuffer>,
-        _config: jeriya_shared::immediate::CommandBufferConfig,
-    ) -> jeriya_shared::Result<()> {
-        todo!()
+    fn set_config(&mut self, _config: CommandBufferConfig) -> jeriya_shared::Result<()> {
+        Ok(())
     }
 
-    fn handle_push_line(
-        &self,
-        _command_buffer: &Arc<Self::CommandBuffer>,
-        _line: jeriya_shared::immediate::Line,
-    ) -> jeriya_shared::Result<()> {
-        todo!()
+    fn push_line(&mut self, line: Line) -> jeriya_shared::Result<()> {
+        self.commands.push(ImmediateCommand::Line(line));
+        Ok(())
     }
 
-    fn handle_build(&self, _command_buffer: &Arc<Self::CommandBuffer>) -> jeriya_shared::Result<()> {
-        todo!()
+    fn build(self) -> jeriya_shared::Result<()> {
+        let mut guard = self.immerdiate_command_buffer_builders.lock();
+        guard.push(AshImmediateCommandBuffer {
+            commands: self.commands,
+            debug_info: self.debug_info,
+        });
+        Ok(())
+    }
+}
+
+impl AsDebugInfo for AshImmediateCommandBufferBuilder {
+    fn as_debug_info(&self) -> &DebugInfo {
+        &self.debug_info
     }
 }
 

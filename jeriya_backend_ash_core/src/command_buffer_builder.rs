@@ -3,8 +3,9 @@ use std::sync::Arc;
 use ash::vk;
 
 use crate::{
-    command_buffer::CommandBuffer, device::Device, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffer,
-    swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass, AsRawVulkan,
+    command_buffer::CommandBuffer, device::Device, simple_graphics_pipeline::SimpleGraphicsPipeline, swapchain::Swapchain,
+    swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_framebuffers::SwapchainFramebuffers,
+    swapchain_render_pass::SwapchainRenderPass, AsRawVulkan,
 };
 
 pub struct CommandBufferBuilder<'buf> {
@@ -42,6 +43,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
     pub fn begin_render_pass(
         self,
+        frame_index: u64,
         swapchain: &Swapchain,
         render_pass: &SwapchainRenderPass,
         framebuffer: (&SwapchainFramebuffers, usize),
@@ -51,10 +53,11 @@ impl<'buf> CommandBufferBuilder<'buf> {
             extent: swapchain.extent(),
         };
 
+        let b = (frame_index % 200) as f32 / 200.0;
         let clear_values = [
             vk::ClearValue {
                 color: vk::ClearColorValue {
-                    float32: [0.6, 0.6, 0.9, 0.0],
+                    float32: [0.6, 0.6, b, 0.0],
                 },
             },
             vk::ClearValue {
@@ -94,6 +97,26 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 .begin_command_buffer(*self.command_buffer.as_raw_vulkan(), &command_buffer_begin_info)?;
         }
         Ok(self)
+    }
+
+    pub fn bind_graphics_pipeline(self, graphics_pipeline: &SimpleGraphicsPipeline) -> Self {
+        unsafe {
+            self.device.as_raw_vulkan().cmd_bind_pipeline(
+                *self.command_buffer.as_raw_vulkan(),
+                vk::PipelineBindPoint::GRAPHICS,
+                *graphics_pipeline.as_raw_vulkan(),
+            );
+        }
+        self
+    }
+
+    pub fn draw_three_vertices(self) -> Self {
+        unsafe {
+            self.device
+                .as_raw_vulkan()
+                .cmd_draw(*self.command_buffer.as_raw_vulkan(), 3, 1, 0, 0);
+        }
+        self
     }
 
     /// Special function for depth buffer layout transition

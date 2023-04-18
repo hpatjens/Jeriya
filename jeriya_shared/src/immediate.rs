@@ -1,11 +1,6 @@
-use std::sync::Arc;
-
 use nalgebra::{Vector3, Vector4};
 
-use crate::{
-    backend::{Backend, ImmediateRenderingBackend},
-    DebugInfo,
-};
+use crate::{backend::Backend, DebugInfo, ImmediateCommandBufferBuilder};
 
 /// Line for immediate rendering
 pub struct Line {
@@ -35,34 +30,34 @@ impl Default for CommandBufferConfig {
     }
 }
 
-/// Creates new command buffers in the [`ImmediateRenderingBackend`].
-pub struct CommandBufferBuilder<'back, B: Backend> {
-    backend: &'back B,
-    command_buffer: Arc<<B as ImmediateRenderingBackend>::CommandBuffer>,
+/// Creates new command buffer in the [`ImmediateRenderingBackend`].
+pub struct CommandBufferBuilder<B: Backend> {
+    command_buffer_builder: B::ImmediateCommandBufferBuilder,
 }
 
-impl<'back, B: Backend> CommandBufferBuilder<'back, B> {
+impl<B: Backend> CommandBufferBuilder<B> {
     /// Creates a new `CommandBufferBuilder`.
-    pub fn new(backend: &'back B, debug_info: DebugInfo) -> crate::Result<Self> {
-        let config = Default::default();
-        let command_buffer = backend.handle_new(config, debug_info.clone())?;
-        Ok(Self { backend, command_buffer })
+    pub fn new(backend: &B, debug_info: DebugInfo) -> crate::Result<Self> {
+        let command_buffer_builder = backend.create_immediate_command_buffer_builder(CommandBufferConfig::default(), debug_info)?;
+        Ok(Self {
+            command_buffer_builder: command_buffer_builder,
+        })
     }
 
     /// Sets the config for the `CommandBufferBuilder`.
-    pub fn set_config(self, config: CommandBufferConfig) -> crate::Result<Self> {
-        self.backend.handle_set_config(&self.command_buffer, config)?;
+    pub fn set_config(mut self, config: CommandBufferConfig) -> crate::Result<Self> {
+        self.command_buffer_builder.set_config(config)?;
         Ok(self)
     }
 
     /// Pushes a new [`Line`] to the `CommandBufferBuilder`.
-    pub fn push_line(self, line: impl Into<Line>) -> crate::Result<Self> {
-        self.backend.handle_push_line(&self.command_buffer, line.into())?;
+    pub fn push_line(mut self, line: impl Into<Line>) -> crate::Result<Self> {
+        self.command_buffer_builder.push_line(line.into())?;
         Ok(self)
     }
 
     /// Finalizes the creation of the command buffer.
     pub fn build(self) -> crate::Result<()> {
-        self.backend.handle_build(&self.command_buffer)
+        self.command_buffer_builder.build()
     }
 }

@@ -1,14 +1,14 @@
-use std::sync::Arc;
-
 use crate::{
     immediate::{CommandBufferConfig, Line},
     winit::window::{Window, WindowId},
-    DebugInfo, RendererConfig,
+    AsDebugInfo, DebugInfo, RendererConfig,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
-pub trait Backend: ImmediateRenderingBackend {
+pub trait Backend {
     type BackendConfig: Default;
+
+    type ImmediateCommandBufferBuilder: ImmediateCommandBufferBuilder<Backend = Self>;
 
     /// Creates a new [`Backend`]
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> crate::Result<Self>
@@ -20,21 +20,29 @@ pub trait Backend: ImmediateRenderingBackend {
 
     /// Is called when rendering is requested.
     fn handle_render_frame(&self) -> crate::Result<()>;
+
+    /// Creates a new [`ImmediateCommandBufferBuilder`]
+    fn create_immediate_command_buffer_builder(
+        &self,
+        config: CommandBufferConfig,
+        debug_info: DebugInfo,
+    ) -> crate::Result<Self::ImmediateCommandBufferBuilder>;
 }
 
-/// Backend functionality for immediate mode rendering
-pub trait ImmediateRenderingBackend {
-    type CommandBuffer;
+pub trait ImmediateCommandBufferBuilder: AsDebugInfo {
+    type Backend: Backend;
 
-    /// Is called when `CommandBufferBuilder::new` is called.
-    fn handle_new(&self, config: CommandBufferConfig, debug_info: DebugInfo) -> crate::Result<Arc<Self::CommandBuffer>>;
+    /// Create a new [`ImmediateCommandBufferBuilder`]
+    fn new(backend: &Self::Backend, config: CommandBufferConfig, debug_info: DebugInfo) -> crate::Result<Self>
+    where
+        Self: Sized;
 
-    /// Is called when `CommandBufferBuilder::set_config` is called
-    fn handle_set_config(&self, command_buffer: &Arc<Self::CommandBuffer>, config: CommandBufferConfig) -> crate::Result<()>;
+    /// Set the configuration of the command buffer
+    fn set_config(&mut self, config: CommandBufferConfig) -> crate::Result<()>;
 
-    /// Is called when `CommandBufferBuilder::push_line` is called.
-    fn handle_push_line(&self, command_buffer: &Arc<Self::CommandBuffer>, line: Line) -> crate::Result<()>;
+    /// Push a line to the command buffer
+    fn push_line(&mut self, line: Line) -> crate::Result<()>;
 
-    /// Is called when `CommandBufferBuilder::build` is called.
-    fn handle_build(&self, command_buffer: &Arc<Self::CommandBuffer>) -> crate::Result<()>;
+    /// Build the command buffer and submit it for rendering
+    fn build(self) -> crate::Result<()>;
 }

@@ -48,7 +48,7 @@ where
     }
 
     /// Creates a new [`CommandBufferBuilder`]
-    pub fn create_command_buffer_builder(&self, debug_info: DebugInfo) -> Result<CommandBufferBuilder<'_, B>> {
+    pub fn create_immediate_command_buffer_builder(&self, debug_info: DebugInfo) -> Result<CommandBufferBuilder<B>> {
         CommandBufferBuilder::new(&self.backend, debug_info)
     }
 }

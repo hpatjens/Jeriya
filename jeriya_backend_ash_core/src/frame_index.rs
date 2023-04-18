@@ -19,6 +19,10 @@ impl FrameIndex {
         }
     }
 
+    pub fn index(&self) -> u64 {
+        self.index
+    }
+
     pub fn swapchain_index(&self) -> usize {
         self.swapchain_index
     }

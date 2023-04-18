@@ -93,7 +93,7 @@ impl Queue {
         loop {
             let result = self
                 .submitted_command_buffers
-                .pop_front()
+                .front()
                 .map(|first| first.completed_fence().get_fence_status())
                 .unwrap_or(Ok(false))?;
             if result {
