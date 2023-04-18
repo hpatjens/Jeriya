@@ -165,15 +165,23 @@ impl Backend for AshBackend {
 
             let graphics_pipeline = self.graphics_pipelines.get(&window_id).expect("no graphics pipeline for window");
 
+            // Wait for the oldest frame to finish
+            if let Some(oldest_frame) = presenter.oldest_frame_index() {
+                if let Some(command_buffer) = presenter.rendering_complete_command_buffer.get(&oldest_frame) {
+                    command_buffer.wait_for_completion()?;
+                }
+            }
+
             // Acquire the next swapchain index
             let image_available_semaphore = Semaphore::new(&self.device, debug_info!("image-available-Semaphore"))?;
-            presenter.frame_index = presenter
+            let frame_index = presenter
                 .presenter_resources
                 .swapchain()
-                .acquire_next_image(&mut presenter.frame_index, &image_available_semaphore)?;
+                .acquire_next_image(&mut presenter.frame_index(), &image_available_semaphore)?;
+            presenter.start_frame(frame_index);
             presenter
                 .image_available_semaphore
-                .replace(&presenter.frame_index, image_available_semaphore);
+                .replace(&presenter.frame_index(), image_available_semaphore);
 
             // Build CommandBuffer
             let command_buffer = CommandBuffer::new(
@@ -188,15 +196,15 @@ impl Backend for AshBackend {
                         .presenter_resources
                         .depth_buffers()
                         .depth_buffers
-                        .get(&presenter.frame_index),
+                        .get(&presenter.frame_index()),
                 )?
                 .begin_render_pass(
-                    presenter.frame_index.index(),
+                    presenter.frame_index().index(),
                     presenter.presenter_resources.swapchain(),
                     presenter.presenter_resources.render_pass(),
                     (
                         presenter.presenter_resources.framebuffers(),
-                        presenter.frame_index.swapchain_index(),
+                        presenter.frame_index().swapchain_index(),
                     ),
                 )?
                 .bind_graphics_pipeline(graphics_pipeline)
@@ -204,22 +212,28 @@ impl Backend for AshBackend {
                 .end_render_pass()?
                 .end_command_buffer()?;
 
+            // Save CommandBuffer to be able to check whether this frame was completed
+            let command_buffer = Arc::new(command_buffer);
+            presenter
+                .rendering_complete_command_buffer
+                .replace(&presenter.frame_index(), command_buffer.clone());
+
             // Insert into Queue
             let image_available_semaphore = presenter
                 .image_available_semaphore
-                .get(&presenter.frame_index)
+                .get(&presenter.frame_index())
                 .as_ref()
                 .expect("not image available semaphore assigned for the frame");
-            self.presentation_queue.borrow_mut().submit_with_wait_at_color_attachment_output(
+            self.presentation_queue.borrow_mut().submit_for_rendering_complete(
                 command_buffer,
                 &image_available_semaphore,
-                presenter.rendering_complete_semaphore.get(&presenter.frame_index),
+                presenter.rendering_complete_semaphore.get(&presenter.frame_index()),
             )?;
 
             // Present
             presenter.presenter_resources.swapchain().present(
-                &presenter.frame_index,
-                &presenter.rendering_complete_semaphore.get(&presenter.frame_index),
+                &presenter.frame_index(),
+                &presenter.rendering_complete_semaphore.get(&presenter.frame_index()),
                 &self.presentation_queue.borrow(),
             )?;
         }

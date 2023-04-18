@@ -40,6 +40,11 @@ impl CommandBuffer {
     pub fn completed_fence(&self) -> &Fence {
         &self.completed_fence
     }
+
+    /// Wait for the [`CommandBuffer`] to complete processing
+    pub fn wait_for_completion(&self) -> crate::Result<()> {
+        self.completed_fence.wait()
+    }
 }
 
 impl AsDebugInfo for CommandBuffer {

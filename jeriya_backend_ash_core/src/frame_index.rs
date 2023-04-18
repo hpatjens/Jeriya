@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FrameIndex {
     index: u64,
     swapchain_index: usize,

@@ -2,7 +2,21 @@ use std::{collections::VecDeque, sync::Arc};
 
 use ash::vk;
 
-use crate::{command_buffer::CommandBuffer, device::Device, semaphore::Semaphore, AsRawVulkan};
+use crate::{command_buffer::CommandBuffer, device::Device, fence::Fence, semaphore::Semaphore, AsRawVulkan};
+
+pub enum SubmittedCommandBuffer {
+    Value(CommandBuffer),
+    Arc(Arc<CommandBuffer>),
+}
+
+impl SubmittedCommandBuffer {
+    fn completed_fence(&self) -> &Fence {
+        match self {
+            SubmittedCommandBuffer::Value(command_buffer) => command_buffer.completed_fence(),
+            SubmittedCommandBuffer::Arc(command_buffer) => command_buffer.completed_fence(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum QueueType {
@@ -11,7 +25,7 @@ pub enum QueueType {
 pub struct Queue {
     pub queue_family_index: u32,
     pub queue_index: u32,
-    pub submitted_command_buffers: VecDeque<CommandBuffer>,
+    pub submitted_command_buffers: VecDeque<SubmittedCommandBuffer>,
     queue: vk::Queue,
     device: Arc<Device>,
 }
@@ -62,14 +76,15 @@ impl Queue {
                 .as_raw_vulkan()
                 .queue_submit(self.queue, &submit_infos, *command_buffer.completed_fence().as_raw_vulkan())?;
         }
-        self.submitted_command_buffers.push_back(command_buffer);
+        self.submitted_command_buffers
+            .push_back(SubmittedCommandBuffer::Value(command_buffer));
         Ok(())
     }
 
-    /// Submits the given [`CommandBuffer`] to the `Queue` so that it waits for `wait_semaphore` and signals `signal_semaphore`.
-    pub fn submit_with_wait_at_color_attachment_output(
+    /// Submits the given [`CommandBuffer`] to the `Queue` and returns is for manual
+    pub fn submit_for_rendering_complete(
         &mut self,
-        command_buffer: CommandBuffer,
+        command_buffer: Arc<CommandBuffer>,
         wait_semaphore: &Semaphore,
         signal_semaphore: &Semaphore,
     ) -> crate::Result<()> {
@@ -84,7 +99,8 @@ impl Queue {
                 .as_raw_vulkan()
                 .queue_submit(self.queue, &[submit_info], *command_buffer.completed_fence().as_raw_vulkan())?
         };
-        self.submitted_command_buffers.push_back(command_buffer);
+        self.submitted_command_buffers
+            .push_back(SubmittedCommandBuffer::Arc(command_buffer));
         Ok(())
     }
 
