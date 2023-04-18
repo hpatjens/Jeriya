@@ -84,8 +84,16 @@ unsafe extern "system" fn debug_utils_messenger_callback(
     let message = {
         let message = CStr::from_ptr((*p_callback_data).p_message)
             .to_str()
-            .expect("failed to convert validation layer message to str");
-        format!("[ValidationLayer] [{types}] {message}")
+            .expect("failed to convert validation layer message to str")
+            .replace("[ VUID", "\n\t[ VUID")
+            .replace("Object 0", "\n\tObject 0")
+            .replace("Object 1", "\n\tObject 1")
+            .replace("Object 2", "\n\tObject 2")
+            .replace("|", "\n\t|")
+            .replace("The Vulkan spec states:", "\n\tThe Vulkan spec states:")
+            .replace("(https", "\n\t(https");
+
+        format!("[ValidationLayer] [{types}] {message}\n")
     };
 
     let write_function = match message_severity {
