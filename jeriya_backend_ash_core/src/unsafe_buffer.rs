@@ -1,10 +1,6 @@
-use ash::{util::Align, vk};
+use ash::vk;
 
-use std::{
-    marker::PhantomData,
-    mem::{self, align_of},
-    sync::Arc,
-};
+use std::{marker::PhantomData, mem, slice, sync::Arc};
 
 use crate::{device::Device, AsRawVulkan, Error};
 
@@ -63,7 +59,24 @@ impl<T: Copy> UnsafeBuffer<T> {
     }
 
     /// Copies the given data into the buffer
-    pub unsafe fn set_memory(&mut self, data: &[T]) -> crate::Result<()> {
+    pub unsafe fn set_memory_unaligned(&mut self, data: &[T]) -> crate::Result<()> {
+        assert!(self.buffer_memory.is_some(), "allocate_memory must be called before set_memory");
+        assert_eq!(self.size, mem::size_of_val(data), "the data has to fit into the buffer exactly");
+        let buffer_memory = self
+            .buffer_memory
+            .expect("buffer_memory must be initialized when set_memory is called");
+        let ptr = self
+            .device
+            .as_raw_vulkan()
+            .map_memory(buffer_memory, 0, self.size as u64, vk::MemoryMapFlags::empty())?;
+        let slice = slice::from_raw_parts_mut(ptr as *mut T, self.size / mem::size_of::<T>());
+        slice.copy_from_slice(data);
+        self.device.as_raw_vulkan().unmap_memory(buffer_memory);
+        Ok(())
+    }
+
+    /// Copies the data from the buffer into the given slice
+    pub unsafe fn get_memory_unaligned(&mut self, data: &mut [T]) -> crate::Result<()> {
         assert!(self.buffer_memory.is_some(), "allocate_memory must be called before set_memory");
         assert_eq!(self.size, mem::size_of_val(data), "the data has to fit into the buffer exactly");
         let buffer_memory = self
@@ -71,14 +84,14 @@ impl<T: Copy> UnsafeBuffer<T> {
             .expect("buffer_memory must be initialized when set_memory is called");
         let device = self.device.as_raw_vulkan();
         let ptr = device.map_memory(buffer_memory, 0, self.size as u64, vk::MemoryMapFlags::empty())?;
-        let mut align = Align::new(ptr, align_of::<T>() as u64, self.size as u64);
-        align.copy_from_slice(&data);
+        let slice = slice::from_raw_parts_mut(ptr as *mut T, self.size / mem::size_of::<T>());
+        data.copy_from_slice(slice);
         device.unmap_memory(buffer_memory);
         Ok(())
     }
 
-    /// Returns the size of the buffer
-    pub fn size(&self) -> usize {
+    /// Returns the size of the buffer in bytes
+    pub fn byte_size(&self) -> usize {
         self.size
     }
 }
@@ -95,11 +108,20 @@ impl<T> Drop for UnsafeBuffer<T> {
     }
 }
 
+impl<T> AsRawVulkan for UnsafeBuffer<T> {
+    type Output = vk::Buffer;
+    fn as_raw_vulkan(&self) -> &Self::Output {
+        &self.buffer
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     mod new {
+        use ash::vk;
+
         use crate::device::tests::TestFixtureDevice;
 
         use super::UnsafeBuffer;
@@ -107,15 +129,21 @@ mod tests {
         #[test]
         fn smoke() {
             let device_test_fixture = TestFixtureDevice::new().unwrap();
-            let _buffer = unsafe {
-                UnsafeBuffer::<f32>::new(
+            let data = vec![1.0, 2.0, 3.0, 4.0];
+            unsafe {
+                let mut buffer = UnsafeBuffer::<f32>::new(
                     &device_test_fixture.device,
-                    1024,
-                    ash::vk::BufferUsageFlags::TRANSFER_SRC,
-                    ash::vk::SharingMode::EXCLUSIVE,
+                    std::mem::size_of_val(data.as_slice()),
+                    vk::BufferUsageFlags::TRANSFER_SRC,
+                    vk::SharingMode::EXCLUSIVE,
                 )
-                .unwrap()
-            };
+                .unwrap();
+                buffer.allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE).unwrap();
+                buffer.set_memory_unaligned(&data).unwrap();
+                let mut data2 = vec![0.0; 4];
+                buffer.get_memory_unaligned(&mut data2).unwrap();
+                assert_eq!(data, data2);
+            }
         }
     }
 }

@@ -7,6 +7,7 @@ use std::result;
 pub use backend::*;
 pub use debug_info::*;
 
+pub use bitflags;
 pub use chrono;
 pub use log;
 pub use nalgebra;
