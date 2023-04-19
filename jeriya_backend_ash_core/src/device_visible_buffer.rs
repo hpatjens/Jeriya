@@ -4,8 +4,15 @@ use ash::vk;
 use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
 
 use crate::{
-    buffer::BufferUsageFlags, command_buffer::CommandBuffer, command_buffer_builder::CommandBufferBuilder, command_pool::CommandPool,
-    device::Device, host_visible_buffer::HostVisibleBuffer, queue::Queue, unsafe_buffer::UnsafeBuffer, AsRawVulkan,
+    buffer::BufferUsageFlags,
+    command_buffer::{CommandBuffer, CommandBufferDependency},
+    command_buffer_builder::CommandBufferBuilder,
+    command_pool::CommandPool,
+    device::Device,
+    host_visible_buffer::HostVisibleBuffer,
+    queue::Queue,
+    unsafe_buffer::UnsafeBuffer,
+    AsRawVulkan,
 };
 
 pub struct DeviceVisibleBuffer<T> {
@@ -32,9 +39,9 @@ impl<T: Copy + 'static> DeviceVisibleBuffer<T> {
             buffer.allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE)?;
             buffer
         };
-        let command_buffer = CommandBuffer::new(device, command_pool, debug_info!("CommandBuffer-for-DeviceVisibleBuffer"))?;
+        let mut command_buffer = CommandBuffer::new(device, command_pool, debug_info!("CommandBuffer-for-DeviceVisibleBuffer"))?;
         let result = Arc::new(Self { buffer });
-        CommandBufferBuilder::new(device, &command_buffer)?
+        CommandBufferBuilder::new(device, &mut command_buffer)?
             .begin_command_buffer()?
             .copy_buffer_from_host_to_device(source_buffer, &result)
             .end_command_buffer()?;
@@ -60,6 +67,8 @@ impl<T> AsDebugInfo for DeviceVisibleBuffer<T> {
         self.buffer.as_debug_info()
     }
 }
+
+impl<T> CommandBufferDependency for DeviceVisibleBuffer<T> {}
 
 #[cfg(test)]
 mod tests {

@@ -3,7 +3,7 @@ use std::{mem, sync::Arc};
 use ash::vk;
 use jeriya_shared::{AsDebugInfo, DebugInfo};
 
-use crate::{buffer::BufferUsageFlags, device::Device, unsafe_buffer::UnsafeBuffer, AsRawVulkan};
+use crate::{buffer::BufferUsageFlags, command_buffer::CommandBufferDependency, device::Device, unsafe_buffer::UnsafeBuffer, AsRawVulkan};
 
 pub struct HostVisibleBuffer<T> {
     buffer: UnsafeBuffer<T>,
@@ -47,6 +47,8 @@ impl<T> AsDebugInfo for HostVisibleBuffer<T> {
         self.buffer.as_debug_info()
     }
 }
+
+impl<T> CommandBufferDependency for HostVisibleBuffer<T> {}
 
 #[cfg(test)]
 mod tests {

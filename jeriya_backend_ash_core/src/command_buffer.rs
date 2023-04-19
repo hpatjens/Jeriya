@@ -5,10 +5,13 @@ use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
 
 use crate::{command_pool::CommandPool, device::Device, fence::Fence, AsRawVulkan, DebugInfoAshExtension};
 
+pub trait CommandBufferDependency {}
+
 pub struct CommandBuffer {
     completed_fence: Fence,
     command_buffer: vk::CommandBuffer,
     command_pool: Rc<CommandPool>,
+    dependencies: Vec<Arc<dyn CommandBufferDependency>>,
     device: Arc<Device>,
     debug_info: DebugInfo,
 }
@@ -26,6 +29,7 @@ impl CommandBuffer {
             completed_fence,
             command_buffer,
             command_pool: command_pool.clone(),
+            dependencies: Vec::new(),
             device: device.clone(),
             debug_info,
         })
@@ -44,6 +48,11 @@ impl CommandBuffer {
     /// Wait for the [`CommandBuffer`] to complete processing
     pub fn wait_for_completion(&self) -> crate::Result<()> {
         self.completed_fence.wait()
+    }
+
+    /// Adds a dependency to the command buffer. The dependency well be kept alive until the command buffer is dropped.
+    pub fn push_dependency(&mut self, dependency: Arc<dyn CommandBufferDependency>) {
+        self.dependencies.push(dependency);
     }
 }
 

@@ -184,12 +184,12 @@ impl Backend for AshBackend {
                 .replace(&presenter.frame_index(), image_available_semaphore);
 
             // Build CommandBuffer
-            let command_buffer = CommandBuffer::new(
+            let mut command_buffer = CommandBuffer::new(
                 &self.device,
                 &self.command_pool,
                 debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
             )?;
-            CommandBufferBuilder::new(&self.device, &command_buffer)?
+            CommandBufferBuilder::new(&self.device, &mut command_buffer)?
                 .begin_command_buffer_for_one_time_submit()?
                 .depth_pipeline_barrier(
                     presenter

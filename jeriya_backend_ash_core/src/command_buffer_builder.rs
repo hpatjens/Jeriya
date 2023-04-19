@@ -9,12 +9,12 @@ use crate::{
 };
 
 pub struct CommandBufferBuilder<'buf> {
-    command_buffer: &'buf CommandBuffer,
+    command_buffer: &'buf mut CommandBuffer,
     device: Arc<Device>,
 }
 
 impl<'buf> CommandBufferBuilder<'buf> {
-    pub fn new(device: &Arc<Device>, command_buffer: &'buf CommandBuffer) -> crate::Result<Self> {
+    pub fn new(device: &Arc<Device>, command_buffer: &'buf mut CommandBuffer) -> crate::Result<Self> {
         Ok(Self {
             command_buffer,
             device: device.clone(),
@@ -136,9 +136,8 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 *dst.as_raw_vulkan(),
                 &[copy_region],
             );
-            // let mut dependencies = self.command_buffer.dependencies.borrow_mut();
-            // dependencies.push(src);
-            // dependencies.push(dst);
+            self.command_buffer.push_dependency(src.clone());
+            self.command_buffer.push_dependency(dst.clone());
             self
         }
     }
