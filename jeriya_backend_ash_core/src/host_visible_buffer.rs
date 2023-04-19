@@ -11,7 +11,7 @@ pub struct HostVisibleBuffer<T> {
 
 impl<T: Copy> HostVisibleBuffer<T> {
     /// Creates a new [`HostVisibleBuffer`] with the given data and usage flags
-    pub fn new(device: &Arc<Device>, data: &[T], usage: BufferUsageFlags) -> crate::Result<Self> {
+    pub fn new(device: &Arc<Device>, data: &[T], usage: BufferUsageFlags) -> crate::Result<Arc<Self>> {
         assert!(data.len() > 0, "HostVisibleBuffer must have a non-zero size");
         let buffer = unsafe {
             let size = mem::size_of_val(data);
@@ -20,7 +20,7 @@ impl<T: Copy> HostVisibleBuffer<T> {
             buffer.set_memory_unaligned(data)?;
             buffer
         };
-        Ok(Self { buffer, len: data.len() })
+        Ok(Arc::new(Self { buffer, len: data.len() }))
     }
 
     /// Returns the underlying [`UnsafeBuffer`]

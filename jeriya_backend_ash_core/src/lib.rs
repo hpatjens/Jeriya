@@ -4,6 +4,7 @@ pub mod command_buffer_builder;
 pub mod command_pool;
 pub mod debug;
 pub mod device;
+pub mod device_visible_buffer;
 pub mod entry;
 pub mod fence;
 pub mod frame_index;

@@ -3,9 +3,9 @@ use std::sync::Arc;
 use ash::vk;
 
 use crate::{
-    command_buffer::CommandBuffer, device::Device, simple_graphics_pipeline::SimpleGraphicsPipeline, swapchain::Swapchain,
-    swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_framebuffers::SwapchainFramebuffers,
-    swapchain_render_pass::SwapchainRenderPass, AsRawVulkan,
+    command_buffer::CommandBuffer, device::Device, device_visible_buffer::DeviceVisibleBuffer, host_visible_buffer::HostVisibleBuffer,
+    simple_graphics_pipeline::SimpleGraphicsPipeline, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffer,
+    swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass, AsRawVulkan,
 };
 
 pub struct CommandBufferBuilder<'buf> {
@@ -116,6 +116,31 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 .cmd_draw(*self.command_buffer.as_raw_vulkan(), 3, 1, 0, 0);
         }
         self
+    }
+
+    pub fn copy_buffer_from_host_to_device<T: Copy + 'static>(
+        self,
+        src: &Arc<HostVisibleBuffer<T>>,
+        dst: &Arc<DeviceVisibleBuffer<T>>,
+    ) -> Self {
+        assert_eq!(src.byte_size(), dst.byte_size(), "buffers must have the same size");
+        unsafe {
+            let copy_region = vk::BufferCopy {
+                src_offset: 0,
+                dst_offset: 0,
+                size: src.byte_size() as u64,
+            };
+            self.device.as_raw_vulkan().cmd_copy_buffer(
+                *self.command_buffer.as_raw_vulkan(),
+                *src.as_raw_vulkan(),
+                *dst.as_raw_vulkan(),
+                &[copy_region],
+            );
+            // let mut dependencies = self.command_buffer.dependencies.borrow_mut();
+            // dependencies.push(src);
+            // dependencies.push(dst);
+            self
+        }
     }
 
     /// Special function for depth buffer layout transition
