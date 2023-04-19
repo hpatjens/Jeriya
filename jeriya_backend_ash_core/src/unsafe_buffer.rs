@@ -1,8 +1,9 @@
 use ash::vk;
+use jeriya_shared::{AsDebugInfo, DebugInfo};
 
 use std::{marker::PhantomData, mem, slice, sync::Arc};
 
-use crate::{device::Device, AsRawVulkan, Error};
+use crate::{device::Device, AsRawVulkan, DebugInfoAshExtension, Error};
 
 /// Buffer implementation that is used by [`DeviceVisibleBuffer`] and [`HostVisibleBuffer`]
 pub struct UnsafeBuffer<T> {
@@ -11,6 +12,7 @@ pub struct UnsafeBuffer<T> {
     buffer_memory: Option<vk::DeviceMemory>,
     size: usize,
     phantom_data: PhantomData<T>,
+    debug_info: DebugInfo,
 }
 
 impl<T: Copy> UnsafeBuffer<T> {
@@ -20,6 +22,7 @@ impl<T: Copy> UnsafeBuffer<T> {
         size: usize,
         usage: vk::BufferUsageFlags,
         sharing_mode: vk::SharingMode,
+        debug_info: DebugInfo,
     ) -> crate::Result<Self> {
         assert!(size > 0, "UnsafeBuffer must have a non-zero size");
         let buffer_create_info = vk::BufferCreateInfo {
@@ -29,12 +32,14 @@ impl<T: Copy> UnsafeBuffer<T> {
             ..Default::default()
         };
         let buffer = device.as_raw_vulkan().create_buffer(&buffer_create_info, None)?;
+        let debug_info = debug_info.with_vulkan_ptr(buffer);
         Ok(Self {
             device: device.clone(),
             buffer,
             buffer_memory: None,
             size,
             phantom_data: PhantomData,
+            debug_info,
         })
     }
 
@@ -123,12 +128,19 @@ impl<T> AsRawVulkan for UnsafeBuffer<T> {
     }
 }
 
+impl<T> AsDebugInfo for UnsafeBuffer<T> {
+    fn as_debug_info(&self) -> &DebugInfo {
+        &self.debug_info
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     mod new {
         use ash::vk;
+        use jeriya_shared::debug_info;
 
         use crate::device::tests::TestFixtureDevice;
 
@@ -144,6 +156,7 @@ mod tests {
                     std::mem::size_of_val(data.as_slice()),
                     vk::BufferUsageFlags::TRANSFER_SRC,
                     vk::SharingMode::EXCLUSIVE,
+                    debug_info!("my_unsafe_buffer"),
                 )
                 .unwrap();
                 buffer.allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE).unwrap();

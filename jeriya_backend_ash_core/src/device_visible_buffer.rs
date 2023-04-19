@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::debug_info;
+use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
 
 use crate::{
     buffer::BufferUsageFlags, command_buffer::CommandBuffer, command_buffer_builder::CommandBufferBuilder, command_pool::CommandPool,
@@ -19,6 +19,7 @@ impl<T: Copy + 'static> DeviceVisibleBuffer<T> {
         transfer_queue: &mut Queue,
         command_pool: &Rc<CommandPool>,
         buffer_usage_flags: BufferUsageFlags,
+        debug_info: DebugInfo,
     ) -> crate::Result<Arc<Self>> {
         let buffer = unsafe {
             let mut buffer = UnsafeBuffer::new(
@@ -26,6 +27,7 @@ impl<T: Copy + 'static> DeviceVisibleBuffer<T> {
                 source_buffer.byte_size(),
                 buffer_usage_flags.into(),
                 vk::SharingMode::EXCLUSIVE,
+                debug_info,
             )?;
             buffer.allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE)?;
             buffer
@@ -50,6 +52,12 @@ impl<T> AsRawVulkan for DeviceVisibleBuffer<T> {
     type Output = vk::Buffer;
     fn as_raw_vulkan(&self) -> &Self::Output {
         self.buffer.as_raw_vulkan()
+    }
+}
+
+impl<T> AsDebugInfo for DeviceVisibleBuffer<T> {
+    fn as_debug_info(&self) -> &DebugInfo {
+        self.buffer.as_debug_info()
     }
 }
 
@@ -78,14 +86,20 @@ mod tests {
                 debug_info!("my_command_pool"),
             )
             .unwrap();
-            let host_visible_buffer =
-                HostVisibleBuffer::<f32>::new(&test_fixture_device.device, &[1.0, 2.0, 3.0], BufferUsageFlags::VERTEX_BUFFER).unwrap();
+            let host_visible_buffer = HostVisibleBuffer::<f32>::new(
+                &test_fixture_device.device,
+                &[1.0, 2.0, 3.0],
+                BufferUsageFlags::VERTEX_BUFFER,
+                debug_info!("my_host_visible_buffer"),
+            )
+            .unwrap();
             let _device_visible_buffer = DeviceVisibleBuffer::new(
                 &test_fixture_device.device,
                 &host_visible_buffer,
                 &mut presentation_queue,
                 &command_pool,
                 BufferUsageFlags::VERTEX_BUFFER,
+                debug_info!("my_device_visible_buffer"),
             )
             .unwrap();
         }
