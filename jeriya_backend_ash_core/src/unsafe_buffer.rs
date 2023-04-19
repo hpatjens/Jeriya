@@ -58,10 +58,9 @@ impl<T: Copy> UnsafeBuffer<T> {
         Ok(())
     }
 
-    /// Copies the given data into the buffer
-    pub unsafe fn set_memory_unaligned(&mut self, data: &[T]) -> crate::Result<()> {
+    /// Maps the GPU memory of the buffer and returns a slice to it
+    unsafe fn map_buffer_memory(&mut self) -> crate::Result<(&mut [T], vk::DeviceMemory)> {
         assert!(self.buffer_memory.is_some(), "allocate_memory must be called before set_memory");
-        assert_eq!(self.size, mem::size_of_val(data), "the data has to fit into the buffer exactly");
         let buffer_memory = self
             .buffer_memory
             .expect("buffer_memory must be initialized when set_memory is called");
@@ -70,23 +69,32 @@ impl<T: Copy> UnsafeBuffer<T> {
             .as_raw_vulkan()
             .map_memory(buffer_memory, 0, self.size as u64, vk::MemoryMapFlags::empty())?;
         let slice = slice::from_raw_parts_mut(ptr as *mut T, self.size / mem::size_of::<T>());
+        Ok((slice, buffer_memory))
+    }
+
+    /// Copies the given `data` into the buffer
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `data` does not fit into the buffer exactly
+    pub unsafe fn set_memory_unaligned(&mut self, data: &[T]) -> crate::Result<()> {
+        assert_eq!(self.size, mem::size_of_val(data), "the data has to fit into the buffer exactly");
+        let (slice, buffer_memory) = self.map_buffer_memory()?;
         slice.copy_from_slice(data);
         self.device.as_raw_vulkan().unmap_memory(buffer_memory);
         Ok(())
     }
 
-    /// Copies the data from the buffer into the given slice
+    /// Copies the `data` from the buffer into the given slice
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `data` does not have the same size as the buffer
     pub unsafe fn get_memory_unaligned(&mut self, data: &mut [T]) -> crate::Result<()> {
-        assert!(self.buffer_memory.is_some(), "allocate_memory must be called before set_memory");
-        assert_eq!(self.size, mem::size_of_val(data), "the data has to fit into the buffer exactly");
-        let buffer_memory = self
-            .buffer_memory
-            .expect("buffer_memory must be initialized when set_memory is called");
-        let device = self.device.as_raw_vulkan();
-        let ptr = device.map_memory(buffer_memory, 0, self.size as u64, vk::MemoryMapFlags::empty())?;
-        let slice = slice::from_raw_parts_mut(ptr as *mut T, self.size / mem::size_of::<T>());
+        assert_eq!(self.size, mem::size_of_val(data), "data must have the same size as the buffer");
+        let (slice, buffer_memory) = self.map_buffer_memory()?;
         data.copy_from_slice(slice);
-        device.unmap_memory(buffer_memory);
+        self.device.as_raw_vulkan().unmap_memory(buffer_memory);
         Ok(())
     }
 
