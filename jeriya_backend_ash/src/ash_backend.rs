@@ -199,7 +199,6 @@ impl Backend for AshBackend {
                         .get(&presenter.frame_index()),
                 )?
                 .begin_render_pass(
-                    presenter.frame_index().index(),
                     presenter.presenter_resources.swapchain(),
                     presenter.presenter_resources.render_pass(),
                     (

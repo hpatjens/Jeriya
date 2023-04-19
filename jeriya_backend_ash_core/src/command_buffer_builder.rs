@@ -41,9 +41,9 @@ impl<'buf> CommandBufferBuilder<'buf> {
         }
         Ok(())
     }
+
     pub fn begin_render_pass(
         self,
-        frame_index: u64,
         swapchain: &Swapchain,
         render_pass: &SwapchainRenderPass,
         framebuffer: (&SwapchainFramebuffers, usize),
@@ -53,11 +53,10 @@ impl<'buf> CommandBufferBuilder<'buf> {
             extent: swapchain.extent(),
         };
 
-        let b = (frame_index % 200) as f32 / 200.0;
         let clear_values = [
             vk::ClearValue {
                 color: vk::ClearColorValue {
-                    float32: [0.6, 0.6, b, 0.0],
+                    float32: [0.6, 0.6, 0.9, 0.0],
                 },
             },
             vk::ClearValue {
