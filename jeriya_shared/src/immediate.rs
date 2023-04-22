@@ -1,32 +1,99 @@
+use std::sync::Arc;
+
 use nalgebra::{Vector3, Vector4};
 
-use crate::{backend::Backend, DebugInfo, ImmediateCommandBufferBuilder};
+use crate::{backend::Backend, AsDebugInfo, DebugInfo, ImmediateCommandBufferBuilder};
 
-/// Line for immediate rendering
-pub struct Line {
-    pub v0: Vector3<f32>,
-    pub v1: Vector3<f32>,
+/// Configuration for immediate line rendering
+#[derive(Debug, Clone)]
+pub struct LineConfig {
+    pub color: Vector4<f32>,
+    pub line_width: f32,
 }
 
-impl Line {
-    /// Creates a new `Line` with the given end points
-    pub fn new(v0: Vector3<f32>, v1: Vector3<f32>) -> Self {
-        Self { v0, v1 }
+impl Default for LineConfig {
+    fn default() -> Self {
+        Self {
+            color: Vector4::new(1.0, 1.0, 1.0, 1.0),
+            line_width: 1.0,
+        }
     }
 }
 
-/// Configuration for the [`CommandBufferBuilder`]
-pub struct CommandBufferConfig {
-    pub default_color: Vector4<f32>,
-    pub default_line_width: f32,
+/// Individual lines for immediate rendering
+#[derive(Debug, Clone)]
+pub struct LineList {
+    vertices: Vec<Vector3<f32>>,
+    config: LineConfig,
 }
 
-impl Default for CommandBufferConfig {
-    fn default() -> Self {
-        Self {
-            default_color: Vector4::new(0.5, 0.5, 0.5, 1.0),
-            default_line_width: 1.0,
-        }
+impl LineList {
+    /// Creates a new `LineList` from the given vertices
+    ///
+    /// # Panics
+    ///
+    /// - Panics if the number of vertices is not even.
+    pub fn new(vertices: Vec<Vector3<f32>>, config: LineConfig) -> Self {
+        assert!(vertices.len() % 2 == 0, "Number of vertices must be even");
+        Self { vertices, config }
+    }
+
+    /// Returns the vertices of the `LineList`
+    pub fn vertices(&self) -> &[Vector3<f32>] {
+        &self.vertices
+    }
+
+    /// Returns the `LineConfig` of the `LineList`
+    pub fn config(&self) -> &LineConfig {
+        &self.config
+    }
+}
+
+/// Line strip for immediate rendering
+#[derive(Debug, Clone)]
+pub struct LineStrip {
+    vertices: Vec<Vector3<f32>>,
+    config: LineConfig,
+}
+
+impl LineStrip {
+    /// Creates a new `LineStrip` from the given vertices
+    pub fn new(vertices: Vec<Vector3<f32>>, config: LineConfig) -> Self {
+        assert!(!vertices.is_empty(), "Number of vertices must be greater than 0");
+        Self { vertices, config }
+    }
+
+    /// Returns the vertices of the `LineStrip`
+    pub fn vertices(&self) -> &[Vector3<f32>] {
+        &self.vertices
+    }
+
+    /// Returns the `LineConfig` of the `LineStrip`
+    pub fn config(&self) -> &LineConfig {
+        &self.config
+    }
+}
+
+/// Command buffer for immediate rendering.
+pub struct CommandBuffer<B: Backend> {
+    command_buffer: B::ImmediateCommandBuffer,
+}
+
+impl<B: Backend> CommandBuffer<B> {
+    /// Creates a new `CommandBuffer` from the given `command_buffer`.
+    pub fn new(command_buffer: B::ImmediateCommandBuffer) -> Self {
+        Self { command_buffer }
+    }
+
+    /// Returns the underlying command buffer.
+    pub fn command_buffer(&self) -> &B::ImmediateCommandBuffer {
+        &self.command_buffer
+    }
+}
+
+impl<B: Backend> AsDebugInfo for CommandBuffer<B> {
+    fn as_debug_info(&self) -> &DebugInfo {
+        self.command_buffer.as_debug_info()
     }
 }
 
@@ -37,27 +104,30 @@ pub struct CommandBufferBuilder<B: Backend> {
 
 impl<B: Backend> CommandBufferBuilder<B> {
     /// Creates a new `CommandBufferBuilder`.
-    pub fn new(backend: &B, debug_info: DebugInfo) -> crate::Result<Self> {
-        let command_buffer_builder = backend.create_immediate_command_buffer_builder(CommandBufferConfig::default(), debug_info)?;
-        Ok(Self {
-            command_buffer_builder: command_buffer_builder,
-        })
+    pub fn new(command_buffer_builder: B::ImmediateCommandBufferBuilder) -> Self {
+        Self { command_buffer_builder }
     }
 
-    /// Sets the config for the `CommandBufferBuilder`.
-    pub fn set_config(mut self, config: CommandBufferConfig) -> crate::Result<Self> {
-        self.command_buffer_builder.set_config(config)?;
+    /// Pushes new [`LineList`]s to the `CommandBufferBuilder`.
+    pub fn push_line_lists(mut self, lines: &[LineList]) -> crate::Result<Self> {
+        self.command_buffer_builder.push_line_lists(lines)?;
         Ok(self)
     }
 
-    /// Pushes a new [`Line`] to the `CommandBufferBuilder`.
-    pub fn push_line(mut self, line: impl Into<Line>) -> crate::Result<Self> {
-        self.command_buffer_builder.push_line(line.into())?;
+    /// Pushes new [`LineStrip`]s to the `CommandBufferBuilder`.
+    pub fn push_line_strips(mut self, line_strip: &[LineStrip]) -> crate::Result<Self> {
+        self.command_buffer_builder.push_line_strips(line_strip)?;
         Ok(self)
     }
 
-    /// Finalizes the creation of the command buffer.
-    pub fn build(self) -> crate::Result<()> {
+    /// Finalizes the creation of the [`CommandBuffer`].
+    pub fn build(self) -> crate::Result<Arc<CommandBuffer<B>>> {
         self.command_buffer_builder.build()
+    }
+}
+
+impl<B: Backend> AsDebugInfo for CommandBufferBuilder<B> {
+    fn as_debug_info(&self) -> &DebugInfo {
+        self.command_buffer_builder.as_debug_info()
     }
 }

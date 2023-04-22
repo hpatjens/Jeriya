@@ -1,10 +1,10 @@
 use jeriya_shared::{
-    immediate::CommandBufferBuilder,
+    immediate::{CommandBuffer, CommandBufferBuilder},
     winit::window::{Window, WindowId},
     Backend, DebugInfo, RendererConfig, Result,
 };
 
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::Arc};
 
 use crate::ResourceContainerBuilder;
 
@@ -49,7 +49,12 @@ where
 
     /// Creates a new [`CommandBufferBuilder`]
     pub fn create_immediate_command_buffer_builder(&self, debug_info: DebugInfo) -> Result<CommandBufferBuilder<B>> {
-        CommandBufferBuilder::new(&self.backend, debug_info)
+        self.backend.create_immediate_command_buffer_builder(debug_info)
+    }
+
+    /// Renders a [`CommandBuffer`] in the next frame
+    pub fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<B>>) -> Result<()> {
+        self.backend.render_immediate_command_buffer(command_buffer)
     }
 }
 
@@ -102,30 +107,32 @@ where
 
 #[cfg(test)]
 mod tests {
-    mod create_command_buffer_builder {
-        // use jeriya_backend_ash::AshBackend;
-        // use jeriya_shared::{
-        //     debug_info,
-        //     immediate::{CommandBufferConfig, Line},
-        //     nalgebra::{Vector3, Vector4},
-        // };
-        // use jeriya_test::create_window;
+    mod immediate_command_buffer {
+        use jeriya_backend_ash::AshBackend;
+        use jeriya_shared::{
+            debug_info,
+            immediate::{LineConfig, LineList},
+            nalgebra::Vector3,
+        };
+        use jeriya_test::create_window;
 
-        // use crate::Renderer;
+        use crate::Renderer;
 
-        // #[test]
-        // fn smoke() -> jeriya_shared::Result<()> {
-        //     let window = create_window();
-        //     let renderer = Renderer::<AshBackend>::builder().add_windows(&[&window]).build().unwrap();
-        //     renderer
-        //         .create_command_buffer_builder(debug_info!("test"))?
-        //         .set_config(CommandBufferConfig {
-        //             default_color: Vector4::new(1.0, 0.0, 0.0, 1.0),
-        //             default_line_width: 5.0,
-        //         })?
-        //         .push_line(Line::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0)))?
-        //         .build()?;
-        //     Ok(())
-        // }
+        #[test]
+        fn smoke() -> jeriya_shared::Result<()> {
+            let window = create_window();
+            let renderer = Renderer::<AshBackend>::builder().add_windows(&[&window]).build()?;
+            let line_list = LineList::new(
+                vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0)],
+                LineConfig::default(),
+            );
+            let immediate_command_buffer = renderer
+                .create_immediate_command_buffer_builder(debug_info!("my_immediate_command_buffer"))?
+                .push_line_lists(&[line_list])?
+                .build()?;
+            renderer.render_immediate_command_buffer(immediate_command_buffer)?;
+            renderer.render_frame()?;
+            Ok(())
+        }
     }
 }

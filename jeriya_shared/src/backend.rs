@@ -1,14 +1,17 @@
+use std::sync::Arc;
+
 use crate::{
-    immediate::{CommandBufferConfig, Line},
+    immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip},
     winit::window::{Window, WindowId},
     AsDebugInfo, DebugInfo, RendererConfig,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
-pub trait Backend {
+pub trait Backend: Sized {
     type BackendConfig: Default;
 
-    type ImmediateCommandBufferBuilder: ImmediateCommandBufferBuilder<Backend = Self>;
+    type ImmediateCommandBufferBuilder: ImmediateCommandBufferBuilder<Backend = Self> + AsDebugInfo;
+    type ImmediateCommandBuffer: AsDebugInfo;
 
     /// Creates a new [`Backend`]
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> crate::Result<Self>
@@ -22,27 +25,26 @@ pub trait Backend {
     fn handle_render_frame(&self) -> crate::Result<()>;
 
     /// Creates a new [`ImmediateCommandBufferBuilder`]
-    fn create_immediate_command_buffer_builder(
-        &self,
-        config: CommandBufferConfig,
-        debug_info: DebugInfo,
-    ) -> crate::Result<Self::ImmediateCommandBufferBuilder>;
+    fn create_immediate_command_buffer_builder(&self, debug_info: DebugInfo) -> crate::Result<CommandBufferBuilder<Self>>;
+
+    /// Renders the given [`CommandBuffer`] in the next frame
+    fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<Self>>) -> crate::Result<()>;
 }
 
 pub trait ImmediateCommandBufferBuilder: AsDebugInfo {
     type Backend: Backend;
 
     /// Create a new [`ImmediateCommandBufferBuilder`]
-    fn new(backend: &Self::Backend, config: CommandBufferConfig, debug_info: DebugInfo) -> crate::Result<Self>
+    fn new(backend: &Self::Backend, debug_info: DebugInfo) -> crate::Result<Self>
     where
         Self: Sized;
 
-    /// Set the configuration of the command buffer
-    fn set_config(&mut self, config: CommandBufferConfig) -> crate::Result<()>;
+    /// Push one or more `LineList`s to the command buffer
+    fn push_line_lists(&mut self, line_lists: &[LineList]) -> crate::Result<()>;
 
-    /// Push a line to the command buffer
-    fn push_line(&mut self, line: Line) -> crate::Result<()>;
+    /// Push one or more `LineStrip`s to the command buffer
+    fn push_line_strips(&mut self, line_strips: &[LineStrip]) -> crate::Result<()>;
 
     /// Build the command buffer and submit it for rendering
-    fn build(self) -> crate::Result<()>;
+    fn build(self) -> crate::Result<Arc<CommandBuffer<Self::Backend>>>;
 }

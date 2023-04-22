@@ -17,13 +17,14 @@ use jeriya_backend_ash_core::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_shared::immediate::{CommandBufferConfig, Line};
-use jeriya_shared::parking_lot::Mutex;
-use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo, ImmediateCommandBufferBuilder};
+use jeriya_shared::immediate;
 use jeriya_shared::{
+    debug_info,
+    immediate::{LineList, LineStrip},
     log::info,
+    parking_lot::Mutex,
     winit::window::{Window, WindowId},
-    Backend, RendererConfig,
+    AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilder, RendererConfig,
 };
 
 use crate::presenter::Presenter;
@@ -37,7 +38,7 @@ pub struct AshBackend {
     _entry: Arc<Entry>,
     presentation_queue: RefCell<Queue>,
     command_pool: Rc<CommandPool>,
-    immediate_command_buffer_builders: Arc<Mutex<Vec<AshImmediateCommandBuffer>>>,
+    immediate_command_buffer_builders: Mutex<Vec<AshImmediateCommandBuffer>>,
     graphics_pipelines: HashMap<WindowId, SimpleGraphicsPipeline>,
 }
 
@@ -45,6 +46,7 @@ impl Backend for AshBackend {
     type BackendConfig = Config;
 
     type ImmediateCommandBufferBuilder = AshImmediateCommandBufferBuilder;
+    type ImmediateCommandBuffer = AshImmediateCommandBuffer;
 
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> jeriya_shared::Result<Self>
     where
@@ -142,7 +144,7 @@ impl Backend for AshBackend {
             _surfaces: surfaces,
             presentation_queue: RefCell::new(presentation_queue),
             command_pool,
-            immediate_command_buffer_builders: Arc::new(Mutex::new(Vec::new())),
+            immediate_command_buffer_builders: Mutex::new(Vec::new()),
             graphics_pipelines,
         })
     }
@@ -241,15 +243,26 @@ impl Backend for AshBackend {
 
     fn create_immediate_command_buffer_builder(
         &self,
-        config: CommandBufferConfig,
         debug_info: DebugInfo,
-    ) -> jeriya_shared::Result<Self::ImmediateCommandBufferBuilder> {
-        Ok(AshImmediateCommandBufferBuilder::new(self, config, debug_info)?)
+    ) -> jeriya_shared::Result<immediate::CommandBufferBuilder<Self>> {
+        let command_buffer_builder = AshImmediateCommandBufferBuilder::new(self, debug_info)?;
+        Ok(immediate::CommandBufferBuilder::new(command_buffer_builder))
+    }
+
+    fn render_immediate_command_buffer(&self, command_buffer: Arc<immediate::CommandBuffer<Self>>) -> jeriya_shared::Result<()> {
+        let mut guard = self.immediate_command_buffer_builders.lock();
+        guard.push(AshImmediateCommandBuffer {
+            commands: command_buffer.command_buffer().commands.clone(),
+            debug_info: command_buffer.command_buffer().debug_info.clone(),
+        });
+        Ok(())
     }
 }
 
+#[derive(Debug, Clone)]
 enum ImmediateCommand {
-    Line(Line),
+    LineLists(Vec<LineList>),
+    LineStrips(Vec<LineStrip>),
 }
 
 pub struct AshImmediateCommandBuffer {
@@ -257,43 +270,46 @@ pub struct AshImmediateCommandBuffer {
     debug_info: DebugInfo,
 }
 
+impl AsDebugInfo for AshImmediateCommandBuffer {
+    fn as_debug_info(&self) -> &DebugInfo {
+        &self.debug_info
+    }
+}
+
 pub struct AshImmediateCommandBufferBuilder {
     commands: Vec<ImmediateCommand>,
     debug_info: DebugInfo,
-    immerdiate_command_buffer_builders: Arc<Mutex<Vec<AshImmediateCommandBuffer>>>,
 }
 
 impl ImmediateCommandBufferBuilder for AshImmediateCommandBufferBuilder {
     type Backend = AshBackend;
 
-    fn new(backend: &Self::Backend, _config: CommandBufferConfig, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
+    fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
     where
         Self: Sized,
     {
-        let immerdiate_command_buffer_builders = backend.immediate_command_buffer_builders.clone();
         Ok(Self {
             commands: Vec::new(),
             debug_info,
-            immerdiate_command_buffer_builders,
         })
     }
 
-    fn set_config(&mut self, _config: CommandBufferConfig) -> jeriya_shared::Result<()> {
+    fn push_line_lists(&mut self, lines: &[LineList]) -> jeriya_shared::Result<()> {
+        self.commands.push(ImmediateCommand::LineLists(lines.to_vec()));
         Ok(())
     }
 
-    fn push_line(&mut self, line: Line) -> jeriya_shared::Result<()> {
-        self.commands.push(ImmediateCommand::Line(line));
+    fn push_line_strips(&mut self, line_strips: &[LineStrip]) -> jeriya_shared::Result<()> {
+        self.commands.push(ImmediateCommand::LineStrips(line_strips.to_vec()));
         Ok(())
     }
 
-    fn build(self) -> jeriya_shared::Result<()> {
-        let mut guard = self.immerdiate_command_buffer_builders.lock();
-        guard.push(AshImmediateCommandBuffer {
+    fn build(self) -> jeriya_shared::Result<Arc<immediate::CommandBuffer<Self::Backend>>> {
+        let command_buffer = AshImmediateCommandBuffer {
             commands: self.commands,
             debug_info: self.debug_info,
-        });
-        Ok(())
+        };
+        Ok(Arc::new(immediate::CommandBuffer::new(command_buffer)))
     }
 }
 
