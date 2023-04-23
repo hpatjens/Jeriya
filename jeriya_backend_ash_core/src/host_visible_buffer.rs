@@ -12,7 +12,7 @@ pub struct HostVisibleBuffer<T> {
 
 impl<T: Copy> HostVisibleBuffer<T> {
     /// Creates a new [`HostVisibleBuffer`] with the given data and usage flags
-    pub fn new(device: &Arc<Device>, data: &[T], usage: BufferUsageFlags, debug_info: DebugInfo) -> crate::Result<Arc<Self>> {
+    pub fn new(device: &Arc<Device>, data: &[T], usage: BufferUsageFlags, debug_info: DebugInfo) -> crate::Result<Self> {
         assert!(data.len() > 0, "HostVisibleBuffer must have a non-zero size");
         let buffer = unsafe {
             let size = mem::size_of_val(data);
@@ -21,7 +21,23 @@ impl<T: Copy> HostVisibleBuffer<T> {
             buffer.set_memory_unaligned(data)?;
             buffer
         };
-        Ok(Arc::new(Self { buffer, len: data.len() }))
+        Ok(Self { buffer, len: data.len() })
+    }
+
+    /// Writes the given data to the buffer
+    pub fn set_memory_unaligned(&mut self, data: &[T]) -> crate::Result<()> {
+        unsafe {
+            self.buffer.set_memory_unaligned(data)?;
+        }
+        Ok(())
+    }
+
+    /// Reads the buffer into the given slice
+    pub fn get_memory_unaligned(&mut self, data: &mut [T]) -> crate::Result<()> {
+        unsafe {
+            self.buffer.get_memory_unaligned(data)?;
+        }
+        Ok(())
     }
 
     /// Returns the underlying [`UnsafeBuffer`]
@@ -64,13 +80,35 @@ mod tests {
         #[test]
         fn smoke() {
             let device_test_fixture = TestFixtureDevice::new().unwrap();
-            let _buffer = HostVisibleBuffer::<f32>::new(
+            let data = [1.0, 2.0, 3.0];
+            let mut buffer = HostVisibleBuffer::<f32>::new(
                 &device_test_fixture.device,
-                &[1.0, 2.0, 3.0],
+                &data,
                 BufferUsageFlags::VERTEX_BUFFER,
                 debug_info!("my_host_visible_buffer"),
             )
             .unwrap();
+            let mut data2 = [0.0, 0.0, 0.0];
+            buffer.get_memory_unaligned(&mut data2).unwrap();
+            assert_eq!(data, data2);
+        }
+
+        #[test]
+        fn set_memory() {
+            let device_test_fixture = TestFixtureDevice::new().unwrap();
+            let zeroed = [0.0, 0.0, 0.0];
+            let mut buffer = HostVisibleBuffer::<f32>::new(
+                &device_test_fixture.device,
+                &zeroed,
+                BufferUsageFlags::VERTEX_BUFFER,
+                debug_info!("my_host_visible_buffer"),
+            )
+            .unwrap();
+            let data = [1.0, 2.0, 3.0];
+            buffer.set_memory_unaligned(&data).unwrap();
+            let mut data2 = [0.0, 0.0, 0.0];
+            buffer.get_memory_unaligned(&mut data2).unwrap();
+            assert_eq!(data, data2);
         }
     }
 }

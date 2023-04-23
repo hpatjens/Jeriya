@@ -73,6 +73,8 @@ impl<T> CommandBufferDependency for DeviceVisibleBuffer<T> {}
 #[cfg(test)]
 mod tests {
     mod new {
+        use std::sync::Arc;
+
         use jeriya_shared::debug_info;
 
         use crate::{
@@ -95,13 +97,15 @@ mod tests {
                 debug_info!("my_command_pool"),
             )
             .unwrap();
-            let host_visible_buffer = HostVisibleBuffer::<f32>::new(
-                &test_fixture_device.device,
-                &[1.0, 2.0, 3.0],
-                BufferUsageFlags::VERTEX_BUFFER,
-                debug_info!("my_host_visible_buffer"),
-            )
-            .unwrap();
+            let host_visible_buffer = Arc::new(
+                HostVisibleBuffer::<f32>::new(
+                    &test_fixture_device.device,
+                    &[1.0, 2.0, 3.0],
+                    BufferUsageFlags::VERTEX_BUFFER,
+                    debug_info!("my_host_visible_buffer"),
+                )
+                .unwrap(),
+            );
             let _device_visible_buffer = DeviceVisibleBuffer::new(
                 &test_fixture_device.device,
                 &host_visible_buffer,
