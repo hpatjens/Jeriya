@@ -235,7 +235,8 @@ impl Backend for AshBackend {
                 &self.command_pool,
                 debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
             )?;
-            let command_buffer_builder = CommandBufferBuilder::new(&self.device, &mut command_buffer)?
+            let mut command_buffer_builder = CommandBufferBuilder::new(&self.device, &mut command_buffer)?;
+            command_buffer_builder
                 .begin_command_buffer_for_one_time_submit()?
                 .depth_pipeline_barrier(
                     presenter
@@ -254,9 +255,7 @@ impl Backend for AshBackend {
                 )?
                 .bind_graphics_pipeline(graphics_pipeline)
                 .draw_three_vertices();
-
-            let command_buffer_builder = self.append_immediate_rendering_commands(window_id, command_buffer_builder)?;
-
+            self.append_immediate_rendering_commands(window_id, &mut command_buffer_builder)?;
             command_buffer_builder.end_render_pass()?.end_command_buffer()?;
 
             // Save CommandBuffer to be able to check whether this frame was completed
@@ -339,8 +338,8 @@ impl AshBackend {
     fn append_immediate_rendering_commands<'buf>(
         &self,
         window_id: &WindowId,
-        command_buffer_builder: CommandBufferBuilder<'buf>,
-    ) -> core::Result<CommandBufferBuilder<'buf>> {
+        command_buffer_builder: &mut CommandBufferBuilder<'buf>,
+    ) -> core::Result<()> {
         let immediate_graphics_pipeline = self
             .immediate_graphics_pipelines
             .get(window_id)
@@ -366,7 +365,7 @@ impl AshBackend {
                 BufferUsageFlags::VERTEX_BUFFER,
                 debug_info!("Immediate-VertexBuffer"),
             )?);
-            command_buffer_builder = command_buffer_builder.bind_vertex_buffers(0, &vertex_buffer);
+            command_buffer_builder.bind_vertex_buffers(0, &vertex_buffer);
             let mut offset = 0;
             for immediate_command_buffer in &*requests {
                 for command in &immediate_command_buffer.immediate_command_buffer.commands {
@@ -374,20 +373,18 @@ impl AshBackend {
                         ImmediateCommand::LineList(line_list) => {
                             let first_vertex = offset;
                             offset += line_list.positions().len();
-                            command_buffer_builder =
-                                command_buffer_builder.draw_vertices(line_list.positions().len() as u32, first_vertex as u32);
+                            command_buffer_builder.draw_vertices(line_list.positions().len() as u32, first_vertex as u32);
                         }
                         ImmediateCommand::LineStrip(line_strip) => {
                             let first_vertex = offset;
                             offset += line_strip.positions().len();
-                            command_buffer_builder =
-                                command_buffer_builder.draw_vertices(line_strip.positions().len() as u32, first_vertex as u32);
+                            command_buffer_builder.draw_vertices(line_strip.positions().len() as u32, first_vertex as u32);
                         }
                     }
                 }
             }
         }
-        Ok(command_buffer_builder)
+        Ok(())
     }
 }
 

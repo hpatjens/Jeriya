@@ -4,8 +4,8 @@ use ash::vk;
 
 use crate::{
     buffer::VertexBuffer, command_buffer::CommandBuffer, device::Device, device_visible_buffer::DeviceVisibleBuffer,
-    graphics_pipeline::GraphicsPipeline, host_visible_buffer::HostVisibleBuffer, simple_graphics_pipeline::SimpleGraphicsPipeline,
-    swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_framebuffers::SwapchainFramebuffers,
+    graphics_pipeline::GraphicsPipeline, host_visible_buffer::HostVisibleBuffer, swapchain::Swapchain,
+    swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass, AsRawVulkan,
 };
 
@@ -24,7 +24,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
 }
 
 impl<'buf> CommandBufferBuilder<'buf> {
-    pub fn begin_command_buffer(self) -> crate::Result<CommandBufferBuilder<'buf>> {
+    pub fn begin_command_buffer(&mut self) -> crate::Result<&mut Self> {
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
         unsafe {
             self.device
@@ -34,7 +34,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         Ok(self)
     }
 
-    pub fn end_command_buffer(self) -> crate::Result<()> {
+    pub fn end_command_buffer(&mut self) -> crate::Result<()> {
         unsafe {
             self.device
                 .as_raw_vulkan()
@@ -44,11 +44,11 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
 
     pub fn begin_render_pass(
-        self,
+        &mut self,
         swapchain: &Swapchain,
         render_pass: &SwapchainRenderPass,
         framebuffer: (&SwapchainFramebuffers, usize),
-    ) -> crate::Result<CommandBufferBuilder<'buf>> {
+    ) -> crate::Result<&mut Self> {
         let rect = vk::Rect2D {
             offset: vk::Offset2D { x: 0, y: 0 },
             extent: swapchain.extent(),
@@ -80,7 +80,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         Ok(self)
     }
 
-    pub fn end_render_pass(self) -> crate::Result<CommandBufferBuilder<'buf>> {
+    pub fn end_render_pass(&mut self) -> crate::Result<&mut Self> {
         unsafe {
             self.device
                 .as_raw_vulkan()
@@ -89,7 +89,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         Ok(self)
     }
 
-    pub fn begin_command_buffer_for_one_time_submit(self) -> crate::Result<Self> {
+    pub fn begin_command_buffer_for_one_time_submit(&mut self) -> crate::Result<&mut Self> {
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
         unsafe {
             self.device
@@ -99,7 +99,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         Ok(self)
     }
 
-    pub fn bind_graphics_pipeline(self, graphics_pipeline: &dyn GraphicsPipeline) -> Self {
+    pub fn bind_graphics_pipeline(&mut self, graphics_pipeline: &dyn GraphicsPipeline) -> &mut Self {
         unsafe {
             self.device.as_raw_vulkan().cmd_bind_pipeline(
                 *self.command_buffer.as_raw_vulkan(),
@@ -110,7 +110,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         self
     }
 
-    pub fn bind_vertex_buffers<'arc, T>(self, first_binding: u32, vertex_buffer: impl Into<VertexBuffer<'arc, T>>) -> Self
+    pub fn bind_vertex_buffers<'arc, T>(&mut self, first_binding: u32, vertex_buffer: impl Into<VertexBuffer<'arc, T>>) -> &mut Self
     where
         T: Copy + 'static,
     {
@@ -127,7 +127,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         self
     }
 
-    pub fn draw_three_vertices(self) -> Self {
+    pub fn draw_three_vertices(&mut self) -> &mut Self {
         unsafe {
             self.device
                 .as_raw_vulkan()
@@ -137,7 +137,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
 
     /// Draw vertices with the given `vertex_count` and `first_vertex`
-    pub fn draw_vertices(self, vertex_count: u32, first_vertex: u32) -> Self {
+    pub fn draw_vertices(&mut self, vertex_count: u32, first_vertex: u32) -> &mut Self {
         unsafe {
             self.device
                 .as_raw_vulkan()
@@ -147,10 +147,10 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
 
     pub fn copy_buffer_from_host_to_device<T: Copy + 'static>(
-        self,
+        &mut self,
         src: &Arc<HostVisibleBuffer<T>>,
         dst: &Arc<DeviceVisibleBuffer<T>>,
-    ) -> Self {
+    ) -> &mut Self {
         assert_eq!(src.byte_size(), dst.byte_size(), "buffers must have the same size");
         unsafe {
             let copy_region = vk::BufferCopy {
@@ -171,7 +171,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
 
     /// Special function for depth buffer layout transition
-    pub fn depth_pipeline_barrier(self, swapchain_depth_buffer: &SwapchainDepthBuffer) -> crate::Result<Self> {
+    pub fn depth_pipeline_barrier(&mut self, swapchain_depth_buffer: &SwapchainDepthBuffer) -> crate::Result<&mut Self> {
         let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
             .image(swapchain_depth_buffer.depth_image)
             .dst_access_mask(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
