@@ -335,18 +335,21 @@ impl Backend for AshBackend {
 }
 
 impl AshBackend {
-    fn append_immediate_rendering_commands<'buf>(
+    fn append_immediate_rendering_commands(
         &self,
         window_id: &WindowId,
-        command_buffer_builder: &mut CommandBufferBuilder<'buf>,
+        command_buffer_builder: &mut CommandBufferBuilder,
     ) -> core::Result<()> {
+        // Bind GraphicsPipeline
         let immediate_graphics_pipeline = self
             .immediate_graphics_pipelines
             .get(window_id)
             .expect("no graphics pipeline for window");
-        let mut command_buffer_builder = command_buffer_builder.bind_graphics_pipeline(immediate_graphics_pipeline);
+        command_buffer_builder.bind_graphics_pipeline(immediate_graphics_pipeline);
+
         let mut immediate_rendering_requests = self.immediate_rendering_requests.lock();
         if let Some(requests) = immediate_rendering_requests.get_mut(window_id) {
+            // Collect vertex attributes for all immediate rendering requests
             assert!(!requests.is_empty(), "Vecs should be removed when they are empty");
             let mut data = Vec::new();
             for request in &mut *requests {
@@ -366,6 +369,8 @@ impl AshBackend {
                 debug_info!("Immediate-VertexBuffer"),
             )?);
             command_buffer_builder.bind_vertex_buffers(0, &vertex_buffer);
+
+            // Append the draw commands
             let mut offset = 0;
             for immediate_command_buffer in &*requests {
                 for command in &immediate_command_buffer.immediate_command_buffer.commands {
