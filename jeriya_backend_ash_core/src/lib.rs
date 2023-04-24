@@ -8,7 +8,9 @@ pub mod device_visible_buffer;
 pub mod entry;
 pub mod fence;
 pub mod frame_index;
+pub mod graphics_pipeline;
 pub mod host_visible_buffer;
+pub mod immediate_graphics_pipeline;
 pub mod instance;
 pub mod physical_device;
 pub mod queue;
@@ -51,7 +53,7 @@ impl DebugInfoAshExtension for DebugInfo {
 }
 
 /// Returns the Vulkan equivalent of Self
-pub(crate) trait AsRawVulkan {
+pub trait AsRawVulkan {
     type Output;
     fn as_raw_vulkan(&self) -> &Self::Output;
 }

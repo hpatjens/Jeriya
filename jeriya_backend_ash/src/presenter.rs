@@ -6,7 +6,6 @@ use jeriya_backend_ash_core::{
     command_buffer::CommandBuffer, device::Device, frame_index::FrameIndex, semaphore::Semaphore, surface::Surface,
     swapchain_vec::SwapchainVec,
 };
-use jeriya_shared::debug_info;
 
 use crate::presenter_resources::PresenterResources;
 
@@ -14,26 +13,24 @@ pub struct Presenter {
     frame_index: FrameIndex,
     frame_index_history: VecDeque<FrameIndex>,
     pub presenter_resources: PresenterResources,
-    pub image_available_semaphore: SwapchainVec<Option<Semaphore>>,
-    pub rendering_complete_semaphore: SwapchainVec<Semaphore>,
-    pub rendering_complete_command_buffer: SwapchainVec<Option<Arc<CommandBuffer>>>,
+    pub image_available_semaphore: SwapchainVec<Option<Arc<Semaphore>>>,
+    pub rendering_complete_semaphores: SwapchainVec<Vec<Arc<Semaphore>>>,
+    pub rendering_complete_command_buffers: SwapchainVec<Vec<Arc<CommandBuffer>>>,
 }
 
 impl Presenter {
     pub fn new(device: &Arc<Device>, surface: &Arc<Surface>, desired_swapchain_length: u32) -> core::Result<Self> {
         let presenter_resources = PresenterResources::new(device, surface, desired_swapchain_length)?;
         let image_available_semaphore = SwapchainVec::new(presenter_resources.swapchain(), |_| Ok(None))?;
-        let rendering_complete_semaphore = SwapchainVec::new(presenter_resources.swapchain(), |_| {
-            Semaphore::new(device, debug_info!("rendering-complete-Semaphore"))
-        })?;
-        let rendering_complete_command_buffer = SwapchainVec::new(presenter_resources.swapchain(), |_| Ok(None))?;
+        let rendering_complete_semaphores = SwapchainVec::new(presenter_resources.swapchain(), |_| Ok(Vec::new()))?;
+        let rendering_complete_command_buffer = SwapchainVec::new(presenter_resources.swapchain(), |_| Ok(Vec::new()))?;
         let frame_index = FrameIndex::new();
         Ok(Self {
             frame_index,
             presenter_resources,
             image_available_semaphore,
-            rendering_complete_semaphore,
-            rendering_complete_command_buffer,
+            rendering_complete_semaphores,
+            rendering_complete_command_buffers: rendering_complete_command_buffer,
             frame_index_history: VecDeque::new(),
         })
     }

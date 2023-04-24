@@ -2,7 +2,10 @@ use std::io;
 
 use jeriya_backend_ash::AshBackend;
 use jeriya_shared::{
+    debug_info,
+    immediate::{LineConfig, LineList},
     log,
+    nalgebra::Vector3,
     winit::{
         event::{Event, WindowEvent},
         event_loop::EventLoop,
@@ -51,6 +54,20 @@ fn main() -> io::Result<()> {
             }
             Event::MainEventsCleared => {
                 window.request_redraw();
+
+                let immediate_command_buffer_builder = renderer
+                    .create_immediate_command_buffer_builder(debug_info!("my_command_buffer"))
+                    .unwrap();
+                let line_lists = LineList::new(
+                    vec![Vector3::new(-0.5, -0.5, 0.0), Vector3::new(1.0, 1.0, 0.0)].repeat(8),
+                    LineConfig::default(),
+                );
+                let immediate_command_buffer = immediate_command_buffer_builder
+                    .push_line_lists(&[line_lists])
+                    .unwrap()
+                    .build()
+                    .unwrap();
+                renderer.render_immediate_command_buffer(immediate_command_buffer).unwrap();
 
                 renderer.render_frame().unwrap();
             }

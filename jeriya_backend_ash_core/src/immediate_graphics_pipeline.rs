@@ -1,7 +1,7 @@
 use ash::vk::{self};
-use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
+use jeriya_shared::{debug_info, nalgebra::Vector3, AsDebugInfo, DebugInfo};
 
-use std::{ffi::CString, io::Cursor, sync::Arc};
+use std::{ffi::CString, io::Cursor, mem, sync::Arc};
 
 use crate::{
     device::Device, graphics_pipeline::GraphicsPipeline, shader_module::ShaderModule, swapchain::Swapchain,
@@ -14,7 +14,7 @@ pub struct PushConstants {
     _non_zero: u32,
 }
 
-pub struct SimpleGraphicsPipeline {
+pub struct ImmediateGraphicsPipeline {
     _vertex_shader: ShaderModule,
     _fragment_shader: ShaderModule,
     graphics_pipeline: vk::Pipeline,
@@ -23,7 +23,7 @@ pub struct SimpleGraphicsPipeline {
     device: Arc<Device>,
 }
 
-impl Drop for SimpleGraphicsPipeline {
+impl Drop for ImmediateGraphicsPipeline {
     fn drop(&mut self) {
         unsafe {
             let device = &self.device.as_raw_vulkan();
@@ -33,7 +33,7 @@ impl Drop for SimpleGraphicsPipeline {
     }
 }
 
-impl SimpleGraphicsPipeline {
+impl ImmediateGraphicsPipeline {
     pub fn new(
         device: &Arc<Device>,
         renderpass: &SwapchainRenderPass,
@@ -42,17 +42,17 @@ impl SimpleGraphicsPipeline {
     ) -> crate::Result<Self> {
         let entry_name = CString::new("main").expect("Valid c string");
 
-        let vertex_shader_spirv = include_bytes!("../test_data/red_triangle.vert.spv").to_vec();
-        let fragment_shader_spirv = include_bytes!("../test_data/red_triangle.frag.spv").to_vec();
+        let vertex_shader_spirv = include_bytes!("../test_data/color.vert.spv").to_vec();
+        let fragment_shader_spirv = include_bytes!("../test_data/color.frag.spv").to_vec();
         let vertex_shader = ShaderModule::new(
             device,
             Cursor::new(&vertex_shader_spirv),
-            debug_info!("SimpleGraphicsPipeline-vertex-ShaderModule"),
+            debug_info!("ImmediateGraphicsPipeline-vertex-ShaderModule"),
         )?;
         let fragment_shader = ShaderModule::new(
             device,
             Cursor::new(&fragment_shader_spirv),
-            debug_info!("SimpleGraphicsPipeline-fragment-ShaderModule"),
+            debug_info!("ImmediateGraphicsPipeline-fragment-ShaderModule"),
         )?;
 
         let shader_stage_create_infos = [
@@ -86,7 +86,7 @@ impl SimpleGraphicsPipeline {
         let graphics_pipeline_layout = unsafe { device.as_raw_vulkan().create_pipeline_layout(&layout_create_info, None)? };
 
         let vertex_input_assembly_state_info = vk::PipelineInputAssemblyStateCreateInfo {
-            topology: vk::PrimitiveTopology::TRIANGLE_LIST,
+            topology: vk::PrimitiveTopology::LINE_LIST,
             ..Default::default()
         };
 
@@ -114,7 +114,7 @@ impl SimpleGraphicsPipeline {
             front_face: vk::FrontFace::CLOCKWISE,
             line_width: 1.0,
             polygon_mode: vk::PolygonMode::FILL,
-            cull_mode: vk::CullModeFlags::BACK,
+            cull_mode: vk::CullModeFlags::NONE,
             ..Default::default()
         };
         let multisample_state_info = vk::PipelineMultisampleStateCreateInfo {
@@ -154,8 +154,17 @@ impl SimpleGraphicsPipeline {
         let dynamic_state = [];
         let dynamic_state_info = vk::PipelineDynamicStateCreateInfo::builder().dynamic_states(&dynamic_state);
 
-        let vertex_input_binding_descriptions = [];
-        let vertex_input_attribute_descriptions = [];
+        let vertex_input_binding_descriptions = [vk::VertexInputBindingDescription {
+            binding: 0,
+            stride: mem::size_of::<Vector3<f32>>() as u32,
+            input_rate: vk::VertexInputRate::VERTEX,
+        }];
+        let vertex_input_attribute_descriptions = [vk::VertexInputAttributeDescription {
+            location: 0,
+            binding: 0,
+            format: vk::Format::R32G32B32_SFLOAT,
+            offset: 0,
+        }];
 
         let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo::builder()
             .vertex_attribute_descriptions(&vertex_input_attribute_descriptions)
@@ -194,16 +203,16 @@ impl SimpleGraphicsPipeline {
     }
 }
 
-impl GraphicsPipeline for SimpleGraphicsPipeline {}
+impl GraphicsPipeline for ImmediateGraphicsPipeline {}
 
-impl AsRawVulkan for SimpleGraphicsPipeline {
+impl AsRawVulkan for ImmediateGraphicsPipeline {
     type Output = vk::Pipeline;
     fn as_raw_vulkan(&self) -> &Self::Output {
         &self.graphics_pipeline
     }
 }
 
-impl AsDebugInfo for SimpleGraphicsPipeline {
+impl AsDebugInfo for ImmediateGraphicsPipeline {
     fn as_debug_info(&self) -> &DebugInfo {
         &self.debug_info
     }
@@ -215,7 +224,7 @@ mod tests {
         use jeriya_shared::debug_info;
 
         use crate::{
-            device::tests::TestFixtureDevice, simple_graphics_pipeline::SimpleGraphicsPipeline, swapchain::Swapchain,
+            device::tests::TestFixtureDevice, immediate_graphics_pipeline::ImmediateGraphicsPipeline, swapchain::Swapchain,
             swapchain_render_pass::SwapchainRenderPass,
         };
 
@@ -224,7 +233,7 @@ mod tests {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
             let swapchain = Swapchain::new(&test_fixture_device.device, &test_fixture_device.surface, 2, None).unwrap();
             let render_pass = SwapchainRenderPass::new(&test_fixture_device.device, &swapchain).unwrap();
-            let _graphics_pipeline = SimpleGraphicsPipeline::new(
+            let _graphics_pipeline = ImmediateGraphicsPipeline::new(
                 &test_fixture_device.device,
                 &render_pass,
                 &swapchain,

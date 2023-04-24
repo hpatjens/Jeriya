@@ -3,9 +3,10 @@ use std::sync::Arc;
 use ash::vk;
 
 use crate::{
-    command_buffer::CommandBuffer, device::Device, device_visible_buffer::DeviceVisibleBuffer, host_visible_buffer::HostVisibleBuffer,
-    simple_graphics_pipeline::SimpleGraphicsPipeline, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffer,
-    swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass, AsRawVulkan,
+    buffer::VertexBuffer, command_buffer::CommandBuffer, device::Device, device_visible_buffer::DeviceVisibleBuffer,
+    graphics_pipeline::GraphicsPipeline, host_visible_buffer::HostVisibleBuffer, simple_graphics_pipeline::SimpleGraphicsPipeline,
+    swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_framebuffers::SwapchainFramebuffers,
+    swapchain_render_pass::SwapchainRenderPass, AsRawVulkan,
 };
 
 pub struct CommandBufferBuilder<'buf> {
@@ -98,7 +99,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         Ok(self)
     }
 
-    pub fn bind_graphics_pipeline(self, graphics_pipeline: &SimpleGraphicsPipeline) -> Self {
+    pub fn bind_graphics_pipeline(self, graphics_pipeline: &dyn GraphicsPipeline) -> Self {
         unsafe {
             self.device.as_raw_vulkan().cmd_bind_pipeline(
                 *self.command_buffer.as_raw_vulkan(),
@@ -109,11 +110,38 @@ impl<'buf> CommandBufferBuilder<'buf> {
         self
     }
 
+    pub fn bind_vertex_buffers<'arc, T>(self, first_binding: u32, vertex_buffer: impl Into<VertexBuffer<'arc, T>>) -> Self
+    where
+        T: Copy + 'static,
+    {
+        let vertex_buffer = vertex_buffer.into();
+        unsafe {
+            self.device.as_raw_vulkan().cmd_bind_vertex_buffers(
+                *self.command_buffer.as_raw_vulkan(),
+                first_binding,
+                &[*vertex_buffer.as_raw_vulkan()],
+                &[0],
+            );
+            self.command_buffer.push_dependency(vertex_buffer.as_command_buffer_dependency());
+        }
+        self
+    }
+
     pub fn draw_three_vertices(self) -> Self {
         unsafe {
             self.device
                 .as_raw_vulkan()
                 .cmd_draw(*self.command_buffer.as_raw_vulkan(), 3, 1, 0, 0);
+        }
+        self
+    }
+
+    /// Draw vertices with the given `vertex_count` and `first_vertex`
+    pub fn draw_vertices(self, vertex_count: u32, first_vertex: u32) -> Self {
+        unsafe {
+            self.device
+                .as_raw_vulkan()
+                .cmd_draw(*self.command_buffer.as_raw_vulkan(), vertex_count, 1, first_vertex, 0);
         }
         self
     }

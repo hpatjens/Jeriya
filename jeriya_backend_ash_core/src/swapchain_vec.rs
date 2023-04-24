@@ -33,9 +33,14 @@ impl<T> SwapchainVec<T> {
         self.data.len()
     }
 
-    /// Returns the entry in the `SwapchainVec` that belongs to the given `FrameIndex`.
+    /// Returns a reference to the entry in the `SwapchainVec` that belongs to the given `FrameIndex`.
     pub fn get(&self, frame_index: &FrameIndex) -> &T {
         self.data.get(frame_index.swapchain_index()).expect(Self::OUT_OF_BOUNDS_MSG)
+    }
+
+    /// Returns a mutable reference to the entry in the `SwapchainVec` that belongs to the given `FrameIndex`.
+    pub fn get_mut(&mut self, frame_index: &FrameIndex) -> &mut T {
+        self.data.get_mut(frame_index.swapchain_index()).expect(Self::OUT_OF_BOUNDS_MSG)
     }
 }
 

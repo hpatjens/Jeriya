@@ -6,14 +6,17 @@ use crate::{command_buffer::CommandBuffer, device::Device, fence::Fence, semapho
 
 pub enum SubmittedCommandBuffer {
     Value(CommandBuffer),
-    Arc(Arc<CommandBuffer>),
+    Arc {
+        semaphores: Vec<Arc<Semaphore>>,
+        command_buffer: Arc<CommandBuffer>,
+    },
 }
 
 impl SubmittedCommandBuffer {
     fn completed_fence(&self) -> &Fence {
         match self {
             SubmittedCommandBuffer::Value(command_buffer) => command_buffer.completed_fence(),
-            SubmittedCommandBuffer::Arc(command_buffer) => command_buffer.completed_fence(),
+            SubmittedCommandBuffer::Arc { command_buffer, .. } => command_buffer.completed_fence(),
         }
     }
 }
@@ -85,8 +88,8 @@ impl Queue {
     pub fn submit_for_rendering_complete(
         &mut self,
         command_buffer: Arc<CommandBuffer>,
-        wait_semaphore: &Semaphore,
-        signal_semaphore: &Semaphore,
+        wait_semaphore: &Arc<Semaphore>,
+        signal_semaphore: &Arc<Semaphore>,
     ) -> crate::Result<()> {
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(&[*wait_semaphore.as_raw_vulkan()])
@@ -99,8 +102,10 @@ impl Queue {
                 .as_raw_vulkan()
                 .queue_submit(self.queue, &[submit_info], *command_buffer.completed_fence().as_raw_vulkan())?
         };
-        self.submitted_command_buffers
-            .push_back(SubmittedCommandBuffer::Arc(command_buffer));
+        self.submitted_command_buffers.push_back(SubmittedCommandBuffer::Arc {
+            command_buffer,
+            semaphores: vec![signal_semaphore.clone(), wait_semaphore.clone()],
+        });
         Ok(())
     }
 

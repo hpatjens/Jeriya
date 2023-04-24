@@ -23,24 +23,24 @@ impl Default for LineConfig {
 /// Individual lines for immediate rendering
 #[derive(Debug, Clone)]
 pub struct LineList {
-    vertices: Vec<Vector3<f32>>,
+    positions: Vec<Vector3<f32>>,
     config: LineConfig,
 }
 
 impl LineList {
-    /// Creates a new `LineList` from the given vertices
+    /// Creates a new `LineList` from the given positions
     ///
     /// # Panics
     ///
-    /// - Panics if the number of vertices is not even.
-    pub fn new(vertices: Vec<Vector3<f32>>, config: LineConfig) -> Self {
-        assert!(vertices.len() % 2 == 0, "Number of vertices must be even");
-        Self { vertices, config }
+    /// - Panics if the number of positions is not even.
+    pub fn new(positions: Vec<Vector3<f32>>, config: LineConfig) -> Self {
+        assert!(positions.len() % 2 == 0, "Number of vertices must be even");
+        Self { positions, config }
     }
 
     /// Returns the vertices of the `LineList`
-    pub fn vertices(&self) -> &[Vector3<f32>] {
-        &self.vertices
+    pub fn positions(&self) -> &[Vector3<f32>] {
+        &self.positions
     }
 
     /// Returns the `LineConfig` of the `LineList`
@@ -57,14 +57,17 @@ pub struct LineStrip {
 }
 
 impl LineStrip {
-    /// Creates a new `LineStrip` from the given vertices
-    pub fn new(vertices: Vec<Vector3<f32>>, config: LineConfig) -> Self {
-        assert!(!vertices.is_empty(), "Number of vertices must be greater than 0");
-        Self { vertices, config }
+    /// Creates a new `LineStrip` from the given positions
+    pub fn new(positions: Vec<Vector3<f32>>, config: LineConfig) -> Self {
+        assert!(!positions.is_empty(), "Number of vertices must be greater than 0");
+        Self {
+            vertices: positions,
+            config,
+        }
     }
 
-    /// Returns the vertices of the `LineStrip`
-    pub fn vertices(&self) -> &[Vector3<f32>] {
+    /// Returns the positions of the `LineStrip`
+    pub fn positions(&self) -> &[Vector3<f32>] {
         &self.vertices
     }
 
