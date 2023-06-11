@@ -6,7 +6,7 @@ use jeriya_shared::{
     debug_info,
     immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
     log,
-    nalgebra::Vector3,
+    nalgebra::{Vector3, Vector4},
     winit::{
         event::{Event, WindowEvent},
         event_loop::EventLoop,
@@ -23,8 +23,11 @@ where
     let immediate_command_buffer_builder = renderer.create_immediate_command_buffer_builder(debug_info!("my_command_buffer"))?;
 
     let line_list = LineList::new(
-        vec![Vector3::new(-0.5, -0.5, 0.0), Vector3::new(1.0, 1.0, 0.0)],
-        LineConfig::default(),
+        vec![Vector3::new(-0.5, 0.2, 0.0), Vector3::new(0.8, 0.8, 0.0)],
+        LineConfig {
+            color: Vector4::new(0.1, 0.1, 0.7, 1.0),
+            ..LineConfig::default()
+        },
     );
     let line_strip = LineStrip::new(
         vec![
@@ -33,18 +36,23 @@ where
             Vector3::new(-0.3, 0.5, 0.0),
             Vector3::new(-0.7, 0.4, 0.0),
         ],
-        LineConfig::default(),
+        LineConfig {
+            color: Vector4::new(0.8, 1.0, 0.4, 1.0),
+            line_width: 5.0,
+        },
     );
     let triangle_list = TriangleList::new(
         vec![
             Vector3::new(-0.8, -0.8, 0.0),
             Vector3::new(-0.8, -0.6, 0.0),
-            Vector3::new(-0.5, -0.7, 0.0),
+            Vector3::new(-0.6, -0.7, 0.0),
             Vector3::new(-0.5, -0.7, 0.0),
             Vector3::new(-0.5, -0.5, 0.0),
             Vector3::new(-0.2, -0.6, 0.0),
         ],
-        TriangleConfig::default(),
+        TriangleConfig {
+            color: Vector4::new(1.0, 0.3, 0.7, 1.0),
+        },
     );
     let triangle_strip = TriangleStrip::new(
         vec![
@@ -53,7 +61,9 @@ where
             Vector3::new(0.7, -0.6, 0.0),
             Vector3::new(0.3, -0.5, 0.0),
         ],
-        TriangleConfig::default(),
+        TriangleConfig {
+            color: Vector4::new(1.0, 1.0, 0.2, 1.0),
+        },
     );
 
     let immediate_command_buffer = immediate_command_buffer_builder

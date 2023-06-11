@@ -1,5 +1,9 @@
 use ash::vk::{self};
-use jeriya_shared::{debug_info, nalgebra::Vector3, AsDebugInfo, DebugInfo};
+use jeriya_shared::{
+    debug_info,
+    nalgebra::{Vector3, Vector4},
+    AsDebugInfo, DebugInfo,
+};
 
 use std::{ffi::CString, io::Cursor, mem, sync::Arc};
 
@@ -16,16 +20,16 @@ pub enum Topology {
 }
 
 #[repr(C)]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct PushConstants {
-    _non_zero: u32,
+    pub color: Vector4<f32>,
 }
 
 pub struct ImmediateGraphicsPipeline {
     _vertex_shader: ShaderModule,
     _fragment_shader: ShaderModule,
     graphics_pipeline: vk::Pipeline,
-    graphics_pipeline_layout: vk::PipelineLayout,
+    pub(crate) graphics_pipeline_layout: vk::PipelineLayout,
     debug_info: DebugInfo,
     device: Arc<Device>,
 }
@@ -216,7 +220,15 @@ impl ImmediateGraphicsPipeline {
     }
 }
 
-impl GraphicsPipeline for ImmediateGraphicsPipeline {}
+impl GraphicsPipeline for ImmediateGraphicsPipeline {
+    fn graphics_pipeline(&self) -> vk::Pipeline {
+        self.graphics_pipeline
+    }
+
+    fn graphics_pipeline_layout(&self) -> vk::PipelineLayout {
+        self.graphics_pipeline_layout
+    }
+}
 
 impl AsRawVulkan for ImmediateGraphicsPipeline {
     type Output = vk::Pipeline;

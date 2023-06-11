@@ -10,7 +10,7 @@ use jeriya_backend_ash_core::{
     device::Device,
     entry::Entry,
     host_visible_buffer::HostVisibleBuffer,
-    immediate_graphics_pipeline::Topology,
+    immediate_graphics_pipeline::{PushConstants, Topology},
     instance::Instance,
     physical_device::PhysicalDevice,
     queue::{Queue, QueueType},
@@ -213,8 +213,7 @@ impl Backend for AshBackend {
                         presenter.frame_index().swapchain_index(),
                     ),
                 )?
-                .bind_graphics_pipeline(&presenter.simple_graphics_pipeline)
-                .draw_three_vertices();
+                .bind_graphics_pipeline(&presenter.simple_graphics_pipeline);
             self.append_immediate_rendering_commands(window_id, presenter, &mut command_buffer_builder)?;
             command_buffer_builder.end_render_pass()?.end_command_buffer()?;
 
@@ -336,6 +335,10 @@ impl AshBackend {
                             if !matches!(last_topology, Some(Topology::LineList)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_line_list);
                             }
+                            let push_constants = PushConstants {
+                                color: line_list.config().color,
+                            };
+                            command_buffer_builder.push_constants(&[push_constants])?;
                             command_buffer_builder.draw_vertices(line_list.positions().len() as u32, first_vertex as u32);
                             first_vertex += line_list.positions().len();
                             last_topology = Some(Topology::LineList);
@@ -344,6 +347,10 @@ impl AshBackend {
                             if !matches!(last_topology, Some(Topology::LineStrip)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_line_strip);
                             }
+                            let push_constants = PushConstants {
+                                color: line_strip.config().color,
+                            };
+                            command_buffer_builder.push_constants(&[push_constants])?;
                             command_buffer_builder.draw_vertices(line_strip.positions().len() as u32, first_vertex as u32);
                             first_vertex += line_strip.positions().len();
                             last_topology = Some(Topology::LineStrip);
@@ -352,6 +359,10 @@ impl AshBackend {
                             if !matches!(last_topology, Some(Topology::TriangleList)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_triangle_list);
                             }
+                            let push_constants = PushConstants {
+                                color: triangle_list.config().color,
+                            };
+                            command_buffer_builder.push_constants(&[push_constants])?;
                             command_buffer_builder.draw_vertices(triangle_list.positions().len() as u32, first_vertex as u32);
                             first_vertex += triangle_list.positions().len();
                             last_topology = Some(Topology::TriangleList);
@@ -360,6 +371,10 @@ impl AshBackend {
                             if !matches!(last_topology, Some(Topology::TriangleStrip)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_triangle_strip);
                             }
+                            let push_constants = PushConstants {
+                                color: triangle_strip.config().color,
+                            };
+                            command_buffer_builder.push_constants(&[push_constants])?;
                             command_buffer_builder.draw_vertices(triangle_strip.positions().len() as u32, first_vertex as u32);
                             first_vertex += triangle_strip.positions().len();
                             last_topology = Some(Topology::TriangleStrip);

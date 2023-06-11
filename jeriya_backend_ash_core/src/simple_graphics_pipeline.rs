@@ -194,7 +194,15 @@ impl SimpleGraphicsPipeline {
     }
 }
 
-impl GraphicsPipeline for SimpleGraphicsPipeline {}
+impl GraphicsPipeline for SimpleGraphicsPipeline {
+    fn graphics_pipeline(&self) -> vk::Pipeline {
+        self.graphics_pipeline
+    }
+
+    fn graphics_pipeline_layout(&self) -> vk::PipelineLayout {
+        self.graphics_pipeline_layout
+    }
+}
 
 impl AsRawVulkan for SimpleGraphicsPipeline {
     type Output = vk::Pipeline;

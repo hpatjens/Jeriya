@@ -6,12 +6,15 @@ use crate::{
     buffer::VertexBuffer, command_buffer::CommandBuffer, device::Device, device_visible_buffer::DeviceVisibleBuffer,
     graphics_pipeline::GraphicsPipeline, host_visible_buffer::HostVisibleBuffer, swapchain::Swapchain,
     swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_framebuffers::SwapchainFramebuffers,
-    swapchain_render_pass::SwapchainRenderPass, AsRawVulkan,
+    swapchain_render_pass::SwapchainRenderPass, AsRawVulkan, Error,
 };
 
 pub struct CommandBufferBuilder<'buf> {
     command_buffer: &'buf mut CommandBuffer,
     device: Arc<Device>,
+
+    /// Layout of the last pipeline that was bound if any
+    bound_pipeline_layout: Option<vk::PipelineLayout>,
 }
 
 impl<'buf> CommandBufferBuilder<'buf> {
@@ -19,6 +22,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         Ok(Self {
             command_buffer,
             device: device.clone(),
+            bound_pipeline_layout: None,
         })
     }
 }
@@ -104,8 +108,10 @@ impl<'buf> CommandBufferBuilder<'buf> {
             self.device.as_raw_vulkan().cmd_bind_pipeline(
                 *self.command_buffer.as_raw_vulkan(),
                 vk::PipelineBindPoint::GRAPHICS,
-                *graphics_pipeline.as_raw_vulkan(),
+                graphics_pipeline.graphics_pipeline(),
             );
+
+            self.bound_pipeline_layout = Some(graphics_pipeline.graphics_pipeline_layout());
         }
         self
     }
@@ -197,5 +203,20 @@ impl<'buf> CommandBufferBuilder<'buf> {
             )
         };
         Ok(self)
+    }
+
+    /// Pushes the given `push_constants` to the command buffer
+    pub fn push_constants<C>(&mut self, push_constants: &[C]) -> crate::Result<()> {
+        let bound_pipeline_layout = self.bound_pipeline_layout.ok_or(Error::NoPipelineBound)?;
+        unsafe {
+            self.device.as_raw_vulkan().cmd_push_constants(
+                *self.command_buffer.as_raw_vulkan(),
+                bound_pipeline_layout,
+                vk::ShaderStageFlags::ALL,
+                0,
+                std::slice::from_raw_parts(push_constants.as_ptr() as *const _, push_constants.len() * std::mem::size_of::<C>()),
+            );
+        }
+        Ok(())
     }
 }

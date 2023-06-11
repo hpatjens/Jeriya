@@ -158,7 +158,7 @@ mod tests {
         fn push_triangle_lists(&mut self, _triangle_lists: &[jeriya_shared::immediate::TriangleList]) -> jeriya_shared::Result<()> {
             Ok(())
         }
-        fn push_triangle_strips(&mut self, triangle_strips: &[jeriya_shared::immediate::TriangleStrip]) -> jeriya_shared::Result<()> {
+        fn push_triangle_strips(&mut self, _triangle_strips: &[jeriya_shared::immediate::TriangleStrip]) -> jeriya_shared::Result<()> {
             Ok(())
         }
     }

@@ -94,6 +94,8 @@ pub enum Error {
     UnsupportedMemoryType(vk::MemoryRequirements),
     #[error("Failed to decode SPIR-V code")]
     SpirvDecode,
+    #[error("No Pipeline bound")]
+    NoPipelineBound,
 }
 
 impl From<Error> for jeriya_shared::Error {
