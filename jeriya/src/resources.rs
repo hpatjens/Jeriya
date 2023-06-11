@@ -155,6 +155,9 @@ mod tests {
         fn push_line_strips(&mut self, _line_strips: &[jeriya_shared::immediate::LineStrip]) -> jeriya_shared::Result<()> {
             Ok(())
         }
+        fn push_triangle_lists(&mut self, _triangle_lists: &[jeriya_shared::immediate::TriangleList]) -> jeriya_shared::Result<()> {
+            Ok(())
+        }
     }
     impl AsDebugInfo for DummyImmediateCommandBufferBuilder {
         fn as_debug_info(&self) -> &DebugInfo {

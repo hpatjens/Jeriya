@@ -10,6 +10,7 @@ use jeriya_backend_ash_core::{
     device::Device,
     entry::Entry,
     host_visible_buffer::HostVisibleBuffer,
+    immediate_graphics_pipeline::Topology,
     instance::Instance,
     physical_device::PhysicalDevice,
     queue::{Queue, QueueType},
@@ -17,7 +18,7 @@ use jeriya_backend_ash_core::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_shared::immediate::{self};
+use jeriya_shared::immediate::{self, TriangleList};
 use jeriya_shared::{
     debug_info,
     immediate::{LineList, LineStrip},
@@ -301,7 +302,7 @@ impl AshBackend {
         command_buffer_builder: &mut CommandBufferBuilder,
     ) -> core::Result<()> {
         // Bind GraphicsPipeline
-        command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline);
+        command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_line_list);
 
         let mut immediate_rendering_requests = self.immediate_rendering_requests.lock();
         if let Some(requests) = immediate_rendering_requests.get_mut(window_id) {
@@ -315,6 +316,7 @@ impl AshBackend {
                     match command {
                         ImmediateCommand::LineList(line_list) => data.extend_from_slice(line_list.positions()),
                         ImmediateCommand::LineStrip(line_strip) => data.extend_from_slice(line_strip.positions()),
+                        ImmediateCommand::TriangleList(triangle_list) => data.extend_from_slice(triangle_list.positions()),
                     }
                 }
             }
@@ -327,19 +329,34 @@ impl AshBackend {
             command_buffer_builder.bind_vertex_buffers(0, &vertex_buffer);
 
             // Append the draw commands
-            let mut offset = 0;
+            let mut first_vertex = 0;
             for immediate_command_buffer in &*requests {
+                let mut last_topology = None;
                 for command in &immediate_command_buffer.immediate_command_buffer.commands {
                     match command {
                         ImmediateCommand::LineList(line_list) => {
-                            let first_vertex = offset;
-                            offset += line_list.positions().len();
+                            if !matches!(last_topology, Some(Topology::LineList)) {
+                                command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_line_list);
+                            }
                             command_buffer_builder.draw_vertices(line_list.positions().len() as u32, first_vertex as u32);
+                            first_vertex += line_list.positions().len();
+                            last_topology = Some(Topology::LineList);
                         }
                         ImmediateCommand::LineStrip(line_strip) => {
-                            let first_vertex = offset;
-                            offset += line_strip.positions().len();
+                            if !matches!(last_topology, Some(Topology::LineStrip)) {
+                                command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_line_strip);
+                            }
                             command_buffer_builder.draw_vertices(line_strip.positions().len() as u32, first_vertex as u32);
+                            first_vertex += line_strip.positions().len();
+                            last_topology = Some(Topology::LineStrip);
+                        }
+                        ImmediateCommand::TriangleList(triangle_list) => {
+                            if !matches!(last_topology, Some(Topology::TriangleList)) {
+                                command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_triangle_list);
+                            }
+                            command_buffer_builder.draw_vertices(triangle_list.positions().len() as u32, first_vertex as u32);
+                            first_vertex += triangle_list.positions().len();
+                            last_topology = Some(Topology::TriangleList);
                         }
                     }
                 }
@@ -353,6 +370,7 @@ impl AshBackend {
 enum ImmediateCommand {
     LineList(LineList),
     LineStrip(LineStrip),
+    TriangleList(TriangleList),
 }
 
 #[derive(Debug)]
@@ -401,6 +419,16 @@ impl ImmediateCommandBufferBuilder for AshImmediateCommandBufferBuilder {
                 continue;
             }
             self.commands.push(ImmediateCommand::LineStrip(line_strip.clone()));
+        }
+        Ok(())
+    }
+
+    fn push_triangle_lists(&mut self, triangle_lists: &[TriangleList]) -> jeriya_shared::Result<()> {
+        for triangle_list in triangle_lists {
+            if triangle_list.positions().is_empty() {
+                continue;
+            }
+            self.commands.push(ImmediateCommand::TriangleList(triangle_list.clone()));
         }
         Ok(())
     }

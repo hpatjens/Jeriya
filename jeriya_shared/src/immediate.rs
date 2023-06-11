@@ -52,7 +52,7 @@ impl LineList {
 /// Line strip for immediate rendering
 #[derive(Debug, Clone)]
 pub struct LineStrip {
-    vertices: Vec<Vector3<f32>>,
+    positions: Vec<Vector3<f32>>,
     config: LineConfig,
 }
 
@@ -60,19 +60,55 @@ impl LineStrip {
     /// Creates a new `LineStrip` from the given positions
     pub fn new(positions: Vec<Vector3<f32>>, config: LineConfig) -> Self {
         assert!(!positions.is_empty(), "Number of vertices must be greater than 0");
-        Self {
-            vertices: positions,
-            config,
-        }
+        Self { positions, config }
     }
 
     /// Returns the positions of the `LineStrip`
     pub fn positions(&self) -> &[Vector3<f32>] {
-        &self.vertices
+        &self.positions
     }
 
     /// Returns the `LineConfig` of the `LineStrip`
     pub fn config(&self) -> &LineConfig {
+        &self.config
+    }
+}
+
+/// Configuration for immediate triangle rendering
+#[derive(Debug, Clone)]
+pub struct TriangleConfig {
+    pub color: Vector4<f32>,
+}
+
+impl Default for TriangleConfig {
+    fn default() -> Self {
+        Self {
+            color: Vector4::new(1.0, 1.0, 1.0, 1.0),
+        }
+    }
+}
+
+/// Individual triangles for immediate rendering
+#[derive(Debug, Clone)]
+pub struct TriangleList {
+    positions: Vec<Vector3<f32>>,
+    config: TriangleConfig,
+}
+
+impl TriangleList {
+    /// Creates a new `TriangleList` from the given positions
+    pub fn new(positions: Vec<Vector3<f32>>, config: TriangleConfig) -> Self {
+        assert!(positions.len() % 3 == 0, "Number of vertices must be a multiple of 3");
+        Self { positions, config }
+    }
+
+    /// Returns the positions of the `LineStrip`
+    pub fn positions(&self) -> &[Vector3<f32>] {
+        &self.positions
+    }
+
+    /// Returns the `TriangleConfig` of the `TriangleStrip`
+    pub fn config(&self) -> &TriangleConfig {
         &self.config
     }
 }
@@ -120,6 +156,12 @@ impl<B: Backend> CommandBufferBuilder<B> {
     /// Pushes new [`LineStrip`]s to the `CommandBufferBuilder`.
     pub fn push_line_strips(mut self, line_strip: &[LineStrip]) -> crate::Result<Self> {
         self.command_buffer_builder.push_line_strips(line_strip)?;
+        Ok(self)
+    }
+
+    /// Pushes new [`TriangleList`]s to the `CommandBufferBuilder`.
+    pub fn push_triangle_lists(mut self, triangle_lists: &[TriangleList]) -> crate::Result<Self> {
+        self.command_buffer_builder.push_triangle_lists(triangle_lists)?;
         Ok(self)
     }
 

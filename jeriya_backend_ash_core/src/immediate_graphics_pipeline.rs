@@ -8,6 +8,12 @@ use crate::{
     swapchain_render_pass::SwapchainRenderPass, AsRawVulkan, DebugInfoAshExtension,
 };
 
+pub enum Topology {
+    LineList,
+    LineStrip,
+    TriangleList,
+}
+
 #[repr(C)]
 #[derive(Debug, Default)]
 pub struct PushConstants {
@@ -39,6 +45,7 @@ impl ImmediateGraphicsPipeline {
         renderpass: &SwapchainRenderPass,
         swapchain: &Swapchain,
         debug_info: DebugInfo,
+        topology: Topology,
     ) -> crate::Result<Self> {
         let entry_name = CString::new("main").expect("Valid c string");
 
@@ -86,7 +93,11 @@ impl ImmediateGraphicsPipeline {
         let graphics_pipeline_layout = unsafe { device.as_raw_vulkan().create_pipeline_layout(&layout_create_info, None)? };
 
         let vertex_input_assembly_state_info = vk::PipelineInputAssemblyStateCreateInfo {
-            topology: vk::PrimitiveTopology::LINE_LIST,
+            topology: match topology {
+                Topology::LineList => vk::PrimitiveTopology::LINE_LIST,
+                Topology::LineStrip => vk::PrimitiveTopology::LINE_STRIP,
+                Topology::TriangleList => vk::PrimitiveTopology::TRIANGLE_LIST,
+            },
             ..Default::default()
         };
 
@@ -224,7 +235,9 @@ mod tests {
         use jeriya_shared::debug_info;
 
         use crate::{
-            device::tests::TestFixtureDevice, immediate_graphics_pipeline::ImmediateGraphicsPipeline, swapchain::Swapchain,
+            device::tests::TestFixtureDevice,
+            immediate_graphics_pipeline::{ImmediateGraphicsPipeline, Topology},
+            swapchain::Swapchain,
             swapchain_render_pass::SwapchainRenderPass,
         };
 
@@ -238,6 +251,7 @@ mod tests {
                 &render_pass,
                 &swapchain,
                 debug_info!("my_graphics_pipeline"),
+                Topology::LineList,
             )
             .unwrap();
         }

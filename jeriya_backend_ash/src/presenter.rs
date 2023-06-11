@@ -1,13 +1,12 @@
-use std::collections::VecDeque;
-use std::sync::Arc;
+use std::{collections::VecDeque, sync::Arc};
 
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
     command_buffer::CommandBuffer, device::Device, frame_index::FrameIndex, immediate_graphics_pipeline::ImmediateGraphicsPipeline,
-    semaphore::Semaphore, simple_graphics_pipeline::SimpleGraphicsPipeline, surface::Surface, swapchain_vec::SwapchainVec,
+    immediate_graphics_pipeline::Topology, semaphore::Semaphore, simple_graphics_pipeline::SimpleGraphicsPipeline, surface::Surface,
+    swapchain_vec::SwapchainVec,
 };
-use jeriya_shared::debug_info;
-use jeriya_shared::winit::window::WindowId;
+use jeriya_shared::{debug_info, winit::window::WindowId};
 
 use crate::presenter_resources::PresenterResources;
 
@@ -19,7 +18,9 @@ pub struct Presenter {
     pub rendering_complete_semaphores: SwapchainVec<Vec<Arc<Semaphore>>>,
     pub rendering_complete_command_buffers: SwapchainVec<Vec<Arc<CommandBuffer>>>,
     pub simple_graphics_pipeline: SimpleGraphicsPipeline,
-    pub immediate_graphics_pipeline: ImmediateGraphicsPipeline,
+    pub immediate_graphics_pipeline_line_list: ImmediateGraphicsPipeline,
+    pub immediate_graphics_pipeline_line_strip: ImmediateGraphicsPipeline,
+    pub immediate_graphics_pipeline_triangle_list: ImmediateGraphicsPipeline,
 }
 
 impl Presenter {
@@ -37,11 +38,26 @@ impl Presenter {
             presenter_resources.swapchain(),
             debug_info!(format!("SimpleGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
-        let immediate_graphics_pipeline = ImmediateGraphicsPipeline::new(
+        let immediate_graphics_pipeline_line_list = ImmediateGraphicsPipeline::new(
             &device,
             presenter_resources.render_pass(),
             presenter_resources.swapchain(),
             debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
+            Topology::LineList,
+        )?;
+        let immediate_graphics_pipeline_line_strip = ImmediateGraphicsPipeline::new(
+            &device,
+            presenter_resources.render_pass(),
+            presenter_resources.swapchain(),
+            debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
+            Topology::LineStrip,
+        )?;
+        let immediate_graphics_pipeline_triangle_list = ImmediateGraphicsPipeline::new(
+            &device,
+            presenter_resources.render_pass(),
+            presenter_resources.swapchain(),
+            debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
+            Topology::TriangleList,
         )?;
 
         Ok(Self {
@@ -52,7 +68,9 @@ impl Presenter {
             rendering_complete_command_buffers: rendering_complete_command_buffer,
             frame_index_history: VecDeque::new(),
             simple_graphics_pipeline,
-            immediate_graphics_pipeline,
+            immediate_graphics_pipeline_line_list,
+            immediate_graphics_pipeline_line_strip,
+            immediate_graphics_pipeline_triangle_list,
         })
     }
 
