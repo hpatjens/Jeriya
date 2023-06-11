@@ -301,9 +301,6 @@ impl AshBackend {
         presenter: &Presenter,
         command_buffer_builder: &mut CommandBufferBuilder,
     ) -> core::Result<()> {
-        // Bind GraphicsPipeline
-        command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_line_list);
-
         let mut immediate_rendering_requests = self.immediate_rendering_requests.lock();
         if let Some(requests) = immediate_rendering_requests.get_mut(window_id) {
             // Collect vertex attributes for all immediate rendering requests

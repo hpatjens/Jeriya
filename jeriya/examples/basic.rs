@@ -3,7 +3,7 @@ use std::io;
 use jeriya_backend_ash::AshBackend;
 use jeriya_shared::{
     debug_info,
-    immediate::{LineConfig, LineList, TriangleConfig, TriangleList, TriangleStrip},
+    immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
     log,
     nalgebra::Vector3,
     winit::{
@@ -63,6 +63,15 @@ fn main() -> io::Result<()> {
                     vec![Vector3::new(-0.5, -0.5, 0.0), Vector3::new(1.0, 1.0, 0.0)],
                     LineConfig::default(),
                 );
+                let line_strip = LineStrip::new(
+                    vec![
+                        Vector3::new(-0.5, 0.8, 0.0),
+                        Vector3::new(-0.2, 0.8, 0.0),
+                        Vector3::new(-0.3, 0.5, 0.0),
+                        Vector3::new(-0.7, 0.4, 0.0),
+                    ],
+                    LineConfig::default(),
+                );
                 let triangle_list = TriangleList::new(
                     vec![
                         Vector3::new(-0.8, -0.8, 0.0),
@@ -86,6 +95,8 @@ fn main() -> io::Result<()> {
 
                 let immediate_command_buffer = immediate_command_buffer_builder
                     .push_line_lists(&[line_list])
+                    .unwrap()
+                    .push_line_strips(&[line_strip])
                     .unwrap()
                     .push_triangle_lists(&[triangle_list])
                     .unwrap()
