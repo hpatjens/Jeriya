@@ -6,7 +6,7 @@ use jeriya_shared::{
     debug_info,
     immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
     log,
-    nalgebra::{Vector3, Vector4},
+    nalgebra::{Matrix4, Vector3, Vector4},
     winit::{
         event::{Event, WindowEvent},
         event_loop::EventLoop,
@@ -69,6 +69,7 @@ where
     let immediate_command_buffer = immediate_command_buffer_builder
         .push_line_lists(&[line_list])?
         .push_line_strips(&[line_strip])?
+        .matrix(Matrix4::new_scaling(0.5))?
         .push_triangle_lists(&[triangle_list])?
         .push_triangle_strips(&[triangle_strip])?
         .build()?;

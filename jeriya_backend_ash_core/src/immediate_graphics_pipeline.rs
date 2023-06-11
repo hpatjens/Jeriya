@@ -1,7 +1,7 @@
 use ash::vk::{self};
 use jeriya_shared::{
     debug_info,
-    nalgebra::{Vector3, Vector4},
+    nalgebra::{Matrix4, Vector3, Vector4},
     AsDebugInfo, DebugInfo,
 };
 
@@ -23,6 +23,7 @@ pub enum Topology {
 #[derive(Debug, Default, PartialEq)]
 pub struct PushConstants {
     pub color: Vector4<f32>,
+    pub matrix: Matrix4<f32>,
 }
 
 pub struct ImmediateGraphicsPipeline {

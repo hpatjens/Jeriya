@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use nalgebra::Matrix4;
+
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
     winit::window::{Window, WindowId},
@@ -38,6 +40,9 @@ pub trait ImmediateCommandBufferBuilder: AsDebugInfo {
     fn new(backend: &Self::Backend, debug_info: DebugInfo) -> crate::Result<Self>
     where
         Self: Sized;
+
+    /// Sets the matrix to be used for the following draw calls
+    fn matrix(&mut self, matrix: Matrix4<f32>) -> crate::Result<()>;
 
     /// Push one or more [`LineList`]s to the command buffer
     fn push_line_lists(&mut self, line_lists: &[LineList]) -> crate::Result<()>;

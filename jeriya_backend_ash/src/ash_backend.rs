@@ -19,6 +19,7 @@ use jeriya_backend_ash_core::{
     Config, ValidationLayerConfig,
 };
 use jeriya_shared::immediate::{self, TriangleList, TriangleStrip};
+use jeriya_shared::nalgebra::Matrix4;
 use jeriya_shared::{
     debug_info,
     immediate::{LineList, LineStrip},
@@ -310,6 +311,7 @@ impl AshBackend {
                 request.count -= 1;
                 for command in &request.immediate_command_buffer.commands {
                     match command {
+                        ImmediateCommand::Matrix(..) => {}
                         ImmediateCommand::LineList(line_list) => data.extend_from_slice(line_list.positions()),
                         ImmediateCommand::LineStrip(line_strip) => data.extend_from_slice(line_strip.positions()),
                         ImmediateCommand::TriangleList(triangle_list) => data.extend_from_slice(triangle_list.positions()),
@@ -327,16 +329,19 @@ impl AshBackend {
 
             // Append the draw commands
             let mut first_vertex = 0;
+            let mut last_matrix = Matrix4::identity();
             for immediate_command_buffer in &*requests {
                 let mut last_topology = None;
                 for command in &immediate_command_buffer.immediate_command_buffer.commands {
                     match command {
+                        ImmediateCommand::Matrix(matrix) => last_matrix = *matrix,
                         ImmediateCommand::LineList(line_list) => {
                             if !matches!(last_topology, Some(Topology::LineList)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_line_list);
                             }
                             let push_constants = PushConstants {
                                 color: line_list.config().color,
+                                matrix: last_matrix,
                             };
                             command_buffer_builder.push_constants(&[push_constants])?;
                             command_buffer_builder.set_line_width(line_list.config().line_width);
@@ -350,6 +355,7 @@ impl AshBackend {
                             }
                             let push_constants = PushConstants {
                                 color: line_strip.config().color,
+                                matrix: last_matrix,
                             };
                             command_buffer_builder.push_constants(&[push_constants])?;
                             command_buffer_builder.set_line_width(line_strip.config().line_width);
@@ -363,6 +369,7 @@ impl AshBackend {
                             }
                             let push_constants = PushConstants {
                                 color: triangle_list.config().color,
+                                matrix: last_matrix,
                             };
                             command_buffer_builder.push_constants(&[push_constants])?;
                             command_buffer_builder.draw_vertices(triangle_list.positions().len() as u32, first_vertex as u32);
@@ -375,6 +382,7 @@ impl AshBackend {
                             }
                             let push_constants = PushConstants {
                                 color: triangle_strip.config().color,
+                                matrix: last_matrix,
                             };
                             command_buffer_builder.push_constants(&[push_constants])?;
                             command_buffer_builder.draw_vertices(triangle_strip.positions().len() as u32, first_vertex as u32);
@@ -391,6 +399,7 @@ impl AshBackend {
 
 #[derive(Debug, Clone)]
 enum ImmediateCommand {
+    Matrix(Matrix4<f32>),
     LineList(LineList),
     LineStrip(LineStrip),
     TriangleList(TriangleList),
@@ -425,6 +434,11 @@ impl ImmediateCommandBufferBuilder for AshImmediateCommandBufferBuilder {
             commands: Vec::new(),
             debug_info,
         })
+    }
+
+    fn matrix(&mut self, matrix: Matrix4<f32>) -> jeriya_shared::Result<()> {
+        self.commands.push(ImmediateCommand::Matrix(matrix));
+        Ok(())
     }
 
     fn push_line_lists(&mut self, line_lists: &[LineList]) -> jeriya_shared::Result<()> {

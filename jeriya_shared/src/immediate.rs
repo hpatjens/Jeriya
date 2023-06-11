@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use nalgebra::{Vector3, Vector4};
+use nalgebra::{Matrix4, Vector3, Vector4};
 
 use crate::{backend::Backend, AsDebugInfo, DebugInfo, ImmediateCommandBufferBuilder};
 
@@ -172,6 +172,12 @@ impl<B: Backend> CommandBufferBuilder<B> {
     /// Creates a new `CommandBufferBuilder`.
     pub fn new(command_buffer_builder: B::ImmediateCommandBufferBuilder) -> Self {
         Self { command_buffer_builder }
+    }
+
+    /// Sets the matrix to be used for the following draw calls.
+    pub fn matrix(mut self, matrix: Matrix4<f32>) -> crate::Result<Self> {
+        self.command_buffer_builder.matrix(matrix)?;
+        Ok(self)
     }
 
     /// Pushes new [`LineList`]s to the `CommandBufferBuilder`.
