@@ -147,7 +147,9 @@ mod tests {
         fn build(self) -> jeriya_shared::Result<Arc<CommandBuffer<Self::Backend>>> {
             Ok(Arc::new(CommandBuffer::new(DummyImmediateCommandBuffer(self.0))))
         }
-
+        fn matrix(&mut self, _matrix: jeriya_shared::nalgebra::Matrix4<f32>) -> jeriya_shared::Result<()> {
+            Ok(())
+        }
         fn push_line_lists(&mut self, _line_lists: &[jeriya_shared::immediate::LineList]) -> jeriya_shared::Result<()> {
             Ok(())
         }
