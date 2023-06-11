@@ -84,7 +84,7 @@ impl Queue {
         Ok(())
     }
 
-    /// Submits the given [`CommandBuffer`] to the `Queue` and returns is for manual
+    /// Submits the given [`CommandBuffer`] to the `Queue` and waits for the given [`Semaphore`] to be signalled.
     pub fn submit_for_rendering_complete(
         &mut self,
         command_buffer: Arc<CommandBuffer>,
