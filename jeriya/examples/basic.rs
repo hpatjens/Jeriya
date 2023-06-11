@@ -1,5 +1,6 @@
 use std::io;
 
+use jeriya::Renderer;
 use jeriya_backend_ash::AshBackend;
 use jeriya_shared::{
     debug_info,
@@ -11,7 +12,61 @@ use jeriya_shared::{
         event_loop::EventLoop,
         window::WindowBuilder,
     },
+    Backend,
 };
+
+/// Shows how the immediate rendering API can be used.
+fn immediate_rendering<B>(renderer: &Renderer<B>) -> jeriya_shared::Result<()>
+where
+    B: Backend,
+{
+    let immediate_command_buffer_builder = renderer.create_immediate_command_buffer_builder(debug_info!("my_command_buffer"))?;
+
+    let line_list = LineList::new(
+        vec![Vector3::new(-0.5, -0.5, 0.0), Vector3::new(1.0, 1.0, 0.0)],
+        LineConfig::default(),
+    );
+    let line_strip = LineStrip::new(
+        vec![
+            Vector3::new(-0.5, 0.8, 0.0),
+            Vector3::new(-0.2, 0.8, 0.0),
+            Vector3::new(-0.3, 0.5, 0.0),
+            Vector3::new(-0.7, 0.4, 0.0),
+        ],
+        LineConfig::default(),
+    );
+    let triangle_list = TriangleList::new(
+        vec![
+            Vector3::new(-0.8, -0.8, 0.0),
+            Vector3::new(-0.8, -0.6, 0.0),
+            Vector3::new(-0.5, -0.7, 0.0),
+            Vector3::new(-0.5, -0.7, 0.0),
+            Vector3::new(-0.5, -0.5, 0.0),
+            Vector3::new(-0.2, -0.6, 0.0),
+        ],
+        TriangleConfig::default(),
+    );
+    let triangle_strip = TriangleStrip::new(
+        vec![
+            Vector3::new(0.7, -0.8, 0.0),
+            Vector3::new(0.3, -0.8, 0.0),
+            Vector3::new(0.7, -0.6, 0.0),
+            Vector3::new(0.3, -0.5, 0.0),
+        ],
+        TriangleConfig::default(),
+    );
+
+    let immediate_command_buffer = immediate_command_buffer_builder
+        .push_line_lists(&[line_list])?
+        .push_line_strips(&[line_strip])?
+        .push_triangle_lists(&[triangle_list])?
+        .push_triangle_strips(&[triangle_strip])?
+        .build()?;
+
+    renderer.render_immediate_command_buffer(immediate_command_buffer)?;
+
+    Ok(())
+}
 
 fn main() -> io::Result<()> {
     fern::Dispatch::new()
@@ -55,57 +110,7 @@ fn main() -> io::Result<()> {
             Event::MainEventsCleared => {
                 window.request_redraw();
 
-                let immediate_command_buffer_builder = renderer
-                    .create_immediate_command_buffer_builder(debug_info!("my_command_buffer"))
-                    .unwrap();
-
-                let line_list = LineList::new(
-                    vec![Vector3::new(-0.5, -0.5, 0.0), Vector3::new(1.0, 1.0, 0.0)],
-                    LineConfig::default(),
-                );
-                let line_strip = LineStrip::new(
-                    vec![
-                        Vector3::new(-0.5, 0.8, 0.0),
-                        Vector3::new(-0.2, 0.8, 0.0),
-                        Vector3::new(-0.3, 0.5, 0.0),
-                        Vector3::new(-0.7, 0.4, 0.0),
-                    ],
-                    LineConfig::default(),
-                );
-                let triangle_list = TriangleList::new(
-                    vec![
-                        Vector3::new(-0.8, -0.8, 0.0),
-                        Vector3::new(-0.8, -0.6, 0.0),
-                        Vector3::new(-0.5, -0.7, 0.0),
-                        Vector3::new(-0.5, -0.7, 0.0),
-                        Vector3::new(-0.5, -0.5, 0.0),
-                        Vector3::new(-0.2, -0.6, 0.0),
-                    ],
-                    TriangleConfig::default(),
-                );
-                let triangle_strip = TriangleStrip::new(
-                    vec![
-                        Vector3::new(0.7, -0.8, 0.0),
-                        Vector3::new(0.3, -0.8, 0.0),
-                        Vector3::new(0.7, -0.6, 0.0),
-                        Vector3::new(0.3, -0.5, 0.0),
-                    ],
-                    TriangleConfig::default(),
-                );
-
-                let immediate_command_buffer = immediate_command_buffer_builder
-                    .push_line_lists(&[line_list])
-                    .unwrap()
-                    .push_line_strips(&[line_strip])
-                    .unwrap()
-                    .push_triangle_lists(&[triangle_list])
-                    .unwrap()
-                    .push_triangle_strips(&[triangle_strip])
-                    .unwrap()
-                    .build()
-                    .unwrap();
-
-                renderer.render_immediate_command_buffer(immediate_command_buffer).unwrap();
+                immediate_rendering(&renderer).unwrap();
 
                 renderer.render_frame().unwrap();
             }
