@@ -9,14 +9,11 @@ use jeriya_backend_ash_core::{
     debug::{set_panic_on_message, ValidationLayerCallback},
     device::Device,
     entry::Entry,
-    frame_index::FrameIndex,
     host_visible_buffer::HostVisibleBuffer,
-    immediate_graphics_pipeline::ImmediateGraphicsPipeline,
     instance::Instance,
     physical_device::PhysicalDevice,
     queue::{Queue, QueueType},
     semaphore::Semaphore,
-    simple_graphics_pipeline::SimpleGraphicsPipeline,
     surface::Surface,
     Config, ValidationLayerConfig,
 };
@@ -48,8 +45,6 @@ pub struct AshBackend {
     presentation_queue: RefCell<Queue>,
     command_pool: Rc<CommandPool>,
     immediate_rendering_requests: Mutex<HashMap<WindowId, Vec<ImmediateRenderingRequest>>>,
-    simple_graphics_pipelines: HashMap<WindowId, SimpleGraphicsPipeline>,
-    immediate_graphics_pipelines: HashMap<WindowId, ImmediateGraphicsPipeline>,
 }
 
 impl Backend for AshBackend {
@@ -117,7 +112,7 @@ impl Backend for AshBackend {
             .iter()
             .map(|(window_id, surface)| {
                 info!("Creating presenter for window {window_id:?}");
-                let presenter = Presenter::new(&device, surface, renderer_config.default_desired_swapchain_length)?;
+                let presenter = Presenter::new(&device, window_id, surface, renderer_config.default_desired_swapchain_length)?;
                 Ok((*window_id, RefCell::new(presenter)))
             })
             .collect::<core::Result<HashMap<_, _>>>()?;
@@ -130,34 +125,6 @@ impl Backend for AshBackend {
             debug_info!("preliminary-CommandPool"),
         )?;
 
-        // Graphics Pipeline
-        let simple_graphics_pipelines = presenters
-            .iter()
-            .map(|(window_id, presenter)| {
-                let presenter = presenter.borrow();
-                let graphics_pipeline = SimpleGraphicsPipeline::new(
-                    &device,
-                    presenter.presenter_resources.render_pass(),
-                    presenter.presenter_resources.swapchain(),
-                    debug_info!(format!("SimpleGraphicsPipeline-for-Window{:?}", window_id)),
-                )?;
-                Ok((*window_id, graphics_pipeline))
-            })
-            .collect::<core::Result<HashMap<_, _>>>()?;
-        let immediate_graphics_pipelines = presenters
-            .iter()
-            .map(|(window_id, presenter)| {
-                let presenter = presenter.borrow();
-                let graphics_pipeline = ImmediateGraphicsPipeline::new(
-                    &device,
-                    presenter.presenter_resources.render_pass(),
-                    presenter.presenter_resources.swapchain(),
-                    debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
-                )?;
-                Ok((*window_id, graphics_pipeline))
-            })
-            .collect::<core::Result<HashMap<_, _>>>()?;
-
         Ok(Self {
             device,
             _validation_layer_callback: validation_layer_callback,
@@ -168,8 +135,6 @@ impl Backend for AshBackend {
             presentation_queue: RefCell::new(presentation_queue),
             command_pool,
             immediate_rendering_requests: Mutex::new(HashMap::new()),
-            simple_graphics_pipelines,
-            immediate_graphics_pipelines,
         })
     }
 
@@ -223,12 +188,6 @@ impl Backend for AshBackend {
                 "There should only be one rendering complete semaphore"
             );
 
-            // Immediate Rendering
-            let graphics_pipeline = self
-                .simple_graphics_pipelines
-                .get(&window_id)
-                .expect("no graphics pipeline for window");
-
             // Build CommandBuffer
             let mut command_buffer = CommandBuffer::new(
                 &self.device,
@@ -253,9 +212,9 @@ impl Backend for AshBackend {
                         presenter.frame_index().swapchain_index(),
                     ),
                 )?
-                .bind_graphics_pipeline(graphics_pipeline)
+                .bind_graphics_pipeline(&presenter.simple_graphics_pipeline)
                 .draw_three_vertices();
-            self.append_immediate_rendering_commands(window_id, &mut command_buffer_builder)?;
+            self.append_immediate_rendering_commands(window_id, presenter, &mut command_buffer_builder)?;
             command_buffer_builder.end_render_pass()?.end_command_buffer()?;
 
             // Save CommandBuffer to be able to check whether this frame was completed
@@ -338,14 +297,11 @@ impl AshBackend {
     fn append_immediate_rendering_commands(
         &self,
         window_id: &WindowId,
+        presenter: &Presenter,
         command_buffer_builder: &mut CommandBufferBuilder,
     ) -> core::Result<()> {
         // Bind GraphicsPipeline
-        let immediate_graphics_pipeline = self
-            .immediate_graphics_pipelines
-            .get(window_id)
-            .expect("no graphics pipeline for window");
-        command_buffer_builder.bind_graphics_pipeline(immediate_graphics_pipeline);
+        command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline);
 
         let mut immediate_rendering_requests = self.immediate_rendering_requests.lock();
         if let Some(requests) = immediate_rendering_requests.get_mut(window_id) {
