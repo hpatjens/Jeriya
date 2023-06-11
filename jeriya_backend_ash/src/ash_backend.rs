@@ -339,6 +339,7 @@ impl AshBackend {
                                 color: line_list.config().color,
                             };
                             command_buffer_builder.push_constants(&[push_constants])?;
+                            command_buffer_builder.set_line_width(line_list.config().line_width);
                             command_buffer_builder.draw_vertices(line_list.positions().len() as u32, first_vertex as u32);
                             first_vertex += line_list.positions().len();
                             last_topology = Some(Topology::LineList);
@@ -351,6 +352,7 @@ impl AshBackend {
                                 color: line_strip.config().color,
                             };
                             command_buffer_builder.push_constants(&[push_constants])?;
+                            command_buffer_builder.set_line_width(line_strip.config().line_width);
                             command_buffer_builder.draw_vertices(line_strip.positions().len() as u32, first_vertex as u32);
                             first_vertex += line_strip.positions().len();
                             last_topology = Some(Topology::LineStrip);

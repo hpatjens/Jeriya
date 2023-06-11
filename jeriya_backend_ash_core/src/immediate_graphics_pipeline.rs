@@ -168,7 +168,7 @@ impl ImmediateGraphicsPipeline {
             .logic_op(vk::LogicOp::CLEAR)
             .attachments(&color_blend_attachment_states);
 
-        let dynamic_state = [];
+        let dynamic_state = [vk::DynamicState::LINE_WIDTH];
         let dynamic_state_info = vk::PipelineDynamicStateCreateInfo::builder().dynamic_states(&dynamic_state);
 
         let vertex_input_binding_descriptions = [vk::VertexInputBindingDescription {

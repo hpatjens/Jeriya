@@ -219,4 +219,13 @@ impl<'buf> CommandBufferBuilder<'buf> {
         }
         Ok(())
     }
+
+    /// Sets line width of the dynamic pipeline state
+    pub fn set_line_width(&mut self, line_width: f32) {
+        unsafe {
+            self.device
+                .as_raw_vulkan()
+                .cmd_set_line_width(*self.command_buffer.as_raw_vulkan(), line_width);
+        }
+    }
 }

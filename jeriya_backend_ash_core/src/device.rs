@@ -19,7 +19,7 @@ impl Drop for Device {
 impl Device {
     /// Creates a new `Device` based on the given [`PhysicalDevice`].
     pub fn new(physical_device: PhysicalDevice, instance: &Arc<Instance>) -> crate::Result<Arc<Self>> {
-        let features = vk::PhysicalDeviceFeatures::default();
+        let features = vk::PhysicalDeviceFeatures::builder().wide_lines(true);
         let queue_priorities = physical_device
             .suitable_presentation_graphics_queue_family_infos
             .iter()
