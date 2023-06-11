@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ash::{extensions::khr, vk};
 
-use crate::{instance::Instance, physical_device::PhysicalDevice, AsRawVulkan};
+use crate::{instance::Instance, physical_device::PhysicalDevice, AsRawVulkan, Error, PhysicalDeviceFeature};
 
 pub struct Device {
     device: ash::Device,
@@ -19,7 +19,18 @@ impl Drop for Device {
 impl Device {
     /// Creates a new `Device` based on the given [`PhysicalDevice`].
     pub fn new(physical_device: PhysicalDevice, instance: &Arc<Instance>) -> crate::Result<Arc<Self>> {
-        let features = vk::PhysicalDeviceFeatures::builder().wide_lines(true);
+        let features = {
+            let available_features = unsafe {
+                instance
+                    .as_raw_vulkan()
+                    .get_physical_device_features(*physical_device.as_raw_vulkan())
+            };
+            if available_features.wide_lines != vk::TRUE {
+                return Err(Error::PhysicalDeviceFeatureMissing(PhysicalDeviceFeature::WideLines));
+            }
+            vk::PhysicalDeviceFeatures::builder().wide_lines(true)
+        };
+
         let queue_priorities = physical_device
             .suitable_presentation_graphics_queue_family_infos
             .iter()

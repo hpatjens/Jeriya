@@ -71,6 +71,11 @@ impl<T> IntoJeriya for VkResult<T> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum PhysicalDeviceFeature {
+    WideLines,
+}
+
 /// Errors in the ash backend
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -96,6 +101,8 @@ pub enum Error {
     SpirvDecode,
     #[error("No Pipeline bound")]
     NoPipelineBound,
+    #[error("The physical device doesn't support a feature that is expected")]
+    PhysicalDeviceFeatureMissing(PhysicalDeviceFeature),
 }
 
 impl From<Error> for jeriya_shared::Error {
