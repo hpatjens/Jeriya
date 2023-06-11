@@ -18,7 +18,7 @@ use jeriya_backend_ash_core::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_shared::immediate::{self, TriangleList};
+use jeriya_shared::immediate::{self, TriangleList, TriangleStrip};
 use jeriya_shared::{
     debug_info,
     immediate::{LineList, LineStrip},
@@ -317,6 +317,7 @@ impl AshBackend {
                         ImmediateCommand::LineList(line_list) => data.extend_from_slice(line_list.positions()),
                         ImmediateCommand::LineStrip(line_strip) => data.extend_from_slice(line_strip.positions()),
                         ImmediateCommand::TriangleList(triangle_list) => data.extend_from_slice(triangle_list.positions()),
+                        ImmediateCommand::TriangleStrip(triangle_strip) => data.extend_from_slice(triangle_strip.positions()),
                     }
                 }
             }
@@ -358,6 +359,14 @@ impl AshBackend {
                             first_vertex += triangle_list.positions().len();
                             last_topology = Some(Topology::TriangleList);
                         }
+                        ImmediateCommand::TriangleStrip(triangle_strip) => {
+                            if !matches!(last_topology, Some(Topology::TriangleStrip)) {
+                                command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_triangle_strip);
+                            }
+                            command_buffer_builder.draw_vertices(triangle_strip.positions().len() as u32, first_vertex as u32);
+                            first_vertex += triangle_strip.positions().len();
+                            last_topology = Some(Topology::TriangleStrip);
+                        }
                     }
                 }
             }
@@ -371,6 +380,7 @@ enum ImmediateCommand {
     LineList(LineList),
     LineStrip(LineStrip),
     TriangleList(TriangleList),
+    TriangleStrip(TriangleStrip),
 }
 
 #[derive(Debug)]
@@ -429,6 +439,16 @@ impl ImmediateCommandBufferBuilder for AshImmediateCommandBufferBuilder {
                 continue;
             }
             self.commands.push(ImmediateCommand::TriangleList(triangle_list.clone()));
+        }
+        Ok(())
+    }
+
+    fn push_triangle_strips(&mut self, triangle_strips: &[TriangleStrip]) -> jeriya_shared::Result<()> {
+        for triangle_strip in triangle_strips {
+            if triangle_strip.positions().is_empty() {
+                continue;
+            }
+            self.commands.push(ImmediateCommand::TriangleStrip(triangle_strip.clone()));
         }
         Ok(())
     }

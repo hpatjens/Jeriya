@@ -43,7 +43,7 @@ impl LineList {
         &self.positions
     }
 
-    /// Returns the `LineConfig` of the `LineList`
+    /// Returns the [`LineConfig`] of the `LineList`
     pub fn config(&self) -> &LineConfig {
         &self.config
     }
@@ -59,7 +59,6 @@ pub struct LineStrip {
 impl LineStrip {
     /// Creates a new `LineStrip` from the given positions
     pub fn new(positions: Vec<Vector3<f32>>, config: LineConfig) -> Self {
-        assert!(!positions.is_empty(), "Number of vertices must be greater than 0");
         Self { positions, config }
     }
 
@@ -68,7 +67,7 @@ impl LineStrip {
         &self.positions
     }
 
-    /// Returns the `LineConfig` of the `LineStrip`
+    /// Returns the [`LineConfig`] of the `LineStrip`
     pub fn config(&self) -> &LineConfig {
         &self.config
     }
@@ -97,6 +96,10 @@ pub struct TriangleList {
 
 impl TriangleList {
     /// Creates a new `TriangleList` from the given positions
+    ///
+    /// # Panics
+    ///
+    /// - Panics if the number of positions is not a multiple of 3.
     pub fn new(positions: Vec<Vector3<f32>>, config: TriangleConfig) -> Self {
         assert!(positions.len() % 3 == 0, "Number of vertices must be a multiple of 3");
         Self { positions, config }
@@ -107,7 +110,31 @@ impl TriangleList {
         &self.positions
     }
 
-    /// Returns the `TriangleConfig` of the `TriangleStrip`
+    /// Returns the [`TriangleConfig`] of the `TriangleStrip`
+    pub fn config(&self) -> &TriangleConfig {
+        &self.config
+    }
+}
+
+/// Triangle strip for immediate rendering
+#[derive(Debug, Clone)]
+pub struct TriangleStrip {
+    positions: Vec<Vector3<f32>>,
+    config: TriangleConfig,
+}
+
+impl TriangleStrip {
+    /// Creates a new `TriangleStrip` from the given positions
+    pub fn new(positions: Vec<Vector3<f32>>, config: TriangleConfig) -> Self {
+        Self { positions, config }
+    }
+
+    /// Returns the positions of the `TriangleStrip`
+    pub fn positions(&self) -> &[Vector3<f32>] {
+        &self.positions
+    }
+
+    /// Returns the [`TriangleConfig`] of the `TriangleStrip`
     pub fn config(&self) -> &TriangleConfig {
         &self.config
     }
@@ -162,6 +189,12 @@ impl<B: Backend> CommandBufferBuilder<B> {
     /// Pushes new [`TriangleList`]s to the `CommandBufferBuilder`.
     pub fn push_triangle_lists(mut self, triangle_lists: &[TriangleList]) -> crate::Result<Self> {
         self.command_buffer_builder.push_triangle_lists(triangle_lists)?;
+        Ok(self)
+    }
+
+    /// Pushes new [`TriangleStrip`]s to the `CommandBufferBuilder`
+    pub fn push_triangle_strips(mut self, triangle_strip: &[TriangleStrip]) -> crate::Result<Self> {
+        self.command_buffer_builder.push_triangle_strips(triangle_strip)?;
         Ok(self)
     }
 

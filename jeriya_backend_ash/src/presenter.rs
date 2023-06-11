@@ -21,6 +21,7 @@ pub struct Presenter {
     pub immediate_graphics_pipeline_line_list: ImmediateGraphicsPipeline,
     pub immediate_graphics_pipeline_line_strip: ImmediateGraphicsPipeline,
     pub immediate_graphics_pipeline_triangle_list: ImmediateGraphicsPipeline,
+    pub immediate_graphics_pipeline_triangle_strip: ImmediateGraphicsPipeline,
 }
 
 impl Presenter {
@@ -59,6 +60,13 @@ impl Presenter {
             debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
             Topology::TriangleList,
         )?;
+        let immediate_graphics_pipeline_triangle_strip = ImmediateGraphicsPipeline::new(
+            &device,
+            presenter_resources.render_pass(),
+            presenter_resources.swapchain(),
+            debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
+            Topology::TriangleStrip,
+        )?;
 
         Ok(Self {
             frame_index,
@@ -71,6 +79,7 @@ impl Presenter {
             immediate_graphics_pipeline_line_list,
             immediate_graphics_pipeline_line_strip,
             immediate_graphics_pipeline_triangle_list,
+            immediate_graphics_pipeline_triangle_strip,
         })
     }
 

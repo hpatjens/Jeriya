@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList},
+    immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
     winit::window::{Window, WindowId},
     AsDebugInfo, DebugInfo, RendererConfig,
 };
@@ -39,14 +39,17 @@ pub trait ImmediateCommandBufferBuilder: AsDebugInfo {
     where
         Self: Sized;
 
-    /// Push one or more `LineList`s to the command buffer
+    /// Push one or more [`LineList`]s to the command buffer
     fn push_line_lists(&mut self, line_lists: &[LineList]) -> crate::Result<()>;
 
-    /// Push one or more `LineStrip`s to the command buffer
+    /// Push one or more [`LineStrip`]s to the command buffer
     fn push_line_strips(&mut self, line_strips: &[LineStrip]) -> crate::Result<()>;
 
-    /// Push one or more `TriangleList`s to the command buffer
+    /// Push one or more [`TriangleList`]s to the command buffer
     fn push_triangle_lists(&mut self, triangle_lists: &[TriangleList]) -> crate::Result<()>;
+
+    /// Push one or more [`TriangleStrip`]s to the command buffer
+    fn push_triangle_strips(&mut self, triangle_strips: &[TriangleStrip]) -> crate::Result<()>;
 
     /// Build the command buffer and submit it for rendering
     fn build(self) -> crate::Result<Arc<CommandBuffer<Self::Backend>>>;

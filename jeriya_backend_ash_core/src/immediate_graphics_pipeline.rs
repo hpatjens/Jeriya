@@ -12,6 +12,7 @@ pub enum Topology {
     LineList,
     LineStrip,
     TriangleList,
+    TriangleStrip,
 }
 
 #[repr(C)]
@@ -97,6 +98,7 @@ impl ImmediateGraphicsPipeline {
                 Topology::LineList => vk::PrimitiveTopology::LINE_LIST,
                 Topology::LineStrip => vk::PrimitiveTopology::LINE_STRIP,
                 Topology::TriangleList => vk::PrimitiveTopology::TRIANGLE_LIST,
+                Topology::TriangleStrip => vk::PrimitiveTopology::TRIANGLE_STRIP,
             },
             ..Default::default()
         };
