@@ -59,7 +59,7 @@ fn main() -> io::Result<()> {
                     .create_immediate_command_buffer_builder(debug_info!("my_command_buffer"))
                     .unwrap();
                 let line_lists = LineList::new(
-                    vec![Vector3::new(-0.5, -0.5, 0.0), Vector3::new(1.0, 1.0, 0.0)].repeat(8),
+                    vec![Vector3::new(-0.5, -0.5, 0.0), Vector3::new(1.0, 1.0, 0.0)],
                     LineConfig::default(),
                 );
                 let immediate_command_buffer = immediate_command_buffer_builder
