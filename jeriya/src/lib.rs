@@ -1,3 +1,4 @@
+mod objects;
 mod renderer;
 mod resources;
 

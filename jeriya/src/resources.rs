@@ -1,6 +1,8 @@
+mod camera;
 mod static_mesh;
 mod texture2d;
 
+pub use camera::*;
 pub use static_mesh::*;
 pub use texture2d::*;
 
@@ -49,18 +51,18 @@ impl ResourceContainerBuilder {
 /// Collection of [`Resource`]s of the same type
 #[derive(Default)]
 pub struct ResourceGroup<R> {
-    _data: Vec<R>,
+    data: Vec<Arc<Mutex<R>>>,
 }
 
 impl ResourceGroup<Texture2d> {
-    pub fn create(&self) -> ResourceBuilder<Texture2d> {
+    pub fn create(&mut self) -> ResourceBuilder<Texture2d> {
         ResourceBuilder::new(self)
     }
 }
 
 /// Builder for a [`Resource`]
 pub struct ResourceBuilder<'resgr, R> {
-    _resource_group: &'resgr ResourceGroup<R>,
+    resource_group: &'resgr mut ResourceGroup<R>,
     debug_info: Option<DebugInfo>,
 }
 
@@ -68,9 +70,9 @@ impl<'resgr, R> ResourceBuilder<'resgr, R>
 where
     R: Resource,
 {
-    fn new(resource_group: &'resgr ResourceGroup<R>) -> Self {
+    fn new(resource_group: &'resgr mut ResourceGroup<R>) -> Self {
         Self {
-            _resource_group: resource_group,
+            resource_group,
             debug_info: None,
         }
     }
@@ -81,7 +83,9 @@ where
     }
 
     pub fn build(self) -> Arc<Mutex<R>> {
-        Arc::new(Mutex::new(R::new()))
+        let resource = Arc::new(Mutex::new(R::new()));
+        self.resource_group.data.push(resource.clone());
+        resource
     }
 }
 
@@ -178,7 +182,7 @@ mod tests {
     #[test]
     fn new_resource_group() {
         let renderer = Renderer::<DummyBackend>::builder().build().unwrap();
-        let resource_container = renderer
+        let mut resource_container = renderer
             .create_resource_container()
             .with_debug_info(debug_info!("my_resource_group"))
             .build();

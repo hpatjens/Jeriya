@@ -1,6 +1,7 @@
 mod backend;
 mod debug_info;
 pub mod immediate;
+mod indexing_container;
 
 use std::result;
 
@@ -11,6 +12,7 @@ pub use bitflags;
 pub use chrono;
 pub use log;
 pub use nalgebra;
+pub use nalgebra_glm;
 pub use parking_lot;
 pub use winit;
 
