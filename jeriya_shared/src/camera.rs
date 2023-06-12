@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use jeriya_shared::{
+use crate::{
     nalgebra::{Matrix4, Vector3},
     nalgebra_glm,
 };

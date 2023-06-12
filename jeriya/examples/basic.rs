@@ -12,7 +12,7 @@ use jeriya_shared::{
         event_loop::EventLoop,
         window::WindowBuilder,
     },
-    Backend,
+    Backend, Camera,
 };
 
 /// Shows how the immediate rendering API can be used.
@@ -103,6 +103,13 @@ fn main() -> io::Result<()> {
         .unwrap();
 
     let renderer = jeriya::Renderer::<AshBackend>::builder().add_windows(&[&window]).build().unwrap();
+
+    let object_container = renderer
+        .create_object_container()
+        .with_debug_info(debug_info!("my_object_container"))
+        .build();
+    let mut cameras = object_container.cameras.lock().unwrap();
+    cameras.insert(Camera::default());
 
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_wait();
