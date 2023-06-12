@@ -33,6 +33,12 @@ pub struct IndexingContainer<T> {
     free_list: VecDeque<usize>,
 }
 
+impl<T> Default for IndexingContainer<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Default> IndexingContainer<T> {
     /// Removes the element at the given handle and returns it.
     ///
@@ -63,7 +69,7 @@ impl<T> IndexingContainer<T> {
     /// Inserts a new element into the container.
     pub fn insert(&mut self, value: T) -> Handle<T> {
         if let Some(free_index) = self.free_list.pop_front() {
-            self.data.insert(free_index, value);
+            self.data[free_index] = value;
             Handle::new(free_index, self.generations[free_index])
         } else {
             let index = self.data.len();
@@ -93,6 +99,8 @@ impl<T> IndexingContainer<T> {
 
     /// Returns the number of elements in the container.
     pub fn len(&self) -> usize {
+        dbg!(self.data.len());
+        dbg!(self.free_list.len());
         self.data.len() - self.free_list.len()
     }
 
@@ -104,6 +112,11 @@ impl<T> IndexingContainer<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+
     use super::*;
 
     #[test]
@@ -150,5 +163,46 @@ mod tests {
         let value = container.get_mut(&handle).unwrap();
         *value += 1;
         assert_eq!(value, &mut 8);
+    }
+
+    #[test]
+    fn test_reinsert() {
+        let mut container = IndexingContainer::<usize>::new();
+
+        let handle1 = container.insert(7);
+        assert_eq!(handle1.index(), 0);
+        assert_eq!(handle1.generation(), 0);
+
+        let value1 = container.remove(&handle1).unwrap();
+        assert_eq!(value1, 7);
+
+        let handle2 = container.insert(8);
+        assert_eq!(handle2.generation(), 1);
+
+        let value2 = container.remove(&handle2).unwrap();
+        assert_eq!(value2, 8);
+
+        assert_eq!(container.free_count(), 1);
+        assert_eq!(container.len(), 0);
+    }
+
+    #[test]
+    fn test_drop() {
+        struct Test(Arc<AtomicUsize>);
+        impl Drop for Test {
+            fn drop(&mut self) {
+                self.0.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+
+        let counter = Arc::new(AtomicUsize::new(0));
+
+        let mut container = IndexingContainer::<Test>::new();
+        container.insert(Test(counter.clone()));
+        container.insert(Test(counter.clone()));
+        container.insert(Test(counter.clone()));
+        drop(container);
+
+        assert_eq!(counter.load(Ordering::SeqCst), 3);
     }
 }
