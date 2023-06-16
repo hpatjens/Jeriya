@@ -12,7 +12,7 @@ use crate::{
 pub trait Backend: Sized {
     type BackendConfig: Default;
 
-    type ImmediateCommandBufferBuilderHandler: ImmediateCommandBufferBuilder<Backend = Self> + AsDebugInfo;
+    type ImmediateCommandBufferBuilderHandler: ImmediateCommandBufferBuilderHandler<Backend = Self> + AsDebugInfo;
     type ImmediateCommandBufferHandler: AsDebugInfo;
 
     /// Creates a new [`Backend`]
@@ -33,7 +33,7 @@ pub trait Backend: Sized {
     fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<Self>>) -> crate::Result<()>;
 }
 
-pub trait ImmediateCommandBufferBuilder: AsDebugInfo {
+pub trait ImmediateCommandBufferBuilderHandler: AsDebugInfo {
     type Backend: Backend;
 
     /// Create a new [`ImmediateCommandBufferBuilder`]

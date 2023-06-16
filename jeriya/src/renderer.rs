@@ -116,7 +116,7 @@ mod tests {
         debug_info,
         immediate::{CommandBuffer, CommandBufferBuilder},
         winit::window::{Window, WindowId},
-        AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilder,
+        AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilderHandler,
     };
     use std::sync::Arc;
 
@@ -187,7 +187,7 @@ mod tests {
             Ok(())
         }
     }
-    impl ImmediateCommandBufferBuilder for DummyImmediateCommandBufferBuilder {
+    impl ImmediateCommandBufferBuilderHandler for DummyImmediateCommandBufferBuilder {
         type Backend = DummyBackend;
 
         fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>

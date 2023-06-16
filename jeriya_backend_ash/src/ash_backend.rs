@@ -26,7 +26,7 @@ use jeriya_shared::{
     log::info,
     parking_lot::Mutex,
     winit::window::{Window, WindowId},
-    AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilder, RendererConfig,
+    AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilderHandler, RendererConfig,
 };
 
 use crate::presenter::Presenter;
@@ -423,7 +423,7 @@ pub struct AshImmediateCommandBufferBuilder {
     debug_info: DebugInfo,
 }
 
-impl ImmediateCommandBufferBuilder for AshImmediateCommandBufferBuilder {
+impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilder {
     type Backend = AshBackend;
 
     fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use nalgebra::{Matrix4, Vector3, Vector4};
 
-use crate::{backend::Backend, AsDebugInfo, DebugInfo, ImmediateCommandBufferBuilder};
+use crate::{backend::Backend, AsDebugInfo, DebugInfo, ImmediateCommandBufferBuilderHandler};
 
 /// Configuration for immediate line rendering
 #[derive(Debug, Clone)]
