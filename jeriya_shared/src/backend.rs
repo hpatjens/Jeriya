@@ -5,7 +5,7 @@ use nalgebra::Matrix4;
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
     winit::window::{Window, WindowId},
-    AsDebugInfo, DebugInfo, RendererConfig,
+    AsDebugInfo, DebugInfo, ObjectContainer, RendererConfig,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
@@ -26,17 +26,20 @@ pub trait Backend: Sized {
     /// Is called when rendering is requested.
     fn handle_render_frame(&self) -> crate::Result<()>;
 
-    /// Creates a new [`ImmediateCommandBufferBuilder`]
+    /// Creates a new [`CommandBufferBuilder`]
     fn create_immediate_command_buffer_builder(&self, debug_info: DebugInfo) -> crate::Result<CommandBufferBuilder<Self>>;
 
     /// Renders the given [`CommandBuffer`] in the next frame
     fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<Self>>) -> crate::Result<()>;
+
+    /// Registers an [`ObjectContainer`] at the `Backend`
+    fn register_object_container(&self, object_container: Arc<ObjectContainer>) -> crate::Result<()>;
 }
 
 pub trait ImmediateCommandBufferBuilderHandler: AsDebugInfo {
     type Backend: Backend;
 
-    /// Create a new [`ImmediateCommandBufferBuilder`]
+    /// Create a new [`ImmediateCommandBufferBuilderHandler`]
     fn new(backend: &Self::Backend, debug_info: DebugInfo) -> crate::Result<Self>
     where
         Self: Sized;
@@ -58,4 +61,13 @@ pub trait ImmediateCommandBufferBuilderHandler: AsDebugInfo {
 
     /// Build the command buffer and submit it for rendering
     fn build(self) -> crate::Result<Arc<CommandBuffer<Self::Backend>>>;
+}
+
+pub trait ObjectGroupHandler: AsDebugInfo {
+    type Backend: Backend;
+
+    /// Create a new [`ObjectGroupHandler`]
+    fn new(backend: &Self::Backend, debug_info: DebugInfo) -> crate::Result<Self>
+    where
+        Self: Sized;
 }

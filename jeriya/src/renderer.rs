@@ -1,7 +1,7 @@
 use jeriya_shared::{
     immediate::{CommandBuffer, CommandBufferBuilder},
     winit::window::{Window, WindowId},
-    Backend, DebugInfo, ObjectContainerBuilder, RendererConfig, ResourceContainerBuilder, Result,
+    Backend, DebugInfo, ObjectContainer, ObjectContainerBuilder, RegisterObjectContainer, RendererConfig, ResourceContainerBuilder, Result,
 };
 
 use std::{marker::PhantomData, sync::Arc};
@@ -34,7 +34,7 @@ where
 
     /// Creates a new [`ObjectContainerBuilder`]
     pub fn create_object_container(&self) -> ObjectContainerBuilder {
-        ObjectContainerBuilder::new()
+        ObjectContainerBuilder::new(self)
     }
 
     /// Returns the [`Backend`] of the `Renderer`
@@ -60,6 +60,15 @@ where
     /// Renders a [`CommandBuffer`] in the next frame
     pub fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<B>>) -> Result<()> {
         self.backend.render_immediate_command_buffer(command_buffer)
+    }
+}
+
+impl<B> RegisterObjectContainer for Renderer<B>
+where
+    B: Backend,
+{
+    fn register_object_container(&self, object_container: Arc<ObjectContainer>) -> jeriya_shared::Result<()> {
+        self.backend.register_object_container(object_container)
     }
 }
 

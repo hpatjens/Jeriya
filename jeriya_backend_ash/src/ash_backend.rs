@@ -18,15 +18,14 @@ use jeriya_backend_ash_core::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_shared::immediate::{self, TriangleList, TriangleStrip};
-use jeriya_shared::nalgebra::Matrix4;
 use jeriya_shared::{
     debug_info,
-    immediate::{LineList, LineStrip},
+    immediate::{self, LineList, LineStrip, TriangleList, TriangleStrip},
     log::info,
+    nalgebra::Matrix4,
     parking_lot::Mutex,
     winit::window::{Window, WindowId},
-    AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilderHandler, RendererConfig,
+    AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilderHandler, ObjectContainer, RendererConfig,
 };
 
 use crate::presenter::Presenter;
@@ -47,6 +46,7 @@ pub struct AshBackend {
     presentation_queue: RefCell<Queue>,
     command_pool: Rc<CommandPool>,
     immediate_rendering_requests: Mutex<HashMap<WindowId, Vec<ImmediateRenderingRequest>>>,
+    object_containers: Mutex<Vec<Arc<ObjectContainer>>>,
 }
 
 impl Backend for AshBackend {
@@ -137,6 +137,7 @@ impl Backend for AshBackend {
             presentation_queue: RefCell::new(presentation_queue),
             command_pool,
             immediate_rendering_requests: Mutex::new(HashMap::new()),
+            object_containers: Mutex::new(Vec::new()),
         })
     }
 
@@ -290,6 +291,11 @@ impl Backend for AshBackend {
                 guard.insert(*window_id, vec![immediate_rendering_request]);
             }
         }
+        Ok(())
+    }
+
+    fn register_object_container(&self, object_container: Arc<jeriya_shared::ObjectContainer>) -> jeriya_shared::Result<()> {
+        self.object_containers.lock().push(object_container);
         Ok(())
     }
 }

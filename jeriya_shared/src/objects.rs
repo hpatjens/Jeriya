@@ -29,13 +29,21 @@ impl<T: Default> ObjectGroup<T> {
     }
 }
 
-pub struct ObjectContainerBuilder {
+pub trait RegisterObjectContainer {
+    fn register_object_container(&self, object_container: Arc<ObjectContainer>) -> crate::Result<()>;
+}
+
+pub struct ObjectContainerBuilder<'a> {
+    renderer: &'a dyn RegisterObjectContainer,
     debug_info: Option<DebugInfo>,
 }
 
-impl ObjectContainerBuilder {
-    pub fn new() -> Self {
-        Self { debug_info: None }
+impl<'a> ObjectContainerBuilder<'a> {
+    pub fn new(renderer: &'a dyn RegisterObjectContainer) -> Self {
+        Self {
+            renderer,
+            debug_info: None,
+        }
     }
 
     /// Sets a [`DebugInfo`] for the [`ObjectContainer`]
@@ -44,10 +52,13 @@ impl ObjectContainerBuilder {
         self
     }
 
-    pub fn build(self) -> ObjectContainer {
-        ObjectContainer {
+    /// Builds the [`ObjectContainer`]
+    pub fn build(self) -> crate::Result<Arc<ObjectContainer>> {
+        let object_container = Arc::new(ObjectContainer {
             debug_info: self.debug_info,
             ..Default::default()
-        }
+        });
+        self.renderer.register_object_container(object_container.clone())?;
+        Ok(object_container)
     }
 }

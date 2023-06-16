@@ -107,7 +107,8 @@ fn main() -> io::Result<()> {
     let object_container = renderer
         .create_object_container()
         .with_debug_info(debug_info!("my_object_container"))
-        .build();
+        .build()
+        .unwrap();
     let mut cameras = object_container.cameras.lock().unwrap();
     cameras.insert(Camera::default());
 
