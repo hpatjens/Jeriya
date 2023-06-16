@@ -15,6 +15,8 @@ pub trait Backend: Sized {
     type ImmediateCommandBufferBuilderHandler: ImmediateCommandBufferBuilderHandler<Backend = Self> + AsDebugInfo;
     type ImmediateCommandBufferHandler: AsDebugInfo;
 
+    type ObjectContainerHandler: ObjectContainerHandler<Backend = Self> + AsDebugInfo;
+
     /// Creates a new [`Backend`]
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> crate::Result<Self>
     where
@@ -32,8 +34,8 @@ pub trait Backend: Sized {
     /// Renders the given [`CommandBuffer`] in the next frame
     fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<Self>>) -> crate::Result<()>;
 
-    /// Registers an [`ObjectContainer`] at the `Backend`
-    fn register_object_container(&self, object_container: Arc<ObjectContainer>) -> crate::Result<()>;
+    /// Creates a new [`ObjectContainer`]
+    fn create_object_container(&self, debug_info: DebugInfo) -> crate::Result<ObjectContainer<Self>>;
 }
 
 pub trait ImmediateCommandBufferBuilderHandler: AsDebugInfo {
@@ -63,10 +65,9 @@ pub trait ImmediateCommandBufferBuilderHandler: AsDebugInfo {
     fn build(self) -> crate::Result<Arc<CommandBuffer<Self::Backend>>>;
 }
 
-pub trait ObjectGroupHandler: AsDebugInfo {
+pub trait ObjectContainerHandler: AsDebugInfo {
     type Backend: Backend;
 
-    /// Create a new [`ObjectGroupHandler`]
     fn new(backend: &Self::Backend, debug_info: DebugInfo) -> crate::Result<Self>
     where
         Self: Sized;

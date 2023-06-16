@@ -1,7 +1,7 @@
 use jeriya_shared::{
     immediate::{CommandBuffer, CommandBufferBuilder},
     winit::window::{Window, WindowId},
-    Backend, DebugInfo, ObjectContainer, ObjectContainerBuilder, RegisterObjectContainer, RendererConfig, ResourceContainerBuilder, Result,
+    Backend, DebugInfo, ObjectContainer, RendererConfig, ResourceContainerBuilder, Result,
 };
 
 use std::{marker::PhantomData, sync::Arc};
@@ -32,9 +32,9 @@ where
         ResourceContainerBuilder::new()
     }
 
-    /// Creates a new [`ObjectContainerBuilder`]
-    pub fn create_object_container(&self) -> ObjectContainerBuilder {
-        ObjectContainerBuilder::new(self)
+    /// Creates a new [`ObjectContainer`]
+    pub fn create_object_container(&self, debug_info: DebugInfo) -> Result<ObjectContainer<B>> {
+        self.backend.create_object_container(debug_info)
     }
 
     /// Returns the [`Backend`] of the `Renderer`
@@ -60,15 +60,6 @@ where
     /// Renders a [`CommandBuffer`] in the next frame
     pub fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<B>>) -> Result<()> {
         self.backend.render_immediate_command_buffer(command_buffer)
-    }
-}
-
-impl<B> RegisterObjectContainer for Renderer<B>
-where
-    B: Backend,
-{
-    fn register_object_container(&self, object_container: Arc<ObjectContainer>) -> jeriya_shared::Result<()> {
-        self.backend.register_object_container(object_container)
     }
 }
 
@@ -125,7 +116,7 @@ mod tests {
         debug_info,
         immediate::{CommandBuffer, CommandBufferBuilder},
         winit::window::{Window, WindowId},
-        AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilderHandler,
+        AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilderHandler, ObjectContainer, ObjectContainerHandler,
     };
     use std::sync::Arc;
 
@@ -161,13 +152,16 @@ mod tests {
     }
 
     struct DummyBackend;
-    struct DummyImmediateCommandBufferBuilder(DebugInfo);
-    struct DummyImmediateCommandBuffer(DebugInfo);
+    struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
+    struct DummyImmediateCommandBufferHandler(DebugInfo);
+    struct DummyObjectContainerHandler(DebugInfo);
     impl Backend for DummyBackend {
         type BackendConfig = ();
 
-        type ImmediateCommandBufferBuilderHandler = DummyImmediateCommandBufferBuilder;
-        type ImmediateCommandBufferHandler = DummyImmediateCommandBuffer;
+        type ImmediateCommandBufferBuilderHandler = DummyImmediateCommandBufferBuilderHandler;
+        type ImmediateCommandBufferHandler = DummyImmediateCommandBufferHandler;
+
+        type ObjectContainerHandler = DummyObjectContainerHandler;
 
         fn new(
             _renderer_config: jeriya_shared::RendererConfig,
@@ -189,25 +183,31 @@ mod tests {
         }
 
         fn create_immediate_command_buffer_builder(&self, _debug_info: DebugInfo) -> jeriya_shared::Result<CommandBufferBuilder<Self>> {
-            Ok(CommandBufferBuilder::new(DummyImmediateCommandBufferBuilder(debug_info!("dummy"))))
+            Ok(CommandBufferBuilder::new(DummyImmediateCommandBufferBuilderHandler(debug_info!(
+                "dummy"
+            ))))
         }
 
         fn render_immediate_command_buffer(&self, _command_buffer: Arc<CommandBuffer<Self>>) -> jeriya_shared::Result<()> {
             Ok(())
         }
+
+        fn create_object_container(&self, debug_info: DebugInfo) -> jeriya_shared::Result<ObjectContainer<Self>> {
+            Ok(ObjectContainer::new(DummyObjectContainerHandler(debug_info!("dummy"))))
+        }
     }
-    impl ImmediateCommandBufferBuilderHandler for DummyImmediateCommandBufferBuilder {
+    impl ImmediateCommandBufferBuilderHandler for DummyImmediateCommandBufferBuilderHandler {
         type Backend = DummyBackend;
 
         fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
         where
             Self: Sized,
         {
-            Ok(DummyImmediateCommandBufferBuilder(debug_info))
+            Ok(DummyImmediateCommandBufferBuilderHandler(debug_info))
         }
 
         fn build(self) -> jeriya_shared::Result<Arc<CommandBuffer<Self::Backend>>> {
-            Ok(Arc::new(CommandBuffer::new(DummyImmediateCommandBuffer(self.0))))
+            Ok(Arc::new(CommandBuffer::new(DummyImmediateCommandBufferHandler(self.0))))
         }
         fn matrix(&mut self, _matrix: jeriya_shared::nalgebra::Matrix4<f32>) -> jeriya_shared::Result<()> {
             Ok(())
@@ -226,12 +226,27 @@ mod tests {
             Ok(())
         }
     }
-    impl AsDebugInfo for DummyImmediateCommandBufferBuilder {
+    impl AsDebugInfo for DummyImmediateCommandBufferBuilderHandler {
         fn as_debug_info(&self) -> &DebugInfo {
             &self.0
         }
     }
-    impl AsDebugInfo for DummyImmediateCommandBuffer {
+    impl AsDebugInfo for DummyImmediateCommandBufferHandler {
+        fn as_debug_info(&self) -> &DebugInfo {
+            &self.0
+        }
+    }
+    impl ObjectContainerHandler for DummyObjectContainerHandler {
+        type Backend = DummyBackend;
+
+        fn new(backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
+        where
+            Self: Sized,
+        {
+            Ok(Self(debug_info))
+        }
+    }
+    impl AsDebugInfo for DummyObjectContainerHandler {
         fn as_debug_info(&self) -> &DebugInfo {
             &self.0
         }

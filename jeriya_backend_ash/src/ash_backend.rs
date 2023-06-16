@@ -25,7 +25,7 @@ use jeriya_shared::{
     nalgebra::Matrix4,
     parking_lot::Mutex,
     winit::window::{Window, WindowId},
-    AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilderHandler, ObjectContainer, RendererConfig,
+    AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilderHandler, ObjectContainer, ObjectContainerHandler, RendererConfig,
 };
 
 use crate::presenter::Presenter;
@@ -46,7 +46,7 @@ pub struct AshBackend {
     presentation_queue: RefCell<Queue>,
     command_pool: Rc<CommandPool>,
     immediate_rendering_requests: Mutex<HashMap<WindowId, Vec<ImmediateRenderingRequest>>>,
-    object_containers: Mutex<Vec<Arc<ObjectContainer>>>,
+    object_containers: Mutex<Vec<Arc<ObjectContainer<Self>>>>,
 }
 
 impl Backend for AshBackend {
@@ -54,6 +54,8 @@ impl Backend for AshBackend {
 
     type ImmediateCommandBufferBuilderHandler = AshImmediateCommandBufferBuilder;
     type ImmediateCommandBufferHandler = AshImmediateCommandBuffer;
+
+    type ObjectContainerHandler = AshObjectContainerHandler;
 
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> jeriya_shared::Result<Self>
     where
@@ -294,9 +296,9 @@ impl Backend for AshBackend {
         Ok(())
     }
 
-    fn register_object_container(&self, object_container: Arc<jeriya_shared::ObjectContainer>) -> jeriya_shared::Result<()> {
-        self.object_containers.lock().push(object_container);
-        Ok(())
+    fn create_object_container(&self, debug_info: DebugInfo) -> jeriya_shared::Result<ObjectContainer<Self>> {
+        let object_container_builder = AshObjectContainerHandler::new(self, debug_info)?;
+        Ok(ObjectContainer::new(object_container_builder))
     }
 }
 
@@ -497,6 +499,27 @@ impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilder {
 }
 
 impl AsDebugInfo for AshImmediateCommandBufferBuilder {
+    fn as_debug_info(&self) -> &DebugInfo {
+        &self.debug_info
+    }
+}
+
+pub struct AshObjectContainerHandler {
+    debug_info: DebugInfo,
+}
+
+impl ObjectContainerHandler for AshObjectContainerHandler {
+    type Backend = AshBackend;
+
+    fn new(backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(Self { debug_info })
+    }
+}
+
+impl AsDebugInfo for AshObjectContainerHandler {
     fn as_debug_info(&self) -> &DebugInfo {
         &self.debug_info
     }
