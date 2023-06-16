@@ -59,7 +59,3 @@ pub trait ImmediateCommandBufferBuilder: AsDebugInfo {
     /// Build the command buffer and submit it for rendering
     fn build(self) -> crate::Result<Arc<CommandBuffer<Self::Backend>>>;
 }
-
-pub trait HandleCamera {
-    // pub fn added(&mut self, handle: &Handle<Camera>);
-}
