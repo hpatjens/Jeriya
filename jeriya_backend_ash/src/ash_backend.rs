@@ -52,8 +52,8 @@ pub struct AshBackend {
 impl Backend for AshBackend {
     type BackendConfig = Config;
 
-    type ImmediateCommandBufferBuilder = AshImmediateCommandBufferBuilder;
-    type ImmediateCommandBuffer = AshImmediateCommandBuffer;
+    type ImmediateCommandBufferBuilderHandler = AshImmediateCommandBufferBuilder;
+    type ImmediateCommandBufferHandler = AshImmediateCommandBuffer;
 
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> jeriya_shared::Result<Self>
     where

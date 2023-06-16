@@ -5,15 +5,15 @@ use nalgebra::Matrix4;
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
     winit::window::{Window, WindowId},
-    AsDebugInfo, DebugInfo, Handle, RendererConfig,
+    AsDebugInfo, DebugInfo, RendererConfig,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
 pub trait Backend: Sized {
     type BackendConfig: Default;
 
-    type ImmediateCommandBufferBuilder: ImmediateCommandBufferBuilder<Backend = Self> + AsDebugInfo;
-    type ImmediateCommandBuffer: AsDebugInfo;
+    type ImmediateCommandBufferBuilderHandler: ImmediateCommandBufferBuilder<Backend = Self> + AsDebugInfo;
+    type ImmediateCommandBufferHandler: AsDebugInfo;
 
     /// Creates a new [`Backend`]
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> crate::Result<Self>

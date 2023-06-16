@@ -142,17 +142,17 @@ impl TriangleStrip {
 
 /// Command buffer for immediate rendering.
 pub struct CommandBuffer<B: Backend> {
-    command_buffer: B::ImmediateCommandBuffer,
+    command_buffer: B::ImmediateCommandBufferHandler,
 }
 
 impl<B: Backend> CommandBuffer<B> {
     /// Creates a new `CommandBuffer` from the given `command_buffer`.
-    pub fn new(command_buffer: B::ImmediateCommandBuffer) -> Self {
+    pub fn new(command_buffer: B::ImmediateCommandBufferHandler) -> Self {
         Self { command_buffer }
     }
 
     /// Returns the underlying command buffer.
-    pub fn command_buffer(&self) -> &B::ImmediateCommandBuffer {
+    pub fn command_buffer(&self) -> &B::ImmediateCommandBufferHandler {
         &self.command_buffer
     }
 }
@@ -165,12 +165,12 @@ impl<B: Backend> AsDebugInfo for CommandBuffer<B> {
 
 /// Creates new command buffer in the [`ImmediateRenderingBackend`].
 pub struct CommandBufferBuilder<B: Backend> {
-    command_buffer_builder: B::ImmediateCommandBufferBuilder,
+    command_buffer_builder: B::ImmediateCommandBufferBuilderHandler,
 }
 
 impl<B: Backend> CommandBufferBuilder<B> {
     /// Creates a new `CommandBufferBuilder`.
-    pub fn new(command_buffer_builder: B::ImmediateCommandBufferBuilder) -> Self {
+    pub fn new(command_buffer_builder: B::ImmediateCommandBufferBuilderHandler) -> Self {
         Self { command_buffer_builder }
     }
 

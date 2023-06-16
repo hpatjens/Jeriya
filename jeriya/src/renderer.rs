@@ -157,8 +157,8 @@ mod tests {
     impl Backend for DummyBackend {
         type BackendConfig = ();
 
-        type ImmediateCommandBufferBuilder = DummyImmediateCommandBufferBuilder;
-        type ImmediateCommandBuffer = DummyImmediateCommandBuffer;
+        type ImmediateCommandBufferBuilderHandler = DummyImmediateCommandBufferBuilder;
+        type ImmediateCommandBufferHandler = DummyImmediateCommandBuffer;
 
         fn new(
             _renderer_config: jeriya_shared::RendererConfig,
