@@ -116,7 +116,8 @@ mod tests {
         debug_info,
         immediate::{CommandBuffer, CommandBufferBuilder},
         winit::window::{Window, WindowId},
-        AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilderHandler, ObjectContainer, ObjectContainerHandler,
+        AsDebugInfo, Backend, Camera, DebugInfo, ImmediateCommandBufferBuilderHandler, ObjectContainer, ObjectContainerHandler,
+        ObjectGroupGuard, ObjectGroupGuardHandler,
     };
     use std::sync::Arc;
 
@@ -155,6 +156,7 @@ mod tests {
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
     struct DummyImmediateCommandBufferHandler(DebugInfo);
     struct DummyObjectContainerHandler(DebugInfo);
+    struct DummyObjectGroupGuardHandler(DebugInfo);
     impl Backend for DummyBackend {
         type BackendConfig = ();
 
@@ -162,6 +164,7 @@ mod tests {
         type ImmediateCommandBufferHandler = DummyImmediateCommandBufferHandler;
 
         type ObjectContainerHandler = DummyObjectContainerHandler;
+        type ObjectGroupGuardHandler<'a, T> = DummyObjectGroupGuardHandler where T: 'a;
 
         fn new(
             _renderer_config: jeriya_shared::RendererConfig,
@@ -245,10 +248,33 @@ mod tests {
         {
             Ok(Self(debug_info))
         }
+
+        fn cameras(&self) -> jeriya_shared::ObjectGroupGuard<Camera, Self::Backend> {
+            ObjectGroupGuard::new(DummyObjectGroupGuardHandler(self.0.clone()))
+        }
     }
     impl AsDebugInfo for DummyObjectContainerHandler {
         fn as_debug_info(&self) -> &DebugInfo {
             &self.0
+        }
+    }
+    impl AsDebugInfo for DummyObjectGroupGuardHandler {
+        fn as_debug_info(&self) -> &DebugInfo {
+            &self.0
+        }
+    }
+    impl<T> ObjectGroupGuardHandler<T> for DummyObjectGroupGuardHandler {
+        type Backend = DummyBackend;
+
+        fn insert(&mut self, object: T) -> jeriya_shared::Handle<T> {
+            todo!()
+        }
+
+        fn remove(&mut self, handle: &jeriya_shared::Handle<T>) -> Option<T>
+        where
+            T: Default,
+        {
+            todo!()
         }
     }
 

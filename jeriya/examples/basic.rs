@@ -105,8 +105,8 @@ fn main() -> io::Result<()> {
     let renderer = jeriya::Renderer::<AshBackend>::builder().add_windows(&[&window]).build().unwrap();
 
     let object_container = renderer.create_object_container(debug_info!("my_object_container")).unwrap();
-    let mut cameras = object_container.cameras.lock().unwrap();
-    cameras.insert(Camera::default());
+    let mut cameras = object_container.cameras();
+    let handle = cameras.insert(Camera::default());
 
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_wait();

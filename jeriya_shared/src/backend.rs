@@ -5,7 +5,7 @@ use nalgebra::Matrix4;
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
     winit::window::{Window, WindowId},
-    AsDebugInfo, DebugInfo, ObjectContainer, RendererConfig,
+    AsDebugInfo, Camera, DebugInfo, Handle, ObjectContainer, ObjectGroupGuard, RendererConfig,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
@@ -16,6 +16,9 @@ pub trait Backend: Sized {
     type ImmediateCommandBufferHandler: AsDebugInfo;
 
     type ObjectContainerHandler: ObjectContainerHandler<Backend = Self> + AsDebugInfo;
+    type ObjectGroupGuardHandler<'a, T>: ObjectGroupGuardHandler<T> + AsDebugInfo
+    where
+        T: 'a;
 
     /// Creates a new [`Backend`]
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> crate::Result<Self>
@@ -71,4 +74,23 @@ pub trait ObjectContainerHandler: AsDebugInfo {
     fn new(backend: &Self::Backend, debug_info: DebugInfo) -> crate::Result<Self>
     where
         Self: Sized;
+
+    fn cameras(&self) -> ObjectGroupGuard<Camera, Self::Backend>;
+}
+
+pub trait ObjectGroupGuardHandler<T> {
+    type Backend: Backend;
+
+    /// Inserts a new object and returns a [`Handle`] to it.
+    fn insert(&mut self, object: T) -> Handle<T>;
+
+    /// Removes the object with the given handle and returns it.
+    ///
+    /// # Notes
+    ///
+    /// It is only available for T: Default to prevent unsafe code in the
+    /// [`IndexingContainer`]. This limitation will be lifted.
+    fn remove(&mut self, handle: &Handle<T>) -> Option<T>
+    where
+        T: Default;
 }
