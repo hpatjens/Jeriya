@@ -27,14 +27,17 @@ where
         RendererBuilder::new()
     }
 
+    /// Creates a new [`ResourceContainerBuilder`]
     pub fn create_resource_container(&self) -> ResourceContainerBuilder {
         ResourceContainerBuilder::new()
     }
 
+    /// Creates a new [`ObjectContainerBuilder`]
     pub fn create_object_container(&self) -> ObjectContainerBuilder {
         ObjectContainerBuilder::new()
     }
 
+    /// Returns the [`Backend`] of the `Renderer`
     pub fn backend(&self) -> &B {
         &self.backend
     }
