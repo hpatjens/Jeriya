@@ -1,5 +1,9 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
+use crate::{
+    ash_immediate::{AshImmediateCommandBuffer, AshImmediateCommandBufferBuilder, ImmediateCommand},
+    presenter::Presenter,
+};
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
     buffer::BufferUsageFlags,
@@ -18,19 +22,16 @@ use jeriya_backend_ash_core::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_shared::parking_lot::MutexGuard;
 use jeriya_shared::{
-    debug_info,
-    immediate::{self, LineList, LineStrip, TriangleList, TriangleStrip},
+    debug_info, immediate,
     log::info,
     nalgebra::Matrix4,
     parking_lot::Mutex,
     winit::window::{Window, WindowId},
-    AsDebugInfo, Backend, DebugInfo, ImmediateCommandBufferBuilderHandler, ObjectContainer, ObjectContainerHandler, RendererConfig,
+    AsDebugInfo, Backend, DebugInfo, ObjectContainer, ObjectContainerHandler, RendererConfig,
 };
+use jeriya_shared::{parking_lot::MutexGuard, ImmediateCommandBufferBuilderHandler};
 use jeriya_shared::{Camera, IndexingContainer, ObjectGroupGuard, ObjectGroupGuardHandler};
-
-use crate::presenter::Presenter;
 
 #[derive(Debug)]
 struct ImmediateRenderingRequest {
@@ -405,105 +406,6 @@ impl AshBackend {
             }
         }
         Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-enum ImmediateCommand {
-    Matrix(Matrix4<f32>),
-    LineList(LineList),
-    LineStrip(LineStrip),
-    TriangleList(TriangleList),
-    TriangleStrip(TriangleStrip),
-}
-
-#[derive(Debug)]
-pub struct AshImmediateCommandBuffer {
-    commands: Vec<ImmediateCommand>,
-    debug_info: DebugInfo,
-}
-
-impl AsDebugInfo for AshImmediateCommandBuffer {
-    fn as_debug_info(&self) -> &DebugInfo {
-        &self.debug_info
-    }
-}
-
-pub struct AshImmediateCommandBufferBuilder {
-    commands: Vec<ImmediateCommand>,
-    debug_info: DebugInfo,
-}
-
-impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilder {
-    type Backend = AshBackend;
-
-    fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
-    where
-        Self: Sized,
-    {
-        Ok(Self {
-            commands: Vec::new(),
-            debug_info,
-        })
-    }
-
-    fn matrix(&mut self, matrix: Matrix4<f32>) -> jeriya_shared::Result<()> {
-        self.commands.push(ImmediateCommand::Matrix(matrix));
-        Ok(())
-    }
-
-    fn push_line_lists(&mut self, line_lists: &[LineList]) -> jeriya_shared::Result<()> {
-        for line_list in line_lists {
-            if line_list.positions().is_empty() {
-                continue;
-            }
-            self.commands.push(ImmediateCommand::LineList(line_list.clone()));
-        }
-        Ok(())
-    }
-
-    fn push_line_strips(&mut self, line_strips: &[LineStrip]) -> jeriya_shared::Result<()> {
-        for line_strip in line_strips {
-            if line_strip.positions().is_empty() {
-                continue;
-            }
-            self.commands.push(ImmediateCommand::LineStrip(line_strip.clone()));
-        }
-        Ok(())
-    }
-
-    fn push_triangle_lists(&mut self, triangle_lists: &[TriangleList]) -> jeriya_shared::Result<()> {
-        for triangle_list in triangle_lists {
-            if triangle_list.positions().is_empty() {
-                continue;
-            }
-            self.commands.push(ImmediateCommand::TriangleList(triangle_list.clone()));
-        }
-        Ok(())
-    }
-
-    fn push_triangle_strips(&mut self, triangle_strips: &[TriangleStrip]) -> jeriya_shared::Result<()> {
-        for triangle_strip in triangle_strips {
-            if triangle_strip.positions().is_empty() {
-                continue;
-            }
-            self.commands.push(ImmediateCommand::TriangleStrip(triangle_strip.clone()));
-        }
-        Ok(())
-    }
-
-    fn build(self) -> jeriya_shared::Result<Arc<immediate::CommandBuffer<Self::Backend>>> {
-        let command_buffer = AshImmediateCommandBuffer {
-            commands: self.commands,
-            debug_info: self.debug_info,
-        };
-        Ok(Arc::new(immediate::CommandBuffer::new(command_buffer)))
-    }
-}
-
-impl AsDebugInfo for AshImmediateCommandBufferBuilder {
-    fn as_debug_info(&self) -> &DebugInfo {
-        &self.debug_info
     }
 }
 
