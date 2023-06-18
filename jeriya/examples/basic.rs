@@ -106,7 +106,7 @@ fn main() -> io::Result<()> {
 
     let object_container = renderer.create_object_container(debug_info!("my_object_container")).unwrap();
     let mut cameras = object_container.cameras();
-    let handle = cameras.insert(Camera::default());
+    let _handle = cameras.insert(Camera::default());
 
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_wait();

@@ -195,7 +195,7 @@ mod tests {
             Ok(())
         }
 
-        fn create_object_container(&self, debug_info: DebugInfo) -> jeriya_shared::Result<ObjectContainer<Self>> {
+        fn create_object_container(&self, _debug_info: DebugInfo) -> jeriya_shared::Result<ObjectContainer<Self>> {
             Ok(ObjectContainer::new(DummyObjectContainerHandler(debug_info!("dummy"))))
         }
     }
@@ -242,7 +242,7 @@ mod tests {
     impl ObjectContainerHandler for DummyObjectContainerHandler {
         type Backend = DummyBackend;
 
-        fn new(backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
+        fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
         where
             Self: Sized,
         {
@@ -266,11 +266,11 @@ mod tests {
     impl<T> ObjectGroupGuardHandler<T> for DummyObjectGroupGuardHandler {
         type Backend = DummyBackend;
 
-        fn insert(&mut self, object: T) -> jeriya_shared::Handle<T> {
+        fn insert(&mut self, _object: T) -> jeriya_shared::Handle<T> {
             todo!()
         }
 
-        fn remove(&mut self, handle: &jeriya_shared::Handle<T>) -> Option<T>
+        fn remove(&mut self, _handle: &jeriya_shared::Handle<T>) -> Option<T>
         where
             T: Default,
         {
