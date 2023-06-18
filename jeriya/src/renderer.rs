@@ -276,6 +276,14 @@ mod tests {
         {
             todo!()
         }
+
+        fn get(&self, _handle: &jeriya_shared::Handle<T>) -> Option<&T> {
+            todo!()
+        }
+
+        fn get_mut(&mut self, _handle: &jeriya_shared::Handle<T>) -> Option<&mut T> {
+            todo!()
+        }
     }
 
     #[test]
