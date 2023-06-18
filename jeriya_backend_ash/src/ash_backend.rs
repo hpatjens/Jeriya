@@ -300,8 +300,8 @@ impl Backend for AshBackend {
     }
 
     fn create_object_container(&self, debug_info: DebugInfo) -> jeriya_shared::Result<ObjectContainer<Self>> {
-        let object_container_builder = AshObjectContainerHandler::new(self, debug_info)?;
-        Ok(ObjectContainer::new(object_container_builder))
+        let object_container_handler = AshObjectContainerHandler::new(self, debug_info)?;
+        Ok(ObjectContainer::new(object_container_handler))
     }
 }
 
