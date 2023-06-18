@@ -93,4 +93,10 @@ pub trait ObjectGroupGuardHandler<T> {
     fn remove(&mut self, handle: &Handle<T>) -> Option<T>
     where
         T: Default;
+
+    /// Returns a reference to the object with the given [`Handle`].
+    fn get(&self, handle: &Handle<T>) -> Option<&T>;
+
+    /// Returns a mutable reference to the object with the given [`Handle`].
+    fn get_mut(&mut self, handle: &Handle<T>) -> Option<&mut T>;
 }

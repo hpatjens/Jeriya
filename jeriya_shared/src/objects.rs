@@ -44,6 +44,16 @@ impl<'a, T, B: Backend> ObjectGroupGuard<'a, T, B> {
     pub fn insert(&mut self, object: T) -> Handle<T> {
         self.object_group_guard_handler.insert(object)
     }
+
+    /// Returns a reference to the object for the given [`Handle`].
+    pub fn get(&self, handle: &Handle<T>) -> Option<&T> {
+        self.object_group_guard_handler.get(handle)
+    }
+
+    /// Returns a mutable reference to the object for the given [`Handle`].
+    pub fn get_mut(&mut self, handle: &Handle<T>) -> Option<&mut T> {
+        self.object_group_guard_handler.get_mut(handle)
+    }
 }
 
 impl<'a, T: Default, B: Backend> ObjectGroupGuard<'a, T, B> {

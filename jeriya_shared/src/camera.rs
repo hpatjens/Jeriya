@@ -5,20 +5,6 @@ use crate::{
     nalgebra_glm,
 };
 
-/// A trait for types that provide the matrices for a camera.
-pub trait CameraMatrices {
-    /// Returns the projection matrix for the camera.
-    fn projection_matrix(&self, viewport_size: (f32, f32)) -> Matrix4<f32>;
-
-    /// Returns the view matrix for the camera.
-    fn view_matrix(&self) -> Matrix4<f32>;
-
-    /// Returns the product of the projection and view matrix for the camera.
-    fn matrix(&self, viewport_size: (f32, f32)) -> Matrix4<f32> {
-        self.projection_matrix(viewport_size) * self.view_matrix()
-    }
-}
-
 /// Type of projection for a camera.
 #[derive(Debug, Clone)]
 pub enum CameraProjection {
@@ -129,5 +115,63 @@ impl Camera {
             cached_view_matrix,
             cached_matrix,
         }
+    }
+
+    /// Returns the [`CameraProjection`] of the camera.
+    pub fn projection(&self) -> &CameraProjection {
+        &self.projection
+    }
+
+    /// Returns the [`CameraTransform`] of the camera.
+    pub fn transform(&self) -> &CameraTransform {
+        &self.transform
+    }
+
+    /// Performes the necessary updates to the cached matrices when the view changes.
+    fn update_cached_matrices_on_view_change(&mut self) {
+        self.cached_view_matrix = self.transform.view_matrix();
+        self.cached_matrix = self.cached_projection_matrix * self.cached_view_matrix;
+    }
+
+    /// Performes the necessary updates to the cached matrices when the projection changes.
+    fn update_cached_matrices_on_projection_change(&mut self) {
+        self.cached_projection_matrix = self.projection.projection_matrix();
+        self.cached_matrix = self.cached_projection_matrix * self.cached_view_matrix;
+    }
+
+    /// Sets the [`CameraProjection`] of the camera.
+    pub fn set_projection(&mut self, projection: CameraProjection) {
+        self.projection = projection;
+        self.update_cached_matrices_on_projection_change();
+    }
+
+    /// Sets the [`CameraTransform`] of the camera.
+    pub fn set_transform(&mut self, transform: CameraTransform) {
+        self.transform = transform;
+        self.update_cached_matrices_on_view_change();
+    }
+
+    /// Sets the position of the camera.
+    ///
+    /// Prefer the method [`Camera::set_transform`] if you want to set the position, forward and up vectors at the same time.
+    pub fn set_position(&mut self, position: Vector3<f32>) {
+        self.transform.position = position;
+        self.update_cached_matrices_on_view_change();
+    }
+
+    /// Sets the forward vector of the camera.
+    ///
+    /// Prefer the method [`Camera::set_transform`] if you want to set the position, forward and up vectors at the same time.
+    pub fn set_forward(&mut self, forward: Vector3<f32>) {
+        self.transform.forward = forward;
+        self.update_cached_matrices_on_view_change();
+    }
+
+    /// Sets the up vector of the camera.
+    ///
+    /// Prefer the method [`Camera::set_transform`] if you want to set the position, forward and up vectors at the same time.
+    pub fn set_up(&mut self, up: Vector3<f32>) {
+        self.transform.up = up;
+        self.update_cached_matrices_on_view_change();
     }
 }

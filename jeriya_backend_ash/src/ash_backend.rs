@@ -28,7 +28,7 @@ use jeriya_shared::{
     nalgebra::Matrix4,
     parking_lot::Mutex,
     winit::window::{Window, WindowId},
-    AsDebugInfo, Backend, DebugInfo, ObjectContainer, ObjectContainerHandler, RendererConfig,
+    AsDebugInfo, Backend, DebugInfo, Handle, ObjectContainer, ObjectContainerHandler, RendererConfig,
 };
 use jeriya_shared::{parking_lot::MutexGuard, ImmediateCommandBufferBuilderHandler};
 use jeriya_shared::{Camera, IndexingContainer, ObjectGroupGuard, ObjectGroupGuardHandler};
@@ -463,15 +463,23 @@ impl<'a, T> AshObjectGroupGuardHandler<'a, T> {
 impl<T> ObjectGroupGuardHandler<T> for AshObjectGroupGuardHandler<'_, T> {
     type Backend = AshBackend;
 
-    fn insert(&mut self, object: T) -> jeriya_shared::Handle<T> {
+    fn insert(&mut self, object: T) -> Handle<T> {
         self.mutex_guard.indexing_container.insert(object)
     }
 
-    fn remove(&mut self, handle: &jeriya_shared::Handle<T>) -> Option<T>
+    fn remove(&mut self, handle: &Handle<T>) -> Option<T>
     where
         T: Default,
     {
         self.mutex_guard.indexing_container.remove(handle)
+    }
+
+    fn get(&self, handle: &Handle<T>) -> Option<&T> {
+        self.mutex_guard.indexing_container.get(handle)
+    }
+
+    fn get_mut(&mut self, handle: &Handle<T>) -> Option<&mut T> {
+        self.mutex_guard.indexing_container.get_mut(handle)
     }
 }
 
