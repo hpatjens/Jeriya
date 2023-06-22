@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
 use crate::{
-    ash_immediate::{AshImmediateCommandBuffer, AshImmediateCommandBufferBuilder, ImmediateCommand},
+    ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler, ImmediateCommand},
     ash_objects::{AshObjectContainer, AshObjectContainerHandler, AshObjectGroupGuardHandler},
     presenter::Presenter,
 };
@@ -34,7 +34,7 @@ use jeriya_shared::{
 
 #[derive(Debug)]
 struct ImmediateRenderingRequest {
-    immediate_command_buffer: AshImmediateCommandBuffer,
+    immediate_command_buffer: AshImmediateCommandBufferHandler,
     count: usize,
 }
 
@@ -54,8 +54,8 @@ pub struct AshBackend {
 impl Backend for AshBackend {
     type BackendConfig = Config;
 
-    type ImmediateCommandBufferBuilderHandler = AshImmediateCommandBufferBuilder;
-    type ImmediateCommandBufferHandler = AshImmediateCommandBuffer;
+    type ImmediateCommandBufferBuilderHandler = AshImmediateCommandBufferBuilderHandler;
+    type ImmediateCommandBufferHandler = AshImmediateCommandBufferHandler;
 
     type ObjectContainerHandler = AshObjectContainerHandler;
     type ObjectGroupGuardHandler<'a, T> = AshObjectGroupGuardHandler<'a, T> where T: 'a;
@@ -273,7 +273,7 @@ impl Backend for AshBackend {
         &self,
         debug_info: DebugInfo,
     ) -> jeriya_shared::Result<immediate::CommandBufferBuilder<Self>> {
-        let command_buffer_builder = AshImmediateCommandBufferBuilder::new(self, debug_info)?;
+        let command_buffer_builder = AshImmediateCommandBufferBuilderHandler::new(self, debug_info)?;
         Ok(immediate::CommandBufferBuilder::new(command_buffer_builder))
     }
 
@@ -281,7 +281,7 @@ impl Backend for AshBackend {
         let mut guard = self.immediate_rendering_requests.lock();
         for window_id in self.presenters.keys() {
             let immediate_rendering_request = ImmediateRenderingRequest {
-                immediate_command_buffer: AshImmediateCommandBuffer {
+                immediate_command_buffer: AshImmediateCommandBufferHandler {
                     commands: command_buffer.command_buffer().commands.clone(),
                     debug_info: command_buffer.command_buffer().debug_info.clone(),
                 },

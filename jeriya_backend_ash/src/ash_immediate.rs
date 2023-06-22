@@ -18,23 +18,23 @@ pub(crate) enum ImmediateCommand {
 }
 
 #[derive(Debug)]
-pub struct AshImmediateCommandBuffer {
+pub struct AshImmediateCommandBufferHandler {
     pub(crate) commands: Vec<ImmediateCommand>,
     pub(crate) debug_info: DebugInfo,
 }
 
-impl AsDebugInfo for AshImmediateCommandBuffer {
+impl AsDebugInfo for AshImmediateCommandBufferHandler {
     fn as_debug_info(&self) -> &DebugInfo {
         &self.debug_info
     }
 }
 
-pub struct AshImmediateCommandBufferBuilder {
+pub struct AshImmediateCommandBufferBuilderHandler {
     commands: Vec<ImmediateCommand>,
     debug_info: DebugInfo,
 }
 
-impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilder {
+impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilderHandler {
     type Backend = AshBackend;
 
     fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
@@ -93,7 +93,7 @@ impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilder {
     }
 
     fn build(self) -> jeriya_shared::Result<Arc<immediate::CommandBuffer<Self::Backend>>> {
-        let command_buffer = AshImmediateCommandBuffer {
+        let command_buffer = AshImmediateCommandBufferHandler {
             commands: self.commands,
             debug_info: self.debug_info,
         };
@@ -101,7 +101,7 @@ impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilder {
     }
 }
 
-impl AsDebugInfo for AshImmediateCommandBufferBuilder {
+impl AsDebugInfo for AshImmediateCommandBufferBuilderHandler {
     fn as_debug_info(&self) -> &DebugInfo {
         &self.debug_info
     }

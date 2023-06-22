@@ -165,53 +165,55 @@ impl<B: Backend> AsDebugInfo for CommandBuffer<B> {
 
 /// Creates new command buffer in the [`ImmediateRenderingBackend`].
 pub struct CommandBufferBuilder<B: Backend> {
-    command_buffer_builder: B::ImmediateCommandBufferBuilderHandler,
+    command_buffer_builder_handler: B::ImmediateCommandBufferBuilderHandler,
 }
 
 impl<B: Backend> CommandBufferBuilder<B> {
     /// Creates a new `CommandBufferBuilder`.
     pub fn new(command_buffer_builder: B::ImmediateCommandBufferBuilderHandler) -> Self {
-        Self { command_buffer_builder }
+        Self {
+            command_buffer_builder_handler: command_buffer_builder,
+        }
     }
 
     /// Sets the matrix to be used for the following draw calls.
     pub fn matrix(mut self, matrix: Matrix4<f32>) -> crate::Result<Self> {
-        self.command_buffer_builder.matrix(matrix)?;
+        self.command_buffer_builder_handler.matrix(matrix)?;
         Ok(self)
     }
 
     /// Pushes new [`LineList`]s to the `CommandBufferBuilder`.
     pub fn push_line_lists(mut self, lines: &[LineList]) -> crate::Result<Self> {
-        self.command_buffer_builder.push_line_lists(lines)?;
+        self.command_buffer_builder_handler.push_line_lists(lines)?;
         Ok(self)
     }
 
     /// Pushes new [`LineStrip`]s to the `CommandBufferBuilder`.
     pub fn push_line_strips(mut self, line_strip: &[LineStrip]) -> crate::Result<Self> {
-        self.command_buffer_builder.push_line_strips(line_strip)?;
+        self.command_buffer_builder_handler.push_line_strips(line_strip)?;
         Ok(self)
     }
 
     /// Pushes new [`TriangleList`]s to the `CommandBufferBuilder`.
     pub fn push_triangle_lists(mut self, triangle_lists: &[TriangleList]) -> crate::Result<Self> {
-        self.command_buffer_builder.push_triangle_lists(triangle_lists)?;
+        self.command_buffer_builder_handler.push_triangle_lists(triangle_lists)?;
         Ok(self)
     }
 
     /// Pushes new [`TriangleStrip`]s to the `CommandBufferBuilder`
     pub fn push_triangle_strips(mut self, triangle_strip: &[TriangleStrip]) -> crate::Result<Self> {
-        self.command_buffer_builder.push_triangle_strips(triangle_strip)?;
+        self.command_buffer_builder_handler.push_triangle_strips(triangle_strip)?;
         Ok(self)
     }
 
     /// Finalizes the creation of the [`CommandBuffer`].
     pub fn build(self) -> crate::Result<Arc<CommandBuffer<B>>> {
-        self.command_buffer_builder.build()
+        self.command_buffer_builder_handler.build()
     }
 }
 
 impl<B: Backend> AsDebugInfo for CommandBufferBuilder<B> {
     fn as_debug_info(&self) -> &DebugInfo {
-        self.command_buffer_builder.as_debug_info()
+        self.command_buffer_builder_handler.as_debug_info()
     }
 }
