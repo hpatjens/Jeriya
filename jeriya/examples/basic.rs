@@ -104,6 +104,13 @@ fn main() -> io::Result<()> {
 
     let renderer = jeriya::Renderer::<AshBackend>::builder().add_windows(&[&window]).build().unwrap();
 
+    {
+        let mut cameras = renderer.cameras();
+        let handle = cameras.insert(Camera::default());
+        let mut camera = cameras.get_mut(&handle).unwrap();
+        camera.set_position(Vector3::new(0.0, 0.0, 2.0));
+    }
+
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_wait();
 

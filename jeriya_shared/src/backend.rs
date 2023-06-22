@@ -5,7 +5,7 @@ use nalgebra::Matrix4;
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
     winit::window::{Window, WindowId},
-    AsDebugInfo, DebugInfo, RendererConfig,
+    AsDebugInfo, CameraContainerGuard, DebugInfo, RendererConfig,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
@@ -31,6 +31,9 @@ pub trait Backend: Sized {
 
     /// Renders the given [`CommandBuffer`] in the next frame
     fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<Self>>) -> crate::Result<()>;
+
+    /// Returns a guard to the cameras.
+    fn cameras(&self) -> CameraContainerGuard;
 }
 
 pub trait ImmediateCommandBufferBuilderHandler: AsDebugInfo {

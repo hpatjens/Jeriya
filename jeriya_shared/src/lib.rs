@@ -3,7 +3,6 @@ mod camera;
 mod debug_info;
 pub mod immediate;
 mod indexing_container;
-mod objects;
 mod resources;
 
 use std::result;
@@ -12,7 +11,6 @@ pub use backend::*;
 pub use camera::*;
 pub use debug_info::*;
 pub use indexing_container::*;
-pub use objects::*;
 pub use resources::*;
 
 pub use bitflags;

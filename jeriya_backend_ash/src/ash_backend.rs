@@ -28,7 +28,8 @@ use jeriya_shared::{
     nalgebra::Matrix4,
     parking_lot::Mutex,
     winit::window::{Window, WindowId},
-    Backend, Camera, CameraEvent, DebugInfo, EventQueue, ImmediateCommandBufferBuilderHandler, IndexingContainer, RendererConfig,
+    Backend, Camera, CameraContainerGuard, CameraEvent, DebugInfo, EventQueue, ImmediateCommandBufferBuilderHandler, IndexingContainer,
+    RendererConfig,
 };
 
 #[derive(Debug)]
@@ -47,7 +48,7 @@ pub struct AshBackend {
     presentation_queue: RefCell<Queue>,
     command_pool: Rc<CommandPool>,
     immediate_rendering_requests: Mutex<HashMap<WindowId, Vec<ImmediateRenderingRequest>>>,
-    cameras: IndexingContainer<Camera>,
+    cameras: Arc<Mutex<IndexingContainer<Camera>>>,
     camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
 }
 
@@ -139,7 +140,7 @@ impl Backend for AshBackend {
             presentation_queue: RefCell::new(presentation_queue),
             command_pool,
             immediate_rendering_requests: Mutex::new(HashMap::new()),
-            cameras: IndexingContainer::new(),
+            cameras: Arc::new(Mutex::new(IndexingContainer::new())),
             camera_event_queue: Arc::new(Mutex::new(EventQueue::new())),
         })
     }
@@ -295,6 +296,10 @@ impl Backend for AshBackend {
             }
         }
         Ok(())
+    }
+
+    fn cameras(&self) -> CameraContainerGuard {
+        CameraContainerGuard::new(self.camera_event_queue.lock(), self.cameras.lock())
     }
 }
 

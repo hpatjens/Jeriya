@@ -1,7 +1,7 @@
 use jeriya_shared::{
     immediate::{CommandBuffer, CommandBufferBuilder},
     winit::window::{Window, WindowId},
-    Backend, DebugInfo, RendererConfig, ResourceContainerBuilder, Result,
+    Backend, CameraContainerGuard, DebugInfo, RendererConfig, ResourceContainerBuilder, Result,
 };
 
 use std::{marker::PhantomData, sync::Arc};
@@ -55,6 +55,11 @@ where
     /// Renders a [`CommandBuffer`] in the next frame
     pub fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<B>>) -> Result<()> {
         self.backend.render_immediate_command_buffer(command_buffer)
+    }
+
+    /// Returns a guard to the cameras.
+    pub fn cameras(&self) -> CameraContainerGuard {
+        self.backend.cameras()
     }
 }
 
@@ -110,8 +115,10 @@ mod tests {
     use jeriya_shared::{
         debug_info,
         immediate::{CommandBuffer, CommandBufferBuilder},
+        parking_lot::Mutex,
         winit::window::{Window, WindowId},
-        AsDebugInfo, Backend, Camera, DebugInfo, ImmediateCommandBufferBuilderHandler,
+        AsDebugInfo, Backend, Camera, CameraContainerGuard, CameraEvent, DebugInfo, EventQueue, ImmediateCommandBufferBuilderHandler,
+        IndexingContainer,
     };
     use std::sync::Arc;
 
@@ -146,7 +153,10 @@ mod tests {
         }
     }
 
-    struct DummyBackend;
+    struct DummyBackend {
+        cameras: Arc<Mutex<IndexingContainer<Camera>>>,
+        camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
+    }
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
     struct DummyImmediateCommandBufferHandler(DebugInfo);
     impl Backend for DummyBackend {
@@ -163,7 +173,12 @@ mod tests {
         where
             Self: Sized,
         {
-            Ok(Self)
+            let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
+            let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
+            Ok(Self {
+                cameras,
+                camera_event_queue,
+            })
         }
 
         fn handle_window_resized(&self, _window_id: WindowId) -> jeriya_shared::Result<()> {
@@ -182,6 +197,10 @@ mod tests {
 
         fn render_immediate_command_buffer(&self, _command_buffer: Arc<CommandBuffer<Self>>) -> jeriya_shared::Result<()> {
             Ok(())
+        }
+
+        fn cameras(&self) -> CameraContainerGuard {
+            CameraContainerGuard::new(self.camera_event_queue.lock(), self.cameras.lock())
         }
     }
     impl ImmediateCommandBufferBuilderHandler for DummyImmediateCommandBufferBuilderHandler {

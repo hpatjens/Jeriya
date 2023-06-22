@@ -2,7 +2,6 @@
 
 mod ash_backend;
 mod ash_immediate;
-mod ash_objects;
 mod presenter;
 mod presenter_resources;
 

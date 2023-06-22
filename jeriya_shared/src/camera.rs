@@ -4,7 +4,7 @@ use parking_lot::MutexGuard;
 
 use crate::{
     nalgebra::{Matrix4, Vector3},
-    nalgebra_glm, Handle,
+    nalgebra_glm, Handle, IndexingContainer,
 };
 
 /// Type of projection for a camera.
@@ -79,6 +79,7 @@ impl CameraTransform {
 }
 
 /// A camera.
+#[derive(Debug, Clone)]
 pub struct Camera {
     projection: CameraProjection,
     transform: CameraTransform,
@@ -230,14 +231,18 @@ pub enum CameraEvent {
     },
 }
 
-pub struct CameraAccessMut<'cam, 'events> {
+pub struct CameraAccessMut<'event, 'cont, 'mutex> {
     handle: Handle<Camera>,
-    camera: &'cam mut Camera,
-    camera_event_queue: MutexGuard<'events, EventQueue<CameraEvent>>,
+    camera: &'cont mut Camera,
+    camera_event_queue: &'mutex mut MutexGuard<'event, EventQueue<CameraEvent>>,
 }
 
-impl<'cam, 'events> CameraAccessMut<'cam, 'events> {
-    pub fn new(handle: Handle<Camera>, camera: &'cam mut Camera, camera_event_queue: MutexGuard<'events, EventQueue<CameraEvent>>) -> Self {
+impl<'event, 'cont, 'mutex> CameraAccessMut<'event, 'cont, 'mutex> {
+    pub fn new(
+        handle: Handle<Camera>,
+        camera: &'cont mut Camera,
+        camera_event_queue: &'mutex mut MutexGuard<'event, EventQueue<CameraEvent>>,
+    ) -> Self {
         Self {
             handle,
             camera,
@@ -246,7 +251,7 @@ impl<'cam, 'events> CameraAccessMut<'cam, 'events> {
     }
 }
 
-impl<'cam, 'events> CameraAccessMut<'cam, 'events> {
+impl<'event, 'cont, 'mutex> CameraAccessMut<'event, 'cont, 'mutex> {
     pub fn projection(&self) -> &CameraProjection {
         &self.camera.projection
     }
@@ -293,5 +298,52 @@ impl<'cam, 'events> CameraAccessMut<'cam, 'events> {
             handle: self.handle.clone(),
             up: self.camera.transform.up,
         });
+    }
+}
+
+pub struct CameraContainerGuard<'event, 'cont> {
+    camera_event_queue: MutexGuard<'event, EventQueue<CameraEvent>>,
+    cameras: MutexGuard<'cont, IndexingContainer<Camera>>,
+}
+
+impl<'event, 'cont> CameraContainerGuard<'event, 'cont> {
+    pub fn new(
+        camera_event_queue: MutexGuard<'event, EventQueue<CameraEvent>>,
+        cameras: MutexGuard<'cont, IndexingContainer<Camera>>,
+    ) -> Self {
+        Self {
+            camera_event_queue,
+            cameras,
+        }
+    }
+
+    /// Inserts the given [`Camera`] into the container and returns a [`Handle`] to it.
+    pub fn insert(&mut self, camera: Camera) -> Handle<Camera> {
+        let camera2 = camera.clone();
+        let handle = self.cameras.insert(camera);
+        self.camera_event_queue.push(CameraEvent::Insert {
+            handle: handle.clone(),
+            camera: camera2,
+        });
+        handle
+    }
+
+    /// Removes the [`Camera`] with the given [`Handle`] from the container and returns it.
+    pub fn remove(&mut self, handle: &Handle<Camera>) -> Option<Camera> {
+        let camera = self.cameras.remove(handle);
+        self.camera_event_queue.push(CameraEvent::Remove { handle: handle.clone() });
+        camera
+    }
+
+    /// Returns a reference to the [`Camera`] with the given [`Handle`].
+    pub fn get(&self, handle: &Handle<Camera>) -> Option<&Camera> {
+        self.cameras.get(handle)
+    }
+
+    /// Returns a [`CameraAccessMut`] to the [`Camera`] with the given [`Handle`].
+    pub fn get_mut<'s>(&'s mut self, handle: &Handle<Camera>) -> Option<CameraAccessMut<'event, '_, 's>> {
+        self.cameras
+            .get_mut(handle)
+            .map(|camera| CameraAccessMut::new(handle.clone(), camera, &mut self.camera_event_queue))
     }
 }
