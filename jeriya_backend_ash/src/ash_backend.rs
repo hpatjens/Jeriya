@@ -2,7 +2,6 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
 use crate::{
     ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler, ImmediateCommand},
-    ash_objects::{AshObjectContainer, AshObjectContainerHandler, AshObjectGroupGuardHandler},
     presenter::Presenter,
 };
 use jeriya_backend_ash_core as core;
@@ -29,7 +28,7 @@ use jeriya_shared::{
     nalgebra::Matrix4,
     parking_lot::Mutex,
     winit::window::{Window, WindowId},
-    Backend, DebugInfo, ImmediateCommandBufferBuilderHandler, ObjectContainer, ObjectContainerHandler, RendererConfig,
+    Backend, Camera, CameraEvent, DebugInfo, EventQueue, ImmediateCommandBufferBuilderHandler, IndexingContainer, RendererConfig,
 };
 
 #[derive(Debug)]
@@ -48,7 +47,8 @@ pub struct AshBackend {
     presentation_queue: RefCell<Queue>,
     command_pool: Rc<CommandPool>,
     immediate_rendering_requests: Mutex<HashMap<WindowId, Vec<ImmediateRenderingRequest>>>,
-    pub(crate) object_containers: Mutex<Vec<Arc<AshObjectContainer>>>,
+    cameras: IndexingContainer<Camera>,
+    camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
 }
 
 impl Backend for AshBackend {
@@ -56,9 +56,6 @@ impl Backend for AshBackend {
 
     type ImmediateCommandBufferBuilderHandler = AshImmediateCommandBufferBuilderHandler;
     type ImmediateCommandBufferHandler = AshImmediateCommandBufferHandler;
-
-    type ObjectContainerHandler = AshObjectContainerHandler;
-    type ObjectGroupGuardHandler<'a, T> = AshObjectGroupGuardHandler<'a, T> where T: 'a;
 
     fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> jeriya_shared::Result<Self>
     where
@@ -142,7 +139,8 @@ impl Backend for AshBackend {
             presentation_queue: RefCell::new(presentation_queue),
             command_pool,
             immediate_rendering_requests: Mutex::new(HashMap::new()),
-            object_containers: Mutex::new(Vec::new()),
+            cameras: IndexingContainer::new(),
+            camera_event_queue: Arc::new(Mutex::new(EventQueue::new())),
         })
     }
 
@@ -297,11 +295,6 @@ impl Backend for AshBackend {
             }
         }
         Ok(())
-    }
-
-    fn create_object_container(&self, debug_info: DebugInfo) -> jeriya_shared::Result<ObjectContainer<Self>> {
-        let object_container_handler = AshObjectContainerHandler::new(self, debug_info)?;
-        Ok(ObjectContainer::new(object_container_handler))
     }
 }
 

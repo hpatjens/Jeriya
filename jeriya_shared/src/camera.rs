@@ -1,8 +1,10 @@
-use std::f32::consts::PI;
+use std::{collections::VecDeque, f32::consts::PI};
+
+use parking_lot::MutexGuard;
 
 use crate::{
     nalgebra::{Matrix4, Vector3},
-    nalgebra_glm,
+    nalgebra_glm, Handle,
 };
 
 /// Type of projection for a camera.
@@ -173,5 +175,123 @@ impl Camera {
     pub fn set_up(&mut self, up: Vector3<f32>) {
         self.transform.up = up;
         self.update_cached_matrices_on_view_change();
+    }
+}
+
+pub struct EventQueue<T> {
+    events: VecDeque<T>,
+}
+
+impl<T> EventQueue<T> {
+    pub fn new() -> Self {
+        Self { events: VecDeque::new() }
+    }
+
+    pub fn push(&mut self, event: T) {
+        self.events.push_back(event);
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        self.events.pop_front()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.events.is_empty()
+    }
+}
+
+pub enum CameraEvent {
+    Insert {
+        handle: Handle<Camera>,
+        camera: Camera,
+    },
+    Remove {
+        handle: Handle<Camera>,
+    },
+    SetProjection {
+        handle: Handle<Camera>,
+        projection: CameraProjection,
+    },
+    SetTransform {
+        handle: Handle<Camera>,
+        transform: CameraTransform,
+    },
+    SetPosition {
+        handle: Handle<Camera>,
+        position: Vector3<f32>,
+    },
+    SetForward {
+        handle: Handle<Camera>,
+        forward: Vector3<f32>,
+    },
+    SetUp {
+        handle: Handle<Camera>,
+        up: Vector3<f32>,
+    },
+}
+
+pub struct CameraAccessMut<'cam, 'events> {
+    handle: Handle<Camera>,
+    camera: &'cam mut Camera,
+    camera_event_queue: MutexGuard<'events, EventQueue<CameraEvent>>,
+}
+
+impl<'cam, 'events> CameraAccessMut<'cam, 'events> {
+    pub fn new(handle: Handle<Camera>, camera: &'cam mut Camera, camera_event_queue: MutexGuard<'events, EventQueue<CameraEvent>>) -> Self {
+        Self {
+            handle,
+            camera,
+            camera_event_queue,
+        }
+    }
+}
+
+impl<'cam, 'events> CameraAccessMut<'cam, 'events> {
+    pub fn projection(&self) -> &CameraProjection {
+        &self.camera.projection
+    }
+
+    pub fn transform(&self) -> &CameraTransform {
+        &self.camera.transform
+    }
+
+    pub fn set_projection(&mut self, projection: CameraProjection) {
+        self.camera.set_projection(projection);
+        self.camera_event_queue.push(CameraEvent::SetProjection {
+            handle: self.handle.clone(),
+            projection: self.camera.projection.clone(),
+        });
+    }
+
+    pub fn set_transform(&mut self, transform: CameraTransform) {
+        self.camera.set_transform(transform);
+        self.camera_event_queue.push(CameraEvent::SetTransform {
+            handle: self.handle.clone(),
+            transform: self.camera.transform.clone(),
+        });
+    }
+
+    pub fn set_position(&mut self, position: Vector3<f32>) {
+        self.camera.set_position(position);
+        self.camera_event_queue.push(CameraEvent::SetPosition {
+            handle: self.handle.clone(),
+            position: self.camera.transform.position,
+        });
+    }
+
+    pub fn set_forward(&mut self, forward: Vector3<f32>) {
+        self.camera.set_forward(forward);
+        self.camera_event_queue.push(CameraEvent::SetForward {
+            handle: self.handle.clone(),
+            forward: self.camera.transform.forward,
+        });
+    }
+
+    pub fn set_up(&mut self, up: Vector3<f32>) {
+        self.camera.set_up(up);
+        self.camera_event_queue.push(CameraEvent::SetUp {
+            handle: self.handle.clone(),
+            up: self.camera.transform.up,
+        });
     }
 }

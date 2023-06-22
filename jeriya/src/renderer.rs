@@ -1,7 +1,7 @@
 use jeriya_shared::{
     immediate::{CommandBuffer, CommandBufferBuilder},
     winit::window::{Window, WindowId},
-    Backend, DebugInfo, ObjectContainer, RendererConfig, ResourceContainerBuilder, Result,
+    Backend, DebugInfo, RendererConfig, ResourceContainerBuilder, Result,
 };
 
 use std::{marker::PhantomData, sync::Arc};
@@ -30,11 +30,6 @@ where
     /// Creates a new [`ResourceContainerBuilder`]
     pub fn create_resource_container(&self) -> ResourceContainerBuilder {
         ResourceContainerBuilder::new()
-    }
-
-    /// Creates a new [`ObjectContainer`]
-    pub fn create_object_container(&self, debug_info: DebugInfo) -> Result<ObjectContainer<B>> {
-        self.backend.create_object_container(debug_info)
     }
 
     /// Returns the [`Backend`] of the `Renderer`
@@ -116,8 +111,7 @@ mod tests {
         debug_info,
         immediate::{CommandBuffer, CommandBufferBuilder},
         winit::window::{Window, WindowId},
-        AsDebugInfo, Backend, Camera, DebugInfo, ImmediateCommandBufferBuilderHandler, ObjectContainer, ObjectContainerHandler,
-        ObjectGroupGuard, ObjectGroupGuardHandler,
+        AsDebugInfo, Backend, Camera, DebugInfo, ImmediateCommandBufferBuilderHandler,
     };
     use std::sync::Arc;
 
@@ -155,16 +149,11 @@ mod tests {
     struct DummyBackend;
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
     struct DummyImmediateCommandBufferHandler(DebugInfo);
-    struct DummyObjectContainerHandler(DebugInfo);
-    struct DummyObjectGroupGuardHandler(DebugInfo);
     impl Backend for DummyBackend {
         type BackendConfig = ();
 
         type ImmediateCommandBufferBuilderHandler = DummyImmediateCommandBufferBuilderHandler;
         type ImmediateCommandBufferHandler = DummyImmediateCommandBufferHandler;
-
-        type ObjectContainerHandler = DummyObjectContainerHandler;
-        type ObjectGroupGuardHandler<'a, T> = DummyObjectGroupGuardHandler where T: 'a;
 
         fn new(
             _renderer_config: jeriya_shared::RendererConfig,
@@ -193,10 +182,6 @@ mod tests {
 
         fn render_immediate_command_buffer(&self, _command_buffer: Arc<CommandBuffer<Self>>) -> jeriya_shared::Result<()> {
             Ok(())
-        }
-
-        fn create_object_container(&self, _debug_info: DebugInfo) -> jeriya_shared::Result<ObjectContainer<Self>> {
-            Ok(ObjectContainer::new(DummyObjectContainerHandler(debug_info!("dummy"))))
         }
     }
     impl ImmediateCommandBufferBuilderHandler for DummyImmediateCommandBufferBuilderHandler {
@@ -237,52 +222,6 @@ mod tests {
     impl AsDebugInfo for DummyImmediateCommandBufferHandler {
         fn as_debug_info(&self) -> &DebugInfo {
             &self.0
-        }
-    }
-    impl ObjectContainerHandler for DummyObjectContainerHandler {
-        type Backend = DummyBackend;
-
-        fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
-        where
-            Self: Sized,
-        {
-            Ok(Self(debug_info))
-        }
-
-        fn cameras(&self) -> jeriya_shared::ObjectGroupGuard<Camera, Self::Backend> {
-            ObjectGroupGuard::new(DummyObjectGroupGuardHandler(self.0.clone()))
-        }
-    }
-    impl AsDebugInfo for DummyObjectContainerHandler {
-        fn as_debug_info(&self) -> &DebugInfo {
-            &self.0
-        }
-    }
-    impl AsDebugInfo for DummyObjectGroupGuardHandler {
-        fn as_debug_info(&self) -> &DebugInfo {
-            &self.0
-        }
-    }
-    impl<T> ObjectGroupGuardHandler<T> for DummyObjectGroupGuardHandler {
-        type Backend = DummyBackend;
-
-        fn insert(&mut self, _object: T) -> jeriya_shared::Handle<T> {
-            todo!()
-        }
-
-        fn remove(&mut self, _handle: &jeriya_shared::Handle<T>) -> Option<T>
-        where
-            T: Default,
-        {
-            todo!()
-        }
-
-        fn get(&self, _handle: &jeriya_shared::Handle<T>) -> Option<&T> {
-            todo!()
-        }
-
-        fn get_mut(&mut self, _handle: &jeriya_shared::Handle<T>) -> Option<&mut T> {
-            todo!()
         }
     }
 

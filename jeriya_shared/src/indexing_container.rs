@@ -1,10 +1,20 @@
 use std::{collections::VecDeque, marker::PhantomData, mem};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Copy)]
 pub struct Handle<T> {
     index: usize,
     generation: usize,
     phantom_data: PhantomData<T>,
+}
+
+impl<T> Clone for Handle<T> {
+    fn clone(&self) -> Self {
+        Self {
+            index: self.index.clone(),
+            generation: self.generation.clone(),
+            phantom_data: self.phantom_data.clone(),
+        }
+    }
 }
 
 impl<T> Handle<T> {
