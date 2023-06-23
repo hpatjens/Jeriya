@@ -15,7 +15,7 @@ pub struct UnsafeBuffer<T> {
     debug_info: DebugInfo,
 }
 
-impl<T: Copy> UnsafeBuffer<T> {
+impl<T: Clone> UnsafeBuffer<T> {
     /// Creates a new buffer with the given size and usage
     pub unsafe fn new(
         device: &Arc<Device>,
@@ -85,7 +85,7 @@ impl<T: Copy> UnsafeBuffer<T> {
     pub unsafe fn set_memory_unaligned(&mut self, data: &[T]) -> crate::Result<()> {
         assert_eq!(self.size, mem::size_of_val(data), "the data has to fit into the buffer exactly");
         let (slice, buffer_memory) = self.map_buffer_memory()?;
-        slice.copy_from_slice(data);
+        slice.clone_from_slice(data);
         self.device.as_raw_vulkan().unmap_memory(buffer_memory);
         Ok(())
     }
@@ -98,7 +98,7 @@ impl<T: Copy> UnsafeBuffer<T> {
     pub unsafe fn get_memory_unaligned(&mut self, data: &mut [T]) -> crate::Result<()> {
         assert_eq!(self.size, mem::size_of_val(data), "data must have the same size as the buffer");
         let (slice, buffer_memory) = self.map_buffer_memory()?;
-        data.copy_from_slice(slice);
+        data.clone_from_slice(slice);
         self.device.as_raw_vulkan().unmap_memory(buffer_memory);
         Ok(())
     }

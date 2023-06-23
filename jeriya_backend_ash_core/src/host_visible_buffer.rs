@@ -10,7 +10,7 @@ pub struct HostVisibleBuffer<T> {
     len: usize,
 }
 
-impl<T: Copy> HostVisibleBuffer<T> {
+impl<T: Clone> HostVisibleBuffer<T> {
     /// Creates a new [`HostVisibleBuffer`] with the given data and usage flags
     pub fn new(device: &Arc<Device>, data: &[T], usage: BufferUsageFlags, debug_info: DebugInfo) -> crate::Result<Self> {
         assert!(data.len() > 0, "HostVisibleBuffer must have a non-zero size");

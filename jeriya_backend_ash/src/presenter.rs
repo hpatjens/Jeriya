@@ -2,11 +2,11 @@ use std::{collections::VecDeque, sync::Arc};
 
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
-    command_buffer::CommandBuffer, device::Device, frame_index::FrameIndex, immediate_graphics_pipeline::ImmediateGraphicsPipeline,
-    immediate_graphics_pipeline::Topology, semaphore::Semaphore, simple_graphics_pipeline::SimpleGraphicsPipeline, surface::Surface,
-    swapchain_vec::SwapchainVec,
+    buffer::BufferUsageFlags, command_buffer::CommandBuffer, device::Device, frame_index::FrameIndex,
+    host_visible_buffer::HostVisibleBuffer, immediate_graphics_pipeline::ImmediateGraphicsPipeline, immediate_graphics_pipeline::Topology,
+    semaphore::Semaphore, simple_graphics_pipeline::SimpleGraphicsPipeline, surface::Surface, swapchain_vec::SwapchainVec,
 };
-use jeriya_shared::{debug_info, winit::window::WindowId};
+use jeriya_shared::{debug_info, winit::window::WindowId, Camera};
 
 use crate::presenter_resources::PresenterResources;
 
@@ -22,6 +22,7 @@ pub struct Presenter {
     pub immediate_graphics_pipeline_line_strip: ImmediateGraphicsPipeline,
     pub immediate_graphics_pipeline_triangle_list: ImmediateGraphicsPipeline,
     pub immediate_graphics_pipeline_triangle_strip: ImmediateGraphicsPipeline,
+    pub cameras_buffer: SwapchainVec<HostVisibleBuffer<Camera>>,
 }
 
 impl Presenter {
@@ -68,6 +69,15 @@ impl Presenter {
             Topology::TriangleStrip,
         )?;
 
+        let cameras_buffer = SwapchainVec::new(presenter_resources.swapchain(), |_| {
+            Ok(HostVisibleBuffer::new(
+                &device,
+                &vec![Camera::default(); 16],
+                BufferUsageFlags::STORAGE_BUFFER,
+                debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),
+            )?)
+        })?;
+
         Ok(Self {
             frame_index,
             presenter_resources,
@@ -80,6 +90,7 @@ impl Presenter {
             immediate_graphics_pipeline_line_strip,
             immediate_graphics_pipeline_triangle_list,
             immediate_graphics_pipeline_triangle_strip,
+            cameras_buffer,
         })
     }
 
