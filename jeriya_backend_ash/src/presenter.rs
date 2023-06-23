@@ -73,7 +73,7 @@ impl Presenter {
             Ok(HostVisibleBuffer::new(
                 &device,
                 &vec![Camera::default(); 16],
-                BufferUsageFlags::STORAGE_BUFFER,
+                BufferUsageFlags::UNIFORM_BUFFER,
                 debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),
             )?)
         })?;
