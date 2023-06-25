@@ -21,6 +21,24 @@ pub use nalgebra_glm;
 pub use parking_lot;
 pub use winit;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AssertLevel {
+    None,
+    Full,
+}
+
+pub const ASSERT_LEVEL: AssertLevel = AssertLevel::Full;
+
+/// Assert that can be enabled in debug and release builds
+#[macro_export]
+macro_rules! assert {
+        ($($arg:tt)*) => {
+            if $crate::ASSERT_LEVEL == $crate::AssertLevel::Full {
+                std::assert!($($arg)*);
+            }
+        };
+    }
+
 #[derive(Debug)]
 pub enum Error {
     ExpectedWindow,
