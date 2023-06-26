@@ -142,6 +142,21 @@ impl Camera {
         &self.transform
     }
 
+    /// Returns the projection matrix of the camera.
+    pub fn projection_matrix(&self) -> Matrix4<f32> {
+        self.gpu_memory.cached_projection_matrix
+    }
+
+    /// Returns the view matrix of the camera.
+    pub fn view_matrix(&self) -> Matrix4<f32> {
+        self.gpu_memory.cached_view_matrix
+    }
+
+    /// Returns the view-projection matrix of the camera.
+    pub fn matrix(&self) -> Matrix4<f32> {
+        self.gpu_memory.cached_matrix
+    }
+
     /// Performes the necessary updates to the cached matrices when the view changes.
     fn update_cached_matrices_on_view_change(&mut self) {
         self.gpu_memory.cached_view_matrix = self.transform.view_matrix();

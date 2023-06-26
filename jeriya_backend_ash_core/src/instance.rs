@@ -53,9 +53,13 @@ impl Instance {
 
         // Active Extensions
         fn expect_extension(extension_name: &'static CStr) -> String {
-            extension_name.to_str().expect("failed to converte extension name").to_owned()
+            extension_name.to_str().expect("failed to convert extension name").to_owned()
         }
-        let mut active_extensions = vec![expect_extension(khr::Surface::name()), expect_extension(khr::Win32Surface::name())];
+        let mut active_extensions = vec![
+            expect_extension(khr::Surface::name()),
+            expect_extension(khr::Win32Surface::name()),
+            expect_extension(khr::GetPhysicalDeviceProperties2::name()),
+        ];
         if enable_validation_layer {
             active_extensions.push(expect_extension(DebugUtils::name()));
         }

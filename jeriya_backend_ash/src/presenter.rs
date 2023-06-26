@@ -1,18 +1,22 @@
 use std::{collections::VecDeque, sync::Arc};
 
+use crate::presenter_resources::PresenterResources;
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
     buffer::BufferUsageFlags, command_buffer::CommandBuffer, device::Device, frame_index::FrameIndex,
     host_visible_buffer::HostVisibleBuffer, immediate_graphics_pipeline::ImmediateGraphicsPipeline, immediate_graphics_pipeline::Topology,
-    semaphore::Semaphore, simple_graphics_pipeline::SimpleGraphicsPipeline, surface::Surface, swapchain_vec::SwapchainVec,
+    semaphore::Semaphore, shader_interface::PerFrameData, simple_graphics_pipeline::SimpleGraphicsPipeline, surface::Surface,
+    swapchain_vec::SwapchainVec,
 };
-use jeriya_shared::{debug_info, winit::window::WindowId, Camera};
-
-use crate::presenter_resources::PresenterResources;
+use jeriya_shared::{
+    debug_info, parking_lot::Mutex, winit::window::WindowId, Camera, CameraContainerGuard, CameraEvent, EventQueue, Handle,
+    IndexingContainer,
+};
 
 pub struct Presenter {
     frame_index: FrameIndex,
     frame_index_history: VecDeque<FrameIndex>,
+    active_camera: Handle<Camera>,
     pub presenter_resources: PresenterResources,
     pub image_available_semaphore: SwapchainVec<Option<Arc<Semaphore>>>,
     pub rendering_complete_semaphores: SwapchainVec<Vec<Arc<Semaphore>>>,
@@ -22,11 +26,18 @@ pub struct Presenter {
     pub immediate_graphics_pipeline_line_strip: ImmediateGraphicsPipeline,
     pub immediate_graphics_pipeline_triangle_list: ImmediateGraphicsPipeline,
     pub immediate_graphics_pipeline_triangle_strip: ImmediateGraphicsPipeline,
-    pub cameras_buffer: SwapchainVec<HostVisibleBuffer<Camera>>,
+    pub cameras_buffer: SwapchainVec<HostVisibleBuffer<PerFrameData>>,
 }
 
 impl Presenter {
-    pub fn new(device: &Arc<Device>, window_id: &WindowId, surface: &Arc<Surface>, desired_swapchain_length: u32) -> core::Result<Self> {
+    pub fn new(
+        device: &Arc<Device>,
+        window_id: &WindowId,
+        surface: &Arc<Surface>,
+        desired_swapchain_length: u32,
+        cameras: &Arc<Mutex<IndexingContainer<Camera>>>,
+        camera_event_queue: &Arc<Mutex<EventQueue<CameraEvent>>>,
+    ) -> core::Result<Self> {
         let presenter_resources = PresenterResources::new(device, surface, desired_swapchain_length)?;
         let image_available_semaphore = SwapchainVec::new(presenter_resources.swapchain(), |_| Ok(None))?;
         let rendering_complete_semaphores = SwapchainVec::new(presenter_resources.swapchain(), |_| Ok(Vec::new()))?;
@@ -69,10 +80,15 @@ impl Presenter {
             Topology::TriangleStrip,
         )?;
 
+        // Create a camera for this window
+        let mut guard = CameraContainerGuard::new(camera_event_queue.lock(), cameras.lock());
+        let active_camera = guard.insert(Camera::default());
+        drop(guard);
+
         let cameras_buffer = SwapchainVec::new(presenter_resources.swapchain(), |_| {
             Ok(HostVisibleBuffer::new(
                 &device,
-                &vec![Camera::default(); 16],
+                &vec![PerFrameData::default(); 1],
                 BufferUsageFlags::UNIFORM_BUFFER,
                 debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),
             )?)
@@ -91,6 +107,7 @@ impl Presenter {
             immediate_graphics_pipeline_triangle_list,
             immediate_graphics_pipeline_triangle_strip,
             cameras_buffer,
+            active_camera,
         })
     }
 
@@ -111,6 +128,11 @@ impl Presenter {
     /// Returns the current [`FrameIndex`]
     pub fn frame_index(&self) -> FrameIndex {
         self.frame_index.clone()
+    }
+
+    /// Sets the active camera
+    pub fn set_active_camera(&mut self, handle: Handle<Camera>) {
+        self.active_camera = handle;
     }
 
     /// Returns the [`FrameIndex`] of the oldest frame in the history

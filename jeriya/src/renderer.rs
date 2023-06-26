@@ -1,7 +1,7 @@
 use jeriya_shared::{
     immediate::{CommandBuffer, CommandBufferBuilder},
     winit::window::{Window, WindowId},
-    Backend, CameraContainerGuard, DebugInfo, RendererConfig, ResourceContainerBuilder, Result,
+    Backend, Camera, CameraContainerGuard, DebugInfo, Handle, RendererConfig, ResourceContainerBuilder, Result,
 };
 
 use std::{marker::PhantomData, sync::Arc};
@@ -60,6 +60,11 @@ where
     /// Returns a guard to the cameras.
     pub fn cameras(&self) -> CameraContainerGuard {
         self.backend.cameras()
+    }
+
+    /// Sets the active camera for the given window.
+    pub fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> Result<()> {
+        self.backend.set_active_camera(window_id, handle)
     }
 }
 
@@ -201,6 +206,10 @@ mod tests {
 
         fn cameras(&self) -> CameraContainerGuard {
             CameraContainerGuard::new(self.camera_event_queue.lock(), self.cameras.lock())
+        }
+
+        fn set_active_camera(&self, _window_id: WindowId, _handle: jeriya_shared::Handle<Camera>) -> jeriya_shared::Result<()> {
+            Ok(())
         }
     }
     impl ImmediateCommandBufferBuilderHandler for DummyImmediateCommandBufferBuilderHandler {

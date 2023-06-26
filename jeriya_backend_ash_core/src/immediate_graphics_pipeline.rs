@@ -8,8 +8,8 @@ use jeriya_shared::{
 use std::{ffi::CString, io::Cursor, mem, sync::Arc};
 
 use crate::{
-    device::Device, graphics_pipeline::GraphicsPipeline, shader_module::ShaderModule, swapchain::Swapchain,
-    swapchain_render_pass::SwapchainRenderPass, AsRawVulkan, DebugInfoAshExtension,
+    descriptor_set_layout::DescriptorSetLayout, device::Device, graphics_pipeline::GraphicsPipeline, shader_interface::PerFrameData,
+    shader_module::ShaderModule, swapchain::Swapchain, swapchain_render_pass::SwapchainRenderPass, AsRawVulkan, DebugInfoAshExtension,
 };
 
 pub enum Topology {
@@ -31,6 +31,7 @@ pub struct ImmediateGraphicsPipeline {
     _fragment_shader: ShaderModule,
     graphics_pipeline: vk::Pipeline,
     pub(crate) graphics_pipeline_layout: vk::PipelineLayout,
+    pub descriptor_set_layout: Arc<DescriptorSetLayout>,
     debug_info: DebugInfo,
     device: Arc<Device>,
 }
@@ -82,7 +83,12 @@ impl ImmediateGraphicsPipeline {
                 ..Default::default()
             },
         ];
-        let descriptor_set_layouts = [];
+        let descriptor_set_layout = Arc::new(
+            DescriptorSetLayout::builder()
+                .push_uniform_buffer::<PerFrameData>(0, 1)
+                .build(device)?,
+        );
+        let descriptor_set_layouts = [descriptor_set_layout.as_raw_vulkan().clone()];
 
         let push_constant_range = [vk::PushConstantRange::builder()
             .stage_flags(vk::ShaderStageFlags::ALL)
@@ -217,6 +223,7 @@ impl ImmediateGraphicsPipeline {
             graphics_pipeline_layout,
             debug_info,
             device: device.clone(),
+            descriptor_set_layout,
         })
     }
 }

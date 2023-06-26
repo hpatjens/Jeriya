@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use ash::{extensions::khr, vk};
 
-use crate::{instance::Instance, physical_device::PhysicalDevice, AsRawVulkan, Error, PhysicalDeviceFeature};
+use crate::{instance::Instance, physical_device::PhysicalDevice, AsRawVulkan, Error, Extensions, PhysicalDeviceFeature};
 
 pub struct Device {
     device: ash::Device,
     pub physical_device: PhysicalDevice,
+    pub extensions: Extensions,
     instance: Arc<Instance>,
 }
 
@@ -51,7 +52,7 @@ impl Device {
                     .build()
             })
             .collect::<Vec<_>>();
-        let device_extension_names_raw = [khr::Swapchain::name().as_ptr()];
+        let device_extension_names_raw = [khr::Swapchain::name().as_ptr(), khr::PushDescriptor::name().as_ptr()];
         let device_create_info = vk::DeviceCreateInfo::builder()
             .queue_create_infos(&queue_infos)
             .enabled_extension_names(&device_extension_names_raw)
@@ -62,10 +63,13 @@ impl Device {
                 .create_device(*physical_device.as_raw_vulkan(), &device_create_info, None)?
         };
 
+        let extensions = Extensions::new(instance.as_raw_vulkan(), &device);
+
         Ok(Arc::new(Device {
             device,
             physical_device,
             instance: instance.clone(),
+            extensions,
         }))
     }
 

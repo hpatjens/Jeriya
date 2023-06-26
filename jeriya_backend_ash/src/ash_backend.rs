@@ -17,6 +17,7 @@ use jeriya_backend_ash_core::{
     immediate_graphics_pipeline::{PushConstants, Topology},
     instance::Instance,
     physical_device::PhysicalDevice,
+    push_descriptors::PushDescriptors,
     queue::{Queue, QueueType},
     semaphore::Semaphore,
     surface::Surface,
@@ -28,8 +29,8 @@ use jeriya_shared::{
     nalgebra::Matrix4,
     parking_lot::Mutex,
     winit::window::{Window, WindowId},
-    Backend, Camera, CameraContainerGuard, CameraEvent, DebugInfo, EventQueue, ImmediateCommandBufferBuilderHandler, IndexingContainer,
-    RendererConfig,
+    Backend, Camera, CameraContainerGuard, CameraEvent, DebugInfo, EventQueue, Handle, ImmediateCommandBufferBuilderHandler,
+    IndexingContainer, RendererConfig,
 };
 
 #[derive(Debug)]
@@ -108,21 +109,33 @@ impl Backend for AshBackend {
         // Device
         info!("Creating Device");
         let device = Device::new(physical_device, &instance)?;
-
         // Presentation Queue
         let presentation_queue = Queue::new(&device, QueueType::Presentation)?;
+
+        // Cameras
+        info!("Creating Cameras");
+        let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
+        let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
 
         // Presenters
         let presenters = surfaces
             .iter()
             .map(|(window_id, surface)| {
                 info!("Creating presenter for window {window_id:?}");
-                let presenter = Presenter::new(&device, window_id, surface, renderer_config.default_desired_swapchain_length)?;
+                let presenter = Presenter::new(
+                    &device,
+                    window_id,
+                    surface,
+                    renderer_config.default_desired_swapchain_length,
+                    &cameras,
+                    &camera_event_queue,
+                )?;
                 Ok((*window_id, RefCell::new(presenter)))
             })
             .collect::<core::Result<HashMap<_, _>>>()?;
 
         // CommandPool
+        info!("Creating CommandPool");
         let command_pool = CommandPool::new(
             &device,
             &presentation_queue,
@@ -132,16 +145,16 @@ impl Backend for AshBackend {
 
         Ok(Self {
             device,
-            _validation_layer_callback: validation_layer_callback,
             _entry: entry,
             _instance: instance,
+            _validation_layer_callback: validation_layer_callback,
             presenters,
             _surfaces: surfaces,
             presentation_queue: RefCell::new(presentation_queue),
             command_pool,
             immediate_rendering_requests: Mutex::new(HashMap::new()),
-            cameras: Arc::new(Mutex::new(IndexingContainer::new())),
-            camera_event_queue: Arc::new(Mutex::new(EventQueue::new())),
+            cameras,
+            camera_event_queue,
         })
     }
 
@@ -220,6 +233,7 @@ impl Backend for AshBackend {
                     ),
                 )?
                 .bind_graphics_pipeline(&presenter.simple_graphics_pipeline);
+            self.push_descriptors(&presenter, &mut command_buffer_builder)?;
             self.append_immediate_rendering_commands(window_id, presenter, &mut command_buffer_builder)?;
             command_buffer_builder.end_render_pass()?.end_command_buffer()?;
 
@@ -301,9 +315,29 @@ impl Backend for AshBackend {
     fn cameras(&self) -> CameraContainerGuard {
         CameraContainerGuard::new(self.camera_event_queue.lock(), self.cameras.lock())
     }
+
+    fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> jeriya_shared::Result<()> {
+        let presenter = self
+            .presenters
+            .get(&window_id)
+            .ok_or(jeriya_shared::Error::UnknownWindowId(window_id))?;
+        presenter.borrow_mut().set_active_camera(handle);
+        Ok(())
+    }
 }
 
 impl AshBackend {
+    /// Pushes the required descriptors to the [`CommandBufferBuilder`].
+    fn push_descriptors(&self, presenter: &Presenter, command_buffer_builder: &mut CommandBufferBuilder) -> core::Result<()> {
+        command_buffer_builder.push_descriptors_for_graphics(0, {
+            let cameras_buffer = presenter.cameras_buffer.get(&presenter.frame_index());
+            &PushDescriptors::builder(&presenter.simple_graphics_pipeline.descriptor_set_layout)
+                .push_uniform_buffer(0, cameras_buffer)
+                .build()
+        })?;
+        Ok(())
+    }
+
     fn append_immediate_rendering_commands(
         &self,
         window_id: &WindowId,
@@ -347,6 +381,7 @@ impl AshBackend {
                         ImmediateCommand::LineList(line_list) => {
                             if !matches!(last_topology, Some(Topology::LineList)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_line_list);
+                                self.push_descriptors(&presenter, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: line_list.config().color,
@@ -361,6 +396,7 @@ impl AshBackend {
                         ImmediateCommand::LineStrip(line_strip) => {
                             if !matches!(last_topology, Some(Topology::LineStrip)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_line_strip);
+                                self.push_descriptors(&presenter, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: line_strip.config().color,
@@ -375,6 +411,7 @@ impl AshBackend {
                         ImmediateCommand::TriangleList(triangle_list) => {
                             if !matches!(last_topology, Some(Topology::TriangleList)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_triangle_list);
+                                self.push_descriptors(&presenter, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: triangle_list.config().color,
@@ -388,6 +425,7 @@ impl AshBackend {
                         ImmediateCommand::TriangleStrip(triangle_strip) => {
                             if !matches!(last_topology, Some(Topology::TriangleStrip)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_triangle_strip);
+                                self.push_descriptors(&presenter, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: triangle_strip.config().color,

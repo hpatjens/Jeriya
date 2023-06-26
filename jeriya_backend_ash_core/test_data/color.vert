@@ -7,16 +7,12 @@ layout (push_constant) uniform PushConstants {
     mat4 matrix;
 } push_constants;
 
-struct CameraGpuMemory {
+layout (set = 0, binding = 0) uniform PerFrameData {
     mat4 projection_matrix;
     mat4 view_matrix;
     mat4 matrix;
-};
-
-layout (set = 0, binding = 0) uniform PerFrameData {
-    CameraGpuMemory cameras[];
 } per_frame_data;
 
 void main() {
-    gl_Position = push_constants.matrix * vec4(inPosition, 1.0);
+    gl_Position = per_frame_data.matrix * vec4(inPosition, 1.0);
 }

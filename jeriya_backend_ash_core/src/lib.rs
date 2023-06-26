@@ -3,6 +3,10 @@ pub mod command_buffer;
 pub mod command_buffer_builder;
 pub mod command_pool;
 pub mod debug;
+pub mod descriptor;
+pub mod descriptor_pool;
+pub mod descriptor_set;
+pub mod descriptor_set_layout;
 pub mod device;
 pub mod device_visible_buffer;
 pub mod entry;
@@ -13,8 +17,10 @@ pub mod host_visible_buffer;
 pub mod immediate_graphics_pipeline;
 pub mod instance;
 pub mod physical_device;
+pub mod push_descriptors;
 pub mod queue;
 pub mod semaphore;
+pub mod shader_interface;
 pub mod shader_module;
 pub mod simple_graphics_pipeline;
 pub mod surface;
@@ -28,6 +34,7 @@ pub mod unsafe_buffer;
 use std::{ffi::NulError, str::Utf8Error};
 
 use ash::{
+    extensions::khr::PushDescriptor,
     prelude::VkResult,
     vk::{self},
     LoadingError,
@@ -35,6 +42,20 @@ use ash::{
 use jeriya_shared::{winit::window::WindowId, DebugInfo};
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// Represents the Vulkan extensions that are used by the backend
+pub struct Extensions {
+    pub push_descriptor: PushDescriptor,
+}
+
+impl Extensions {
+    /// Loads the required Extensions
+    pub fn new(instance: &ash::Instance, device: &ash::Device) -> Self {
+        Self {
+            push_descriptor: PushDescriptor::new(instance, device),
+        }
+    }
+}
 
 /// Extension for [`DebugInfo`] to add the memory address of Vulkan handles
 pub(crate) trait DebugInfoAshExtension {
@@ -103,6 +124,10 @@ pub enum Error {
     NoPipelineBound,
     #[error("The physical device doesn't support a feature that is expected")]
     PhysicalDeviceFeatureMissing(PhysicalDeviceFeature),
+    #[error("The descriptor pool doesn't have enough space")]
+    DescriptorPoolDoesntHaveEnoughSpace,
+    #[error("Failed to allocate the resource")]
+    FailedToAllocate(&'static str),
 }
 
 impl From<Error> for jeriya_shared::Error {

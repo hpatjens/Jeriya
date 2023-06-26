@@ -4,7 +4,7 @@ use ash::vk;
 
 use crate::{
     buffer::VertexBuffer, command_buffer::CommandBuffer, device::Device, device_visible_buffer::DeviceVisibleBuffer,
-    graphics_pipeline::GraphicsPipeline, host_visible_buffer::HostVisibleBuffer, swapchain::Swapchain,
+    graphics_pipeline::GraphicsPipeline, host_visible_buffer::HostVisibleBuffer, push_descriptors::PushDescriptors, swapchain::Swapchain,
     swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass, AsRawVulkan, Error,
 };
@@ -227,5 +227,20 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 .as_raw_vulkan()
                 .cmd_set_line_width(*self.command_buffer.as_raw_vulkan(), line_width);
         }
+    }
+
+    /// Pushes the given descriptors to the command buffer
+    pub fn push_descriptors_for_graphics(&mut self, descriptor_set: u32, push_descriptors: &PushDescriptors) -> crate::Result<()> {
+        let bound_pipeline_layout = self.bound_pipeline_layout.ok_or(Error::NoPipelineBound)?;
+        unsafe {
+            self.device.extensions.push_descriptor.cmd_push_descriptor_set(
+                *self.command_buffer.as_raw_vulkan(),
+                vk::PipelineBindPoint::GRAPHICS,
+                bound_pipeline_layout,
+                descriptor_set,
+                push_descriptors.write_descriptor_sets(),
+            );
+        }
+        Ok(())
     }
 }

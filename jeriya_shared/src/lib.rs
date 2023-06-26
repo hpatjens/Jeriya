@@ -14,12 +14,15 @@ pub use indexing_container::*;
 pub use resources::*;
 
 pub use bitflags;
+pub use bumpalo;
 pub use chrono;
+pub use derive_more;
 pub use log;
 pub use nalgebra;
 pub use nalgebra_glm;
 pub use parking_lot;
 pub use winit;
+use winit::window::WindowId;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AssertLevel {
@@ -32,16 +35,27 @@ pub const ASSERT_LEVEL: AssertLevel = AssertLevel::Full;
 /// Assert that can be enabled in debug and release builds
 #[macro_export]
 macro_rules! assert {
-        ($($arg:tt)*) => {
-            if $crate::ASSERT_LEVEL == $crate::AssertLevel::Full {
-                std::assert!($($arg)*);
-            }
-        };
-    }
+    ($($arg:tt)*) => {
+        if $crate::ASSERT_LEVEL == $crate::AssertLevel::Full {
+            std::assert!($($arg)*);
+        }
+    };
+}
+
+/// Assert that can be enabled in debug and release builds
+#[macro_export]
+macro_rules! assert_eq {
+    ($($arg:tt)*) => {
+        if $crate::ASSERT_LEVEL == $crate::AssertLevel::Full {
+            std::assert_eq!($($arg)*);
+        }
+    };
+}
 
 #[derive(Debug)]
 pub enum Error {
     ExpectedWindow,
+    UnknownWindowId(WindowId),
     Backend(Box<dyn std::error::Error>),
 }
 

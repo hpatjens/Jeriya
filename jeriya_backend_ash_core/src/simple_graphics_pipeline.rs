@@ -4,8 +4,8 @@ use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
 use std::{ffi::CString, io::Cursor, sync::Arc};
 
 use crate::{
-    device::Device, graphics_pipeline::GraphicsPipeline, shader_module::ShaderModule, swapchain::Swapchain,
-    swapchain_render_pass::SwapchainRenderPass, AsRawVulkan, DebugInfoAshExtension,
+    descriptor_set_layout::DescriptorSetLayout, device::Device, graphics_pipeline::GraphicsPipeline, shader_interface::PerFrameData,
+    shader_module::ShaderModule, swapchain::Swapchain, swapchain_render_pass::SwapchainRenderPass, AsRawVulkan, DebugInfoAshExtension,
 };
 
 #[repr(C)]
@@ -19,6 +19,7 @@ pub struct SimpleGraphicsPipeline {
     _fragment_shader: ShaderModule,
     graphics_pipeline: vk::Pipeline,
     graphics_pipeline_layout: vk::PipelineLayout,
+    pub descriptor_set_layout: Arc<DescriptorSetLayout>,
     debug_info: DebugInfo,
     device: Arc<Device>,
 }
@@ -69,7 +70,12 @@ impl SimpleGraphicsPipeline {
                 ..Default::default()
             },
         ];
-        let descriptor_set_layouts = [];
+        let descriptor_set_layout = Arc::new(
+            DescriptorSetLayout::builder()
+                .push_uniform_buffer::<PerFrameData>(0, 1)
+                .build(device)?,
+        );
+        let descriptor_set_layouts = [descriptor_set_layout.as_raw_vulkan().clone()];
 
         let push_constant_range = [vk::PushConstantRange::builder()
             .stage_flags(vk::ShaderStageFlags::ALL)
@@ -188,6 +194,7 @@ impl SimpleGraphicsPipeline {
             _fragment_shader: fragment_shader,
             graphics_pipeline,
             graphics_pipeline_layout,
+            descriptor_set_layout,
             debug_info,
             device: device.clone(),
         })
