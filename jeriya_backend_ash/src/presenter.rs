@@ -1,18 +1,19 @@
 use std::{
-    cell::RefCell,
     collections::{HashMap, VecDeque},
-    rc::Rc,
     sync::Arc,
 };
 
-use crate::{ash_immediate::ImmediateCommand, presenter_resources::PresenterResources, ImmediateRenderingRequest};
+use crate::{
+    ash_immediate::ImmediateCommand, ash_shared_backend::AshSharedBackend, presenter_resources::PresenterResources,
+    ImmediateRenderingRequest,
+};
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
-    buffer::BufferUsageFlags, command_buffer::CommandBuffer, command_buffer_builder::CommandBufferBuilder, command_pool::CommandPool,
-    device::Device, frame_index::FrameIndex, host_visible_buffer::HostVisibleBuffer,
-    immediate_graphics_pipeline::ImmediateGraphicsPipeline, immediate_graphics_pipeline::PushConstants,
-    immediate_graphics_pipeline::Topology, push_descriptors::PushDescriptors, queue::Queue, semaphore::Semaphore,
-    shader_interface::PerFrameData, simple_graphics_pipeline::SimpleGraphicsPipeline, surface::Surface, swapchain_vec::SwapchainVec,
+    buffer::BufferUsageFlags, command_buffer::CommandBuffer, command_buffer_builder::CommandBufferBuilder, device::Device,
+    frame_index::FrameIndex, host_visible_buffer::HostVisibleBuffer, immediate_graphics_pipeline::ImmediateGraphicsPipeline,
+    immediate_graphics_pipeline::PushConstants, immediate_graphics_pipeline::Topology, push_descriptors::PushDescriptors,
+    semaphore::Semaphore, shader_interface::PerFrameData, simple_graphics_pipeline::SimpleGraphicsPipeline, surface::Surface,
+    swapchain_vec::SwapchainVec,
 };
 use jeriya_shared::{
     debug_info, nalgebra::Matrix4, parking_lot::Mutex, winit::window::WindowId, Camera, CameraContainerGuard, CameraEvent, EventQueue,
@@ -117,16 +118,9 @@ impl Presenter {
         })
     }
 
-    pub fn render_frame(
-        &mut self,
-        device: &Arc<Device>,
-        window_id: &WindowId,
-        command_pool: &Rc<CommandPool>,
-        presentation_queue: &RefCell<Queue>,
-        immediate_rendering_requests: &Mutex<HashMap<WindowId, Vec<ImmediateRenderingRequest>>>,
-    ) -> jeriya_shared::Result<()> {
+    pub fn render_frame(&mut self, window_id: &WindowId, shared_backend: &AshSharedBackend) -> jeriya_shared::Result<()> {
         // Acquire the next swapchain index
-        let image_available_semaphore = Arc::new(Semaphore::new(&device, debug_info!("image-available-Semaphore"))?);
+        let image_available_semaphore = Arc::new(Semaphore::new(&shared_backend.device, debug_info!("image-available-Semaphore"))?);
         let frame_index = self
             .presenter_resources
             .swapchain()
@@ -143,7 +137,7 @@ impl Presenter {
 
         // Prepare rendering complete semaphore
         let main_rendering_complete_semaphore = Arc::new(Semaphore::new(
-            &device,
+            &shared_backend.device,
             debug_info!("main-CommandBuffer-rendering-complete-Semaphore"),
         )?);
         let rendering_complete_semaphores = self.rendering_complete_semaphores.get_mut(&self.frame_index());
@@ -156,8 +150,12 @@ impl Presenter {
         );
 
         // Build CommandBuffer
-        let mut command_buffer = CommandBuffer::new(&device, &command_pool, debug_info!("CommandBuffer-for-Swapchain-Renderpass"))?;
-        let mut command_buffer_builder = CommandBufferBuilder::new(&device, &mut command_buffer)?;
+        let mut command_buffer = CommandBuffer::new(
+            &shared_backend.device,
+            &shared_backend.command_pool,
+            debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
+        )?;
+        let mut command_buffer_builder = CommandBufferBuilder::new(&shared_backend.device, &mut command_buffer)?;
         command_buffer_builder
             .begin_command_buffer_for_one_time_submit()?
             .depth_pipeline_barrier(self.presenter_resources.depth_buffers().depth_buffers.get(&self.frame_index()))?
@@ -168,7 +166,13 @@ impl Presenter {
             )?
             .bind_graphics_pipeline(&self.simple_graphics_pipeline);
         self.push_descriptors(&self, &mut command_buffer_builder)?;
-        self.append_immediate_rendering_commands(device, window_id, self, &mut command_buffer_builder, immediate_rendering_requests)?;
+        self.append_immediate_rendering_commands(
+            &shared_backend.device,
+            window_id,
+            self,
+            &mut command_buffer_builder,
+            &shared_backend.immediate_rendering_requests,
+        )?;
         command_buffer_builder.end_render_pass()?.end_command_buffer()?;
 
         // Save CommandBuffer to be able to check whether this frame was completed
@@ -185,7 +189,7 @@ impl Presenter {
             .expect("not image available semaphore assigned for the frame");
 
         // Insert into Queue
-        presentation_queue.borrow_mut().submit_for_rendering_complete(
+        shared_backend.presentation_queue.borrow_mut().submit_for_rendering_complete(
             command_buffer,
             &image_available_semaphore,
             &main_rendering_complete_semaphore,
@@ -195,7 +199,7 @@ impl Presenter {
         self.presenter_resources.swapchain().present(
             &self.frame_index(),
             &self.rendering_complete_semaphores.get(&self.frame_index()),
-            &presentation_queue.borrow(),
+            &shared_backend.presentation_queue.borrow(),
         )?;
 
         Ok(())

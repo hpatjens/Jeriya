@@ -159,13 +159,7 @@ impl Backend for AshBackend {
         // Render on all surfaces
         for (window_id, presenter) in &self.presenters {
             let presenter = &mut *presenter.borrow_mut();
-            presenter.render_frame(
-                &self.shared_backend.device,
-                window_id,
-                &self.shared_backend.command_pool,
-                &self.shared_backend.presentation_queue,
-                &self.shared_backend.immediate_rendering_requests,
-            )?;
+            presenter.render_frame(window_id, &self.shared_backend)?;
         }
 
         // Remove all ImmediateRenderingRequests that don't have to be rendered anymore
