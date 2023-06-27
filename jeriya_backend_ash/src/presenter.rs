@@ -15,10 +15,7 @@ use jeriya_backend_ash_core::{
     semaphore::Semaphore, shader_interface::PerFrameData, simple_graphics_pipeline::SimpleGraphicsPipeline, surface::Surface,
     swapchain_vec::SwapchainVec,
 };
-use jeriya_shared::{
-    debug_info, nalgebra::Matrix4, parking_lot::Mutex, winit::window::WindowId, Camera, CameraContainerGuard, CameraEvent, EventQueue,
-    Handle, IndexingContainer,
-};
+use jeriya_shared::{debug_info, nalgebra::Matrix4, parking_lot::Mutex, winit::window::WindowId, Camera, CameraContainerGuard, Handle};
 
 pub struct Presenter {
     frame_index: FrameIndex,
@@ -37,15 +34,12 @@ pub struct Presenter {
 }
 
 impl Presenter {
-    pub fn new(
-        device: &Arc<Device>,
-        window_id: &WindowId,
-        surface: &Arc<Surface>,
-        desired_swapchain_length: u32,
-        cameras: &Arc<Mutex<IndexingContainer<Camera>>>,
-        camera_event_queue: &Arc<Mutex<EventQueue<CameraEvent>>>,
-    ) -> core::Result<Self> {
-        let presenter_resources = PresenterResources::new(device, surface, desired_swapchain_length)?;
+    pub fn new(window_id: &WindowId, surface: &Arc<Surface>, shared_backend: &AshSharedBackend) -> jeriya_shared::Result<Self> {
+        let presenter_resources = PresenterResources::new(
+            &shared_backend.device,
+            surface,
+            shared_backend.renderer_config.default_desired_swapchain_length,
+        )?;
         let image_available_semaphore = SwapchainVec::new(presenter_resources.swapchain(), |_| Ok(None))?;
         let rendering_complete_semaphores = SwapchainVec::new(presenter_resources.swapchain(), |_| Ok(Vec::new()))?;
         let rendering_complete_command_buffer = SwapchainVec::new(presenter_resources.swapchain(), |_| Ok(Vec::new()))?;
@@ -53,34 +47,34 @@ impl Presenter {
 
         // Graphics Pipeline
         let simple_graphics_pipeline = SimpleGraphicsPipeline::new(
-            &device,
+            &shared_backend.device,
             presenter_resources.render_pass(),
             presenter_resources.swapchain(),
             debug_info!(format!("SimpleGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
         let immediate_graphics_pipeline_line_list = ImmediateGraphicsPipeline::new(
-            &device,
+            &shared_backend.device,
             presenter_resources.render_pass(),
             presenter_resources.swapchain(),
             debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
             Topology::LineList,
         )?;
         let immediate_graphics_pipeline_line_strip = ImmediateGraphicsPipeline::new(
-            &device,
+            &shared_backend.device,
             presenter_resources.render_pass(),
             presenter_resources.swapchain(),
             debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
             Topology::LineStrip,
         )?;
         let immediate_graphics_pipeline_triangle_list = ImmediateGraphicsPipeline::new(
-            &device,
+            &shared_backend.device,
             presenter_resources.render_pass(),
             presenter_resources.swapchain(),
             debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
             Topology::TriangleList,
         )?;
         let immediate_graphics_pipeline_triangle_strip = ImmediateGraphicsPipeline::new(
-            &device,
+            &shared_backend.device,
             presenter_resources.render_pass(),
             presenter_resources.swapchain(),
             debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
@@ -88,13 +82,17 @@ impl Presenter {
         )?;
 
         // Create a camera for this window
-        let mut guard = CameraContainerGuard::new(camera_event_queue.lock(), cameras.lock());
-        let active_camera = guard.insert(Camera::default());
+        let mut guard = CameraContainerGuard::new(
+            shared_backend.camera_event_queue.lock(),
+            shared_backend.cameras.lock(),
+            shared_backend.renderer_config.clone(),
+        );
+        let active_camera = guard.insert(Camera::default())?;
         drop(guard);
 
         let cameras_buffer = SwapchainVec::new(presenter_resources.swapchain(), |_| {
             Ok(HostVisibleBuffer::new(
-                &device,
+                &shared_backend.device,
                 &vec![PerFrameData::default(); 1],
                 BufferUsageFlags::UNIFORM_BUFFER,
                 debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),

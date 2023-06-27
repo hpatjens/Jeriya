@@ -56,6 +56,7 @@ macro_rules! assert_eq {
 pub enum Error {
     ExpectedWindow,
     UnknownWindowId(WindowId),
+    MaximumCapacityReached(usize),
     Backend(Box<dyn std::error::Error>),
 }
 
@@ -65,6 +66,7 @@ pub type Result<T> = result::Result<T, Error>;
 pub struct RendererConfig {
     pub application_name: Option<String>,
     pub default_desired_swapchain_length: u32,
+    pub maximum_number_of_cameras: usize,
 }
 
 impl Default for RendererConfig {
@@ -72,6 +74,7 @@ impl Default for RendererConfig {
         Self {
             application_name: None,
             default_desired_swapchain_length: 2,
+            maximum_number_of_cameras: 16,
         }
     }
 }

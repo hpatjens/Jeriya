@@ -59,7 +59,10 @@ impl Backend for AshBackend {
         let entry = Entry::new()?;
 
         info!("Creating Vulkan Instance");
-        let application_name = renderer_config.application_name.unwrap_or(env!("CARGO_PKG_NAME").to_owned());
+        let application_name = renderer_config
+            .application_name
+            .clone()
+            .unwrap_or(env!("CARGO_PKG_NAME").to_owned());
         let instance = Instance::new(
             &entry,
             &application_name,
@@ -100,22 +103,6 @@ impl Backend for AshBackend {
         let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
         let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
 
-        let presenters = surfaces
-            .iter()
-            .map(|(window_id, surface)| {
-                info!("Creating presenter for window {window_id:?}");
-                let presenter = Presenter::new(
-                    &device,
-                    window_id,
-                    surface,
-                    renderer_config.default_desired_swapchain_length,
-                    &cameras,
-                    &camera_event_queue,
-                )?;
-                Ok((*window_id, RefCell::new(presenter)))
-            })
-            .collect::<core::Result<HashMap<_, _>>>()?;
-
         info!("Creating CommandPool");
         let command_pool = CommandPool::new(
             &device,
@@ -126,12 +113,22 @@ impl Backend for AshBackend {
 
         let shared_backend = AshSharedBackend::new(
             device,
+            Arc::new(renderer_config),
             RefCell::new(presentation_queue),
             command_pool,
             Mutex::new(HashMap::new()),
             cameras,
             camera_event_queue,
         );
+
+        let presenters = surfaces
+            .iter()
+            .map(|(window_id, surface)| {
+                info!("Creating presenter for window {window_id:?}");
+                let presenter = Presenter::new(window_id, surface, &shared_backend)?;
+                Ok((*window_id, RefCell::new(presenter)))
+            })
+            .collect::<jeriya_shared::Result<HashMap<_, _>>>()?;
 
         Ok(Self {
             _entry: entry,
@@ -209,7 +206,11 @@ impl Backend for AshBackend {
     }
 
     fn cameras(&self) -> CameraContainerGuard {
-        CameraContainerGuard::new(self.shared_backend.camera_event_queue.lock(), self.shared_backend.cameras.lock())
+        CameraContainerGuard::new(
+            self.shared_backend.camera_event_queue.lock(),
+            self.shared_backend.cameras.lock(),
+            self.shared_backend.renderer_config.clone(),
+        )
     }
 
     fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> jeriya_shared::Result<()> {

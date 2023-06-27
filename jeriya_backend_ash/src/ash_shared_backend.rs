@@ -3,6 +3,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 use jeriya_backend_ash_core::{command_pool::CommandPool, device::Device, queue::Queue};
 use jeriya_shared::{
     derive_more::Constructor, parking_lot::Mutex, winit::window::WindowId, Camera, CameraEvent, EventQueue, IndexingContainer,
+    RendererConfig,
 };
 
 use crate::ImmediateRenderingRequest;
@@ -11,6 +12,7 @@ use crate::ImmediateRenderingRequest;
 #[derive(Constructor)]
 pub struct AshSharedBackend {
     pub device: Arc<Device>,
+    pub renderer_config: Arc<RendererConfig>,
     pub presentation_queue: RefCell<Queue>,
     pub command_pool: Rc<CommandPool>,
     pub immediate_rendering_requests: Mutex<HashMap<WindowId, Vec<ImmediateRenderingRequest>>>,

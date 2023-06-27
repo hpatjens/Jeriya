@@ -106,7 +106,7 @@ fn main() -> io::Result<()> {
 
     {
         let mut cameras = renderer.cameras();
-        let handle = cameras.insert(Camera::default());
+        let handle = cameras.insert(Camera::default()).unwrap();
         let mut camera = cameras.get_mut(&handle).unwrap();
         camera.set_position(Vector3::new(0.0, 0.0, 2.0));
     }

@@ -123,7 +123,7 @@ mod tests {
         parking_lot::Mutex,
         winit::window::{Window, WindowId},
         AsDebugInfo, Backend, Camera, CameraContainerGuard, CameraEvent, DebugInfo, EventQueue, ImmediateCommandBufferBuilderHandler,
-        IndexingContainer,
+        IndexingContainer, RendererConfig,
     };
     use std::sync::Arc;
 
@@ -161,6 +161,7 @@ mod tests {
     struct DummyBackend {
         cameras: Arc<Mutex<IndexingContainer<Camera>>>,
         camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
+        renderer_config: Arc<RendererConfig>,
     }
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
     struct DummyImmediateCommandBufferHandler(DebugInfo);
@@ -183,6 +184,7 @@ mod tests {
             Ok(Self {
                 cameras,
                 camera_event_queue,
+                renderer_config: Arc::new(RendererConfig::default()),
             })
         }
 
@@ -205,7 +207,7 @@ mod tests {
         }
 
         fn cameras(&self) -> CameraContainerGuard {
-            CameraContainerGuard::new(self.camera_event_queue.lock(), self.cameras.lock())
+            CameraContainerGuard::new(self.camera_event_queue.lock(), self.cameras.lock(), self.renderer_config.clone())
         }
 
         fn set_active_camera(&self, _window_id: WindowId, _handle: jeriya_shared::Handle<Camera>) -> jeriya_shared::Result<()> {

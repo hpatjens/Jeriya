@@ -1,10 +1,11 @@
-use std::{collections::VecDeque, f32::consts::PI};
+use std::{collections::VecDeque, f32::consts::PI, sync::Arc};
 
+use derive_more::Constructor;
 use parking_lot::MutexGuard;
 
 use crate::{
     nalgebra::{Matrix4, Vector3},
-    nalgebra_glm, Handle, IndexingContainer,
+    nalgebra_glm, Error, Handle, IndexingContainer, RendererConfig,
 };
 
 /// Type of projection for a camera.
@@ -328,31 +329,30 @@ impl<'event, 'cont, 'mutex> CameraAccessMut<'event, 'cont, 'mutex> {
     }
 }
 
+#[derive(Constructor)]
 pub struct CameraContainerGuard<'event, 'cont> {
     camera_event_queue: MutexGuard<'event, EventQueue<CameraEvent>>,
     cameras: MutexGuard<'cont, IndexingContainer<Camera>>,
+    renderer_config: Arc<RendererConfig>,
 }
 
 impl<'event, 'cont> CameraContainerGuard<'event, 'cont> {
-    pub fn new(
-        camera_event_queue: MutexGuard<'event, EventQueue<CameraEvent>>,
-        cameras: MutexGuard<'cont, IndexingContainer<Camera>>,
-    ) -> Self {
-        Self {
-            camera_event_queue,
-            cameras,
-        }
-    }
-
     /// Inserts the given [`Camera`] into the container and returns a [`Handle`] to it.
-    pub fn insert(&mut self, camera: Camera) -> Handle<Camera> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the maximum number of cameras has been reached.
+    pub fn insert(&mut self, camera: Camera) -> crate::Result<Handle<Camera>> {
+        if self.cameras.len() >= self.renderer_config.maximum_number_of_cameras {
+            return Err(Error::MaximumCapacityReached(self.renderer_config.maximum_number_of_cameras));
+        }
         let camera2 = camera.clone();
         let handle = self.cameras.insert(camera);
         self.camera_event_queue.push(CameraEvent::Insert {
             handle: handle.clone(),
             camera: camera2,
         });
-        handle
+        Ok(handle)
     }
 
     /// Removes the [`Camera`] with the given [`Handle`] from the container and returns it.
