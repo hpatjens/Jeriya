@@ -50,35 +50,40 @@ impl Presenter {
             &shared_backend.device,
             presenter_resources.render_pass(),
             presenter_resources.swapchain(),
+            &shared_backend.renderer_config,
             debug_info!(format!("SimpleGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
         let immediate_graphics_pipeline_line_list = ImmediateGraphicsPipeline::new(
             &shared_backend.device,
             presenter_resources.render_pass(),
             presenter_resources.swapchain(),
-            debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
             Topology::LineList,
+            &shared_backend.renderer_config,
+            debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
         let immediate_graphics_pipeline_line_strip = ImmediateGraphicsPipeline::new(
             &shared_backend.device,
             presenter_resources.render_pass(),
             presenter_resources.swapchain(),
-            debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
             Topology::LineStrip,
+            &shared_backend.renderer_config,
+            debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
         let immediate_graphics_pipeline_triangle_list = ImmediateGraphicsPipeline::new(
             &shared_backend.device,
             presenter_resources.render_pass(),
             presenter_resources.swapchain(),
-            debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
             Topology::TriangleList,
+            &shared_backend.renderer_config,
+            debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
         let immediate_graphics_pipeline_triangle_strip = ImmediateGraphicsPipeline::new(
             &shared_backend.device,
             presenter_resources.render_pass(),
             presenter_resources.swapchain(),
-            debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
             Topology::TriangleStrip,
+            &shared_backend.renderer_config,
+            debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
 
         // Create a camera for this window

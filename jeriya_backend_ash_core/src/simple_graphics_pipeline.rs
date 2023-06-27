@@ -1,7 +1,10 @@
 use ash::vk::{self};
-use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
+use jeriya_shared::{
+    byteorder::{LittleEndian, WriteBytesExt},
+    debug_info, AsDebugInfo, DebugInfo, RendererConfig,
+};
 
-use std::{ffi::CString, io::Cursor, sync::Arc};
+use std::{ffi::CString, io::Cursor, mem, sync::Arc};
 
 use crate::{
     descriptor_set_layout::DescriptorSetLayout, device::Device, graphics_pipeline::GraphicsPipeline, shader_interface::PerFrameData,
@@ -39,6 +42,7 @@ impl SimpleGraphicsPipeline {
         device: &Arc<Device>,
         renderpass: &SwapchainRenderPass,
         swapchain: &Swapchain,
+        renderer_config: &RendererConfig,
         debug_info: DebugInfo,
     ) -> crate::Result<Self> {
         let entry_name = CString::new("main").expect("Valid c string");
@@ -55,18 +59,32 @@ impl SimpleGraphicsPipeline {
             Cursor::new(&fragment_shader_spirv),
             debug_info!("SimpleGraphicsPipeline-fragment-ShaderModule"),
         )?;
-
+        let specialization_constants = [vk::SpecializationMapEntry::builder()
+            .constant_id(0)
+            .offset(0)
+            .size(std::mem::size_of::<u32>())
+            .build()];
+        let mut specialization_data = Vec::<u8>::new();
+        specialization_data
+            .write_u32::<LittleEndian>(renderer_config.maximum_number_of_cameras as u32)
+            .expect("failed to write specialization constant");
+        let specialization_info = vk::SpecializationInfo::builder()
+            .map_entries(&specialization_constants)
+            .data(&specialization_data)
+            .build();
         let shader_stage_create_infos = [
             vk::PipelineShaderStageCreateInfo {
                 module: *vertex_shader.as_raw_vulkan(),
                 p_name: entry_name.as_ptr(),
                 stage: vk::ShaderStageFlags::VERTEX,
+                p_specialization_info: &specialization_info as *const _,
                 ..Default::default()
             },
             vk::PipelineShaderStageCreateInfo {
                 module: *fragment_shader.as_raw_vulkan(),
                 p_name: entry_name.as_ptr(),
                 stage: vk::ShaderStageFlags::FRAGMENT,
+                p_specialization_info: &specialization_info as *const _,
                 ..Default::default()
             },
         ];
@@ -227,7 +245,7 @@ impl AsDebugInfo for SimpleGraphicsPipeline {
 #[cfg(test)]
 mod tests {
     mod new {
-        use jeriya_shared::debug_info;
+        use jeriya_shared::{debug_info, RendererConfig};
 
         use crate::{
             device::tests::TestFixtureDevice, simple_graphics_pipeline::SimpleGraphicsPipeline, swapchain::Swapchain,
@@ -243,6 +261,7 @@ mod tests {
                 &test_fixture_device.device,
                 &render_pass,
                 &swapchain,
+                &RendererConfig::default(),
                 debug_info!("my_graphics_pipeline"),
             )
             .unwrap();
