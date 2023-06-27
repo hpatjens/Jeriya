@@ -1,32 +1,24 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
 use crate::{
-    ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler, ImmediateCommand},
+    ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler},
     presenter::Presenter,
 };
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
-    buffer::BufferUsageFlags,
-    command_buffer::CommandBuffer,
-    command_buffer_builder::CommandBufferBuilder,
     command_pool::{CommandPool, CommandPoolCreateFlags},
     debug::{set_panic_on_message, ValidationLayerCallback},
     device::Device,
     entry::Entry,
-    host_visible_buffer::HostVisibleBuffer,
-    immediate_graphics_pipeline::{PushConstants, Topology},
     instance::Instance,
     physical_device::PhysicalDevice,
-    push_descriptors::PushDescriptors,
     queue::{Queue, QueueType},
-    semaphore::Semaphore,
     surface::Surface,
     Config, ValidationLayerConfig,
 };
 use jeriya_shared::{
     debug_info, immediate,
     log::info,
-    nalgebra::Matrix4,
     parking_lot::Mutex,
     winit::window::{Window, WindowId},
     Backend, Camera, CameraContainerGuard, CameraEvent, DebugInfo, EventQueue, Handle, ImmediateCommandBufferBuilderHandler,
@@ -34,9 +26,9 @@ use jeriya_shared::{
 };
 
 #[derive(Debug)]
-struct ImmediateRenderingRequest {
-    immediate_command_buffer: AshImmediateCommandBufferHandler,
-    count: usize,
+pub struct ImmediateRenderingRequest {
+    pub immediate_command_buffer: AshImmediateCommandBufferHandler,
+    pub count: usize,
 }
 
 pub struct AshBackend {
@@ -171,98 +163,15 @@ impl Backend for AshBackend {
     fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
         self.presentation_queue.borrow_mut().update()?;
 
+        // Render on all surfaces
         for (window_id, presenter) in &self.presenters {
             let presenter = &mut *presenter.borrow_mut();
-
-            // Acquire the next swapchain index
-            let image_available_semaphore = Arc::new(Semaphore::new(&self.device, debug_info!("image-available-Semaphore"))?);
-            let frame_index = presenter
-                .presenter_resources
-                .swapchain()
-                .acquire_next_image(&mut presenter.frame_index(), &image_available_semaphore)?;
-            presenter.start_frame(frame_index.clone());
-            presenter
-                .image_available_semaphore
-                .replace(&presenter.frame_index(), image_available_semaphore);
-
-            // Wait for the previous work for the currently occupied frame to finish
-            for command_buffer in presenter.rendering_complete_command_buffers.get(&presenter.frame_index()) {
-                command_buffer.wait_for_completion()?;
-            }
-            presenter
-                .rendering_complete_command_buffers
-                .get_mut(&presenter.frame_index())
-                .clear();
-
-            // Prepare rendering complete semaphore
-            let main_rendering_complete_semaphore = Arc::new(Semaphore::new(
+            presenter.render_frame(
                 &self.device,
-                debug_info!("main-CommandBuffer-rendering-complete-Semaphore"),
-            )?);
-            let rendering_complete_semaphores = presenter.rendering_complete_semaphores.get_mut(&presenter.frame_index());
-            rendering_complete_semaphores.clear();
-            rendering_complete_semaphores.push(main_rendering_complete_semaphore.clone());
-            assert_eq!(
-                rendering_complete_semaphores.len(),
-                1,
-                "There should only be one rendering complete semaphore"
-            );
-
-            // Build CommandBuffer
-            let mut command_buffer = CommandBuffer::new(
-                &self.device,
+                window_id,
                 &self.command_pool,
-                debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
-            )?;
-            let mut command_buffer_builder = CommandBufferBuilder::new(&self.device, &mut command_buffer)?;
-            command_buffer_builder
-                .begin_command_buffer_for_one_time_submit()?
-                .depth_pipeline_barrier(
-                    presenter
-                        .presenter_resources
-                        .depth_buffers()
-                        .depth_buffers
-                        .get(&presenter.frame_index()),
-                )?
-                .begin_render_pass(
-                    presenter.presenter_resources.swapchain(),
-                    presenter.presenter_resources.render_pass(),
-                    (
-                        presenter.presenter_resources.framebuffers(),
-                        presenter.frame_index().swapchain_index(),
-                    ),
-                )?
-                .bind_graphics_pipeline(&presenter.simple_graphics_pipeline);
-            self.push_descriptors(&presenter, &mut command_buffer_builder)?;
-            self.append_immediate_rendering_commands(window_id, presenter, &mut command_buffer_builder)?;
-            command_buffer_builder.end_render_pass()?.end_command_buffer()?;
-
-            // Save CommandBuffer to be able to check whether this frame was completed
-            let command_buffer = Arc::new(command_buffer);
-            presenter
-                .rendering_complete_command_buffers
-                .get_mut(&presenter.frame_index())
-                .push(command_buffer.clone());
-
-            // Submit immediate rendering
-            let image_available_semaphore = presenter
-                .image_available_semaphore
-                .get(&presenter.frame_index())
-                .as_ref()
-                .expect("not image available semaphore assigned for the frame");
-
-            // Insert into Queue
-            self.presentation_queue.borrow_mut().submit_for_rendering_complete(
-                command_buffer,
-                &image_available_semaphore,
-                &main_rendering_complete_semaphore,
-            )?;
-
-            // Present
-            presenter.presenter_resources.swapchain().present(
-                &presenter.frame_index(),
-                &presenter.rendering_complete_semaphores.get(&presenter.frame_index()),
-                &self.presentation_queue.borrow(),
+                &self.presentation_queue,
+                &self.immediate_rendering_requests,
             )?;
         }
 
@@ -322,124 +231,6 @@ impl Backend for AshBackend {
             .get(&window_id)
             .ok_or(jeriya_shared::Error::UnknownWindowId(window_id))?;
         presenter.borrow_mut().set_active_camera(handle);
-        Ok(())
-    }
-}
-
-impl AshBackend {
-    /// Pushes the required descriptors to the [`CommandBufferBuilder`].
-    fn push_descriptors(&self, presenter: &Presenter, command_buffer_builder: &mut CommandBufferBuilder) -> core::Result<()> {
-        command_buffer_builder.push_descriptors_for_graphics(0, {
-            let cameras_buffer = presenter.cameras_buffer.get(&presenter.frame_index());
-            &PushDescriptors::builder(&presenter.simple_graphics_pipeline.descriptor_set_layout)
-                .push_uniform_buffer(0, cameras_buffer)
-                .build()
-        })?;
-        Ok(())
-    }
-
-    fn append_immediate_rendering_commands(
-        &self,
-        window_id: &WindowId,
-        presenter: &Presenter,
-        command_buffer_builder: &mut CommandBufferBuilder,
-    ) -> core::Result<()> {
-        let mut immediate_rendering_requests = self.immediate_rendering_requests.lock();
-        if let Some(requests) = immediate_rendering_requests.get_mut(window_id) {
-            // Collect vertex attributes for all immediate rendering requests
-            assert!(!requests.is_empty(), "Vecs should be removed when they are empty");
-            let mut data = Vec::new();
-            for request in &mut *requests {
-                assert!(request.count > 0, "Count must be greater than 0");
-                request.count -= 1;
-                for command in &request.immediate_command_buffer.commands {
-                    match command {
-                        ImmediateCommand::Matrix(..) => {}
-                        ImmediateCommand::LineList(line_list) => data.extend_from_slice(line_list.positions()),
-                        ImmediateCommand::LineStrip(line_strip) => data.extend_from_slice(line_strip.positions()),
-                        ImmediateCommand::TriangleList(triangle_list) => data.extend_from_slice(triangle_list.positions()),
-                        ImmediateCommand::TriangleStrip(triangle_strip) => data.extend_from_slice(triangle_strip.positions()),
-                    }
-                }
-            }
-            let vertex_buffer = Arc::new(HostVisibleBuffer::new(
-                &self.device,
-                data.as_slice(),
-                BufferUsageFlags::VERTEX_BUFFER,
-                debug_info!("Immediate-VertexBuffer"),
-            )?);
-            command_buffer_builder.bind_vertex_buffers(0, &vertex_buffer);
-
-            // Append the draw commands
-            let mut first_vertex = 0;
-            let mut last_matrix = Matrix4::identity();
-            for immediate_command_buffer in &*requests {
-                let mut last_topology = None;
-                for command in &immediate_command_buffer.immediate_command_buffer.commands {
-                    match command {
-                        ImmediateCommand::Matrix(matrix) => last_matrix = *matrix,
-                        ImmediateCommand::LineList(line_list) => {
-                            if !matches!(last_topology, Some(Topology::LineList)) {
-                                command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_line_list);
-                                self.push_descriptors(&presenter, command_buffer_builder)?;
-                            }
-                            let push_constants = PushConstants {
-                                color: line_list.config().color,
-                                matrix: last_matrix,
-                            };
-                            command_buffer_builder.push_constants(&[push_constants])?;
-                            command_buffer_builder.set_line_width(line_list.config().line_width);
-                            command_buffer_builder.draw_vertices(line_list.positions().len() as u32, first_vertex as u32);
-                            first_vertex += line_list.positions().len();
-                            last_topology = Some(Topology::LineList);
-                        }
-                        ImmediateCommand::LineStrip(line_strip) => {
-                            if !matches!(last_topology, Some(Topology::LineStrip)) {
-                                command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_line_strip);
-                                self.push_descriptors(&presenter, command_buffer_builder)?;
-                            }
-                            let push_constants = PushConstants {
-                                color: line_strip.config().color,
-                                matrix: last_matrix,
-                            };
-                            command_buffer_builder.push_constants(&[push_constants])?;
-                            command_buffer_builder.set_line_width(line_strip.config().line_width);
-                            command_buffer_builder.draw_vertices(line_strip.positions().len() as u32, first_vertex as u32);
-                            first_vertex += line_strip.positions().len();
-                            last_topology = Some(Topology::LineStrip);
-                        }
-                        ImmediateCommand::TriangleList(triangle_list) => {
-                            if !matches!(last_topology, Some(Topology::TriangleList)) {
-                                command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_triangle_list);
-                                self.push_descriptors(&presenter, command_buffer_builder)?;
-                            }
-                            let push_constants = PushConstants {
-                                color: triangle_list.config().color,
-                                matrix: last_matrix,
-                            };
-                            command_buffer_builder.push_constants(&[push_constants])?;
-                            command_buffer_builder.draw_vertices(triangle_list.positions().len() as u32, first_vertex as u32);
-                            first_vertex += triangle_list.positions().len();
-                            last_topology = Some(Topology::TriangleList);
-                        }
-                        ImmediateCommand::TriangleStrip(triangle_strip) => {
-                            if !matches!(last_topology, Some(Topology::TriangleStrip)) {
-                                command_buffer_builder.bind_graphics_pipeline(&presenter.immediate_graphics_pipeline_triangle_strip);
-                                self.push_descriptors(&presenter, command_buffer_builder)?;
-                            }
-                            let push_constants = PushConstants {
-                                color: triangle_strip.config().color,
-                                matrix: last_matrix,
-                            };
-                            command_buffer_builder.push_constants(&[push_constants])?;
-                            command_buffer_builder.draw_vertices(triangle_strip.positions().len() as u32, first_vertex as u32);
-                            first_vertex += triangle_strip.positions().len();
-                            last_topology = Some(Topology::TriangleStrip);
-                        }
-                    }
-                }
-            }
-        }
         Ok(())
     }
 }
