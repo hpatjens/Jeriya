@@ -66,7 +66,6 @@ impl Backend for AshBackend {
             matches!(backend_config.validation_layer, ValidationLayerConfig::Enabled { .. }),
         )?;
 
-        // Validation Layer Callback
         let validation_layer_callback = match backend_config.validation_layer {
             ValidationLayerConfig::Disabled => {
                 info!("Skipping validation layer callback setup");
@@ -79,7 +78,6 @@ impl Backend for AshBackend {
             }
         };
 
-        // Surfaces
         let windows = windows.iter().map(|window| (window.id(), window)).collect::<HashMap<_, _>>();
         let surfaces = windows
             .iter()
@@ -90,22 +88,18 @@ impl Backend for AshBackend {
             })
             .collect::<core::Result<HashMap<WindowId, Arc<Surface>>>>()?;
 
-        // Physical Device
         info!("Creating PhysicalDevice");
         let physical_device = PhysicalDevice::new(&instance, surfaces.values())?;
 
-        // Device
         info!("Creating Device");
         let device = Device::new(physical_device, &instance)?;
         // Presentation Queue
         let presentation_queue = Queue::new(&device, QueueType::Presentation)?;
 
-        // Cameras
         info!("Creating Cameras");
         let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
         let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
 
-        // Presenters
         let presenters = surfaces
             .iter()
             .map(|(window_id, surface)| {
@@ -122,7 +116,6 @@ impl Backend for AshBackend {
             })
             .collect::<core::Result<HashMap<_, _>>>()?;
 
-        // CommandPool
         info!("Creating CommandPool");
         let command_pool = CommandPool::new(
             &device,
