@@ -118,6 +118,11 @@ impl<T> IndexingContainer<T> {
     pub fn free_count(&self) -> usize {
         self.free_list.len()
     }
+
+    /// Returns a slice containing all elements in the container.
+    pub fn as_slice(&self) -> &[T] {
+        &self.data
+    }
 }
 
 #[cfg(test)]
@@ -214,5 +219,18 @@ mod tests {
         drop(container);
 
         assert_eq!(counter.load(Ordering::SeqCst), 3);
+    }
+
+    #[test]
+    fn test_as_slice() {
+        let mut container = IndexingContainer::<usize>::new();
+        let handle = container.insert(7);
+        container.insert(8);
+        container.insert(9);
+        assert_eq!(container.as_slice(), &[7, 8, 9]);
+
+        // The removed element is set to the default value.
+        container.remove(&handle);
+        assert_eq!(container.as_slice(), &[0, 8, 9]);
     }
 }
