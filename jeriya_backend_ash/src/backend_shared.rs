@@ -29,11 +29,11 @@ impl BackendShared {
         let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
 
         // Presentation Queue
-        let presentation_queue = Queue::new(&device, QueueType::Presentation)?;
+        let presentation_queue = Queue::new(device, QueueType::Presentation)?;
 
         info!("Creating CommandPool");
         let command_pool = CommandPool::new(
-            &device,
+            device,
             &presentation_queue,
             CommandPoolCreateFlags::ResetCommandBuffer,
             debug_info!("preliminary-CommandPool"),

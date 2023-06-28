@@ -197,6 +197,7 @@ impl Camera {
     }
 }
 
+#[derive(Default)]
 pub struct EventQueue<T> {
     events: VecDeque<T>,
 }

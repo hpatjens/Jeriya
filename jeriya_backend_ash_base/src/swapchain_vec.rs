@@ -29,6 +29,7 @@ impl<T> SwapchainVec<T> {
     }
 
     /// Length of the `SwapchainVec<T>`. This is always the length of the swapchain.
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.data.len()
     }

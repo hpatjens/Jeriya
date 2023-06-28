@@ -65,7 +65,7 @@ impl Queue {
                 assert!(device.physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_count > 0);
                 let queue_family_index = device.physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_family_index;
                 let queue_index = 0;
-                unsafe { Ok(Queue::get_from_family(&device, queue_family_index, queue_index)) }
+                unsafe { Ok(Queue::get_from_family(device, queue_family_index, queue_index)) }
             }
         }
     }

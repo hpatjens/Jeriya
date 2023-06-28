@@ -26,7 +26,6 @@ impl<'a> PushDescriptorBuilder<'a> {
             buffer: *host_visible_buffer.as_raw_vulkan(),
             offset: 0,
             range: vk::WHOLE_SIZE,
-            ..Default::default()
         });
         let write_descriptor_set = vk::WriteDescriptorSet {
             // Not used for push descriptors
@@ -50,7 +49,6 @@ impl<'a> PushDescriptorBuilder<'a> {
             buffer: *host_visible_buffer.as_raw_vulkan(),
             offset: 0,
             range: vk::WHOLE_SIZE,
-            ..Default::default()
         });
         let write_descriptor_set = vk::WriteDescriptorSet {
             // Not used for push descriptors
@@ -84,7 +82,7 @@ impl PushDescriptors {
         &self.write_descriptor_sets
     }
 
-    pub fn builder<'layout>(descriptor_set: &'layout DescriptorSetLayout) -> PushDescriptorBuilder<'layout> {
+    pub fn builder(descriptor_set: &DescriptorSetLayout) -> PushDescriptorBuilder {
         PushDescriptorBuilder {
             descriptor_set,
             write_descriptor_sets: Vec::new(),

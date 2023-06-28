@@ -135,7 +135,7 @@ impl Backend for AshBackend {
 
         // Remove all ImmediateRenderingRequests that don't have to be rendered anymore
         let mut immediate_rendering_requests = self.backend_shared.immediate_rendering_requests.lock();
-        for (_window_id, immediate_rendering_requests) in &mut *immediate_rendering_requests {
+        for immediate_rendering_requests in immediate_rendering_requests.values_mut() {
             *immediate_rendering_requests = immediate_rendering_requests
                 .drain(..)
                 .filter(|immediate_rendering_request| immediate_rendering_request.count > 0)

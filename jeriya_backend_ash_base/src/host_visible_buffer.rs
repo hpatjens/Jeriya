@@ -13,7 +13,7 @@ pub struct HostVisibleBuffer<T> {
 impl<T: Clone> HostVisibleBuffer<T> {
     /// Creates a new [`HostVisibleBuffer`] with the given data and usage flags
     pub fn new(device: &Arc<Device>, data: &[T], usage: BufferUsageFlags, debug_info: DebugInfo) -> crate::Result<Self> {
-        assert!(data.len() > 0, "HostVisibleBuffer must have a non-zero size");
+        assert!(!data.is_empty(), "HostVisibleBuffer must have a non-zero size");
         let buffer = unsafe {
             let size = mem::size_of_val(data);
             let mut buffer = UnsafeBuffer::new(device, size, usage.into(), vk::SharingMode::EXCLUSIVE, debug_info)?;
@@ -41,6 +41,7 @@ impl<T: Clone> HostVisibleBuffer<T> {
     }
 
     /// Returns the underlying [`UnsafeBuffer`]
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.len
     }
@@ -54,7 +55,7 @@ impl<T: Clone> HostVisibleBuffer<T> {
 impl<T> AsRawVulkan for HostVisibleBuffer<T> {
     type Output = vk::Buffer;
     fn as_raw_vulkan(&self) -> &Self::Output {
-        &self.buffer.as_raw_vulkan()
+        self.buffer.as_raw_vulkan()
     }
 }
 

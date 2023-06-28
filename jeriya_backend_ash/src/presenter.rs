@@ -30,7 +30,7 @@ impl Presenter {
         let frame_index = self
             .presenter_shared
             .swapchain()
-            .acquire_next_image(&mut self.frame_index, &image_available_semaphore)?;
+            .acquire_next_image(&self.frame_index, &image_available_semaphore)?;
         self.start_frame(frame_index.clone());
         self.frames
             .get_mut(&self.frame_index())
@@ -44,7 +44,7 @@ impl Presenter {
         // Present
         self.presenter_shared.swapchain().present(
             &self.frame_index(),
-            &self.frames.get(&frame_index).rendering_complete_semaphores(),
+            self.frames.get(&frame_index).rendering_complete_semaphores(),
             &backend_shared.presentation_queue.borrow(),
         )?;
 

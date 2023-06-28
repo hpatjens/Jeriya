@@ -10,9 +10,9 @@ pub struct Handle<T> {
 impl<T> Clone for Handle<T> {
     fn clone(&self) -> Self {
         Self {
-            index: self.index.clone(),
-            generation: self.generation.clone(),
-            phantom_data: self.phantom_data.clone(),
+            index: self.index,
+            generation: self.generation,
+            phantom_data: self.phantom_data,
         }
     }
 }
@@ -110,6 +110,11 @@ impl<T> IndexingContainer<T> {
     /// Returns the number of elements in the container.
     pub fn len(&self) -> usize {
         self.data.len() - self.free_list.len()
+    }
+
+    /// Returns `true` if the container contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Returns the number of elements the container can hold without reallocating.

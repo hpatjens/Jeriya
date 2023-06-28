@@ -202,7 +202,8 @@ impl Swapchain {
         self._format
     }
 
-    #[allow(dead_code)]
+    /// Returns the number of images in the swapchain
+    #[allow(clippy::len_without_is_empty, dead_code)]
     pub fn len(&self) -> usize {
         self.images.len()
     }

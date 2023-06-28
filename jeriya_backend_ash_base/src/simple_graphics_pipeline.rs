@@ -100,7 +100,7 @@ impl SimpleGraphicsPipeline {
                 .push_storage_buffer::<Camera>(1, 1)
                 .build(device)?,
         );
-        let descriptor_set_layouts = [descriptor_set_layout.as_raw_vulkan().clone()];
+        let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];
 
         let push_constant_range = [vk::PushConstantRange::builder()
             .stage_flags(vk::ShaderStageFlags::ALL)

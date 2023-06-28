@@ -37,7 +37,7 @@ impl Frame {
         let rendering_complete_command_buffer = Vec::new();
         let per_frame_data_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
-            &vec![PerFrameData::default(); 1],
+            &[PerFrameData::default(); 1],
             BufferUsageFlags::UNIFORM_BUFFER,
             debug_info!(format!("PerFrameDataBuffer-for-Window{:?}", window_id)),
         )?;
@@ -120,7 +120,7 @@ impl Frame {
         let mut command_buffer_builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
         command_buffer_builder
             .begin_command_buffer_for_one_time_submit()?
-            .depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(&frame_index))?
+            .depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(frame_index))?
             .begin_render_pass(
                 presenter_shared.swapchain(),
                 presenter_shared.render_pass(),
@@ -150,7 +150,7 @@ impl Frame {
         // Insert into Queue
         backend_shared.presentation_queue.borrow_mut().submit_for_rendering_complete(
             command_buffer,
-            &image_available_semaphore,
+            image_available_semaphore,
             &main_rendering_complete_semaphore,
         )?;
 
@@ -195,7 +195,7 @@ impl Frame {
                 }
             }
             let vertex_buffer = Arc::new(HostVisibleBuffer::new(
-                &device,
+                device,
                 data.as_slice(),
                 BufferUsageFlags::VERTEX_BUFFER,
                 debug_info!("Immediate-VertexBuffer"),
@@ -213,7 +213,7 @@ impl Frame {
                         ImmediateCommand::LineList(line_list) => {
                             if !matches!(last_topology, Some(Topology::LineList)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_list);
-                                self.push_descriptors(&presenter_shared, command_buffer_builder)?;
+                                self.push_descriptors(presenter_shared, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: line_list.config().color,
@@ -228,7 +228,7 @@ impl Frame {
                         ImmediateCommand::LineStrip(line_strip) => {
                             if !matches!(last_topology, Some(Topology::LineStrip)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_strip);
-                                self.push_descriptors(&presenter_shared, command_buffer_builder)?;
+                                self.push_descriptors(presenter_shared, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: line_strip.config().color,
@@ -243,7 +243,7 @@ impl Frame {
                         ImmediateCommand::TriangleList(triangle_list) => {
                             if !matches!(last_topology, Some(Topology::TriangleList)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_list);
-                                self.push_descriptors(&presenter_shared, command_buffer_builder)?;
+                                self.push_descriptors(presenter_shared, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: triangle_list.config().color,
@@ -257,7 +257,7 @@ impl Frame {
                         ImmediateCommand::TriangleStrip(triangle_strip) => {
                             if !matches!(last_topology, Some(Topology::TriangleStrip)) {
                                 command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_strip);
-                                self.push_descriptors(&presenter_shared, command_buffer_builder)?;
+                                self.push_descriptors(presenter_shared, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: triangle_strip.config().color,
