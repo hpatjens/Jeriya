@@ -66,6 +66,11 @@ where
     pub fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> Result<()> {
         self.backend.set_active_camera(window_id, handle)
     }
+
+    /// Returns the active camera for the given window.
+    pub fn active_camera(&self, window_id: WindowId) -> Result<Handle<Camera>> {
+        self.backend.active_camera(window_id)
+    }
 }
 
 /// Builder type to create an instance of the [`Renderer`]

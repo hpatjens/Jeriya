@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, f32::consts::PI, sync::Arc};
+use std::{collections::VecDeque, sync::Arc};
 
 use derive_more::Constructor;
 use parking_lot::MutexGuard;
@@ -46,11 +46,13 @@ impl CameraProjection {
 
 impl Default for CameraProjection {
     fn default() -> Self {
-        Self::Perspective {
-            fov: PI / 2.0,
-            aspect: 1.0,
-            near: 0.1,
-            far: 10000.0,
+        Self::Orthographic {
+            left: -1.0,
+            right: 1.0,
+            bottom: 1.0,
+            top: -1.0,
+            near: 0.0,
+            far: 1.0,
         }
     }
 }

@@ -109,8 +109,6 @@ impl<T> IndexingContainer<T> {
 
     /// Returns the number of elements in the container.
     pub fn len(&self) -> usize {
-        dbg!(self.data.len());
-        dbg!(self.free_list.len());
         self.data.len() - self.free_list.len()
     }
 

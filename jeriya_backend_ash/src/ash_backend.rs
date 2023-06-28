@@ -221,6 +221,13 @@ impl Backend for AshBackend {
         presenter.borrow_mut().set_active_camera(handle);
         Ok(())
     }
+
+    fn active_camera(&self, window_id: WindowId) -> jeriya_shared::Result<Handle<Camera>> {
+        self.presenters
+            .get(&window_id)
+            .ok_or(jeriya_shared::Error::UnknownWindowId(window_id))
+            .map(|presenter| presenter.borrow().active_camera())
+    }
 }
 
 #[cfg(test)]

@@ -3,7 +3,7 @@ use jeriya_shared::nalgebra::Matrix4;
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct PerFrameData {
-    active_camera: u32,
+    pub active_camera: u32,
 }
 
 impl Default for PerFrameData {
@@ -15,9 +15,9 @@ impl Default for PerFrameData {
 #[derive(Debug, Clone)]
 #[repr(C)]
 pub struct Camera {
-    projection_matrix: Matrix4<f32>,
-    view_matrix: Matrix4<f32>,
-    matrix: Matrix4<f32>,
+    pub projection_matrix: Matrix4<f32>,
+    pub view_matrix: Matrix4<f32>,
+    pub matrix: Matrix4<f32>,
 }
 
 impl Default for Camera {

@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
+    iter,
     sync::Arc,
 };
 
@@ -163,6 +164,27 @@ impl Presenter {
             "There should only be one rendering complete semaphore"
         );
 
+        // Update Buffers
+        self.per_frame_data_buffer
+            .get_mut(&self.frame_index())
+            .set_memory_unaligned(&[PerFrameData {
+                active_camera: self.active_camera.index() as u32,
+            }])?;
+        self.cameras_buffer.get_mut(&self.frame_index()).set_memory_unaligned({
+            let cameras = shared_backend.cameras.lock();
+            let padding = shared_backend.renderer_config.maximum_number_of_cameras - cameras.len();
+            &cameras
+                .as_slice()
+                .iter()
+                .map(|camera| Camera {
+                    projection_matrix: camera.projection_matrix(),
+                    view_matrix: camera.view_matrix(),
+                    matrix: camera.matrix(),
+                })
+                .chain(iter::repeat(Camera::default()).take(padding))
+                .collect::<Vec<_>>()
+        })?;
+
         // Build CommandBuffer
         let mut command_buffer = CommandBuffer::new(
             &shared_backend.device,
@@ -241,6 +263,11 @@ impl Presenter {
     /// Sets the active camera
     pub fn set_active_camera(&mut self, handle: Handle<jeriya_shared::Camera>) {
         self.active_camera = handle;
+    }
+
+    /// Returns the active camera
+    pub fn active_camera(&self) -> Handle<jeriya_shared::Camera> {
+        self.active_camera.clone()
     }
 
     /// Returns the [`FrameIndex`] of the oldest frame in the history
