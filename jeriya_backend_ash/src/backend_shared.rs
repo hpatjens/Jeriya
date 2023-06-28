@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
 
-use jeriya_backend_ash_core::{
+use jeriya_backend_ash_base::{
     command_pool::{CommandPool, CommandPoolCreateFlags},
     device::Device,
     queue::{Queue, QueueType},

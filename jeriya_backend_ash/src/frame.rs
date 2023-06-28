@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::{iter, sync::Arc};
 
-use jeriya_backend_ash_core as core;
-use jeriya_backend_ash_core::{
+use jeriya_backend_ash_base as base;
+use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags,
     command_buffer::CommandBuffer,
     command_buffer_builder::CommandBufferBuilder,
@@ -31,7 +31,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn new(window_id: &WindowId, backend_shared: &BackendShared) -> core::Result<Self> {
+    pub fn new(window_id: &WindowId, backend_shared: &BackendShared) -> base::Result<Self> {
         let image_available_semaphore = None;
         let rendering_complete_semaphores = Vec::new();
         let rendering_complete_command_buffer = Vec::new();
@@ -158,7 +158,7 @@ impl Frame {
     }
 
     /// Pushes the required descriptors to the [`CommandBufferBuilder`].
-    fn push_descriptors(&self, presenter_shared: &PresenterShared, command_buffer_builder: &mut CommandBufferBuilder) -> core::Result<()> {
+    fn push_descriptors(&self, presenter_shared: &PresenterShared, command_buffer_builder: &mut CommandBufferBuilder) -> base::Result<()> {
         command_buffer_builder.push_descriptors_for_graphics(0, {
             &PushDescriptors::builder(&presenter_shared.simple_graphics_pipeline.descriptor_set_layout)
                 .push_uniform_buffer(0, &self.per_frame_data_buffer)
@@ -175,7 +175,7 @@ impl Frame {
         presenter_shared: &PresenterShared,
         command_buffer_builder: &mut CommandBufferBuilder,
         immediate_rendering_requests: &Mutex<HashMap<WindowId, Vec<ImmediateRenderingRequest>>>,
-    ) -> core::Result<()> {
+    ) -> base::Result<()> {
         let mut immediate_rendering_requests = immediate_rendering_requests.lock();
         if let Some(requests) = immediate_rendering_requests.get_mut(window_id) {
             // Collect vertex attributes for all immediate rendering requests

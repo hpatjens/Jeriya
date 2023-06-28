@@ -625,13 +625,13 @@ name = "jeriya_backend_ash"
 version = "0.1.0"
 dependencies = [
  "jeriya",
- "jeriya_backend_ash_core",
+ "jeriya_backend_ash_base",
  "jeriya_shared",
  "jeriya_test",
 ]
 
 [[package]]
-name = "jeriya_backend_ash_core"
+name = "jeriya_backend_ash_base"
 version = "0.1.0"
 dependencies = [
  "ash",

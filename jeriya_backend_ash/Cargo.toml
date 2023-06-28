@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-jeriya_backend_ash_core = { path = "../jeriya_backend_ash_core" }
+jeriya_backend_ash_base = { path = "../jeriya_backend_ash_base" }
 jeriya_test = { path = "../jeriya_test" }
 jeriya = { path = "../jeriya" }
 jeriya_shared = { path = "../jeriya_shared" }

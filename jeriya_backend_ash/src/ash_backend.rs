@@ -5,8 +5,8 @@ use crate::{
     backend_shared::BackendShared,
     presenter::Presenter,
 };
-use jeriya_backend_ash_core as core;
-use jeriya_backend_ash_core::{
+use jeriya_backend_ash_base as base;
+use jeriya_backend_ash_base::{
     debug::{set_panic_on_message, ValidationLayerCallback},
     device::Device,
     entry::Entry,
@@ -85,7 +85,7 @@ impl Backend for AshBackend {
                 let surface = Surface::new(&entry, &instance, window)?;
                 Ok((*window_id, surface))
             })
-            .collect::<core::Result<HashMap<WindowId, Arc<Surface>>>>()?;
+            .collect::<base::Result<HashMap<WindowId, Arc<Surface>>>>()?;
 
         info!("Creating PhysicalDevice");
         let physical_device = PhysicalDevice::new(&instance, surfaces.values())?;
@@ -118,7 +118,7 @@ impl Backend for AshBackend {
         let mut presenter = self
             .presenters
             .get(&window_id)
-            .ok_or_else(|| core::Error::UnknownWindowId(window_id))?
+            .ok_or_else(|| base::Error::UnknownWindowId(window_id))?
             .borrow_mut();
         presenter.recreate()?;
         Ok(())

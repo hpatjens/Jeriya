@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use jeriya_backend_ash_core as core;
-use jeriya_backend_ash_core::{
+use jeriya_backend_ash_base as base;
+use jeriya_backend_ash_base::{
     device::Device, immediate_graphics_pipeline::ImmediateGraphicsPipeline, immediate_graphics_pipeline::Topology,
     simple_graphics_pipeline::SimpleGraphicsPipeline, surface::Surface, swapchain::Swapchain,
     swapchain_depth_buffer::SwapchainDepthBuffers, swapchain_framebuffers::SwapchainFramebuffers,
@@ -106,7 +106,7 @@ impl PresenterShared {
     }
 
     /// Creates the swapchain and all state that depends on it
-    pub fn recreate(&mut self) -> core::Result<()> {
+    pub fn recreate(&mut self) -> base::Result<()> {
         self.device.wait_for_idle()?;
         self.swapchain = Swapchain::new(&self.device, &self.surface, self.desired_swapchain_length, Some(&self.swapchain))?;
         self.swapchain_depth_buffers = SwapchainDepthBuffers::new(&self.device, &self.swapchain)?;
@@ -146,7 +146,7 @@ mod tests {
     mod new {
         use std::{iter, sync::Arc};
 
-        use jeriya_backend_ash_core::{
+        use jeriya_backend_ash_base::{
             device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface,
         };
         use jeriya_shared::RendererConfig;

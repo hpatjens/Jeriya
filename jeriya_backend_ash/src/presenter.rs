@@ -1,8 +1,8 @@
 use std::{collections::VecDeque, sync::Arc};
 
 use crate::{backend_shared::BackendShared, frame::Frame, presenter_shared::PresenterShared};
-use jeriya_backend_ash_core as core;
-use jeriya_backend_ash_core::{frame_index::FrameIndex, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
+use jeriya_backend_ash_base as base;
+use jeriya_backend_ash_base::{frame_index::FrameIndex, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_shared::{debug_info, winit::window::WindowId, Handle};
 
 pub struct Presenter {
@@ -52,7 +52,7 @@ impl Presenter {
     }
 
     /// Recreates the [`PresenterShared`] in case of a swapchain resize
-    pub fn recreate(&mut self) -> core::Result<()> {
+    pub fn recreate(&mut self) -> base::Result<()> {
         self.presenter_shared.recreate()
     }
 
