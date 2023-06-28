@@ -2,7 +2,7 @@
 
 mod ash_backend;
 mod ash_immediate;
-mod ash_shared_backend;
+mod backend_shared;
 mod frame;
 mod presenter;
 mod presenter_resources;

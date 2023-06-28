@@ -9,7 +9,7 @@ use jeriya_backend_ash_core::{
 };
 use jeriya_shared::{debug_info, winit::window::WindowId, CameraContainerGuard, Handle};
 
-use crate::ash_shared_backend::AshSharedBackend;
+use crate::backend_shared::BackendShared;
 
 /// All the state that is required for presenting to the [`Surface`]
 pub struct PresenterResources {
@@ -30,60 +30,60 @@ pub struct PresenterResources {
 
 impl PresenterResources {
     /// Creates a new `Presenter` for the [`Surface`]
-    pub fn new(window_id: &WindowId, shared_backend: &AshSharedBackend, surface: &Arc<Surface>) -> jeriya_shared::Result<Self> {
-        let desired_swapchain_length = shared_backend.renderer_config.default_desired_swapchain_length;
-        let swapchain = Swapchain::new(&shared_backend.device, surface, desired_swapchain_length, None)?;
-        let swapchain_depth_buffers = SwapchainDepthBuffers::new(&shared_backend.device, &swapchain)?;
-        let swapchain_render_pass = SwapchainRenderPass::new(&shared_backend.device, &swapchain)?;
+    pub fn new(window_id: &WindowId, backend_shared: &BackendShared, surface: &Arc<Surface>) -> jeriya_shared::Result<Self> {
+        let desired_swapchain_length = backend_shared.renderer_config.default_desired_swapchain_length;
+        let swapchain = Swapchain::new(&backend_shared.device, surface, desired_swapchain_length, None)?;
+        let swapchain_depth_buffers = SwapchainDepthBuffers::new(&backend_shared.device, &swapchain)?;
+        let swapchain_render_pass = SwapchainRenderPass::new(&backend_shared.device, &swapchain)?;
         let swapchain_framebuffers =
-            SwapchainFramebuffers::new(&shared_backend.device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
+            SwapchainFramebuffers::new(&backend_shared.device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
 
         // Graphics Pipeline
         let simple_graphics_pipeline = SimpleGraphicsPipeline::new(
-            &shared_backend.device,
+            &backend_shared.device,
             &swapchain_render_pass,
             &swapchain,
-            &shared_backend.renderer_config,
+            &backend_shared.renderer_config,
             debug_info!(format!("SimpleGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
         let immediate_graphics_pipeline_line_list = ImmediateGraphicsPipeline::new(
-            &shared_backend.device,
+            &backend_shared.device,
             &swapchain_render_pass,
             &swapchain,
             Topology::LineList,
-            &shared_backend.renderer_config,
+            &backend_shared.renderer_config,
             debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
         let immediate_graphics_pipeline_line_strip = ImmediateGraphicsPipeline::new(
-            &shared_backend.device,
+            &backend_shared.device,
             &swapchain_render_pass,
             &swapchain,
             Topology::LineStrip,
-            &shared_backend.renderer_config,
+            &backend_shared.renderer_config,
             debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
         let immediate_graphics_pipeline_triangle_list = ImmediateGraphicsPipeline::new(
-            &shared_backend.device,
+            &backend_shared.device,
             &swapchain_render_pass,
             &swapchain,
             Topology::TriangleList,
-            &shared_backend.renderer_config,
+            &backend_shared.renderer_config,
             debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
         let immediate_graphics_pipeline_triangle_strip = ImmediateGraphicsPipeline::new(
-            &shared_backend.device,
+            &backend_shared.device,
             &swapchain_render_pass,
             &swapchain,
             Topology::TriangleStrip,
-            &shared_backend.renderer_config,
+            &backend_shared.renderer_config,
             debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
 
         // Create a camera for this window
         let mut guard = CameraContainerGuard::new(
-            shared_backend.camera_event_queue.lock(),
-            shared_backend.cameras.lock(),
-            shared_backend.renderer_config.clone(),
+            backend_shared.camera_event_queue.lock(),
+            backend_shared.cameras.lock(),
+            backend_shared.renderer_config.clone(),
         );
         let active_camera = guard.insert(jeriya_shared::Camera::default())?;
         drop(guard);
@@ -100,7 +100,7 @@ impl PresenterResources {
             immediate_graphics_pipeline_line_strip,
             immediate_graphics_pipeline_triangle_list,
             immediate_graphics_pipeline_triangle_strip,
-            device: shared_backend.device.clone(),
+            device: backend_shared.device.clone(),
             active_camera,
         })
     }
@@ -152,7 +152,7 @@ mod tests {
         use jeriya_shared::RendererConfig;
         use jeriya_test::create_window;
 
-        use crate::{ash_shared_backend::AshSharedBackend, presenter_resources::PresenterResources};
+        use crate::{backend_shared::BackendShared, presenter_resources::PresenterResources};
 
         #[test]
         fn smoke() {
@@ -162,8 +162,8 @@ mod tests {
             let surface = Surface::new(&entry, &instance, &window).unwrap();
             let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
-            let shared_backend = AshSharedBackend::new(&device, &Arc::new(RendererConfig::default())).unwrap();
-            let _presenter = PresenterResources::new(&window.id(), &shared_backend, &surface).unwrap();
+            let backend_shared = BackendShared::new(&device, &Arc::new(RendererConfig::default())).unwrap();
+            let _presenter = PresenterResources::new(&window.id(), &backend_shared, &surface).unwrap();
         }
     }
 }

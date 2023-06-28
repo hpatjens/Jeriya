@@ -20,7 +20,7 @@ use jeriya_shared::{debug_info, winit::window::WindowId};
 
 use crate::ash_immediate::ImmediateCommand;
 use crate::ImmediateRenderingRequest;
-use crate::{ash_shared_backend::AshSharedBackend, presenter_resources::PresenterResources};
+use crate::{backend_shared::BackendShared, presenter_resources::PresenterResources};
 
 pub struct Frame {
     image_available_semaphore: Option<Arc<Semaphore>>,
@@ -31,19 +31,19 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn new(window_id: &WindowId, shared_backend: &AshSharedBackend) -> core::Result<Self> {
+    pub fn new(window_id: &WindowId, backend_shared: &BackendShared) -> core::Result<Self> {
         let image_available_semaphore = None;
         let rendering_complete_semaphores = Vec::new();
         let rendering_complete_command_buffer = Vec::new();
         let per_frame_data_buffer = HostVisibleBuffer::new(
-            &shared_backend.device,
+            &backend_shared.device,
             &vec![PerFrameData::default(); 1],
             BufferUsageFlags::UNIFORM_BUFFER,
             debug_info!(format!("PerFrameDataBuffer-for-Window{:?}", window_id)),
         )?;
         let cameras_buffer = HostVisibleBuffer::new(
-            &shared_backend.device,
-            &vec![Camera::default(); shared_backend.renderer_config.maximum_number_of_cameras],
+            &backend_shared.device,
+            &vec![Camera::default(); backend_shared.renderer_config.maximum_number_of_cameras],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),
         )?;
@@ -70,7 +70,7 @@ impl Frame {
         &mut self,
         frame_index: &FrameIndex,
         window_id: &WindowId,
-        shared_backend: &AshSharedBackend,
+        backend_shared: &BackendShared,
         presenter_resources: &PresenterResources,
     ) -> jeriya_shared::Result<()> {
         // Wait for the previous work for the currently occupied frame to finish
@@ -81,7 +81,7 @@ impl Frame {
 
         // Prepare rendering complete semaphore
         let main_rendering_complete_semaphore = Arc::new(Semaphore::new(
-            &shared_backend.device,
+            &backend_shared.device,
             debug_info!("main-CommandBuffer-rendering-complete-Semaphore"),
         )?);
         self.rendering_complete_semaphores.clear();
@@ -97,8 +97,8 @@ impl Frame {
             active_camera: presenter_resources.active_camera.index() as u32,
         }])?;
         self.cameras_buffer.set_memory_unaligned({
-            let cameras = shared_backend.cameras.lock();
-            let padding = shared_backend.renderer_config.maximum_number_of_cameras - cameras.len();
+            let cameras = backend_shared.cameras.lock();
+            let padding = backend_shared.renderer_config.maximum_number_of_cameras - cameras.len();
             &cameras
                 .as_slice()
                 .iter()
@@ -113,11 +113,11 @@ impl Frame {
 
         // Build CommandBuffer
         let mut command_buffer = CommandBuffer::new(
-            &shared_backend.device,
-            &shared_backend.command_pool,
+            &backend_shared.device,
+            &backend_shared.command_pool,
             debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
         )?;
-        let mut command_buffer_builder = CommandBufferBuilder::new(&shared_backend.device, &mut command_buffer)?;
+        let mut command_buffer_builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
         command_buffer_builder
             .begin_command_buffer_for_one_time_submit()?
             .depth_pipeline_barrier(presenter_resources.depth_buffers().depth_buffers.get(&frame_index))?
@@ -129,11 +129,11 @@ impl Frame {
             .bind_graphics_pipeline(&presenter_resources.simple_graphics_pipeline);
         self.push_descriptors(presenter_resources, &mut command_buffer_builder)?;
         self.append_immediate_rendering_commands(
-            &shared_backend.device,
+            &backend_shared.device,
             window_id,
             presenter_resources,
             &mut command_buffer_builder,
-            &shared_backend.immediate_rendering_requests,
+            &backend_shared.immediate_rendering_requests,
         )?;
         command_buffer_builder.end_render_pass()?.end_command_buffer()?;
 
@@ -148,7 +148,7 @@ impl Frame {
             .expect("not image available semaphore assigned for the frame");
 
         // Insert into Queue
-        shared_backend.presentation_queue.borrow_mut().submit_for_rendering_complete(
+        backend_shared.presentation_queue.borrow_mut().submit_for_rendering_complete(
             command_buffer,
             &image_available_semaphore,
             &main_rendering_complete_semaphore,

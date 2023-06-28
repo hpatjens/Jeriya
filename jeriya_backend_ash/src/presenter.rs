@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, sync::Arc};
 
-use crate::{ash_shared_backend::AshSharedBackend, frame::Frame, presenter_resources::PresenterResources};
+use crate::{backend_shared::BackendShared, frame::Frame, presenter_resources::PresenterResources};
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{frame_index::FrameIndex, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_shared::{debug_info, winit::window::WindowId, Handle};
@@ -13,9 +13,9 @@ pub struct Presenter {
 }
 
 impl Presenter {
-    pub fn new(window_id: &WindowId, surface: &Arc<Surface>, shared_backend: &AshSharedBackend) -> jeriya_shared::Result<Self> {
-        let presenter_resources = PresenterResources::new(window_id, shared_backend, surface)?;
-        let frames = SwapchainVec::new(presenter_resources.swapchain(), |_| Frame::new(window_id, shared_backend))?;
+    pub fn new(window_id: &WindowId, surface: &Arc<Surface>, backend_shared: &BackendShared) -> jeriya_shared::Result<Self> {
+        let presenter_resources = PresenterResources::new(window_id, backend_shared, surface)?;
+        let frames = SwapchainVec::new(presenter_resources.swapchain(), |_| Frame::new(window_id, backend_shared))?;
         Ok(Self {
             frame_index: FrameIndex::new(),
             presenter_resources,
@@ -24,9 +24,9 @@ impl Presenter {
         })
     }
 
-    pub fn render_frame(&mut self, window_id: &WindowId, shared_backend: &AshSharedBackend) -> jeriya_shared::Result<()> {
+    pub fn render_frame(&mut self, window_id: &WindowId, backend_shared: &BackendShared) -> jeriya_shared::Result<()> {
         // Acquire the next swapchain index and set the frame index
-        let image_available_semaphore = Arc::new(Semaphore::new(&shared_backend.device, debug_info!("image-available-Semaphore"))?);
+        let image_available_semaphore = Arc::new(Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?);
         let frame_index = self
             .presenter_resources
             .swapchain()
@@ -39,13 +39,13 @@ impl Presenter {
         // Render the frames
         self.frames
             .get_mut(&self.frame_index)
-            .render_frame(&self.frame_index, window_id, shared_backend, &self.presenter_resources)?;
+            .render_frame(&self.frame_index, window_id, backend_shared, &self.presenter_resources)?;
 
         // Present
         self.presenter_resources.swapchain().present(
             &self.frame_index(),
             &self.frames.get(&frame_index).rendering_complete_semaphores(),
-            &shared_backend.presentation_queue.borrow(),
+            &backend_shared.presentation_queue.borrow(),
         )?;
 
         Ok(())

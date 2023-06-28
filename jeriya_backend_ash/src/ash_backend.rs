@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use crate::{
     ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler},
-    ash_shared_backend::AshSharedBackend,
+    backend_shared::BackendShared,
     presenter::Presenter,
 };
 use jeriya_backend_ash_core as core;
@@ -34,7 +34,7 @@ pub struct AshBackend {
     _validation_layer_callback: Option<ValidationLayerCallback>,
     _instance: Arc<Instance>,
     _entry: Arc<Entry>,
-    shared_backend: AshSharedBackend,
+    backend_shared: BackendShared,
 }
 
 impl Backend for AshBackend {
@@ -93,13 +93,13 @@ impl Backend for AshBackend {
         info!("Creating Device");
         let device = Device::new(physical_device, &instance)?;
 
-        let shared_backend = AshSharedBackend::new(&device, &Arc::new(renderer_config))?;
+        let backend_shared = BackendShared::new(&device, &Arc::new(renderer_config))?;
 
         let presenters = surfaces
             .iter()
             .map(|(window_id, surface)| {
                 info!("Creating presenter for window {window_id:?}");
-                let presenter = Presenter::new(window_id, surface, &shared_backend)?;
+                let presenter = Presenter::new(window_id, surface, &backend_shared)?;
                 Ok((*window_id, RefCell::new(presenter)))
             })
             .collect::<jeriya_shared::Result<HashMap<_, _>>>()?;
@@ -110,7 +110,7 @@ impl Backend for AshBackend {
             _surfaces: surfaces,
             _validation_layer_callback: validation_layer_callback,
             presenters,
-            shared_backend,
+            backend_shared,
         })
     }
 
@@ -125,16 +125,16 @@ impl Backend for AshBackend {
     }
 
     fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
-        self.shared_backend.presentation_queue.borrow_mut().update()?;
+        self.backend_shared.presentation_queue.borrow_mut().update()?;
 
         // Render on all surfaces
         for (window_id, presenter) in &self.presenters {
             let presenter = &mut *presenter.borrow_mut();
-            presenter.render_frame(window_id, &self.shared_backend)?;
+            presenter.render_frame(window_id, &self.backend_shared)?;
         }
 
         // Remove all ImmediateRenderingRequests that don't have to be rendered anymore
-        let mut immediate_rendering_requests = self.shared_backend.immediate_rendering_requests.lock();
+        let mut immediate_rendering_requests = self.backend_shared.immediate_rendering_requests.lock();
         for (_window_id, immediate_rendering_requests) in &mut *immediate_rendering_requests {
             *immediate_rendering_requests = immediate_rendering_requests
                 .drain(..)
@@ -158,7 +158,7 @@ impl Backend for AshBackend {
     }
 
     fn render_immediate_command_buffer(&self, command_buffer: Arc<immediate::CommandBuffer<Self>>) -> jeriya_shared::Result<()> {
-        let mut guard = self.shared_backend.immediate_rendering_requests.lock();
+        let mut guard = self.backend_shared.immediate_rendering_requests.lock();
         for window_id in self.presenters.keys() {
             let immediate_rendering_request = ImmediateRenderingRequest {
                 immediate_command_buffer: AshImmediateCommandBufferHandler {
@@ -181,9 +181,9 @@ impl Backend for AshBackend {
 
     fn cameras(&self) -> CameraContainerGuard {
         CameraContainerGuard::new(
-            self.shared_backend.camera_event_queue.lock(),
-            self.shared_backend.cameras.lock(),
-            self.shared_backend.renderer_config.clone(),
+            self.backend_shared.camera_event_queue.lock(),
+            self.backend_shared.cameras.lock(),
+            self.backend_shared.renderer_config.clone(),
         )
     }
 

@@ -12,7 +12,7 @@ use jeriya_shared::{
 use crate::ImmediateRenderingRequest;
 
 /// Elements of the backend that are shared between all [`Presenter`]s.
-pub struct AshSharedBackend {
+pub struct BackendShared {
     pub device: Arc<Device>,
     pub renderer_config: Arc<RendererConfig>,
     pub presentation_queue: RefCell<Queue>,
@@ -22,7 +22,7 @@ pub struct AshSharedBackend {
     pub camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
 }
 
-impl AshSharedBackend {
+impl BackendShared {
     pub fn new(device: &Arc<Device>, renderer_config: &Arc<RendererConfig>) -> jeriya_shared::Result<Self> {
         info!("Creating Cameras");
         let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
