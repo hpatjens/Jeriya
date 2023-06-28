@@ -12,7 +12,7 @@ use jeriya_shared::{debug_info, winit::window::WindowId, CameraContainerGuard, H
 use crate::backend_shared::BackendShared;
 
 /// All the state that is required for presenting to the [`Surface`]
-pub struct PresenterResources {
+pub struct PresenterShared {
     pub desired_swapchain_length: u32,
     pub surface: Arc<Surface>,
     pub swapchain: Swapchain,
@@ -28,7 +28,7 @@ pub struct PresenterResources {
     pub device: Arc<Device>,
 }
 
-impl PresenterResources {
+impl PresenterShared {
     /// Creates a new `Presenter` for the [`Surface`]
     pub fn new(window_id: &WindowId, backend_shared: &BackendShared, surface: &Arc<Surface>) -> jeriya_shared::Result<Self> {
         let desired_swapchain_length = backend_shared.renderer_config.default_desired_swapchain_length;
@@ -152,7 +152,7 @@ mod tests {
         use jeriya_shared::RendererConfig;
         use jeriya_test::create_window;
 
-        use crate::{backend_shared::BackendShared, presenter_resources::PresenterResources};
+        use crate::{backend_shared::BackendShared, presenter_shared::PresenterShared};
 
         #[test]
         fn smoke() {
@@ -163,7 +163,7 @@ mod tests {
             let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
             let device = Device::new(physical_device, &instance).unwrap();
             let backend_shared = BackendShared::new(&device, &Arc::new(RendererConfig::default())).unwrap();
-            let _presenter = PresenterResources::new(&window.id(), &backend_shared, &surface).unwrap();
+            let _presenter = PresenterShared::new(&window.id(), &backend_shared, &surface).unwrap();
         }
     }
 }

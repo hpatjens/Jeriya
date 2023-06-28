@@ -20,7 +20,7 @@ use jeriya_shared::{debug_info, winit::window::WindowId};
 
 use crate::ash_immediate::ImmediateCommand;
 use crate::ImmediateRenderingRequest;
-use crate::{backend_shared::BackendShared, presenter_resources::PresenterResources};
+use crate::{backend_shared::BackendShared, presenter_shared::PresenterShared};
 
 pub struct Frame {
     image_available_semaphore: Option<Arc<Semaphore>>,
@@ -71,7 +71,7 @@ impl Frame {
         frame_index: &FrameIndex,
         window_id: &WindowId,
         backend_shared: &BackendShared,
-        presenter_resources: &PresenterResources,
+        presenter_shared: &PresenterShared,
     ) -> jeriya_shared::Result<()> {
         // Wait for the previous work for the currently occupied frame to finish
         for command_buffer in &self.rendering_complete_command_buffers {
@@ -94,7 +94,7 @@ impl Frame {
 
         // Update Buffers
         self.per_frame_data_buffer.set_memory_unaligned(&[PerFrameData {
-            active_camera: presenter_resources.active_camera.index() as u32,
+            active_camera: presenter_shared.active_camera.index() as u32,
         }])?;
         self.cameras_buffer.set_memory_unaligned({
             let cameras = backend_shared.cameras.lock();
@@ -120,18 +120,18 @@ impl Frame {
         let mut command_buffer_builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
         command_buffer_builder
             .begin_command_buffer_for_one_time_submit()?
-            .depth_pipeline_barrier(presenter_resources.depth_buffers().depth_buffers.get(&frame_index))?
+            .depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(&frame_index))?
             .begin_render_pass(
-                presenter_resources.swapchain(),
-                presenter_resources.render_pass(),
-                (presenter_resources.framebuffers(), frame_index.swapchain_index()),
+                presenter_shared.swapchain(),
+                presenter_shared.render_pass(),
+                (presenter_shared.framebuffers(), frame_index.swapchain_index()),
             )?
-            .bind_graphics_pipeline(&presenter_resources.simple_graphics_pipeline);
-        self.push_descriptors(presenter_resources, &mut command_buffer_builder)?;
+            .bind_graphics_pipeline(&presenter_shared.simple_graphics_pipeline);
+        self.push_descriptors(presenter_shared, &mut command_buffer_builder)?;
         self.append_immediate_rendering_commands(
             &backend_shared.device,
             window_id,
-            presenter_resources,
+            presenter_shared,
             &mut command_buffer_builder,
             &backend_shared.immediate_rendering_requests,
         )?;
@@ -158,13 +158,9 @@ impl Frame {
     }
 
     /// Pushes the required descriptors to the [`CommandBufferBuilder`].
-    fn push_descriptors(
-        &self,
-        presenter_resources: &PresenterResources,
-        command_buffer_builder: &mut CommandBufferBuilder,
-    ) -> core::Result<()> {
+    fn push_descriptors(&self, presenter_shared: &PresenterShared, command_buffer_builder: &mut CommandBufferBuilder) -> core::Result<()> {
         command_buffer_builder.push_descriptors_for_graphics(0, {
-            &PushDescriptors::builder(&presenter_resources.simple_graphics_pipeline.descriptor_set_layout)
+            &PushDescriptors::builder(&presenter_shared.simple_graphics_pipeline.descriptor_set_layout)
                 .push_uniform_buffer(0, &self.per_frame_data_buffer)
                 .push_storage_buffer(1, &self.cameras_buffer)
                 .build()
@@ -176,7 +172,7 @@ impl Frame {
         &self,
         device: &Arc<Device>,
         window_id: &WindowId,
-        presenter_resources: &PresenterResources,
+        presenter_shared: &PresenterShared,
         command_buffer_builder: &mut CommandBufferBuilder,
         immediate_rendering_requests: &Mutex<HashMap<WindowId, Vec<ImmediateRenderingRequest>>>,
     ) -> core::Result<()> {
@@ -216,8 +212,8 @@ impl Frame {
                         ImmediateCommand::Matrix(matrix) => last_matrix = *matrix,
                         ImmediateCommand::LineList(line_list) => {
                             if !matches!(last_topology, Some(Topology::LineList)) {
-                                command_buffer_builder.bind_graphics_pipeline(&presenter_resources.immediate_graphics_pipeline_line_list);
-                                self.push_descriptors(&presenter_resources, command_buffer_builder)?;
+                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_list);
+                                self.push_descriptors(&presenter_shared, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: line_list.config().color,
@@ -231,8 +227,8 @@ impl Frame {
                         }
                         ImmediateCommand::LineStrip(line_strip) => {
                             if !matches!(last_topology, Some(Topology::LineStrip)) {
-                                command_buffer_builder.bind_graphics_pipeline(&presenter_resources.immediate_graphics_pipeline_line_strip);
-                                self.push_descriptors(&presenter_resources, command_buffer_builder)?;
+                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_strip);
+                                self.push_descriptors(&presenter_shared, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: line_strip.config().color,
@@ -246,9 +242,8 @@ impl Frame {
                         }
                         ImmediateCommand::TriangleList(triangle_list) => {
                             if !matches!(last_topology, Some(Topology::TriangleList)) {
-                                command_buffer_builder
-                                    .bind_graphics_pipeline(&presenter_resources.immediate_graphics_pipeline_triangle_list);
-                                self.push_descriptors(&presenter_resources, command_buffer_builder)?;
+                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_list);
+                                self.push_descriptors(&presenter_shared, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: triangle_list.config().color,
@@ -261,9 +256,8 @@ impl Frame {
                         }
                         ImmediateCommand::TriangleStrip(triangle_strip) => {
                             if !matches!(last_topology, Some(Topology::TriangleStrip)) {
-                                command_buffer_builder
-                                    .bind_graphics_pipeline(&presenter_resources.immediate_graphics_pipeline_triangle_strip);
-                                self.push_descriptors(&presenter_resources, command_buffer_builder)?;
+                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_strip);
+                                self.push_descriptors(&presenter_shared, command_buffer_builder)?;
                             }
                             let push_constants = PushConstants {
                                 color: triangle_strip.config().color,
