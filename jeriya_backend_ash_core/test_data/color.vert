@@ -15,13 +15,10 @@ struct Camera {
     mat4 matrix;
 };
 
-layout (set = 0, binding = 0) uniform PerFrameData {
-    mat4 projection_matrix;
-    mat4 view_matrix;
-    mat4 matrix;
-    Camera cameras[MAX_CAMERAS];
-} per_frame_data;
+layout (set = 0, binding = 0) uniform PerFrameData { uint active_camera; } per_frame_data;
+layout (set = 0, binding = 1) uniform Cameras { Camera cameras[MAX_CAMERAS]; } cameras;
 
 void main() {
-    gl_Position = per_frame_data.matrix * vec4(inPosition, 1.0);
+    mat4 matrix = cameras.cameras[per_frame_data.active_camera].matrix;
+    gl_Position = matrix * vec4(inPosition, 1.0);
 }

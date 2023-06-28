@@ -12,15 +12,15 @@ use jeriya_backend_ash_core::{
     buffer::BufferUsageFlags, command_buffer::CommandBuffer, command_buffer_builder::CommandBufferBuilder, device::Device,
     frame_index::FrameIndex, host_visible_buffer::HostVisibleBuffer, immediate_graphics_pipeline::ImmediateGraphicsPipeline,
     immediate_graphics_pipeline::PushConstants, immediate_graphics_pipeline::Topology, push_descriptors::PushDescriptors,
-    semaphore::Semaphore, shader_interface::PerFrameData, simple_graphics_pipeline::SimpleGraphicsPipeline, surface::Surface,
-    swapchain_vec::SwapchainVec,
+    semaphore::Semaphore, shader_interface::Camera, shader_interface::PerFrameData, simple_graphics_pipeline::SimpleGraphicsPipeline,
+    surface::Surface, swapchain_vec::SwapchainVec,
 };
-use jeriya_shared::{debug_info, nalgebra::Matrix4, parking_lot::Mutex, winit::window::WindowId, Camera, CameraContainerGuard, Handle};
+use jeriya_shared::{debug_info, nalgebra::Matrix4, parking_lot::Mutex, winit::window::WindowId, CameraContainerGuard, Handle};
 
 pub struct Presenter {
     frame_index: FrameIndex,
     frame_index_history: VecDeque<FrameIndex>,
-    active_camera: Handle<Camera>,
+    active_camera: Handle<jeriya_shared::Camera>,
     presenter_resources: PresenterResources,
     image_available_semaphore: SwapchainVec<Option<Arc<Semaphore>>>,
     rendering_complete_semaphores: SwapchainVec<Vec<Arc<Semaphore>>>,
@@ -30,7 +30,8 @@ pub struct Presenter {
     immediate_graphics_pipeline_line_strip: ImmediateGraphicsPipeline,
     immediate_graphics_pipeline_triangle_list: ImmediateGraphicsPipeline,
     immediate_graphics_pipeline_triangle_strip: ImmediateGraphicsPipeline,
-    cameras_buffer: SwapchainVec<HostVisibleBuffer<PerFrameData>>,
+    per_frame_data_buffer: SwapchainVec<HostVisibleBuffer<PerFrameData>>,
+    cameras_buffer: SwapchainVec<HostVisibleBuffer<Camera>>,
 }
 
 impl Presenter {
@@ -92,13 +93,22 @@ impl Presenter {
             shared_backend.cameras.lock(),
             shared_backend.renderer_config.clone(),
         );
-        let active_camera = guard.insert(Camera::default())?;
+        let active_camera = guard.insert(jeriya_shared::Camera::default())?;
         drop(guard);
+
+        let per_frame_data_buffer = SwapchainVec::new(presenter_resources.swapchain(), |_| {
+            Ok(HostVisibleBuffer::new(
+                &shared_backend.device,
+                &vec![PerFrameData::default(); 1],
+                BufferUsageFlags::UNIFORM_BUFFER,
+                debug_info!(format!("PerFrameDataBuffer-for-Window{:?}", window_id)),
+            )?)
+        })?;
 
         let cameras_buffer = SwapchainVec::new(presenter_resources.swapchain(), |_| {
             Ok(HostVisibleBuffer::new(
                 &shared_backend.device,
-                &vec![PerFrameData::default(); 1],
+                &vec![Camera::default(); shared_backend.renderer_config.maximum_number_of_cameras],
                 BufferUsageFlags::UNIFORM_BUFFER,
                 debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),
             )?)
@@ -116,8 +126,9 @@ impl Presenter {
             immediate_graphics_pipeline_line_strip,
             immediate_graphics_pipeline_triangle_list,
             immediate_graphics_pipeline_triangle_strip,
-            cameras_buffer,
+            per_frame_data_buffer,
             active_camera,
+            cameras_buffer,
         })
     }
 
@@ -228,7 +239,7 @@ impl Presenter {
     }
 
     /// Sets the active camera
-    pub fn set_active_camera(&mut self, handle: Handle<Camera>) {
+    pub fn set_active_camera(&mut self, handle: Handle<jeriya_shared::Camera>) {
         self.active_camera = handle;
     }
 
@@ -241,9 +252,9 @@ impl Presenter {
     /// Pushes the required descriptors to the [`CommandBufferBuilder`].
     fn push_descriptors(&self, presenter: &Presenter, command_buffer_builder: &mut CommandBufferBuilder) -> core::Result<()> {
         command_buffer_builder.push_descriptors_for_graphics(0, {
-            let cameras_buffer = presenter.cameras_buffer.get(&presenter.frame_index());
             &PushDescriptors::builder(&presenter.simple_graphics_pipeline.descriptor_set_layout)
-                .push_uniform_buffer(0, cameras_buffer)
+                .push_uniform_buffer(0, presenter.per_frame_data_buffer.get(&presenter.frame_index()))
+                .push_uniform_buffer(1, presenter.cameras_buffer.get(&presenter.frame_index()))
                 .build()
         })?;
         Ok(())

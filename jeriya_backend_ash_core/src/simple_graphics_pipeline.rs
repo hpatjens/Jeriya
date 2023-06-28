@@ -7,8 +7,14 @@ use jeriya_shared::{
 use std::{ffi::CString, io::Cursor, mem, sync::Arc};
 
 use crate::{
-    descriptor_set_layout::DescriptorSetLayout, device::Device, graphics_pipeline::GraphicsPipeline, shader_interface::PerFrameData,
-    shader_module::ShaderModule, swapchain::Swapchain, swapchain_render_pass::SwapchainRenderPass, AsRawVulkan, DebugInfoAshExtension,
+    descriptor_set_layout::DescriptorSetLayout,
+    device::Device,
+    graphics_pipeline::GraphicsPipeline,
+    shader_interface::{Camera, PerFrameData},
+    shader_module::ShaderModule,
+    swapchain::Swapchain,
+    swapchain_render_pass::SwapchainRenderPass,
+    AsRawVulkan, DebugInfoAshExtension,
 };
 
 #[repr(C)]
@@ -91,6 +97,7 @@ impl SimpleGraphicsPipeline {
         let descriptor_set_layout = Arc::new(
             DescriptorSetLayout::builder()
                 .push_uniform_buffer::<PerFrameData>(0, 1)
+                .push_uniform_buffer::<Camera>(1, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [descriptor_set_layout.as_raw_vulkan().clone()];

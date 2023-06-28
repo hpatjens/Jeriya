@@ -21,6 +21,7 @@ impl<'a> PushDescriptorBuilder<'a> {
     /// Creates a `vk::WriteDescriptorSet` for a `vk::DescriptorType::UNIFORM_BUFFER`
     pub fn push_uniform_buffer<T: 'static>(mut self, destination_binding: u32, host_visible_buffer: &HostVisibleBuffer<T>) -> Self {
         assert!(self.contains_binding(destination_binding, DescriptorType::new_uniform_buffer::<T>()));
+        // Must be allocated in an allocator until the write descriptor set is submitted
         let buffer_info = self.allocator.alloc(vk::DescriptorBufferInfo {
             buffer: *host_visible_buffer.as_raw_vulkan(),
             offset: 0,
@@ -44,12 +45,14 @@ impl<'a> PushDescriptorBuilder<'a> {
     pub fn build(self) -> PushDescriptors {
         PushDescriptors {
             write_descriptor_sets: self.write_descriptor_sets,
+            _allocator: self.allocator,
         }
     }
 }
 
 pub struct PushDescriptors {
     write_descriptor_sets: Vec<vk::WriteDescriptorSet>,
+    _allocator: Bump,
 }
 
 impl PushDescriptors {

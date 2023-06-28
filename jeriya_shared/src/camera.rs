@@ -79,20 +79,14 @@ impl CameraTransform {
     }
 }
 
-#[derive(Debug, Clone)]
-#[repr(C)]
-pub struct CameraGpuMemory {
-    cached_projection_matrix: Matrix4<f32>,
-    cached_view_matrix: Matrix4<f32>,
-    cached_matrix: Matrix4<f32>,
-}
-
 /// A camera.
 #[derive(Debug, Clone)]
 pub struct Camera {
     projection: CameraProjection,
     transform: CameraTransform,
-    gpu_memory: CameraGpuMemory,
+    cached_projection_matrix: Matrix4<f32>,
+    cached_view_matrix: Matrix4<f32>,
+    cached_matrix: Matrix4<f32>,
 }
 
 impl Default for Camera {
@@ -102,15 +96,12 @@ impl Default for Camera {
         let cached_projection_matrix = projection.projection_matrix();
         let cached_view_matrix = transform.view_matrix();
         let cached_matrix = cached_projection_matrix * cached_view_matrix;
-        let gpu_memory = CameraGpuMemory {
-            cached_projection_matrix,
-            cached_view_matrix,
-            cached_matrix,
-        };
         Self {
             projection,
             transform,
-            gpu_memory,
+            cached_projection_matrix,
+            cached_view_matrix,
+            cached_matrix,
         }
     }
 }
@@ -121,15 +112,12 @@ impl Camera {
         let cached_projection_matrix = projection.projection_matrix();
         let cached_view_matrix = transform.view_matrix();
         let cached_matrix = cached_projection_matrix * cached_view_matrix;
-        let gpu_memory = CameraGpuMemory {
-            cached_projection_matrix,
-            cached_view_matrix,
-            cached_matrix,
-        };
         Self {
             projection,
             transform,
-            gpu_memory,
+            cached_projection_matrix,
+            cached_view_matrix,
+            cached_matrix,
         }
     }
 
@@ -145,29 +133,29 @@ impl Camera {
 
     /// Returns the projection matrix of the camera.
     pub fn projection_matrix(&self) -> Matrix4<f32> {
-        self.gpu_memory.cached_projection_matrix
+        self.cached_projection_matrix
     }
 
     /// Returns the view matrix of the camera.
     pub fn view_matrix(&self) -> Matrix4<f32> {
-        self.gpu_memory.cached_view_matrix
+        self.cached_view_matrix
     }
 
     /// Returns the view-projection matrix of the camera.
     pub fn matrix(&self) -> Matrix4<f32> {
-        self.gpu_memory.cached_matrix
+        self.cached_matrix
     }
 
     /// Performes the necessary updates to the cached matrices when the view changes.
     fn update_cached_matrices_on_view_change(&mut self) {
-        self.gpu_memory.cached_view_matrix = self.transform.view_matrix();
-        self.gpu_memory.cached_matrix = self.gpu_memory.cached_projection_matrix * self.gpu_memory.cached_view_matrix;
+        self.cached_view_matrix = self.transform.view_matrix();
+        self.cached_matrix = self.cached_projection_matrix * self.cached_view_matrix;
     }
 
     /// Performes the necessary updates to the cached matrices when the projection changes.
     fn update_cached_matrices_on_projection_change(&mut self) {
-        self.gpu_memory.cached_projection_matrix = self.projection.projection_matrix();
-        self.gpu_memory.cached_matrix = self.gpu_memory.cached_projection_matrix * self.gpu_memory.cached_view_matrix;
+        self.cached_projection_matrix = self.projection.projection_matrix();
+        self.cached_matrix = self.cached_projection_matrix * self.cached_view_matrix;
     }
 
     /// Sets the [`CameraProjection`] of the camera.
