@@ -16,7 +16,7 @@ struct Camera {
 };
 
 layout (set = 0, binding = 0) uniform PerFrameData { uint active_camera; } per_frame_data;
-layout (set = 0, binding = 1) uniform Cameras { Camera cameras[MAX_CAMERAS]; } cameras;
+layout (set = 0, binding = 1) buffer Cameras { Camera cameras[MAX_CAMERAS]; } cameras;
 
 void main() {
     mat4 matrix = cameras.cameras[per_frame_data.active_camera].matrix;

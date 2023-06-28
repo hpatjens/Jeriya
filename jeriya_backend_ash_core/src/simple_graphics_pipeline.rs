@@ -97,7 +97,7 @@ impl SimpleGraphicsPipeline {
         let descriptor_set_layout = Arc::new(
             DescriptorSetLayout::builder()
                 .push_uniform_buffer::<PerFrameData>(0, 1)
-                .push_uniform_buffer::<Camera>(1, 1)
+                .push_storage_buffer::<Camera>(1, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [descriptor_set_layout.as_raw_vulkan().clone()];

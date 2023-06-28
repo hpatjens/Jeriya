@@ -110,6 +110,13 @@ impl DescriptorSetLayoutBuilder {
         self
     }
 
+    /// Adds a [`Descriptor`] of type storage buffer to the `DescriptorSetLayout`
+    pub fn push_storage_buffer<T: 'static>(mut self, binding: u32, count: u32) -> Self {
+        let ty = DescriptorType::StorageBuffer(TypeId::of::<T>());
+        self.descriptors.push(Descriptor::new(binding, ty, count));
+        self
+    }
+
     /// Creates the [`DescriptorSetLayout`] from the given [`Descriptor`]s
     pub fn build(self, device: &Arc<Device>) -> crate::Result<DescriptorSetLayout> {
         DescriptorSetLayout::new(device, self.descriptors)
@@ -126,6 +133,7 @@ mod tests {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
             let _ = DescriptorSetLayout::builder()
                 .push_uniform_buffer::<f32>(0, 1)
+                .push_storage_buffer::<u32>(1, 1)
                 .build(&test_fixture_device.device)
                 .unwrap();
         }

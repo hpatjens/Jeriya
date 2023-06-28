@@ -109,7 +109,7 @@ impl Presenter {
             Ok(HostVisibleBuffer::new(
                 &shared_backend.device,
                 &vec![Camera::default(); shared_backend.renderer_config.maximum_number_of_cameras],
-                BufferUsageFlags::UNIFORM_BUFFER,
+                BufferUsageFlags::STORAGE_BUFFER,
                 debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),
             )?)
         })?;
@@ -254,7 +254,7 @@ impl Presenter {
         command_buffer_builder.push_descriptors_for_graphics(0, {
             &PushDescriptors::builder(&presenter.simple_graphics_pipeline.descriptor_set_layout)
                 .push_uniform_buffer(0, presenter.per_frame_data_buffer.get(&presenter.frame_index()))
-                .push_uniform_buffer(1, presenter.cameras_buffer.get(&presenter.frame_index()))
+                .push_storage_buffer(1, presenter.cameras_buffer.get(&presenter.frame_index()))
                 .build()
         })?;
         Ok(())
