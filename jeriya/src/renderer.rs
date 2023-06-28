@@ -127,8 +127,8 @@ mod tests {
         immediate::{CommandBuffer, CommandBufferBuilder},
         parking_lot::Mutex,
         winit::window::{Window, WindowId},
-        AsDebugInfo, Backend, Camera, CameraContainerGuard, CameraEvent, DebugInfo, EventQueue, ImmediateCommandBufferBuilderHandler,
-        IndexingContainer, RendererConfig,
+        AsDebugInfo, Backend, Camera, CameraContainerGuard, CameraEvent, DebugInfo, EventQueue, Handle,
+        ImmediateCommandBufferBuilderHandler, IndexingContainer, RendererConfig,
     };
     use std::sync::Arc;
 
@@ -167,6 +167,7 @@ mod tests {
         cameras: Arc<Mutex<IndexingContainer<Camera>>>,
         camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
         renderer_config: Arc<RendererConfig>,
+        active_camera: Handle<Camera>,
     }
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
     struct DummyImmediateCommandBufferHandler(DebugInfo);
@@ -186,10 +187,12 @@ mod tests {
         {
             let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
             let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
+            let active_camera = cameras.lock().insert(Camera::default());
             Ok(Self {
                 cameras,
                 camera_event_queue,
                 renderer_config: Arc::new(RendererConfig::default()),
+                active_camera,
             })
         }
 
@@ -217,6 +220,10 @@ mod tests {
 
         fn set_active_camera(&self, _window_id: WindowId, _handle: jeriya_shared::Handle<Camera>) -> jeriya_shared::Result<()> {
             Ok(())
+        }
+
+        fn active_camera(&self, _window_id: WindowId) -> jeriya_shared::Result<jeriya_shared::Handle<Camera>> {
+            Ok(self.active_camera.clone())
         }
     }
     impl ImmediateCommandBufferBuilderHandler for DummyImmediateCommandBufferBuilderHandler {

@@ -4,7 +4,7 @@ use jeriya_shared::{
     debug_info, AsDebugInfo, DebugInfo, RendererConfig,
 };
 
-use std::{ffi::CString, io::Cursor, mem, sync::Arc};
+use std::{ffi::CString, io::Cursor, sync::Arc};
 
 use crate::{
     descriptor_set_layout::DescriptorSetLayout,

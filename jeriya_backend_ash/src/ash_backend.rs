@@ -7,23 +7,19 @@ use crate::{
 };
 use jeriya_backend_ash_core as core;
 use jeriya_backend_ash_core::{
-    command_pool::{CommandPool, CommandPoolCreateFlags},
     debug::{set_panic_on_message, ValidationLayerCallback},
     device::Device,
     entry::Entry,
     instance::Instance,
     physical_device::PhysicalDevice,
-    queue::{Queue, QueueType},
     surface::Surface,
     Config, ValidationLayerConfig,
 };
 use jeriya_shared::{
-    debug_info, immediate,
+    immediate,
     log::info,
-    parking_lot::Mutex,
     winit::window::{Window, WindowId},
-    Backend, Camera, CameraContainerGuard, DebugInfo, EventQueue, Handle, ImmediateCommandBufferBuilderHandler, IndexingContainer,
-    RendererConfig,
+    Backend, Camera, CameraContainerGuard, DebugInfo, Handle, ImmediateCommandBufferBuilderHandler, RendererConfig,
 };
 
 #[derive(Debug)]
@@ -96,30 +92,8 @@ impl Backend for AshBackend {
 
         info!("Creating Device");
         let device = Device::new(physical_device, &instance)?;
-        // Presentation Queue
-        let presentation_queue = Queue::new(&device, QueueType::Presentation)?;
 
-        info!("Creating Cameras");
-        let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
-        let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
-
-        info!("Creating CommandPool");
-        let command_pool = CommandPool::new(
-            &device,
-            &presentation_queue,
-            CommandPoolCreateFlags::ResetCommandBuffer,
-            debug_info!("preliminary-CommandPool"),
-        )?;
-
-        let shared_backend = AshSharedBackend::new(
-            device,
-            Arc::new(renderer_config),
-            RefCell::new(presentation_queue),
-            command_pool,
-            Mutex::new(HashMap::new()),
-            cameras,
-            camera_event_queue,
-        );
+        let shared_backend = AshSharedBackend::new(&device, &Arc::new(renderer_config))?;
 
         let presenters = surfaces
             .iter()

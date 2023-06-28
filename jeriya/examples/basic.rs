@@ -12,7 +12,7 @@ use jeriya_shared::{
         event_loop::EventLoop,
         window::WindowBuilder,
     },
-    Backend, Camera,
+    Backend,
 };
 
 /// Shows how the immediate rendering API can be used.
