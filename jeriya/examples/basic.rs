@@ -1,7 +1,4 @@
-use std::{
-    io,
-    time::{Duration, Instant},
-};
+use std::io;
 
 use jeriya::Renderer;
 use jeriya_backend_ash::AshBackend;
@@ -17,7 +14,6 @@ use jeriya_shared::{
     },
     Backend,
 };
-use spin_sleep::LoopHelper;
 
 /// Shows how the immediate rendering API can be used.
 fn immediate_rendering<B>(renderer: &Renderer<B>) -> jeriya_shared::Result<()>
