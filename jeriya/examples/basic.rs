@@ -96,17 +96,24 @@ fn main() -> io::Result<()> {
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
 
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
+    let window1 = WindowBuilder::new()
         .with_title("Example")
         .with_inner_size(jeriya_shared::winit::dpi::LogicalSize::new(640.0, 480.0))
         .build(&event_loop)
         .unwrap();
-
-    let renderer = jeriya::Renderer::<AshBackend>::builder().add_windows(&[&window]).build().unwrap();
+    let window2 = WindowBuilder::new()
+        .with_title("Example")
+        .with_inner_size(jeriya_shared::winit::dpi::LogicalSize::new(640.0, 480.0))
+        .build(&event_loop)
+        .unwrap();
+    let renderer = jeriya::Renderer::<AshBackend>::builder()
+        .add_windows(&[&window1, &window2])
+        .build()
+        .unwrap();
 
     {
         let cameras = renderer.cameras();
-        let handle = renderer.active_camera(window.id()).unwrap();
+        let handle = renderer.active_camera(window1.id()).unwrap();
         let camera = cameras.get(&handle).unwrap();
         println!("Camera: {:?}", camera.matrix());
     }
@@ -119,7 +126,7 @@ fn main() -> io::Result<()> {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 window_id,
-            } if window_id == window.id() => control_flow.set_exit(),
+            } if window_id == window1.id() => control_flow.set_exit(),
             Event::WindowEvent {
                 window_id,
                 event: WindowEvent::Resized(..),
