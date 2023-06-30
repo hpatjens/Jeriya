@@ -1,4 +1,7 @@
-use std::io;
+use std::{
+    io,
+    time::{Duration, Instant},
+};
 
 use jeriya::Renderer;
 use jeriya_backend_ash::AshBackend;
@@ -14,6 +17,7 @@ use jeriya_shared::{
     },
     Backend,
 };
+use spin_sleep::LoopHelper;
 
 /// Shows how the immediate rendering API can be used.
 fn immediate_rendering<B>(renderer: &Renderer<B>) -> jeriya_shared::Result<()>
@@ -111,8 +115,9 @@ fn main() -> io::Result<()> {
         println!("Camera: {:?}", camera.matrix());
     }
 
+    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(60.0);
     event_loop.run(move |event, _, control_flow| {
-        control_flow.set_wait();
+        control_flow.set_poll();
 
         match event {
             Event::WindowEvent {
@@ -126,11 +131,13 @@ fn main() -> io::Result<()> {
                 renderer.window_resized(window_id).unwrap();
             }
             Event::MainEventsCleared => {
-                window.request_redraw();
+                loop_helper.loop_start();
 
                 immediate_rendering(&renderer).unwrap();
 
                 renderer.render_frame().unwrap();
+
+                loop_helper.loop_sleep();
             }
             _ => (),
         }
