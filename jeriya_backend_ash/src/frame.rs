@@ -14,13 +14,9 @@ use jeriya_backend_ash_base::{
     semaphore::Semaphore,
     shader_interface::{Camera, PerFrameData},
 };
-use jeriya_shared::nalgebra::Matrix4;
-use jeriya_shared::parking_lot::Mutex;
-use jeriya_shared::{debug_info, winit::window::WindowId};
+use jeriya_shared::{debug_info, nalgebra::Matrix4, parking_lot::Mutex, winit::window::WindowId};
 
-use crate::ash_immediate::ImmediateCommand;
-use crate::ImmediateRenderingRequest;
-use crate::{backend_shared::BackendShared, presenter_shared::PresenterShared};
+use crate::{ash_immediate::ImmediateCommand, backend_shared::BackendShared, presenter_shared::PresenterShared, ImmediateRenderingRequest};
 
 pub struct Frame {
     image_available_semaphore: Option<Arc<Semaphore>>,
