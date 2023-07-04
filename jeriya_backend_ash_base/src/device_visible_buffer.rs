@@ -17,10 +17,30 @@ use crate::{
 
 pub struct DeviceVisibleBuffer<T> {
     buffer: UnsafeBuffer<T>,
+    device: Arc<Device>,
 }
 
-impl<T: Copy + 'static> DeviceVisibleBuffer<T> {
+impl<T: Clone + 'static> DeviceVisibleBuffer<T> {
+    /// Creates a new `DeviceVisibleBuffer`.
     pub fn new(
+        device: &Arc<Device>,
+        byte_size: usize,
+        buffer_usage_flags: BufferUsageFlags,
+        debug_info: DebugInfo,
+    ) -> crate::Result<Arc<Self>> {
+        let buffer = unsafe {
+            let mut buffer = UnsafeBuffer::new(device, byte_size, buffer_usage_flags.into(), vk::SharingMode::EXCLUSIVE, debug_info)?;
+            buffer.allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE)?;
+            buffer
+        };
+        Ok(Arc::new(Self {
+            device: device.clone(),
+            buffer,
+        }))
+    }
+
+    /// Creates a new DeviceVisibleBuffer and transfers the data from the given [`HostVisibleBuffer`] to it by submitting a [`CommandBuffer`] to the given transfer queue.
+    pub fn new_and_transfer_from_host_visible(
         device: &Arc<Device>,
         source_buffer: &Arc<HostVisibleBuffer<T>>,
         transfer_queue: &mut Queue,
@@ -28,25 +48,25 @@ impl<T: Copy + 'static> DeviceVisibleBuffer<T> {
         buffer_usage_flags: BufferUsageFlags,
         debug_info: DebugInfo,
     ) -> crate::Result<Arc<Self>> {
-        let buffer = unsafe {
-            let mut buffer = UnsafeBuffer::new(
-                device,
-                source_buffer.byte_size(),
-                buffer_usage_flags.into(),
-                vk::SharingMode::EXCLUSIVE,
-                debug_info,
-            )?;
-            buffer.allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE)?;
-            buffer
-        };
-        let mut command_buffer = CommandBuffer::new(device, command_pool, debug_info!("CommandBuffer-for-DeviceVisibleBuffer"))?;
-        let result = Arc::new(Self { buffer });
-        CommandBufferBuilder::new(device, &mut command_buffer)?
+        let result = Self::new(device, source_buffer.byte_size(), buffer_usage_flags, debug_info)?;
+        result.transfer_memory_with_command_buffer(source_buffer, transfer_queue, command_pool)?;
+        Ok(result)
+    }
+
+    /// Transfers the data from the [`HostVisibleBuffer`] to the [`DeviceVisibleBuffer`] by submitting a [`CommandBuffer`] to the given transfer [`Queue`].
+    pub fn transfer_memory_with_command_buffer(
+        self: &Arc<Self>,
+        source_buffer: &Arc<HostVisibleBuffer<T>>,
+        transfer_queue: &mut Queue,
+        command_pool: &Rc<CommandPool>,
+    ) -> crate::Result<()> {
+        let mut command_buffer = CommandBuffer::new(&self.device, command_pool, debug_info!("CommandBuffer-for-DeviceVisibleBuffer"))?;
+        CommandBufferBuilder::new(&self.device, &mut command_buffer)?
             .begin_command_buffer()?
-            .copy_buffer_from_host_to_device(source_buffer, &result)
+            .copy_buffer_from_host_to_device(source_buffer, self)
             .end_command_buffer()?;
         transfer_queue.submit(command_buffer)?;
-        Ok(result)
+        Ok(())
     }
 
     /// Size of the buffer in bytes
@@ -106,7 +126,7 @@ mod tests {
                 )
                 .unwrap(),
             );
-            let _device_visible_buffer = DeviceVisibleBuffer::new(
+            let _device_visible_buffer = DeviceVisibleBuffer::new_and_transfer_from_host_visible(
                 &test_fixture_device.device,
                 &host_visible_buffer,
                 &mut presentation_queue,

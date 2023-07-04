@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::{iter, sync::Arc};
+use std::{collections::HashMap, iter, sync::Arc};
 
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{

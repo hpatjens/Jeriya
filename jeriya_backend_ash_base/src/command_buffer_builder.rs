@@ -152,7 +152,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         self
     }
 
-    pub fn copy_buffer_from_host_to_device<T: Copy + 'static>(
+    pub fn copy_buffer_from_host_to_device<T: Clone + 'static>(
         &mut self,
         src: &Arc<HostVisibleBuffer<T>>,
         dst: &Arc<DeviceVisibleBuffer<T>>,

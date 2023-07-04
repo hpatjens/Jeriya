@@ -80,29 +80,47 @@ impl AsRawVulkan for CommandBuffer {
 }
 
 #[cfg(test)]
-mod tests {
-    mod new {
-        use jeriya_shared::debug_info;
+pub mod tests {
+    use std::rc::Rc;
 
-        use crate::{
-            command_buffer::CommandBuffer,
-            command_pool::{CommandPool, CommandPoolCreateFlags},
-            device::tests::TestFixtureDevice,
-            queue::{Queue, QueueType},
-        };
+    use jeriya_shared::debug_info;
 
-        #[test]
-        fn smoke() {
+    use crate::{
+        command_buffer::CommandBuffer,
+        command_pool::{CommandPool, CommandPoolCreateFlags},
+        device::tests::TestFixtureDevice,
+        queue::{Queue, QueueType},
+    };
+
+    pub struct TestFixtureCommandBuffer {
+        pub queue: Queue,
+        pub command_pool: Rc<CommandPool>,
+        pub command_buffer: CommandBuffer,
+    }
+
+    impl TestFixtureCommandBuffer {
+        pub fn new(test_fixture_device: &TestFixtureDevice) -> crate::Result<Self> {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
-            let presentation_queue = Queue::new(&test_fixture_device.device, QueueType::Presentation).unwrap();
+            let queue = Queue::new(&test_fixture_device.device, QueueType::Presentation).unwrap();
             let command_pool = CommandPool::new(
                 &test_fixture_device.device,
-                &presentation_queue,
+                &queue,
                 CommandPoolCreateFlags::ResetCommandBuffer,
                 debug_info!("my_command_pool"),
             )
             .unwrap();
-            let _command_buffer = CommandBuffer::new(&test_fixture_device.device, &command_pool, debug_info!("my_command_buffer")).unwrap();
+            let command_buffer = CommandBuffer::new(&test_fixture_device.device, &command_pool, debug_info!("my_command_buffer")).unwrap();
+            Ok(Self {
+                queue,
+                command_pool,
+                command_buffer,
+            })
         }
+    }
+
+    #[test]
+    fn smoke() {
+        let test_fixture_device = TestFixtureDevice::new().unwrap();
+        let _test_fixture_command_buffer = TestFixtureCommandBuffer::new(&test_fixture_device).unwrap();
     }
 }

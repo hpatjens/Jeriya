@@ -13,6 +13,7 @@ bitflags! {
     pub struct BufferUsageFlags: u32 {
         // WARNING: Has to match the Vulkan flags by value
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkBufferUsageFlagBits.html
+        const TRANSFER_SRC_BIT = 0x00000001;
         const UNIFORM_BUFFER = 0x00000010;
         const STORAGE_BUFFER = 0x00000020;
         const VERTEX_BUFFER = 0x00000080;

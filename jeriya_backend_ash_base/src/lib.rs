@@ -23,6 +23,7 @@ pub mod semaphore;
 pub mod shader_interface;
 pub mod shader_module;
 pub mod simple_graphics_pipeline;
+pub mod staged_push_only_buffer;
 pub mod surface;
 pub mod swapchain;
 pub mod swapchain_depth_buffer;
@@ -128,6 +129,8 @@ pub enum Error {
     DescriptorPoolDoesntHaveEnoughSpace,
     #[error("Failed to allocate the resource")]
     FailedToAllocate(&'static str),
+    #[error("BufferOverflow")]
+    BufferOverflow,
 }
 
 impl From<Error> for jeriya_shared::Error {
