@@ -196,7 +196,7 @@ mod tests {
             // Wait for GPU
             test_fixture_command_buffer.queue.submit(command_buffer).unwrap();
             test_fixture_device.device.wait_for_idle().unwrap();
-            test_fixture_command_buffer.queue.update().unwrap();
+            test_fixture_command_buffer.queue.poll_completed_fences().unwrap();
 
             let read_data = receiver.recv().unwrap();
             assert_eq!(read_data, vec![0.0, 0.0, 1.0, 1.0]);

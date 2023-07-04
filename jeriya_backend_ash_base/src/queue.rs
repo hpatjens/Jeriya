@@ -116,8 +116,8 @@ impl Queue {
         Ok(())
     }
 
-    /// Frees the CommandBuffers that were submitted on this queue when they are processed
-    pub fn update(&mut self) -> crate::Result<()> {
+    /// Polls the fences that signal the completion of the submitted [`CommandBuffer`]s and executes the finished operations of the [`CommandBuffer`]s that have finished executing.s
+    pub fn poll_completed_fences(&mut self) -> crate::Result<()> {
         loop {
             let result = self
                 .submitted_command_buffers

@@ -125,7 +125,7 @@ impl Backend for AshBackend {
     }
 
     fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
-        self.backend_shared.presentation_queue.borrow_mut().update()?;
+        self.backend_shared.presentation_queue.borrow_mut().poll_completed_fences()?;
 
         // Render on all surfaces
         for (window_id, presenter) in &self.presenters {
