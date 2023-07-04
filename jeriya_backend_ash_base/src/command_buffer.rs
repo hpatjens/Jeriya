@@ -112,7 +112,6 @@ pub mod tests {
 
     impl TestFixtureCommandBuffer {
         pub fn new(test_fixture_device: &TestFixtureDevice) -> crate::Result<Self> {
-            let test_fixture_device = TestFixtureDevice::new().unwrap();
             let queue = Queue::new(&test_fixture_device.device, QueueType::Presentation).unwrap();
             let command_pool = CommandPool::new(
                 &test_fixture_device.device,

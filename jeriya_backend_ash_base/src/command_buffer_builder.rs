@@ -29,6 +29,10 @@ impl<'buf> CommandBufferBuilder<'buf> {
 }
 
 impl<'buf> CommandBufferBuilder<'buf> {
+    pub(crate) fn command_buffer(&mut self) -> &mut CommandBuffer {
+        self.command_buffer
+    }
+
     pub fn begin_command_buffer(&mut self) -> crate::Result<&mut Self> {
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
         unsafe {
@@ -184,7 +188,14 @@ impl<'buf> CommandBufferBuilder<'buf> {
         dst: &Arc<Mutex<HostVisibleBuffer<T>>>,
     ) -> &mut Self {
         let dst_guard = dst.lock();
-        assert_eq!(src.byte_size(), dst_guard.byte_size(), "buffers must have the same size");
+        assert!(
+            byte_size <= src.byte_size(),
+            "can't copy more bytes than the source buffer contains"
+        );
+        assert!(
+            byte_size <= dst_guard.byte_size(),
+            "can't copy more bytes than the destination buffer contains"
+        );
         unsafe {
             let copy_region = vk::BufferCopy {
                 src_offset: 0,

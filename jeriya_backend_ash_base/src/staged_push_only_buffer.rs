@@ -5,8 +5,9 @@ use std::{
 
 use crate::{
     buffer::BufferUsageFlags, command_buffer_builder::CommandBufferBuilder, device::Device, device_visible_buffer::DeviceVisibleBuffer,
-    host_visible_buffer::HostVisibleBuffer, Error,
+    host_visible_buffer::HostVisibleBuffer, AsRawVulkan, Error,
 };
+use ash::vk;
 use jeriya_shared::{debug_info, parking_lot::Mutex, AsDebugInfo, DebugInfo};
 
 /// Device visible buffer of a constant size which can be filled by pushing chunks of data to it via a staging buffer.
@@ -26,7 +27,12 @@ impl<T: Clone + 'static> StagedPushOnlyBuffer<T> {
         device_buffer_usage_flags: BufferUsageFlags,
         debug_info: DebugInfo,
     ) -> crate::Result<Self> {
-        let device_visible_buffer = DeviceVisibleBuffer::new(&device, size, device_buffer_usage_flags, debug_info.clone())?;
+        let device_visible_buffer = DeviceVisibleBuffer::new(
+            &device,
+            size * mem::size_of::<T>(),
+            device_buffer_usage_flags | BufferUsageFlags::TRANSFER_DST_BIT | BufferUsageFlags::TRANSFER_SRC_BIT,
+            debug_info.clone(),
+        )?;
         Ok(Self {
             device_visible_buffer,
             device: device.clone(),
@@ -47,7 +53,26 @@ impl<T: Clone + 'static> StagedPushOnlyBuffer<T> {
             BufferUsageFlags::TRANSFER_SRC_BIT,
             debug_info!("PushOnlyBuffer"),
         )?);
-        command_buffer_builder.copy_buffer_from_host_to_device(&host_visible_buffer, &self.device_visible_buffer);
+
+        // Copy the data from the host visible buffer to the device visible buffer
+        let data_byte_size = data.len() * mem::size_of::<T>();
+        let data_offset = self.len * mem::size_of::<T>();
+        let command_buffer = command_buffer_builder.command_buffer();
+        unsafe {
+            let copy_region = vk::BufferCopy {
+                src_offset: 0,
+                dst_offset: data_offset as u64,
+                size: data_byte_size as u64,
+            };
+            self.device.as_raw_vulkan().cmd_copy_buffer(
+                *command_buffer.as_raw_vulkan(),
+                *host_visible_buffer.as_raw_vulkan(),
+                *self.device_visible_buffer.as_raw_vulkan(),
+                &[copy_region],
+            );
+            command_buffer.push_dependency(host_visible_buffer.clone());
+            command_buffer.push_dependency(self.device_visible_buffer.clone());
+        }
         self.len += data.len();
         Ok(())
     }
@@ -111,8 +136,12 @@ mod tests {
         use jeriya_shared::debug_info;
 
         use crate::{
-            buffer::BufferUsageFlags, command_buffer::tests::TestFixtureCommandBuffer, command_buffer_builder::CommandBufferBuilder,
-            device::tests::TestFixtureDevice, staged_push_only_buffer::StagedPushOnlyBuffer, Error,
+            buffer::BufferUsageFlags,
+            command_buffer::{tests::TestFixtureCommandBuffer, CommandBuffer},
+            command_buffer_builder::CommandBufferBuilder,
+            device::tests::TestFixtureDevice,
+            staged_push_only_buffer::StagedPushOnlyBuffer,
+            Error,
         };
 
         #[test]
@@ -122,36 +151,55 @@ mod tests {
 
             let mut buffer = StagedPushOnlyBuffer::<f32>::new(
                 &test_fixture_device.device,
-                8,
+                4,
                 BufferUsageFlags::STORAGE_BUFFER,
                 debug_info!("my_host_visible_buffer"),
             )
             .unwrap();
             assert!(buffer.is_empty());
             assert_eq!(buffer.len(), 0);
-            assert_eq!(buffer.capacity(), 8);
+            assert_eq!(buffer.capacity(), 4);
 
             let mut command_buffer_builder =
                 CommandBufferBuilder::new(&test_fixture_device.device, &mut test_fixture_command_buffer.command_buffer).unwrap();
+            command_buffer_builder.begin_command_buffer().unwrap();
 
-            let data1 = [0.0, 0.0, 0.0, 0.0];
-            buffer.push(&data1, &mut command_buffer_builder).unwrap();
+            buffer.push(&[0.0, 0.0], &mut command_buffer_builder).unwrap();
+            assert_eq!(buffer.len(), 2);
+
+            buffer.push(&[1.0, 1.0], &mut command_buffer_builder).unwrap();
             assert_eq!(buffer.len(), 4);
 
-            let data2 = [1.0, 1.0, 1.0, 1.0];
-            buffer.push(&data2, &mut command_buffer_builder).unwrap();
-            assert_eq!(buffer.len(), 8);
-
-            let data3 = [2.0];
-            let result = buffer.push(&data3, &mut command_buffer_builder);
+            let result = buffer.push(&[2.0], &mut command_buffer_builder);
             assert!(matches!(result, Err(Error::BufferOverflow)));
 
+            command_buffer_builder.end_command_buffer().unwrap();
+
+            // Wait for GPU
             test_fixture_command_buffer
                 .queue
                 .submit(test_fixture_command_buffer.command_buffer)
                 .unwrap();
 
+            // Command Buffer 2
+            let mut command_buffer = CommandBuffer::new(
+                &test_fixture_device.device,
+                &test_fixture_command_buffer.command_pool,
+                debug_info!("my_command_buffer"),
+            )
+            .unwrap();
+            let mut command_buffer_builder = CommandBufferBuilder::new(&test_fixture_device.device, &mut command_buffer).unwrap();
+            command_buffer_builder.begin_command_buffer().unwrap();
+            let receiver = buffer.read_all(&mut command_buffer_builder).unwrap();
+            command_buffer_builder.end_command_buffer().unwrap();
+
+            // Wait for GPU
+            test_fixture_command_buffer.queue.submit(command_buffer).unwrap();
             test_fixture_device.device.wait_for_idle().unwrap();
+            test_fixture_command_buffer.queue.update().unwrap();
+
+            let read_data = receiver.recv().unwrap();
+            assert_eq!(read_data, vec![0.0, 0.0, 1.0, 1.0]);
         }
     }
 }
