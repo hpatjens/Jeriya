@@ -1,7 +1,7 @@
 use std::{mem, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::{AsDebugInfo, DebugInfo};
+use jeriya_shared::{parking_lot::Mutex, AsDebugInfo, DebugInfo};
 
 use crate::{buffer::BufferUsageFlags, command_buffer::CommandBufferDependency, device::Device, unsafe_buffer::UnsafeBuffer, AsRawVulkan};
 
@@ -66,6 +66,7 @@ impl<T> AsDebugInfo for HostVisibleBuffer<T> {
 }
 
 impl<T> CommandBufferDependency for HostVisibleBuffer<T> {}
+impl<T> CommandBufferDependency for Mutex<HostVisibleBuffer<T>> {}
 
 #[cfg(test)]
 mod tests {

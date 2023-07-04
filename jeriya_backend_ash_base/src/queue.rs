@@ -19,6 +19,13 @@ impl SubmittedCommandBuffer {
             SubmittedCommandBuffer::Arc { command_buffer, .. } => command_buffer.completed_fence(),
         }
     }
+
+    fn command_buffer(&self) -> &CommandBuffer {
+        match self {
+            SubmittedCommandBuffer::Value(command_buffer) => command_buffer,
+            SubmittedCommandBuffer::Arc { command_buffer, .. } => command_buffer,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -119,6 +126,11 @@ impl Queue {
                 .unwrap_or(Ok(false))?;
             if result {
                 let finished_command_buffer = self.submitted_command_buffers.pop_front();
+                if let Some(finished_command_buffer) = &finished_command_buffer {
+                    for finished_operation in finished_command_buffer.command_buffer().finished_operations() {
+                        finished_operation()?;
+                    }
+                }
                 drop(finished_command_buffer);
             } else {
                 break;

@@ -12,6 +12,7 @@ pub struct CommandBuffer {
     command_buffer: vk::CommandBuffer,
     command_pool: Rc<CommandPool>,
     dependencies: Vec<Arc<dyn CommandBufferDependency>>,
+    finished_operations: Vec<Box<dyn Fn() -> crate::Result<()> + 'static>>,
     device: Arc<Device>,
     debug_info: DebugInfo,
 }
@@ -30,9 +31,20 @@ impl CommandBuffer {
             command_buffer,
             command_pool: command_pool.clone(),
             dependencies: Vec::new(),
+            finished_operations: Vec::new(),
             device: device.clone(),
             debug_info,
         })
+    }
+
+    /// Returns the finished operations of the `CommandBuffer`.
+    pub(crate) fn finished_operations(&self) -> &Vec<Box<dyn Fn() -> crate::Result<()> + 'static>> {
+        &self.finished_operations
+    }
+
+    /// Pushes a function that will be called in the `CommandBuffer::finish` method when the `CommandBuffer` has been processed.
+    pub(crate) fn push_finished_operation(&mut self, finished_operation: Box<dyn Fn() -> crate::Result<()> + 'static>) {
+        self.finished_operations.push(finished_operation);
     }
 
     /// The [`CommandPool`] from which the `CommandBuffer` is allocating the commands.

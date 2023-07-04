@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use ash::vk;
+use jeriya_shared::parking_lot::Mutex;
 
 use crate::{
     buffer::VertexBuffer, command_buffer::CommandBuffer, device::Device, device_visible_buffer::DeviceVisibleBuffer,
@@ -174,6 +175,38 @@ impl<'buf> CommandBufferBuilder<'buf> {
             self.command_buffer.push_dependency(dst.clone());
             self
         }
+    }
+
+    pub fn copy_buffer_range_from_device_to_host<T: Clone + 'static>(
+        &mut self,
+        src: &Arc<DeviceVisibleBuffer<T>>,
+        byte_size: usize,
+        dst: &Arc<Mutex<HostVisibleBuffer<T>>>,
+    ) -> &mut Self {
+        let dst_guard = dst.lock();
+        assert_eq!(src.byte_size(), dst_guard.byte_size(), "buffers must have the same size");
+        unsafe {
+            let copy_region = vk::BufferCopy {
+                src_offset: 0,
+                dst_offset: 0,
+                size: byte_size as u64,
+            };
+            self.device.as_raw_vulkan().cmd_copy_buffer(
+                *self.command_buffer.as_raw_vulkan(),
+                *src.as_raw_vulkan(),
+                *dst_guard.as_raw_vulkan(),
+                &[copy_region],
+            );
+            self.command_buffer.push_dependency(src.clone());
+            self.command_buffer.push_dependency(dst.clone());
+            self
+        }
+    }
+
+    /// Pushes a closure to the list of operations to be executed when the command buffer has finished executing.
+    pub fn push_finished_operation(&mut self, finished_operation: Box<dyn Fn() -> crate::Result<()> + 'static>) -> &mut Self {
+        self.command_buffer.push_finished_operation(finished_operation);
+        self
     }
 
     /// Special function for depth buffer layout transition

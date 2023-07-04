@@ -1,10 +1,13 @@
-use std::sync::Arc;
+use std::{
+    mem,
+    sync::{mpsc::Receiver, Arc},
+};
 
 use crate::{
     buffer::BufferUsageFlags, command_buffer_builder::CommandBufferBuilder, device::Device, device_visible_buffer::DeviceVisibleBuffer,
     host_visible_buffer::HostVisibleBuffer, Error,
 };
-use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
+use jeriya_shared::{debug_info, parking_lot::Mutex, AsDebugInfo, DebugInfo};
 
 /// Device visible buffer of a constant size which can be filled by pushing chunks of data to it via a staging buffer.
 pub struct StagedPushOnlyBuffer<T> {
@@ -40,7 +43,7 @@ impl<T: Clone + 'static> StagedPushOnlyBuffer<T> {
         }
         let host_visible_buffer = Arc::new(HostVisibleBuffer::<T>::new(
             &self.device,
-            &[],
+            &data,
             BufferUsageFlags::TRANSFER_SRC_BIT,
             debug_info!("PushOnlyBuffer"),
         )?);
@@ -62,6 +65,37 @@ impl<T: Clone + 'static> StagedPushOnlyBuffer<T> {
     /// Returns the capacity of the buffer.
     pub fn capacity(&self) -> usize {
         self.capacity
+    }
+}
+
+impl<T: Clone + 'static + Default> StagedPushOnlyBuffer<T> {
+    /// Reads all data from the [`DeviceVisibleBuffer`] into a newly constructed [`HostVisibleBuffer`] and issues a copy command to the [`CommandBufferBuilder`] to copy the data from the [`DeviceVisibleBuffer`] to the [`HostVisibleBuffer`].
+    pub fn read_all(&mut self, command_buffer_builder: &mut CommandBufferBuilder) -> crate::Result<Receiver<Vec<T>>> {
+        let host_visible_buffer = Arc::new(Mutex::new(HostVisibleBuffer::<T>::new(
+            &self.device,
+            &vec![Default::default(); self.len],
+            BufferUsageFlags::TRANSFER_SRC_BIT,
+            debug_info!("PushOnlyBuffer"),
+        )?));
+        command_buffer_builder.copy_buffer_range_from_device_to_host(
+            &self.device_visible_buffer,
+            self.len * mem::size_of::<T>(),
+            &host_visible_buffer,
+        );
+
+        // Enqueue finished operation to get the data from the host visible buffer.
+        let len = self.len;
+        let (sender, receiver) = std::sync::mpsc::channel();
+        command_buffer_builder.push_finished_operation(Box::new(move || {
+            let mut data = vec![Default::default(); len];
+            let mut host_visible_buffer = host_visible_buffer.lock();
+            host_visible_buffer.get_memory_unaligned(&mut data)?;
+            sender
+                .send(data)
+                .expect("Failed to send data from StagedPushOnlyBuffer to receiver in finished operation.");
+            Ok(())
+        }));
+        Ok(receiver)
     }
 }
 
