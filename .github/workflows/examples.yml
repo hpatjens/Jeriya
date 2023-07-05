@@ -19,7 +19,7 @@ jobs:
           lfs: true
 
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v2.5.0
+        uses: Swatinem/rust-cache@v2.5.1
 
       - name: Examples
         run: cargo build --examples
