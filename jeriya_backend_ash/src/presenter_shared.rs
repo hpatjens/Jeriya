@@ -7,7 +7,7 @@ use jeriya_backend_ash_base::{
     swapchain_depth_buffer::SwapchainDepthBuffers, swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
-use jeriya_shared::{debug_info, parking_lot::Mutex, winit::window::WindowId, CameraContainerGuard, Handle};
+use jeriya_shared::{debug_info, winit::window::WindowId, CameraContainerGuard, Handle};
 
 use crate::{backend_shared::BackendShared, ImmediateRenderingRequest};
 

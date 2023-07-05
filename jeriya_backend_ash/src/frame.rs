@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter, sync::Arc};
+use std::{iter, sync::Arc};
 
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
@@ -13,7 +13,7 @@ use jeriya_backend_ash_base::{
     semaphore::Semaphore,
     shader_interface::{Camera, PerFrameData},
 };
-use jeriya_shared::{debug_info, nalgebra::Matrix4, parking_lot::Mutex, winit::window::WindowId};
+use jeriya_shared::{debug_info, nalgebra::Matrix4, winit::window::WindowId};
 
 use crate::{ash_immediate::ImmediateCommand, backend_shared::BackendShared, presenter_shared::PresenterShared, ImmediateRenderingRequest};
 
@@ -64,7 +64,7 @@ impl Frame {
     pub fn render_frame(
         &mut self,
         frame_index: &FrameIndex,
-        window_id: &WindowId,
+        _window_id: &WindowId,
         backend_shared: &BackendShared,
         presenter_shared: &mut PresenterShared,
     ) -> jeriya_shared::Result<()> {

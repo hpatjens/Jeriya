@@ -1,13 +1,11 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 use jeriya_backend_ash_base::{
     command_pool::{CommandPool, CommandPoolCreateFlags},
     device::Device,
     queue::{Queue, QueueType},
 };
-use jeriya_shared::{
-    debug_info, log::info, parking_lot::Mutex, winit::window::WindowId, Camera, CameraEvent, EventQueue, IndexingContainer, RendererConfig,
-};
+use jeriya_shared::{debug_info, log::info, parking_lot::Mutex, Camera, CameraEvent, EventQueue, IndexingContainer, RendererConfig};
 
 /// Elements of the backend that are shared between all [`Presenter`]s.
 pub struct BackendShared {
