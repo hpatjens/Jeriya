@@ -130,7 +130,7 @@ pub enum Error {
     #[error("Failed to allocate the resource")]
     FailedToAllocate(&'static str),
     #[error("BufferOverflow")]
-    BufferOverflow,
+    WouldOverflow,
 }
 
 impl From<Error> for jeriya_shared::Error {

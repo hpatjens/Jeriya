@@ -45,7 +45,7 @@ impl<T: Clone + 'static> StagedPushOnlyBuffer<T> {
     /// Copies the `data` into a newly constructed [`HostVisibleBuffer`] and issues a copy command to the [`CommandBufferBuilder`] to copy the data from the [`HostVisibleBuffer`] to the [`DeviceVisibleBuffer`].
     pub fn push(&mut self, data: &[T], command_buffer_builder: &mut CommandBufferBuilder) -> crate::Result<()> {
         if self.len + data.len() > self.capacity {
-            return Err(Error::BufferOverflow);
+            return Err(Error::WouldOverflow);
         }
         let host_visible_buffer = Arc::new(HostVisibleBuffer::<T>::new(
             &self.device,
@@ -171,7 +171,7 @@ mod tests {
             assert_eq!(buffer.len(), 4);
 
             let result = buffer.push(&[2.0], &mut command_buffer_builder);
-            assert!(matches!(result, Err(Error::BufferOverflow)));
+            assert!(matches!(result, Err(Error::WouldOverflow)));
 
             command_buffer_builder.end_command_buffer().unwrap();
 
