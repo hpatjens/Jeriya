@@ -9,15 +9,12 @@ use jeriya_shared::{
     debug_info, log::info, parking_lot::Mutex, winit::window::WindowId, Camera, CameraEvent, EventQueue, IndexingContainer, RendererConfig,
 };
 
-use crate::ImmediateRenderingRequest;
-
 /// Elements of the backend that are shared between all [`Presenter`]s.
 pub struct BackendShared {
     pub device: Arc<Device>,
     pub renderer_config: Arc<RendererConfig>,
     pub presentation_queue: RefCell<Queue>,
     pub command_pool: Rc<CommandPool>,
-    pub immediate_rendering_requests: Mutex<HashMap<WindowId, Vec<ImmediateRenderingRequest>>>,
     pub cameras: Arc<Mutex<IndexingContainer<Camera>>>,
     pub camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
 }
@@ -44,7 +41,6 @@ impl BackendShared {
             renderer_config: renderer_config.clone(),
             presentation_queue: RefCell::new(presentation_queue),
             command_pool,
-            immediate_rendering_requests: Mutex::new(HashMap::new()),
             cameras,
             camera_event_queue,
         })

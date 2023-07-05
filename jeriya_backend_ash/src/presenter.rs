@@ -1,5 +1,6 @@
 use std::{collections::VecDeque, sync::Arc};
 
+use crate::ImmediateRenderingRequest;
 use crate::{backend_shared::BackendShared, frame::Frame, presenter_shared::PresenterShared};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{frame_index::FrameIndex, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
@@ -39,7 +40,7 @@ impl Presenter {
         // Render the frames
         self.frames
             .get_mut(&self.frame_index)
-            .render_frame(&self.frame_index, window_id, backend_shared, &self.presenter_shared)?;
+            .render_frame(&self.frame_index, window_id, backend_shared, &mut self.presenter_shared)?;
 
         // Present
         self.presenter_shared.swapchain().present(
@@ -49,6 +50,11 @@ impl Presenter {
         )?;
 
         Ok(())
+    }
+
+    /// Enqueues an [`ImmediateRenderingRequest`]
+    pub fn render_immediate_command_buffer(&mut self, immediate_rendering_request: ImmediateRenderingRequest) {
+        self.presenter_shared.immediate_rendering_requests.push(immediate_rendering_request);
     }
 
     /// Recreates the [`PresenterShared`] in case of a swapchain resize

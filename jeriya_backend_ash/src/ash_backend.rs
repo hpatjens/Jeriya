@@ -133,19 +133,6 @@ impl Backend for AshBackend {
             presenter.render_frame(window_id, &self.backend_shared)?;
         }
 
-        // Remove all ImmediateRenderingRequests that don't have to be rendered anymore
-        let mut immediate_rendering_requests = self.backend_shared.immediate_rendering_requests.lock();
-        for immediate_rendering_requests in immediate_rendering_requests.values_mut() {
-            *immediate_rendering_requests = immediate_rendering_requests
-                .drain(..)
-                .filter(|immediate_rendering_request| immediate_rendering_request.count > 0)
-                .collect();
-        }
-        *immediate_rendering_requests = immediate_rendering_requests
-            .drain()
-            .filter(|(_, immediate_rendering_requests)| !immediate_rendering_requests.is_empty())
-            .collect();
-
         Ok(())
     }
 
@@ -158,8 +145,7 @@ impl Backend for AshBackend {
     }
 
     fn render_immediate_command_buffer(&self, command_buffer: Arc<immediate::CommandBuffer<Self>>) -> jeriya_shared::Result<()> {
-        let mut guard = self.backend_shared.immediate_rendering_requests.lock();
-        for window_id in self.presenters.keys() {
+        for presenter in self.presenters.values() {
             let immediate_rendering_request = ImmediateRenderingRequest {
                 immediate_command_buffer: AshImmediateCommandBufferHandler {
                     commands: command_buffer.command_buffer().commands.clone(),
@@ -167,14 +153,7 @@ impl Backend for AshBackend {
                 },
                 count: 1,
             };
-            if guard.contains_key(window_id) {
-                guard
-                    .get_mut(window_id)
-                    .expect("failed to find window id")
-                    .push(immediate_rendering_request);
-            } else {
-                guard.insert(*window_id, vec![immediate_rendering_request]);
-            }
+            presenter.borrow_mut().render_immediate_command_buffer(immediate_rendering_request);
         }
         Ok(())
     }

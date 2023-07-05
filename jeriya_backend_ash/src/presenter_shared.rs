@@ -7,9 +7,9 @@ use jeriya_backend_ash_base::{
     swapchain_depth_buffer::SwapchainDepthBuffers, swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
-use jeriya_shared::{debug_info, winit::window::WindowId, CameraContainerGuard, Handle};
+use jeriya_shared::{debug_info, parking_lot::Mutex, winit::window::WindowId, CameraContainerGuard, Handle};
 
-use crate::backend_shared::BackendShared;
+use crate::{backend_shared::BackendShared, ImmediateRenderingRequest};
 
 /// All the state that is required for presenting to the [`Surface`]
 pub struct PresenterShared {
@@ -19,6 +19,7 @@ pub struct PresenterShared {
     pub swapchain_depth_buffers: SwapchainDepthBuffers,
     pub swapchain_framebuffers: SwapchainFramebuffers,
     pub swapchain_render_pass: SwapchainRenderPass,
+    pub immediate_rendering_requests: Vec<ImmediateRenderingRequest>,
     pub simple_graphics_pipeline: SimpleGraphicsPipeline,
     pub immediate_graphics_pipeline_line_list: ImmediateGraphicsPipeline,
     pub immediate_graphics_pipeline_line_strip: ImmediateGraphicsPipeline,
@@ -95,6 +96,7 @@ impl PresenterShared {
             swapchain_depth_buffers,
             swapchain_framebuffers,
             swapchain_render_pass,
+            immediate_rendering_requests: Vec::new(),
             simple_graphics_pipeline,
             immediate_graphics_pipeline_line_list,
             immediate_graphics_pipeline_line_strip,
