@@ -1,7 +1,6 @@
 use std::{collections::VecDeque, sync::Arc};
 
-use crate::ImmediateRenderingRequest;
-use crate::{backend_shared::BackendShared, frame::Frame, presenter_shared::PresenterShared};
+use crate::{backend_shared::BackendShared, frame::Frame, presenter_shared::PresenterShared, ImmediateRenderingRequest};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{frame_index::FrameIndex, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_shared::{debug_info, winit::window::WindowId, Handle};

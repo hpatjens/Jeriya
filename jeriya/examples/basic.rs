@@ -5,6 +5,7 @@ use jeriya_backend_ash::AshBackend;
 use jeriya_shared::{
     debug_info,
     immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
+    inanimate_mesh::MeshType,
     log,
     nalgebra::{Matrix4, Vector3, Vector4},
     winit::{
@@ -117,6 +118,19 @@ fn main() -> io::Result<()> {
         let camera = cameras.get(&handle).unwrap();
         println!("Camera: {:?}", camera.matrix());
     }
+
+    let inanimate_mesh1 = renderer
+        .inanimate_meshes()
+        .create(MeshType::Lines, vec![Vector3::new(0.6, 0.6, 0.0), Vector3::new(0.8, 0.9, 0.0)])
+        .with_debug_info(debug_info!("my_mesh"))
+        .build()
+        .unwrap();
+    let inanimate_mesh2 = renderer
+        .inanimate_meshes()
+        .create(MeshType::Lines, vec![Vector3::new(0.6, 0.6, 0.0), Vector3::new(0.8, 0.9, 0.0)])
+        .with_debug_info(debug_info!("my_mesh"))
+        .build()
+        .unwrap();
 
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(60.0);
     event_loop.run(move |event, _, control_flow| {

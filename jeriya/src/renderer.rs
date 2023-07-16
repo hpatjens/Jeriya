@@ -1,7 +1,8 @@
 use jeriya_shared::{
     immediate::{CommandBuffer, CommandBufferBuilder},
+    inanimate_mesh::InanimateMeshGroup,
     winit::window::{Window, WindowId},
-    Backend, Camera, CameraContainerGuard, DebugInfo, Handle, RendererConfig, ResourceContainerBuilder, Result,
+    Backend, Camera, CameraContainerGuard, DebugInfo, Handle, RendererConfig, Result,
 };
 
 use std::{marker::PhantomData, sync::Arc};
@@ -25,11 +26,6 @@ where
     /// Creates a new [`RendererBuilder`] to create an instance of the `Renderer`
     pub fn builder<'a>() -> RendererBuilder<'a, B> {
         RendererBuilder::new()
-    }
-
-    /// Creates a new [`ResourceContainerBuilder`]
-    pub fn create_resource_container(&self) -> ResourceContainerBuilder {
-        ResourceContainerBuilder::new()
     }
 
     /// Returns the [`Backend`] of the `Renderer`
@@ -60,6 +56,11 @@ where
     /// Returns a guard to the cameras.
     pub fn cameras(&self) -> CameraContainerGuard {
         self.backend.cameras()
+    }
+
+    /// Returns the [`InanimateMeshGroup`] of the `Renderer`
+    pub fn inanimate_meshes(&self) -> &InanimateMeshGroup {
+        &self.backend.inanimate_meshes()
     }
 
     /// Sets the active camera for the given window.
@@ -125,14 +126,13 @@ mod tests {
     use jeriya_shared::{
         debug_info,
         immediate::{CommandBuffer, CommandBufferBuilder},
+        inanimate_mesh::InanimateMeshGroup,
         parking_lot::Mutex,
         winit::window::{Window, WindowId},
         AsDebugInfo, Backend, Camera, CameraContainerGuard, CameraEvent, DebugInfo, EventQueue, Handle,
         ImmediateCommandBufferBuilderHandler, IndexingContainer, RendererConfig,
     };
     use std::sync::Arc;
-
-    use crate::Renderer;
 
     mod immediate_command_buffer {
         use jeriya_backend_ash::AshBackend;
@@ -168,6 +168,7 @@ mod tests {
         camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
         renderer_config: Arc<RendererConfig>,
         active_camera: Handle<Camera>,
+        inanimate_mesh_group: InanimateMeshGroup,
     }
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
     struct DummyImmediateCommandBufferHandler(DebugInfo);
@@ -188,11 +189,13 @@ mod tests {
             let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
             let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
             let active_camera = cameras.lock().insert(Camera::default());
+            let inanimate_mesh_group = InanimateMeshGroup::new(Arc::new(Mutex::new(EventQueue::new())));
             Ok(Self {
                 cameras,
                 camera_event_queue,
                 renderer_config: Arc::new(RendererConfig::default()),
                 active_camera,
+                inanimate_mesh_group,
             })
         }
 
@@ -216,6 +219,10 @@ mod tests {
 
         fn cameras(&self) -> CameraContainerGuard {
             CameraContainerGuard::new(self.camera_event_queue.lock(), self.cameras.lock(), self.renderer_config.clone())
+        }
+
+        fn inanimate_meshes(&self) -> &InanimateMeshGroup {
+            &self.inanimate_mesh_group
         }
 
         fn set_active_camera(&self, _window_id: WindowId, _handle: jeriya_shared::Handle<Camera>) -> jeriya_shared::Result<()> {
@@ -265,20 +272,5 @@ mod tests {
         fn as_debug_info(&self) -> &DebugInfo {
             &self.0
         }
-    }
-
-    #[test]
-    fn new_resource_group() {
-        let renderer = Renderer::<DummyBackend>::builder().build().unwrap();
-        let mut resource_container = renderer
-            .create_resource_container()
-            .with_debug_info(debug_info!("my_resource_group"))
-            .build();
-        let texture = resource_container
-            .texture2ds
-            .create()
-            .with_debug_info(debug_info!("my_texture"))
-            .build();
-        assert_eq!(texture.lock().width(), 0);
     }
 }

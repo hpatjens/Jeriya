@@ -1,15 +1,8 @@
-use crate::Resource;
+use crate::{AsDebugInfo, DebugInfo};
 
 #[derive(Default)]
-pub struct Texture2d;
-
-impl Resource for Texture2d {
-    fn new() -> Self
-    where
-        Self: Sized,
-    {
-        Self
-    }
+pub struct Texture2d {
+    debug_info: DebugInfo,
 }
 
 impl Texture2d {
@@ -19,5 +12,11 @@ impl Texture2d {
 
     pub fn height(&self) -> u32 {
         0
+    }
+}
+
+impl AsDebugInfo for Texture2d {
+    fn as_debug_info(&self) -> &DebugInfo {
+        &self.debug_info
     }
 }

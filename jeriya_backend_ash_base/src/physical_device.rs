@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use ash::vk::{self, PhysicalDeviceType};
-use jeriya_shared::log::info;
+use jeriya_shared::{log::info, thiserror};
 
 use crate::{instance::Instance, surface::Surface, AsRawVulkan};
 

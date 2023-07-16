@@ -4,6 +4,7 @@ use nalgebra::Matrix4;
 
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
+    inanimate_mesh::InanimateMeshGroup,
     winit::window::{Window, WindowId},
     AsDebugInfo, Camera, CameraContainerGuard, DebugInfo, Handle, RendererConfig,
 };
@@ -34,6 +35,9 @@ pub trait Backend: Sized {
 
     /// Returns a guard to the cameras.
     fn cameras(&self) -> CameraContainerGuard;
+
+    /// Returns the [`InanimateMeshGroup`] of the `Renderer`
+    fn inanimate_meshes(&self) -> &InanimateMeshGroup;
 
     /// Sets the active camera for the given window
     fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> crate::Result<()>;

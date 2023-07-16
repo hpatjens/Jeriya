@@ -1,10 +1,35 @@
-use std::{collections::VecDeque, marker::PhantomData, mem};
+use std::{collections::VecDeque, fmt, hash::Hasher, marker::PhantomData, mem};
 
-#[derive(Debug, Copy)]
+#[derive(Copy, PartialOrd, Ord)]
 pub struct Handle<T> {
     index: usize,
     generation: usize,
     phantom_data: PhantomData<T>,
+}
+
+impl<T> fmt::Debug for Handle<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Handle")
+            .field("index", &self.index)
+            .field("generation", &self.generation)
+            .finish()
+    }
+}
+
+impl<T> PartialEq for Handle<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index && self.generation == other.generation
+    }
+}
+
+impl<T> Eq for Handle<T> {}
+
+impl<T> std::hash::Hash for Handle<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.index.hash(state);
+        self.generation.hash(state);
+        self.phantom_data.hash(state);
+    }
 }
 
 impl<T> Clone for Handle<T> {

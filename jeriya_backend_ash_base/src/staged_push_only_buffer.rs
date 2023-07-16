@@ -43,7 +43,7 @@ impl<T: Clone + 'static> StagedPushOnlyBuffer<T> {
     }
 
     /// Copies the `data` into a newly constructed [`HostVisibleBuffer`] and issues a copy command to the [`CommandBufferBuilder`] to copy the data from the [`HostVisibleBuffer`] to the [`DeviceVisibleBuffer`].
-    pub fn push(&mut self, data: &[T], command_buffer_builder: &mut CommandBufferBuilder) -> crate::Result<()> {
+    pub fn push(&mut self, data: &[T], command_buffer_builder: &mut CommandBufferBuilder) -> crate::Result<usize> {
         if self.len + data.len() > self.capacity {
             return Err(Error::WouldOverflow);
         }
@@ -73,8 +73,9 @@ impl<T: Clone + 'static> StagedPushOnlyBuffer<T> {
             command_buffer.push_dependency(host_visible_buffer.clone());
             command_buffer.push_dependency(self.device_visible_buffer.clone());
         }
+        let offset = self.len;
         self.len += data.len();
-        Ok(())
+        Ok(offset)
     }
 
     /// Returns the length of the buffer.
@@ -164,10 +165,12 @@ mod tests {
                 CommandBufferBuilder::new(&test_fixture_device.device, &mut test_fixture_command_buffer.command_buffer).unwrap();
             command_buffer_builder.begin_command_buffer().unwrap();
 
-            buffer.push(&[0.0, 0.0], &mut command_buffer_builder).unwrap();
+            let offset1 = buffer.push(&[0.0, 0.0], &mut command_buffer_builder).unwrap();
+            assert_eq!(offset1, 0);
             assert_eq!(buffer.len(), 2);
 
             buffer.push(&[1.0, 1.0], &mut command_buffer_builder).unwrap();
+            assert_eq!(offset1, 2);
             assert_eq!(buffer.len(), 4);
 
             let result = buffer.push(&[2.0], &mut command_buffer_builder);

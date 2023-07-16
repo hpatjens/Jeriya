@@ -40,7 +40,7 @@ use ash::{
     vk::{self},
     LoadingError,
 };
-use jeriya_shared::{winit::window::WindowId, DebugInfo};
+use jeriya_shared::{thiserror, winit::window::WindowId, DebugInfo};
 
 pub type Result<T> = std::result::Result<T, Error>;
 

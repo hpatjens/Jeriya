@@ -1,9 +1,10 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::sync::Arc;
 
 use derive_more::Constructor;
 use parking_lot::MutexGuard;
 
 use crate::{
+    event_queue::EventQueue,
     nalgebra::{Matrix4, Vector3},
     nalgebra_glm, Error, Handle, IndexingContainer, RendererConfig,
 };
@@ -194,29 +195,6 @@ impl Camera {
     pub fn set_up(&mut self, up: Vector3<f32>) {
         self.transform.up = up;
         self.update_cached_matrices_on_view_change();
-    }
-}
-
-#[derive(Default)]
-pub struct EventQueue<T> {
-    events: VecDeque<T>,
-}
-
-impl<T> EventQueue<T> {
-    pub fn new() -> Self {
-        Self { events: VecDeque::new() }
-    }
-
-    pub fn push(&mut self, event: T) {
-        self.events.push_back(event);
-    }
-
-    pub fn pop(&mut self) -> Option<T> {
-        self.events.pop_front()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.events.is_empty()
     }
 }
 

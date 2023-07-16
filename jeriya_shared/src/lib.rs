@@ -1,6 +1,7 @@
 mod backend;
 mod camera;
 mod debug_info;
+mod event_queue;
 pub mod immediate;
 mod indexing_container;
 mod resources;
@@ -10,11 +11,13 @@ use std::result;
 pub use backend::*;
 pub use camera::*;
 pub use debug_info::*;
+pub use event_queue::*;
 pub use indexing_container::*;
 pub use resources::*;
 
 pub use bitflags;
 pub use bumpalo;
+pub use byte_unit;
 pub use byteorder;
 pub use chrono;
 pub use derive_more;
@@ -22,6 +25,7 @@ pub use log;
 pub use nalgebra;
 pub use nalgebra_glm;
 pub use parking_lot;
+pub use thiserror;
 pub use winit;
 
 use winit::window::WindowId;
@@ -60,6 +64,7 @@ pub enum Error {
     UnknownWindowId(WindowId),
     MaximumCapacityReached(usize),
     Backend(Box<dyn std::error::Error>),
+    InanimateMesh(resources::inanimate_mesh::Error),
 }
 
 pub type Result<T> = result::Result<T, Error>;

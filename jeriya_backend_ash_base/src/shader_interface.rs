@@ -14,6 +14,13 @@ pub struct Camera {
     pub matrix: Matrix4<f32>,
 }
 
+#[derive(Debug, Clone)]
+#[repr(C)]
+pub struct InanimateMesh {
+    pub start_offset: u64,
+    pub vertices_len: u64,
+}
+
 impl Default for Camera {
     fn default() -> Self {
         Self {
