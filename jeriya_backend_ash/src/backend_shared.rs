@@ -14,7 +14,8 @@ use jeriya_shared::{
     log::info,
     nalgebra::Vector3,
     parking_lot::Mutex,
-    Camera, CameraEvent, EventQueue, Handle, InanimateMesh, IndexingContainer, RendererConfig,
+    Camera, CameraEvent, EventQueue, Handle, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent, IndexingContainer,
+    RendererConfig,
 };
 
 /// Elements of the backend that are shared between all [`Presenter`]s.
@@ -30,6 +31,8 @@ pub struct BackendShared {
     pub inanimate_mesh_event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
     pub inanimate_mesh_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::InanimateMesh>>,
     pub static_vertex_buffer: Mutex<StagedPushOnlyBuffer<Vector3<f32>>>,
+    pub inanimate_mesh_instances: Arc<Mutex<IndexingContainer<InanimateMeshInstance>>>,
+    pub inanimate_mesh_instance_event_queue: Arc<Mutex<EventQueue<InanimateMeshInstanceEvent>>>,
 }
 
 impl BackendShared {
@@ -41,6 +44,10 @@ impl BackendShared {
         info!("Creating InanimateMeshes");
         let inanimate_mesh_event_queue = Arc::new(Mutex::new(EventQueue::new()));
         let inanimate_meshes = Arc::new(InanimateMeshGroup::new(inanimate_mesh_event_queue.clone()));
+
+        info!("Creating InanimateMeshInstances");
+        let inanimate_mesh_instances = Arc::new(Mutex::new(IndexingContainer::new()));
+        let inanimate_mesh_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
 
         // Presentation Queue
         let presentation_queue = Queue::new(device, QueueType::Presentation)?;
@@ -83,6 +90,8 @@ impl BackendShared {
             inanimate_mesh_buffer,
             static_vertex_buffer,
             inanimate_mesh_gpu_states: Arc::new(Mutex::new(HashMap::new())),
+            inanimate_mesh_instances,
+            inanimate_mesh_instance_event_queue,
         })
     }
 }

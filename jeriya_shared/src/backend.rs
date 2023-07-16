@@ -5,6 +5,7 @@ use nalgebra::Matrix4;
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
     inanimate_mesh::InanimateMeshGroup,
+    objects::InanimateMeshInstanceContainerGuard,
     winit::window::{Window, WindowId},
     AsDebugInfo, Camera, CameraContainerGuard, DebugInfo, Handle, RendererConfig,
 };
@@ -33,11 +34,14 @@ pub trait Backend: Sized {
     /// Renders the given [`CommandBuffer`] in the next frame
     fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<Self>>) -> crate::Result<()>;
 
-    /// Returns a guard to the cameras.
+    /// Returns a guard to the [`Camera`]s
     fn cameras(&self) -> CameraContainerGuard;
 
     /// Returns the [`InanimateMeshGroup`] of the `Renderer`
     fn inanimate_meshes(&self) -> &InanimateMeshGroup;
+
+    /// Returns a guard to the [`InanimateMeshInstance`]s
+    fn inanimate_mesh_instances(&self) -> InanimateMeshInstanceContainerGuard;
 
     /// Sets the active camera for the given window
     fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> crate::Result<()>;

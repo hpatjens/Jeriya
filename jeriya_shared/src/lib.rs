@@ -4,6 +4,7 @@ mod debug_info;
 mod event_queue;
 pub mod immediate;
 mod indexing_container;
+mod objects;
 mod resources;
 
 use std::result;
@@ -13,6 +14,7 @@ pub use camera::*;
 pub use debug_info::*;
 pub use event_queue::*;
 pub use indexing_container::*;
+pub use objects::*;
 pub use resources::*;
 
 pub use bitflags;
@@ -74,6 +76,7 @@ pub struct RendererConfig {
     pub application_name: Option<String>,
     pub default_desired_swapchain_length: u32,
     pub maximum_number_of_cameras: usize,
+    pub maximum_number_of_inanimate_mesh_instances: usize,
 }
 
 impl Default for RendererConfig {
@@ -82,6 +85,7 @@ impl Default for RendererConfig {
             application_name: None,
             default_desired_swapchain_length: 2,
             maximum_number_of_cameras: 16,
+            maximum_number_of_inanimate_mesh_instances: 2 ^ 16,
         }
     }
 }

@@ -29,7 +29,10 @@ impl Device {
             if available_features.wide_lines != vk::TRUE {
                 return Err(Error::PhysicalDeviceFeatureMissing(PhysicalDeviceFeature::WideLines));
             }
-            vk::PhysicalDeviceFeatures::builder().wide_lines(true)
+            if available_features.shader_int64 != vk::TRUE {
+                return Err(Error::PhysicalDeviceFeatureMissing(PhysicalDeviceFeature::ShaderInt64));
+            }
+            vk::PhysicalDeviceFeatures::builder().wide_lines(true).shader_int64(true)
         };
 
         let queue_priorities = physical_device

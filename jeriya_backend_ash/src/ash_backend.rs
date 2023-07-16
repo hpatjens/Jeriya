@@ -26,7 +26,8 @@ use jeriya_shared::{
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
     log::{info, warn},
     winit::window::{Window, WindowId},
-    AsDebugInfo, Backend, Camera, CameraContainerGuard, DebugInfo, Handle, ImmediateCommandBufferBuilderHandler, RendererConfig,
+    AsDebugInfo, Backend, Camera, CameraContainerGuard, DebugInfo, Handle, ImmediateCommandBufferBuilderHandler,
+    InanimateMeshInstanceContainerGuard, RendererConfig,
 };
 
 #[derive(Debug)]
@@ -244,6 +245,14 @@ impl Backend for AshBackend {
 
     fn inanimate_meshes(&self) -> &InanimateMeshGroup {
         &self.backend_shared.inanimate_meshes
+    }
+
+    fn inanimate_mesh_instances(&self) -> InanimateMeshInstanceContainerGuard {
+        InanimateMeshInstanceContainerGuard::new(
+            self.backend_shared.inanimate_mesh_instance_event_queue.lock(),
+            self.backend_shared.inanimate_mesh_instances.lock(),
+            self.backend_shared.renderer_config.clone(),
+        )
     }
 
     fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> jeriya_shared::Result<()> {

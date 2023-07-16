@@ -1,6 +1,7 @@
 #version 450
 
 layout (constant_id = 0) const uint MAX_CAMERAS = 8;
+layout (constant_id = 1) const uint MAX_INANIMATE_MESh_INSTANCES = 1024;
 
 layout (location = 0) out vec4 outputColor;
 

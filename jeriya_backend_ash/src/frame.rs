@@ -1,5 +1,6 @@
 use std::{iter, sync::Arc};
 
+use base::shader_interface;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags,
@@ -11,7 +12,6 @@ use jeriya_backend_ash_base::{
     immediate_graphics_pipeline::{PushConstants, Topology},
     push_descriptors::PushDescriptors,
     semaphore::Semaphore,
-    shader_interface::{Camera, PerFrameData},
 };
 use jeriya_shared::{debug_info, nalgebra::Matrix4, winit::window::WindowId};
 
@@ -21,8 +21,9 @@ pub struct Frame {
     image_available_semaphore: Option<Arc<Semaphore>>,
     rendering_complete_semaphores: Vec<Arc<Semaphore>>,
     rendering_complete_command_buffers: Vec<Arc<CommandBuffer>>,
-    per_frame_data_buffer: HostVisibleBuffer<PerFrameData>,
-    cameras_buffer: HostVisibleBuffer<Camera>,
+    per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
+    cameras_buffer: HostVisibleBuffer<shader_interface::Camera>,
+    inanimate_mesh_instance_buffer: HostVisibleBuffer<shader_interface::InanimateMeshInstance>,
 }
 
 impl Frame {
@@ -32,15 +33,24 @@ impl Frame {
         let rendering_complete_command_buffer = Vec::new();
         let per_frame_data_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
-            &[PerFrameData::default(); 1],
+            &[shader_interface::PerFrameData::default(); 1],
             BufferUsageFlags::UNIFORM_BUFFER,
             debug_info!(format!("PerFrameDataBuffer-for-Window{:?}", window_id)),
         )?;
         let cameras_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
-            &vec![Camera::default(); backend_shared.renderer_config.maximum_number_of_cameras],
+            &vec![shader_interface::Camera::default(); backend_shared.renderer_config.maximum_number_of_cameras],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),
+        )?;
+        let inanimate_mesh_instance_buffer = HostVisibleBuffer::new(
+            &backend_shared.device,
+            &vec![
+                shader_interface::InanimateMeshInstance::default();
+                backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances
+            ],
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!(format!("InanimateMeshInstanceBuffer-for-Window{:?}", window_id)),
         )?;
         Ok(Self {
             image_available_semaphore,
@@ -48,6 +58,7 @@ impl Frame {
             rendering_complete_command_buffers: rendering_complete_command_buffer,
             per_frame_data_buffer,
             cameras_buffer,
+            inanimate_mesh_instance_buffer,
         })
     }
 
@@ -88,7 +99,7 @@ impl Frame {
         );
 
         // Update Buffers
-        self.per_frame_data_buffer.set_memory_unaligned(&[PerFrameData {
+        self.per_frame_data_buffer.set_memory_unaligned(&[shader_interface::PerFrameData {
             active_camera: presenter_shared.active_camera.index() as u32,
         }])?;
         self.cameras_buffer.set_memory_unaligned({
@@ -97,12 +108,25 @@ impl Frame {
             &cameras
                 .as_slice()
                 .iter()
-                .map(|camera| Camera {
+                .map(|camera| shader_interface::Camera {
                     projection_matrix: camera.projection_matrix(),
                     view_matrix: camera.view_matrix(),
                     matrix: camera.matrix(),
                 })
-                .chain(iter::repeat(Camera::default()).take(padding))
+                .chain(iter::repeat(shader_interface::Camera::default()).take(padding))
+                .collect::<Vec<_>>()
+        })?;
+        self.inanimate_mesh_instance_buffer.set_memory_unaligned({
+            let inanimate_mesh_instances = backend_shared.inanimate_mesh_instances.lock();
+            let padding = backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances - inanimate_mesh_instances.len();
+            &inanimate_mesh_instances
+                .as_slice()
+                .iter()
+                .map(|inanimate_mesh_instance| shader_interface::InanimateMeshInstance {
+                    inanimate_mesh_index: inanimate_mesh_instance.inanimate_mesh.handle().index() as u64,
+                    transform: inanimate_mesh_instance.transform.matrix().clone(),
+                })
+                .chain(iter::repeat(shader_interface::InanimateMeshInstance::default()).take(padding))
                 .collect::<Vec<_>>()
         })?;
 
@@ -160,6 +184,7 @@ impl Frame {
             &PushDescriptors::builder(&presenter_shared.simple_graphics_pipeline.descriptor_set_layout)
                 .push_uniform_buffer(0, &self.per_frame_data_buffer)
                 .push_storage_buffer(1, &self.cameras_buffer)
+                .push_storage_buffer(2, &self.inanimate_mesh_instance_buffer)
                 .build()
         })?;
         Ok(())

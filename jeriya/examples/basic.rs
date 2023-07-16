@@ -7,13 +7,13 @@ use jeriya_shared::{
     immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
     log,
-    nalgebra::{Matrix4, Vector3, Vector4},
+    nalgebra::{Affine3, Matrix4, Vector3, Vector4},
     winit::{
         event::{Event, WindowEvent},
         event_loop::EventLoop,
         window::WindowBuilder,
     },
-    Backend,
+    Backend, InanimateMeshInstance,
 };
 
 /// Shows how the immediate rendering API can be used.
@@ -131,6 +131,13 @@ fn main() -> io::Result<()> {
         .with_debug_info(debug_info!("my_mesh"))
         .build()
         .unwrap();
+
+    {
+        let mut inanimate_mesh_instance = renderer.inanimate_mesh_instances();
+        inanimate_mesh_instance
+            .insert(InanimateMeshInstance::new(inanimate_mesh1.clone(), Affine3::identity()))
+            .unwrap();
+    }
 
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(60.0);
     event_loop.run(move |event, _, control_flow| {

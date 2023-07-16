@@ -228,24 +228,11 @@ pub enum CameraEvent {
     },
 }
 
+#[derive(Constructor)]
 pub struct CameraAccessMut<'event, 'cont, 'mutex> {
     handle: Handle<Camera>,
     camera: &'cont mut Camera,
     camera_event_queue: &'mutex mut MutexGuard<'event, EventQueue<CameraEvent>>,
-}
-
-impl<'event, 'cont, 'mutex> CameraAccessMut<'event, 'cont, 'mutex> {
-    pub fn new(
-        handle: Handle<Camera>,
-        camera: &'cont mut Camera,
-        camera_event_queue: &'mutex mut MutexGuard<'event, EventQueue<CameraEvent>>,
-    ) -> Self {
-        Self {
-            handle,
-            camera,
-            camera_event_queue,
-        }
-    }
 }
 
 impl<'event, 'cont, 'mutex> CameraAccessMut<'event, 'cont, 'mutex> {

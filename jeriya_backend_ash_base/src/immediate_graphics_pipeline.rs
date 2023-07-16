@@ -12,7 +12,7 @@ use crate::{
     descriptor_set_layout::DescriptorSetLayout,
     device::Device,
     graphics_pipeline::GraphicsPipeline,
-    shader_interface::{Camera, PerFrameData},
+    shader_interface::{Camera, InanimateMeshInstance, PerFrameData},
     shader_module::ShaderModule,
     swapchain::Swapchain,
     swapchain_render_pass::SwapchainRenderPass,
@@ -76,14 +76,24 @@ impl ImmediateGraphicsPipeline {
             Cursor::new(&fragment_shader_spirv),
             debug_info!("ImmediateGraphicsPipeline-fragment-ShaderModule"),
         )?;
-        let specialization_constants = [vk::SpecializationMapEntry::builder()
-            .constant_id(0)
-            .offset(0)
-            .size(std::mem::size_of::<u32>())
-            .build()];
+        let specialization_constants = [
+            vk::SpecializationMapEntry::builder()
+                .constant_id(0)
+                .offset(0)
+                .size(std::mem::size_of::<u32>())
+                .build(),
+            vk::SpecializationMapEntry::builder()
+                .constant_id(1)
+                .offset(0)
+                .size(std::mem::size_of::<u32>())
+                .build(),
+        ];
         let mut specialization_data = Vec::<u8>::new();
         specialization_data
             .write_u32::<LittleEndian>(renderer_config.maximum_number_of_cameras as u32)
+            .expect("failed to write specialization constant");
+        specialization_data
+            .write_u32::<LittleEndian>(renderer_config.maximum_number_of_inanimate_mesh_instances as u32)
             .expect("failed to write specialization constant");
         let specialization_info = vk::SpecializationInfo::builder()
             .map_entries(&specialization_constants)
@@ -109,6 +119,7 @@ impl ImmediateGraphicsPipeline {
             DescriptorSetLayout::builder()
                 .push_uniform_buffer::<PerFrameData>(0, 1)
                 .push_storage_buffer::<Camera>(1, 1)
+                .push_storage_buffer::<InanimateMeshInstance>(2, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];

@@ -96,6 +96,7 @@ impl<T> IntoJeriya for VkResult<T> {
 #[derive(Debug, Clone)]
 pub enum PhysicalDeviceFeature {
     WideLines,
+    ShaderInt64,
 }
 
 /// Errors in the ash backend

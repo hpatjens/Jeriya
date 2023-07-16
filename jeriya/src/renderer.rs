@@ -2,7 +2,7 @@ use jeriya_shared::{
     immediate::{CommandBuffer, CommandBufferBuilder},
     inanimate_mesh::InanimateMeshGroup,
     winit::window::{Window, WindowId},
-    Backend, Camera, CameraContainerGuard, DebugInfo, Handle, RendererConfig, Result,
+    Backend, Camera, CameraContainerGuard, DebugInfo, Handle, InanimateMeshInstanceContainerGuard, RendererConfig, Result,
 };
 
 use std::{marker::PhantomData, sync::Arc};
@@ -53,7 +53,7 @@ where
         self.backend.render_immediate_command_buffer(command_buffer)
     }
 
-    /// Returns a guard to the cameras.
+    /// Returns a guard to the [`Camera`]s.
     pub fn cameras(&self) -> CameraContainerGuard {
         self.backend.cameras()
     }
@@ -61,6 +61,11 @@ where
     /// Returns the [`InanimateMeshGroup`] of the `Renderer`
     pub fn inanimate_meshes(&self) -> &InanimateMeshGroup {
         &self.backend.inanimate_meshes()
+    }
+
+    /// Returns a guard to the [`InanimateMeshInstance`]s
+    pub fn inanimate_mesh_instances(&self) -> InanimateMeshInstanceContainerGuard {
+        self.backend.inanimate_mesh_instances()
     }
 
     /// Sets the active camera for the given window.

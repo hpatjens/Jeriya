@@ -26,14 +26,14 @@ impl From<Error> for crate::Error {
     }
 }
 
-#[derive(Default, PartialEq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub enum ResourceAllocationType {
     #[default]
     Static,
     Dynamic,
 }
 
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum MeshType {
     #[default]
     Points,
@@ -43,6 +43,7 @@ pub enum MeshType {
     TriangleList,
 }
 
+#[derive(Debug)]
 pub enum InanimateMeshGpuState {
     WaitingForUpload {
         vertex_positions: Arc<Vec<Vector3<f32>>>,
@@ -125,6 +126,20 @@ impl InanimateMesh {
     /// Returns the handle of the [`InanimateMesh`] in its [`IndexingContainer`]
     pub fn handle(&self) -> Handle<Arc<InanimateMesh>> {
         self.handle.lock().clone().expect("handle is not initialized")
+    }
+}
+
+impl std::fmt::Debug for InanimateMesh {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("InanimateMesh")
+            .field("debug_info", &self.debug_info)
+            .field("ty", &self.ty)
+            .field("allocation_type", &self.allocation_type)
+            .field("vertices_len", &self.vertices_len)
+            .field("indices_len", &self.indices_len)
+            .field("gpu_state", &self.gpu_state)
+            .field("handle", &self.handle)
+            .finish()
     }
 }
 
