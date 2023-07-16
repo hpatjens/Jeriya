@@ -135,7 +135,8 @@ mod tests {
         parking_lot::Mutex,
         winit::window::{Window, WindowId},
         AsDebugInfo, Backend, Camera, CameraContainerGuard, CameraEvent, DebugInfo, EventQueue, Handle,
-        ImmediateCommandBufferBuilderHandler, IndexingContainer, RendererConfig,
+        ImmediateCommandBufferBuilderHandler, InanimateMeshInstance, InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent,
+        IndexingContainer, RendererConfig,
     };
     use std::sync::Arc;
 
@@ -171,6 +172,8 @@ mod tests {
     struct DummyBackend {
         cameras: Arc<Mutex<IndexingContainer<Camera>>>,
         camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
+        inanimate_mesh_instances: Arc<Mutex<IndexingContainer<InanimateMeshInstance>>>,
+        inanimate_mesh_instance_event_queue: Arc<Mutex<EventQueue<InanimateMeshInstanceEvent>>>,
         renderer_config: Arc<RendererConfig>,
         active_camera: Handle<Camera>,
         inanimate_mesh_group: InanimateMeshGroup,
@@ -193,6 +196,8 @@ mod tests {
         {
             let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
             let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
+            let inanimate_mesh_instances = Arc::new(Mutex::new(IndexingContainer::new()));
+            let inanimate_mesh_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
             let active_camera = cameras.lock().insert(Camera::default());
             let inanimate_mesh_group = InanimateMeshGroup::new(Arc::new(Mutex::new(EventQueue::new())));
             Ok(Self {
@@ -201,6 +206,8 @@ mod tests {
                 renderer_config: Arc::new(RendererConfig::default()),
                 active_camera,
                 inanimate_mesh_group,
+                inanimate_mesh_instances,
+                inanimate_mesh_instance_event_queue,
             })
         }
 
@@ -228,6 +235,14 @@ mod tests {
 
         fn inanimate_meshes(&self) -> &InanimateMeshGroup {
             &self.inanimate_mesh_group
+        }
+
+        fn inanimate_mesh_instances(&self) -> jeriya_shared::InanimateMeshInstanceContainerGuard {
+            InanimateMeshInstanceContainerGuard::new(
+                self.inanimate_mesh_instance_event_queue.lock(),
+                self.inanimate_mesh_instances.lock(),
+                self.renderer_config.clone(),
+            )
         }
 
         fn set_active_camera(&self, _window_id: WindowId, _handle: jeriya_shared::Handle<Camera>) -> jeriya_shared::Result<()> {

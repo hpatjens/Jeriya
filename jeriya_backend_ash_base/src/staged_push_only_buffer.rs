@@ -169,8 +169,8 @@ mod tests {
             assert_eq!(offset1, 0);
             assert_eq!(buffer.len(), 2);
 
-            buffer.push(&[1.0, 1.0], &mut command_buffer_builder).unwrap();
-            assert_eq!(offset1, 2);
+            let offset2 = buffer.push(&[1.0, 1.0], &mut command_buffer_builder).unwrap();
+            assert_eq!(offset2, 2);
             assert_eq!(buffer.len(), 4);
 
             let result = buffer.push(&[2.0], &mut command_buffer_builder);
