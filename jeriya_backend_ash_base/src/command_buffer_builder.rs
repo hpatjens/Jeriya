@@ -4,10 +4,10 @@ use ash::vk;
 use jeriya_shared::parking_lot::Mutex;
 
 use crate::{
-    buffer::VertexBuffer, command_buffer::CommandBuffer, device::Device, device_visible_buffer::DeviceVisibleBuffer,
-    graphics_pipeline::GraphicsPipeline, host_visible_buffer::HostVisibleBuffer, push_descriptors::PushDescriptors, swapchain::Swapchain,
-    swapchain_depth_buffer::SwapchainDepthBuffer, swapchain_framebuffers::SwapchainFramebuffers,
-    swapchain_render_pass::SwapchainRenderPass, AsRawVulkan, Error,
+    buffer::VertexBuffer, command_buffer::CommandBuffer, compute_pipeline::ComputePipeline, device::Device,
+    device_visible_buffer::DeviceVisibleBuffer, graphics_pipeline::GraphicsPipeline, host_visible_buffer::HostVisibleBuffer,
+    push_descriptors::PushDescriptors, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffer,
+    swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass, AsRawVulkan, Error,
 };
 
 pub struct CommandBufferBuilder<'buf> {
@@ -15,7 +15,8 @@ pub struct CommandBufferBuilder<'buf> {
     device: Arc<Device>,
 
     /// Layout of the last pipeline that was bound if any
-    bound_pipeline_layout: Option<vk::PipelineLayout>,
+    bound_graphics_pipeline_layout: Option<vk::PipelineLayout>,
+    bound_compute_pipeline_layout: Option<vk::PipelineLayout>,
 }
 
 impl<'buf> CommandBufferBuilder<'buf> {
@@ -23,7 +24,8 @@ impl<'buf> CommandBufferBuilder<'buf> {
         Ok(Self {
             command_buffer,
             device: device.clone(),
-            bound_pipeline_layout: None,
+            bound_graphics_pipeline_layout: None,
+            bound_compute_pipeline_layout: None,
         })
     }
 }
@@ -115,8 +117,19 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 vk::PipelineBindPoint::GRAPHICS,
                 graphics_pipeline.graphics_pipeline(),
             );
+            self.bound_graphics_pipeline_layout = Some(graphics_pipeline.graphics_pipeline_layout());
+        }
+        self
+    }
 
-            self.bound_pipeline_layout = Some(graphics_pipeline.graphics_pipeline_layout());
+    pub fn bind_compute_pipeline(&mut self, compute_pipeline: &dyn ComputePipeline) -> &mut Self {
+        unsafe {
+            self.device.as_raw_vulkan().cmd_bind_pipeline(
+                *self.command_buffer.as_raw_vulkan(),
+                vk::PipelineBindPoint::COMPUTE,
+                compute_pipeline.compute_pipeline(),
+            );
+            self.bound_compute_pipeline_layout = Some(compute_pipeline.compute_pipeline_layout());
         }
         self
     }
@@ -251,7 +264,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
 
     /// Pushes the given `push_constants` to the command buffer
     pub fn push_constants<C>(&mut self, push_constants: &[C]) -> crate::Result<()> {
-        let bound_pipeline_layout = self.bound_pipeline_layout.ok_or(Error::NoPipelineBound)?;
+        let bound_pipeline_layout = self.bound_graphics_pipeline_layout.ok_or(Error::NoPipelineBound)?;
         unsafe {
             self.device.as_raw_vulkan().cmd_push_constants(
                 *self.command_buffer.as_raw_vulkan(),
@@ -275,7 +288,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
 
     /// Pushes the given descriptors to the command buffer
     pub fn push_descriptors_for_graphics(&mut self, descriptor_set: u32, push_descriptors: &PushDescriptors) -> crate::Result<()> {
-        let bound_pipeline_layout = self.bound_pipeline_layout.ok_or(Error::NoPipelineBound)?;
+        let bound_pipeline_layout = self.bound_graphics_pipeline_layout.ok_or(Error::NoPipelineBound)?;
         unsafe {
             self.device.extensions.push_descriptor.cmd_push_descriptor_set(
                 *self.command_buffer.as_raw_vulkan(),
@@ -286,5 +299,15 @@ impl<'buf> CommandBufferBuilder<'buf> {
             );
         }
         Ok(())
+    }
+
+    /// Dispatches a compute shader
+    pub fn dispatch(&mut self, x: u32, y: u32, z: u32) -> &mut Self {
+        unsafe {
+            self.device
+                .as_raw_vulkan()
+                .cmd_dispatch(*self.command_buffer.as_raw_vulkan(), x, y, z);
+        }
+        self
     }
 }

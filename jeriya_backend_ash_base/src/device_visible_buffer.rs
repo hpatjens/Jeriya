@@ -4,7 +4,7 @@ use ash::vk;
 use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
 
 use crate::{
-    buffer::BufferUsageFlags,
+    buffer::{Buffer, BufferUsageFlags},
     command_buffer::{CommandBuffer, CommandBufferDependency},
     command_buffer_builder::CommandBufferBuilder,
     command_pool::CommandPool,
@@ -74,6 +74,8 @@ impl<T: Clone + 'static> DeviceVisibleBuffer<T> {
         self.buffer.byte_size()
     }
 }
+
+impl<T> Buffer<T> for DeviceVisibleBuffer<T> {}
 
 impl<T> AsRawVulkan for DeviceVisibleBuffer<T> {
     type Output = vk::Buffer;

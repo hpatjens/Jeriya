@@ -1,6 +1,7 @@
 use std::{iter, sync::Arc};
 
-use base::shader_interface;
+use base::device_visible_buffer::DeviceVisibleBuffer;
+use base::{shader_interface, DrawIndirectCommand};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags,
@@ -13,6 +14,7 @@ use jeriya_backend_ash_base::{
     push_descriptors::PushDescriptors,
     semaphore::Semaphore,
 };
+use jeriya_shared::log::info;
 use jeriya_shared::{debug_info, nalgebra::Matrix4, winit::window::WindowId};
 
 use crate::{ash_immediate::ImmediateCommand, backend_shared::BackendShared, presenter_shared::PresenterShared, ImmediateRenderingRequest};
@@ -24,6 +26,7 @@ pub struct Frame {
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
     cameras_buffer: HostVisibleBuffer<shader_interface::Camera>,
     inanimate_mesh_instance_buffer: HostVisibleBuffer<shader_interface::InanimateMeshInstance>,
+    indirect_draw_buffer: Arc<DeviceVisibleBuffer<DrawIndirectCommand>>,
 }
 
 impl Frame {
@@ -37,12 +40,16 @@ impl Frame {
             BufferUsageFlags::UNIFORM_BUFFER,
             debug_info!(format!("PerFrameDataBuffer-for-Window{:?}", window_id)),
         )?;
+
+        info!("Create camera buffer");
         let cameras_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
             &vec![shader_interface::Camera::default(); backend_shared.renderer_config.maximum_number_of_cameras],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),
         )?;
+
+        info!("Create inanimate mesh instance buffer");
         let inanimate_mesh_instance_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
             &vec![
@@ -52,6 +59,16 @@ impl Frame {
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("InanimateMeshInstanceBuffer-for-Window{:?}", window_id)),
         )?;
+
+        info!("Create indirect draw buffer");
+        const DRAW_INDIRECT_COMMAND_COUNT: usize = 1024;
+        let indirect_draw_buffer = DeviceVisibleBuffer::new(
+            &backend_shared.device,
+            DRAW_INDIRECT_COMMAND_COUNT * std::mem::size_of::<DrawIndirectCommand>(),
+            BufferUsageFlags::INDIRECT_BUFFER | BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!(format!("IndirectDrawBuffer-for-Window{:?}", window_id)),
+        )?;
+
         Ok(Self {
             image_available_semaphore,
             rendering_complete_semaphores,
@@ -59,6 +76,7 @@ impl Frame {
             per_frame_data_buffer,
             cameras_buffer,
             inanimate_mesh_instance_buffer,
+            indirect_draw_buffer,
         })
     }
 
@@ -98,9 +116,25 @@ impl Frame {
             "There should only be one rendering complete semaphore"
         );
 
+        // Prepare InanimateMeshInstances
+        let inanimate_mesh_instances = {
+            let inanimate_mesh_instances = backend_shared.inanimate_mesh_instances.lock();
+            let padding = backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances - inanimate_mesh_instances.len();
+            &inanimate_mesh_instances
+                .as_slice()
+                .iter()
+                .map(|inanimate_mesh_instance| shader_interface::InanimateMeshInstance {
+                    inanimate_mesh_index: inanimate_mesh_instance.inanimate_mesh.handle().index() as u64,
+                    transform: inanimate_mesh_instance.transform.matrix().clone(),
+                })
+                .chain(iter::repeat(shader_interface::InanimateMeshInstance::default()).take(padding))
+                .collect::<Vec<_>>()
+        };
+
         // Update Buffers
         self.per_frame_data_buffer.set_memory_unaligned(&[shader_interface::PerFrameData {
             active_camera: presenter_shared.active_camera.index() as u32,
+            inanimate_mesh_instance_count: inanimate_mesh_instances.len() as u32,
         }])?;
         self.cameras_buffer.set_memory_unaligned({
             let cameras = backend_shared.cameras.lock();
@@ -116,19 +150,10 @@ impl Frame {
                 .chain(iter::repeat(shader_interface::Camera::default()).take(padding))
                 .collect::<Vec<_>>()
         })?;
-        self.inanimate_mesh_instance_buffer.set_memory_unaligned({
-            let inanimate_mesh_instances = backend_shared.inanimate_mesh_instances.lock();
-            let padding = backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances - inanimate_mesh_instances.len();
-            &inanimate_mesh_instances
-                .as_slice()
-                .iter()
-                .map(|inanimate_mesh_instance| shader_interface::InanimateMeshInstance {
-                    inanimate_mesh_index: inanimate_mesh_instance.inanimate_mesh.handle().index() as u64,
-                    transform: inanimate_mesh_instance.transform.matrix().clone(),
-                })
-                .chain(iter::repeat(shader_interface::InanimateMeshInstance::default()).take(padding))
-                .collect::<Vec<_>>()
-        })?;
+        self.inanimate_mesh_instance_buffer
+            .set_memory_unaligned(&inanimate_mesh_instances)?;
+        const LOCAL_SIZE_X: u32 = 128;
+        let cull_compute_shader_group_count = (inanimate_mesh_instances.len() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
 
         // Build CommandBuffer
         let mut command_buffer = CommandBuffer::new(
@@ -140,6 +165,8 @@ impl Frame {
         command_buffer_builder
             .begin_command_buffer_for_one_time_submit()?
             .depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(frame_index))?
+            .bind_compute_pipeline(&presenter_shared.cull_compute_pipeline)
+            .dispatch(cull_compute_shader_group_count, 1, 1)
             .begin_render_pass(
                 presenter_shared.swapchain(),
                 presenter_shared.render_pass(),
@@ -185,6 +212,7 @@ impl Frame {
                 .push_uniform_buffer(0, &self.per_frame_data_buffer)
                 .push_storage_buffer(1, &self.cameras_buffer)
                 .push_storage_buffer(2, &self.inanimate_mesh_instance_buffer)
+                .push_storage_buffer(3, &self.indirect_draw_buffer)
                 .build()
         })?;
         Ok(())

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use base::cull_compute_pipeline::CullComputePipeline;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     device::Device, immediate_graphics_pipeline::ImmediateGraphicsPipeline, immediate_graphics_pipeline::Topology,
@@ -7,6 +8,7 @@ use jeriya_backend_ash_base::{
     swapchain_depth_buffer::SwapchainDepthBuffers, swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
+use jeriya_shared::log::info;
 use jeriya_shared::{debug_info, winit::window::WindowId, CameraContainerGuard, Handle};
 
 use crate::{backend_shared::BackendShared, ImmediateRenderingRequest};
@@ -25,6 +27,7 @@ pub struct PresenterShared {
     pub immediate_graphics_pipeline_line_strip: ImmediateGraphicsPipeline,
     pub immediate_graphics_pipeline_triangle_list: ImmediateGraphicsPipeline,
     pub immediate_graphics_pipeline_triangle_strip: ImmediateGraphicsPipeline,
+    pub cull_compute_pipeline: CullComputePipeline,
     pub active_camera: Handle<jeriya_shared::Camera>,
     pub device: Arc<Device>,
 }
@@ -40,6 +43,7 @@ impl PresenterShared {
             SwapchainFramebuffers::new(&backend_shared.device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
 
         // Graphics Pipeline
+        info!("Create Graphics Pipelines");
         let simple_graphics_pipeline = SimpleGraphicsPipeline::new(
             &backend_shared.device,
             &swapchain_render_pass,
@@ -80,7 +84,15 @@ impl PresenterShared {
             debug_info!(format!("ImmediateGraphicsPipeline-for-Window{:?}", window_id)),
         )?;
 
+        // Compute Pipeline
+        info!("Create Compute Pipeline");
+        let cull_compute_pipeline = CullComputePipeline::new(
+            &backend_shared.device,
+            debug_info!(format!("CullComputePipeline-for-Window{:?}", window_id)),
+        )?;
+
         // Create a camera for this window
+        info!("Create Camera");
         let mut guard = CameraContainerGuard::new(
             backend_shared.camera_event_queue.lock(),
             backend_shared.cameras.lock(),
@@ -104,6 +116,7 @@ impl PresenterShared {
             immediate_graphics_pipeline_triangle_strip,
             device: backend_shared.device.clone(),
             active_camera,
+            cull_compute_pipeline,
         })
     }
 

@@ -18,6 +18,7 @@ bitflags! {
         const UNIFORM_BUFFER = 0x00000010;
         const STORAGE_BUFFER = 0x00000020;
         const VERTEX_BUFFER = 0x00000080;
+        const INDIRECT_BUFFER = 0x00000100;
     }
 }
 
@@ -26,6 +27,10 @@ impl From<BufferUsageFlags> for vk::BufferUsageFlags {
         vk::BufferUsageFlags::from_raw(flags.bits())
     }
 }
+
+pub trait Buffer<T>: AsRawVulkan<Output = vk::Buffer> {}
+
+impl<E, T> Buffer<T> for Arc<E> where E: Buffer<T> {}
 
 /// A buffer that can be used as a vertex buffer
 ///

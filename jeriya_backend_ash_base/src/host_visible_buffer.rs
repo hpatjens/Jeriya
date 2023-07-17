@@ -3,7 +3,13 @@ use std::{mem, sync::Arc};
 use ash::vk;
 use jeriya_shared::{parking_lot::Mutex, AsDebugInfo, DebugInfo};
 
-use crate::{buffer::BufferUsageFlags, command_buffer::CommandBufferDependency, device::Device, unsafe_buffer::UnsafeBuffer, AsRawVulkan};
+use crate::{
+    buffer::{Buffer, BufferUsageFlags},
+    command_buffer::CommandBufferDependency,
+    device::Device,
+    unsafe_buffer::UnsafeBuffer,
+    AsRawVulkan,
+};
 
 pub struct HostVisibleBuffer<T> {
     buffer: UnsafeBuffer<T>,
@@ -51,6 +57,8 @@ impl<T: Clone> HostVisibleBuffer<T> {
         self.buffer.byte_size()
     }
 }
+
+impl<T> Buffer<T> for HostVisibleBuffer<T> {}
 
 impl<T> AsRawVulkan for HostVisibleBuffer<T> {
     type Output = vk::Buffer;

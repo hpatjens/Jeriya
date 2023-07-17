@@ -1,7 +1,7 @@
 use ash::vk::{self};
 use jeriya_shared::bumpalo::Bump;
 
-use crate::{descriptor::DescriptorType, descriptor_set_layout::DescriptorSetLayout, host_visible_buffer::HostVisibleBuffer, AsRawVulkan};
+use crate::{buffer::Buffer, descriptor::DescriptorType, descriptor_set_layout::DescriptorSetLayout};
 
 pub struct PushDescriptorBuilder<'a> {
     descriptor_set: &'a DescriptorSetLayout,
@@ -19,11 +19,11 @@ impl<'a> PushDescriptorBuilder<'a> {
     }
 
     /// Creates a `vk::WriteDescriptorSet` for a `vk::DescriptorType::UNIFORM_BUFFER`
-    pub fn push_uniform_buffer<T: 'static>(mut self, destination_binding: u32, host_visible_buffer: &HostVisibleBuffer<T>) -> Self {
+    pub fn push_uniform_buffer<T: 'static>(mut self, destination_binding: u32, buffer: &impl Buffer<T>) -> Self {
         assert!(self.contains_binding(destination_binding, DescriptorType::new_uniform_buffer::<T>()));
         // Must be allocated in an allocator until the write descriptor set is submitted
         let buffer_info = self.allocator.alloc(vk::DescriptorBufferInfo {
-            buffer: *host_visible_buffer.as_raw_vulkan(),
+            buffer: *buffer.as_raw_vulkan(),
             offset: 0,
             range: vk::WHOLE_SIZE,
         });
@@ -42,11 +42,11 @@ impl<'a> PushDescriptorBuilder<'a> {
     }
 
     /// Creates a `vk::WriteDescriptorSet` for a `vk::DescriptorType::STORAGE_BUFFER`
-    pub fn push_storage_buffer<T: 'static>(mut self, destination_binding: u32, host_visible_buffer: &HostVisibleBuffer<T>) -> Self {
+    pub fn push_storage_buffer<T: 'static>(mut self, destination_binding: u32, buffer: &impl Buffer<T>) -> Self {
         assert!(self.contains_binding(destination_binding, DescriptorType::new_storage_buffer::<T>()));
         // Must be allocated in an allocator until the write descriptor set is submitted
         let buffer_info = self.allocator.alloc(vk::DescriptorBufferInfo {
-            buffer: *host_visible_buffer.as_raw_vulkan(),
+            buffer: *buffer.as_raw_vulkan(),
             offset: 0,
             range: vk::WHOLE_SIZE,
         });

@@ -1,0 +1,51 @@
+#version 450
+
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+	
+layout (constant_id = 0) const uint MAX_CAMERAS = 8;
+layout (constant_id = 1) const uint MAX_INANIMATE_MESH_INSTANCES = 1024;
+
+struct Camera {
+    mat4 projection_matrix;
+    mat4 view_matrix;
+    mat4 matrix;
+};
+
+struct InanimateMeshInstance {
+    uint64_t inanimate_mesh_id;
+    mat4 transform;
+};
+
+struct VkDrawIndirectCommand {
+    uint vertex_count;
+    uint instance_count;
+    uint first_vertex;
+    uint first_instance;
+};
+
+layout (set = 0, binding = 0) uniform PerFrameData { 
+    uint active_camera;
+    uint inanimate_mesh_instance_count;
+} per_frame_data;
+
+layout (set = 0, binding = 1) buffer Cameras { 
+    Camera cameras[MAX_CAMERAS];
+} cameras;
+
+layout (set = 0, binding = 2) buffer InanimateMeshInstances { 
+    InanimateMeshInstance inanimate_mesh_instances[MAX_INANIMATE_MESH_INSTANCES];
+} inanimate_mesh_instances;
+
+layout (set = 0, binding = 3) buffer IndirectDrawInanimateMeshInstances { 
+    VkDrawIndirectCommand indirect_draw_inanimate_mesh_instances [MAX_INANIMATE_MESH_INSTANCES];
+};
+
+layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= per_frame_data.inanimate_mesh_instance_count) {
+        return;
+    }
+
+}

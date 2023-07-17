@@ -120,6 +120,7 @@ impl ImmediateGraphicsPipeline {
                 .push_uniform_buffer::<PerFrameData>(0, 1)
                 .push_storage_buffer::<Camera>(1, 1)
                 .push_storage_buffer::<InanimateMeshInstance>(2, 1)
+                .push_storage_buffer::<crate::DrawIndirectCommand>(3, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];

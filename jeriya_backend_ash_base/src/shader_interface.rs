@@ -4,6 +4,7 @@ use jeriya_shared::nalgebra::Matrix4;
 #[derive(Debug, Clone, Default)]
 pub struct PerFrameData {
     pub active_camera: u32,
+    pub inanimate_mesh_instance_count: u32,
 }
 
 #[repr(C)]

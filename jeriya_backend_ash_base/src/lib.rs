@@ -2,6 +2,8 @@ pub mod buffer;
 pub mod command_buffer;
 pub mod command_buffer_builder;
 pub mod command_pool;
+pub mod compute_pipeline;
+pub mod cull_compute_pipeline;
 pub mod debug;
 pub mod descriptor;
 pub mod descriptor_pool;
@@ -32,7 +34,9 @@ pub mod swapchain_render_pass;
 pub mod swapchain_vec;
 pub mod unsafe_buffer;
 
-use std::{ffi::NulError, str::Utf8Error};
+pub use vk::DrawIndirectCommand;
+
+use std::{ffi::NulError, str::Utf8Error, sync::Arc};
 
 use ash::{
     extensions::khr::PushDescriptor,
@@ -78,6 +82,16 @@ impl DebugInfoAshExtension for DebugInfo {
 pub trait AsRawVulkan {
     type Output;
     fn as_raw_vulkan(&self) -> &Self::Output;
+}
+
+impl<T> AsRawVulkan for Arc<T>
+where
+    T: AsRawVulkan,
+{
+    type Output = T::Output;
+    fn as_raw_vulkan(&self) -> &Self::Output {
+        self.as_ref().as_raw_vulkan()
+    }
 }
 
 pub(crate) trait IntoJeriya {
