@@ -58,6 +58,14 @@ impl DebugInfo {
         let ptr = self.ptr.map(|ptr| format!("{:#x}", ptr)).unwrap_or_else(|| "None".to_owned());
         format!("DebugInfo {{ name: {name}, ptr: {ptr} }}")
     }
+
+    /// Returns either the name that was set or "unknown".
+    pub fn name(&self) -> &str {
+        match &self.name {
+            Some(name) => name,
+            None => "unknown",
+        }
+    }
 }
 
 #[macro_export]
