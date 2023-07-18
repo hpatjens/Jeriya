@@ -17,6 +17,7 @@ pub mod frame_index;
 pub mod graphics_pipeline;
 pub mod host_visible_buffer;
 pub mod immediate_graphics_pipeline;
+pub mod indirect_graphics_pipeline;
 pub mod instance;
 pub mod physical_device;
 pub mod push_descriptors;
@@ -111,6 +112,7 @@ impl<T> IntoJeriya for VkResult<T> {
 pub enum PhysicalDeviceFeature {
     WideLines,
     ShaderInt64,
+    MultiDrawIndirect,
 }
 
 /// Errors in the ash backend

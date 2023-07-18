@@ -1,21 +1,21 @@
-use std::{iter, sync::Arc};
+use std::{iter, mem, sync::Arc};
 
-use base::device_visible_buffer::DeviceVisibleBuffer;
-use base::{shader_interface, DrawIndirectCommand};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags,
     command_buffer::CommandBuffer,
     command_buffer_builder::CommandBufferBuilder,
-    device::Device,
+    command_buffer_builder::PipelineBindPoint,
+    descriptor_set_layout::DescriptorSetLayout,
+    device_visible_buffer::DeviceVisibleBuffer,
     frame_index::FrameIndex,
     host_visible_buffer::HostVisibleBuffer,
     immediate_graphics_pipeline::{PushConstants, Topology},
     push_descriptors::PushDescriptors,
     semaphore::Semaphore,
+    shader_interface, DrawIndirectCommand,
 };
-use jeriya_shared::log::info;
-use jeriya_shared::{debug_info, nalgebra::Matrix4, winit::window::WindowId};
+use jeriya_shared::{debug_info, log::info, nalgebra::Matrix4, winit::window::WindowId};
 
 use crate::{ash_immediate::ImmediateCommand, backend_shared::BackendShared, presenter_shared::PresenterShared, ImmediateRenderingRequest};
 
@@ -61,10 +61,9 @@ impl Frame {
         )?;
 
         info!("Create indirect draw buffer");
-        const DRAW_INDIRECT_COMMAND_COUNT: usize = 1024;
         let indirect_draw_buffer = DeviceVisibleBuffer::new(
             &backend_shared.device,
-            DRAW_INDIRECT_COMMAND_COUNT * std::mem::size_of::<DrawIndirectCommand>(),
+            backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances * mem::size_of::<DrawIndirectCommand>(),
             BufferUsageFlags::INDIRECT_BUFFER | BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("IndirectDrawBuffer-for-Window{:?}", window_id)),
         )?;
@@ -164,18 +163,47 @@ impl Frame {
         let mut command_buffer_builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
         command_buffer_builder
             .begin_command_buffer_for_one_time_submit()?
-            .depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(frame_index))?
-            .bind_compute_pipeline(&presenter_shared.cull_compute_pipeline)
-            .dispatch(cull_compute_shader_group_count, 1, 1)
-            .begin_render_pass(
-                presenter_shared.swapchain(),
-                presenter_shared.render_pass(),
-                (presenter_shared.framebuffers(), frame_index.swapchain_index()),
-            )?
-            .bind_graphics_pipeline(&presenter_shared.simple_graphics_pipeline);
-        self.push_descriptors(presenter_shared, &mut command_buffer_builder)?;
+            .depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(frame_index))?;
+
+        // Cull
+        command_buffer_builder.bind_compute_pipeline(&presenter_shared.cull_compute_pipeline);
+        self.push_descriptors(
+            PipelineBindPoint::Compute,
+            &presenter_shared.cull_compute_pipeline.descriptor_set_layout,
+            backend_shared,
+            &mut command_buffer_builder,
+        )?;
+        command_buffer_builder.dispatch(cull_compute_shader_group_count, 1, 1);
+        command_buffer_builder.indirect_draw_commands_buffer_pipeline_barrier(&self.indirect_draw_buffer);
+
+        // Render Pass
+        command_buffer_builder.begin_render_pass(
+            presenter_shared.swapchain(),
+            presenter_shared.render_pass(),
+            (presenter_shared.framebuffers(), frame_index.swapchain_index()),
+        )?;
+
+        // Render with IndirectGraphicsPipeline
+        command_buffer_builder.bind_graphics_pipeline(&presenter_shared.indirect_graphics_pipeline);
+        self.push_descriptors(
+            PipelineBindPoint::Graphics,
+            &presenter_shared.indirect_graphics_pipeline.descriptor_set_layout,
+            backend_shared,
+            &mut command_buffer_builder,
+        )?;
+        command_buffer_builder.draw_indirect(&self.indirect_draw_buffer, inanimate_mesh_instances.len());
+
+        // Render with SimpleGraphicsPipeline
+        command_buffer_builder.bind_graphics_pipeline(&presenter_shared.simple_graphics_pipeline);
+        self.push_descriptors(
+            PipelineBindPoint::Graphics,
+            &presenter_shared.simple_graphics_pipeline.descriptor_set_layout,
+            backend_shared,
+            &mut command_buffer_builder,
+        )?;
+        // Render with ImmediateRenderingPipeline
         self.append_immediate_rendering_commands(
-            &backend_shared.device,
+            backend_shared,
             presenter_shared,
             &mut command_buffer_builder,
             &presenter_shared.immediate_rendering_requests,
@@ -206,21 +234,28 @@ impl Frame {
     }
 
     /// Pushes the required descriptors to the [`CommandBufferBuilder`].
-    fn push_descriptors(&self, presenter_shared: &PresenterShared, command_buffer_builder: &mut CommandBufferBuilder) -> base::Result<()> {
-        command_buffer_builder.push_descriptors_for_graphics(0, {
-            &PushDescriptors::builder(&presenter_shared.simple_graphics_pipeline.descriptor_set_layout)
-                .push_uniform_buffer(0, &self.per_frame_data_buffer)
-                .push_storage_buffer(1, &self.cameras_buffer)
-                .push_storage_buffer(2, &self.inanimate_mesh_instance_buffer)
-                .push_storage_buffer(3, &self.indirect_draw_buffer)
-                .build()
-        })?;
+    fn push_descriptors(
+        &self,
+        pipeline_bind_point: PipelineBindPoint,
+        descriptor_set_layout: &DescriptorSetLayout,
+        backend_shared: &BackendShared,
+        command_buffer_builder: &mut CommandBufferBuilder,
+    ) -> base::Result<()> {
+        let push_descriptors = &PushDescriptors::builder(&descriptor_set_layout)
+            .push_uniform_buffer(0, &self.per_frame_data_buffer)
+            .push_storage_buffer(1, &self.cameras_buffer)
+            .push_storage_buffer(2, &self.inanimate_mesh_instance_buffer)
+            .push_storage_buffer(3, &self.indirect_draw_buffer)
+            .push_storage_buffer(4, &*backend_shared.inanimate_mesh_buffer.lock())
+            .push_storage_buffer(5, &*backend_shared.static_vertex_buffer.lock())
+            .build();
+        command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())
     }
 
     fn append_immediate_rendering_commands(
         &self,
-        device: &Arc<Device>,
+        backend_shared: &BackendShared,
         presenter_shared: &PresenterShared,
         command_buffer_builder: &mut CommandBufferBuilder,
         immediate_rendering_requests: &Vec<ImmediateRenderingRequest>,
@@ -243,7 +278,7 @@ impl Frame {
             }
         }
         let vertex_buffer = Arc::new(HostVisibleBuffer::new(
-            device,
+            &backend_shared.device,
             data.as_slice(),
             BufferUsageFlags::VERTEX_BUFFER,
             debug_info!("Immediate-VertexBuffer"),
@@ -261,7 +296,12 @@ impl Frame {
                     ImmediateCommand::LineList(line_list) => {
                         if !matches!(last_topology, Some(Topology::LineList)) {
                             command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_list);
-                            self.push_descriptors(presenter_shared, command_buffer_builder)?;
+                            self.push_descriptors(
+                                PipelineBindPoint::Graphics,
+                                &presenter_shared.immediate_graphics_pipeline_line_list.descriptor_set_layout,
+                                backend_shared,
+                                command_buffer_builder,
+                            )?;
                         }
                         let push_constants = PushConstants {
                             color: line_list.config().color,
@@ -276,7 +316,12 @@ impl Frame {
                     ImmediateCommand::LineStrip(line_strip) => {
                         if !matches!(last_topology, Some(Topology::LineStrip)) {
                             command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_strip);
-                            self.push_descriptors(presenter_shared, command_buffer_builder)?;
+                            self.push_descriptors(
+                                PipelineBindPoint::Graphics,
+                                &presenter_shared.immediate_graphics_pipeline_line_strip.descriptor_set_layout,
+                                backend_shared,
+                                command_buffer_builder,
+                            )?;
                         }
                         let push_constants = PushConstants {
                             color: line_strip.config().color,
@@ -291,7 +336,12 @@ impl Frame {
                     ImmediateCommand::TriangleList(triangle_list) => {
                         if !matches!(last_topology, Some(Topology::TriangleList)) {
                             command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_list);
-                            self.push_descriptors(presenter_shared, command_buffer_builder)?;
+                            self.push_descriptors(
+                                PipelineBindPoint::Graphics,
+                                &presenter_shared.immediate_graphics_pipeline_triangle_list.descriptor_set_layout,
+                                backend_shared,
+                                command_buffer_builder,
+                            )?;
                         }
                         let push_constants = PushConstants {
                             color: triangle_list.config().color,
@@ -305,7 +355,12 @@ impl Frame {
                     ImmediateCommand::TriangleStrip(triangle_strip) => {
                         if !matches!(last_topology, Some(Topology::TriangleStrip)) {
                             command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_strip);
-                            self.push_descriptors(presenter_shared, command_buffer_builder)?;
+                            self.push_descriptors(
+                                PipelineBindPoint::Graphics,
+                                &presenter_shared.immediate_graphics_pipeline_triangle_strip.descriptor_set_layout,
+                                backend_shared,
+                                command_buffer_builder,
+                            )?;
                         }
                         let push_constants = PushConstants {
                             color: triangle_strip.config().color,

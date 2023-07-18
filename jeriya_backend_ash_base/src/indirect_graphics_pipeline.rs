@@ -25,7 +25,7 @@ pub struct PushConstants {
     _non_zero: u32,
 }
 
-pub struct SimpleGraphicsPipeline {
+pub struct IndirectGraphicsPipeline {
     _vertex_shader: ShaderModule,
     _fragment_shader: ShaderModule,
     graphics_pipeline: vk::Pipeline,
@@ -35,7 +35,7 @@ pub struct SimpleGraphicsPipeline {
     device: Arc<Device>,
 }
 
-impl Drop for SimpleGraphicsPipeline {
+impl Drop for IndirectGraphicsPipeline {
     fn drop(&mut self) {
         unsafe {
             let device = &self.device.as_raw_vulkan();
@@ -45,7 +45,7 @@ impl Drop for SimpleGraphicsPipeline {
     }
 }
 
-impl SimpleGraphicsPipeline {
+impl IndirectGraphicsPipeline {
     pub fn new(
         device: &Arc<Device>,
         renderpass: &SwapchainRenderPass,
@@ -55,17 +55,17 @@ impl SimpleGraphicsPipeline {
     ) -> crate::Result<Self> {
         let entry_name = CString::new("main").expect("Valid c string");
 
-        let vertex_shader_spirv = include_bytes!("../test_data/red_triangle.vert.spv").to_vec();
-        let fragment_shader_spirv = include_bytes!("../test_data/red_triangle.frag.spv").to_vec();
+        let vertex_shader_spirv = include_bytes!("../test_data/indirect.vert.spv").to_vec();
+        let fragment_shader_spirv = include_bytes!("../test_data/indirect.frag.spv").to_vec();
         let vertex_shader = ShaderModule::new(
             device,
             Cursor::new(&vertex_shader_spirv),
-            debug_info!("SimpleGraphicsPipeline-vertex-ShaderModule"),
+            debug_info!("IndirectGraphicsPipeline-vertex-ShaderModule"),
         )?;
         let fragment_shader = ShaderModule::new(
             device,
             Cursor::new(&fragment_shader_spirv),
-            debug_info!("SimpleGraphicsPipeline-fragment-ShaderModule"),
+            debug_info!("IndirectGraphicsPipeline-fragment-ShaderModule"),
         )?;
         let specialization_constants = [
             vk::SpecializationMapEntry::builder()
@@ -250,7 +250,7 @@ impl SimpleGraphicsPipeline {
     }
 }
 
-impl GraphicsPipeline for SimpleGraphicsPipeline {
+impl GraphicsPipeline for IndirectGraphicsPipeline {
     fn graphics_pipeline(&self) -> vk::Pipeline {
         self.graphics_pipeline
     }
@@ -260,14 +260,14 @@ impl GraphicsPipeline for SimpleGraphicsPipeline {
     }
 }
 
-impl AsRawVulkan for SimpleGraphicsPipeline {
+impl AsRawVulkan for IndirectGraphicsPipeline {
     type Output = vk::Pipeline;
     fn as_raw_vulkan(&self) -> &Self::Output {
         &self.graphics_pipeline
     }
 }
 
-impl AsDebugInfo for SimpleGraphicsPipeline {
+impl AsDebugInfo for IndirectGraphicsPipeline {
     fn as_debug_info(&self) -> &DebugInfo {
         &self.debug_info
     }
@@ -279,7 +279,7 @@ mod tests {
         use jeriya_shared::{debug_info, RendererConfig};
 
         use crate::{
-            device::tests::TestFixtureDevice, simple_graphics_pipeline::SimpleGraphicsPipeline, swapchain::Swapchain,
+            device::tests::TestFixtureDevice, indirect_graphics_pipeline::IndirectGraphicsPipeline, swapchain::Swapchain,
             swapchain_render_pass::SwapchainRenderPass,
         };
 
@@ -288,7 +288,7 @@ mod tests {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
             let swapchain = Swapchain::new(&test_fixture_device.device, &test_fixture_device.surface, 2, None).unwrap();
             let render_pass = SwapchainRenderPass::new(&test_fixture_device.device, &swapchain).unwrap();
-            let _graphics_pipeline = SimpleGraphicsPipeline::new(
+            let _graphics_pipeline = IndirectGraphicsPipeline::new(
                 &test_fixture_device.device,
                 &render_pass,
                 &swapchain,

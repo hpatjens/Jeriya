@@ -74,7 +74,7 @@ impl BackendShared {
         let static_vertex_buffer = Mutex::new(StagedPushOnlyBuffer::new(
             device,
             STATIC_VERTEX_BUFFER_CAPACITY,
-            BufferUsageFlags::VERTEX_BUFFER,
+            BufferUsageFlags::VERTEX_BUFFER | BufferUsageFlags::STORAGE_BUFFER,
             debug_info!("static_vertex_buffer"),
         )?);
 

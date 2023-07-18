@@ -1,22 +1,45 @@
-use std::sync::Arc;
+use std::{mem, sync::Arc};
 
 use ash::vk;
 use jeriya_shared::parking_lot::Mutex;
 
 use crate::{
-    buffer::VertexBuffer, command_buffer::CommandBuffer, compute_pipeline::ComputePipeline, device::Device,
-    device_visible_buffer::DeviceVisibleBuffer, graphics_pipeline::GraphicsPipeline, host_visible_buffer::HostVisibleBuffer,
-    push_descriptors::PushDescriptors, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffer,
-    swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass, AsRawVulkan, Error,
+    buffer::{Buffer, VertexBuffer},
+    command_buffer::CommandBuffer,
+    compute_pipeline::ComputePipeline,
+    device::Device,
+    device_visible_buffer::DeviceVisibleBuffer,
+    graphics_pipeline::GraphicsPipeline,
+    host_visible_buffer::HostVisibleBuffer,
+    push_descriptors::PushDescriptors,
+    swapchain::Swapchain,
+    swapchain_depth_buffer::SwapchainDepthBuffer,
+    swapchain_framebuffers::SwapchainFramebuffers,
+    swapchain_render_pass::SwapchainRenderPass,
+    AsRawVulkan, DrawIndirectCommand, Error,
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PipelineBindPoint {
+    Graphics,
+    Compute,
+}
+
+impl From<PipelineBindPoint> for vk::PipelineBindPoint {
+    fn from(value: PipelineBindPoint) -> Self {
+        match value {
+            PipelineBindPoint::Graphics => vk::PipelineBindPoint::GRAPHICS,
+            PipelineBindPoint::Compute => vk::PipelineBindPoint::COMPUTE,
+        }
+    }
+}
 
 pub struct CommandBufferBuilder<'buf> {
     command_buffer: &'buf mut CommandBuffer,
     device: Arc<Device>,
 
     /// Layout of the last pipeline that was bound if any
-    bound_graphics_pipeline_layout: Option<vk::PipelineLayout>,
-    bound_compute_pipeline_layout: Option<vk::PipelineLayout>,
+    bound_pipeline_layout: Option<vk::PipelineLayout>,
 }
 
 impl<'buf> CommandBufferBuilder<'buf> {
@@ -24,8 +47,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         Ok(Self {
             command_buffer,
             device: device.clone(),
-            bound_graphics_pipeline_layout: None,
-            bound_compute_pipeline_layout: None,
+            bound_pipeline_layout: None,
         })
     }
 }
@@ -117,7 +139,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 vk::PipelineBindPoint::GRAPHICS,
                 graphics_pipeline.graphics_pipeline(),
             );
-            self.bound_graphics_pipeline_layout = Some(graphics_pipeline.graphics_pipeline_layout());
+            self.bound_pipeline_layout = Some(graphics_pipeline.graphics_pipeline_layout());
         }
         self
     }
@@ -129,7 +151,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 vk::PipelineBindPoint::COMPUTE,
                 compute_pipeline.compute_pipeline(),
             );
-            self.bound_compute_pipeline_layout = Some(compute_pipeline.compute_pipeline_layout());
+            self.bound_pipeline_layout = Some(compute_pipeline.compute_pipeline_layout());
         }
         self
     }
@@ -235,7 +257,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
 
     /// Special function for depth buffer layout transition
     pub fn depth_pipeline_barrier(&mut self, swapchain_depth_buffer: &SwapchainDepthBuffer) -> crate::Result<&mut Self> {
-        let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
+        let layout_transition_barrier = vk::ImageMemoryBarrier::builder()
             .image(swapchain_depth_buffer.depth_image)
             .dst_access_mask(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
             .old_layout(vk::ImageLayout::UNDEFINED)
@@ -256,22 +278,61 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 vk::DependencyFlags::empty(),
                 &[],
                 &[],
-                &[layout_transition_barriers],
+                &[layout_transition_barrier],
             )
         };
         Ok(self)
     }
 
+    /// Special function for writing into indirect draw commands buffer from compute shader and then reading from it in vertex shader
+    pub fn indirect_draw_commands_buffer_pipeline_barrier<T>(&mut self, buffer: &impl Buffer<T>) -> &mut Self {
+        let buffer_memory_barrier = vk::BufferMemoryBarrier::builder()
+            .buffer(*buffer.as_raw_vulkan())
+            .src_access_mask(vk::AccessFlags::SHADER_WRITE)
+            .dst_access_mask(vk::AccessFlags::SHADER_READ)
+            .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+            .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+            .offset(0)
+            .size(vk::WHOLE_SIZE)
+            .build();
+        unsafe {
+            self.device.as_raw_vulkan().cmd_pipeline_barrier(
+                *self.command_buffer.as_raw_vulkan(),
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::PipelineStageFlags::VERTEX_SHADER,
+                vk::DependencyFlags::empty(),
+                &[],
+                &[buffer_memory_barrier],
+                &[],
+            )
+        };
+        self
+    }
+
+    /// Draw command for indirect draw commands
+    pub fn draw_indirect(&mut self, buffer: &impl Buffer<DrawIndirectCommand>, draw_count: usize) -> &mut Self {
+        unsafe {
+            self.device.as_raw_vulkan().cmd_draw_indirect(
+                *self.command_buffer.as_raw_vulkan(),
+                *buffer.as_raw_vulkan(),
+                0,
+                draw_count as u32,
+                mem::size_of::<DrawIndirectCommand>() as u32,
+            )
+        };
+        self
+    }
+
     /// Pushes the given `push_constants` to the command buffer
     pub fn push_constants<C>(&mut self, push_constants: &[C]) -> crate::Result<()> {
-        let bound_pipeline_layout = self.bound_graphics_pipeline_layout.ok_or(Error::NoPipelineBound)?;
+        let bound_pipeline_layout = self.bound_pipeline_layout.ok_or(Error::NoPipelineBound)?;
         unsafe {
             self.device.as_raw_vulkan().cmd_push_constants(
                 *self.command_buffer.as_raw_vulkan(),
                 bound_pipeline_layout,
                 vk::ShaderStageFlags::ALL,
                 0,
-                std::slice::from_raw_parts(push_constants.as_ptr() as *const _, push_constants.len() * std::mem::size_of::<C>()),
+                std::slice::from_raw_parts(push_constants.as_ptr() as *const _, push_constants.len() * mem::size_of::<C>()),
             );
         }
         Ok(())
@@ -287,12 +348,17 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
 
     /// Pushes the given descriptors to the command buffer
-    pub fn push_descriptors_for_graphics(&mut self, descriptor_set: u32, push_descriptors: &PushDescriptors) -> crate::Result<()> {
-        let bound_pipeline_layout = self.bound_graphics_pipeline_layout.ok_or(Error::NoPipelineBound)?;
+    pub fn push_descriptors(
+        &mut self,
+        descriptor_set: u32,
+        pipeline_bind_point: PipelineBindPoint,
+        push_descriptors: &PushDescriptors,
+    ) -> crate::Result<()> {
+        let bound_pipeline_layout = self.bound_pipeline_layout.ok_or(Error::NoPipelineBound)?;
         unsafe {
             self.device.extensions.push_descriptor.cmd_push_descriptor_set(
                 *self.command_buffer.as_raw_vulkan(),
-                vk::PipelineBindPoint::GRAPHICS,
+                pipeline_bind_point.into(),
                 bound_pipeline_layout,
                 descriptor_set,
                 push_descriptors.write_descriptor_sets(),

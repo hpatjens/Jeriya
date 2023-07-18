@@ -32,7 +32,13 @@ impl Device {
             if available_features.shader_int64 != vk::TRUE {
                 return Err(Error::PhysicalDeviceFeatureMissing(PhysicalDeviceFeature::ShaderInt64));
             }
-            vk::PhysicalDeviceFeatures::builder().wide_lines(true).shader_int64(true)
+            if available_features.multi_draw_indirect != vk::TRUE {
+                return Err(Error::PhysicalDeviceFeatureMissing(PhysicalDeviceFeature::MultiDrawIndirect));
+            }
+            vk::PhysicalDeviceFeatures::builder()
+                .wide_lines(true)
+                .shader_int64(true)
+                .multi_draw_indirect(true)
         };
 
         let queue_priorities = physical_device

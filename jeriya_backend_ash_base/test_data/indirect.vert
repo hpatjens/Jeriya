@@ -58,23 +58,18 @@ layout (set = 0, binding = 5) buffer StaticVertexBuffer {
 
 
 
-layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+
+layout (push_constant) uniform PushConstants {
+    uint _non_zero;
+} push_constants;
 
 void main() {
-    uint index = gl_GlobalInvocationID.x;
-    if (index >= per_frame_data.inanimate_mesh_instance_count) {
-        return;
-    }
+    mat4 matrix = cameras.cameras[per_frame_data.active_camera].matrix;
 
-    uint64_t mesh_id = inanimate_mesh_instances.inanimate_mesh_instances[index].inanimate_mesh_id;
+    InanimateMesh inanimate_mesh = inanimate_meshes[0];
+    uint64_t attribute_index = inanimate_mesh.start_offset + gl_VertexIndex;
 
-    InanimateMesh inanimate_mesh = inanimate_meshes.inanimate_meshes[mesh_id];
+    vec3 inPosition = vertices[attribute_index];
 
-    VkDrawIndirectCommand draw_indirect_command;
-    draw_indirect_command.vertex_count = inanimate_mesh.vertices_len;
-    draw_indirect_command.instance_count = 0;
-    draw_indirect_command.first_vertex = 0;
-    draw_indirect_command.first_instance = 0;
-
-    indirect_draw_inanimate_mesh_instances[index] = draw_indirect_command;
+    gl_Position = matrix * vec4(inPosition, 1.0);
 }

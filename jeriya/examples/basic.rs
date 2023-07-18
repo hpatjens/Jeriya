@@ -121,13 +121,7 @@ fn main() -> io::Result<()> {
 
     let inanimate_mesh1 = renderer
         .inanimate_meshes()
-        .create(MeshType::Lines, vec![Vector3::new(0.6, 0.6, 0.0), Vector3::new(0.8, 0.9, 0.0)])
-        .with_debug_info(debug_info!("my_mesh"))
-        .build()
-        .unwrap();
-    let inanimate_mesh2 = renderer
-        .inanimate_meshes()
-        .create(MeshType::Lines, vec![Vector3::new(0.6, 0.6, 0.0), Vector3::new(0.8, 0.9, 0.0)])
+        .create(MeshType::Lines, vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.8, 0.9, 0.0)])
         .with_debug_info(debug_info!("my_mesh"))
         .build()
         .unwrap();

@@ -1,13 +1,13 @@
 use std::{ffi::CString, io::Cursor, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
+use jeriya_shared::{debug_info, nalgebra::Vector3, AsDebugInfo, DebugInfo};
 
 use crate::{
     compute_pipeline::ComputePipeline,
     descriptor_set_layout::DescriptorSetLayout,
     device::Device,
-    shader_interface::{Camera, InanimateMeshInstance, PerFrameData},
+    shader_interface::{Camera, InanimateMesh, InanimateMeshInstance, PerFrameData},
     shader_module::ShaderModule,
     AsRawVulkan,
 };
@@ -15,6 +15,7 @@ use crate::{
 pub struct CullComputePipeline {
     pipeline_layout: vk::PipelineLayout,
     compute_pipeline: vk::Pipeline,
+    pub descriptor_set_layout: Arc<DescriptorSetLayout>,
     debug_info: DebugInfo,
     device: Arc<Device>,
 }
@@ -38,6 +39,8 @@ impl CullComputePipeline {
                 .push_storage_buffer::<Camera>(1, 1)
                 .push_storage_buffer::<InanimateMeshInstance>(2, 1)
                 .push_storage_buffer::<crate::DrawIndirectCommand>(3, 1)
+                .push_storage_buffer::<InanimateMesh>(4, 1)
+                .push_storage_buffer::<Vector3<f32>>(5, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];
@@ -57,10 +60,11 @@ impl CullComputePipeline {
         };
 
         Ok(Self {
-            debug_info,
-            device: device.clone(),
             compute_pipeline,
             pipeline_layout,
+            descriptor_set_layout,
+            debug_info,
+            device: device.clone(),
         })
     }
 }

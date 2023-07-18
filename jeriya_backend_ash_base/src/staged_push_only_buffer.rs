@@ -4,8 +4,12 @@ use std::{
 };
 
 use crate::{
-    buffer::BufferUsageFlags, command_buffer_builder::CommandBufferBuilder, device::Device, device_visible_buffer::DeviceVisibleBuffer,
-    host_visible_buffer::HostVisibleBuffer, AsRawVulkan, Error,
+    buffer::{Buffer, BufferUsageFlags},
+    command_buffer_builder::CommandBufferBuilder,
+    device::Device,
+    device_visible_buffer::DeviceVisibleBuffer,
+    host_visible_buffer::HostVisibleBuffer,
+    AsRawVulkan, Error,
 };
 use ash::vk;
 use jeriya_shared::{debug_info, parking_lot::Mutex, AsDebugInfo, DebugInfo};
@@ -130,6 +134,15 @@ impl<T> AsDebugInfo for StagedPushOnlyBuffer<T> {
         &self.debug_info
     }
 }
+
+impl<T> AsRawVulkan for StagedPushOnlyBuffer<T> {
+    type Output = vk::Buffer;
+    fn as_raw_vulkan(&self) -> &Self::Output {
+        self.device_visible_buffer.as_raw_vulkan()
+    }
+}
+
+impl<T> Buffer<T> for StagedPushOnlyBuffer<T> {}
 
 #[cfg(test)]
 mod tests {

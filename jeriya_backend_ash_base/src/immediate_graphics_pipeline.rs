@@ -12,7 +12,7 @@ use crate::{
     descriptor_set_layout::DescriptorSetLayout,
     device::Device,
     graphics_pipeline::GraphicsPipeline,
-    shader_interface::{Camera, InanimateMeshInstance, PerFrameData},
+    shader_interface::{Camera, InanimateMesh, InanimateMeshInstance, PerFrameData},
     shader_module::ShaderModule,
     swapchain::Swapchain,
     swapchain_render_pass::SwapchainRenderPass,
@@ -87,6 +87,11 @@ impl ImmediateGraphicsPipeline {
                 .offset(0)
                 .size(std::mem::size_of::<u32>())
                 .build(),
+            vk::SpecializationMapEntry::builder()
+                .constant_id(2)
+                .offset(0)
+                .size(std::mem::size_of::<u32>())
+                .build(),
         ];
         let mut specialization_data = Vec::<u8>::new();
         specialization_data
@@ -94,6 +99,9 @@ impl ImmediateGraphicsPipeline {
             .expect("failed to write specialization constant");
         specialization_data
             .write_u32::<LittleEndian>(renderer_config.maximum_number_of_inanimate_mesh_instances as u32)
+            .expect("failed to write specialization constant");
+        specialization_data
+            .write_u32::<LittleEndian>(renderer_config.maximum_number_of_inanimate_meshes as u32)
             .expect("failed to write specialization constant");
         let specialization_info = vk::SpecializationInfo::builder()
             .map_entries(&specialization_constants)
@@ -121,6 +129,8 @@ impl ImmediateGraphicsPipeline {
                 .push_storage_buffer::<Camera>(1, 1)
                 .push_storage_buffer::<InanimateMeshInstance>(2, 1)
                 .push_storage_buffer::<crate::DrawIndirectCommand>(3, 1)
+                .push_storage_buffer::<InanimateMesh>(4, 1)
+                .push_storage_buffer::<Vector3<f32>>(5, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];

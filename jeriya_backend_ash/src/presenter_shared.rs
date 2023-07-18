@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use base::cull_compute_pipeline::CullComputePipeline;
+use base::indirect_graphics_pipeline::IndirectGraphicsPipeline;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     device::Device, immediate_graphics_pipeline::ImmediateGraphicsPipeline, immediate_graphics_pipeline::Topology,
@@ -28,6 +29,7 @@ pub struct PresenterShared {
     pub immediate_graphics_pipeline_triangle_list: ImmediateGraphicsPipeline,
     pub immediate_graphics_pipeline_triangle_strip: ImmediateGraphicsPipeline,
     pub cull_compute_pipeline: CullComputePipeline,
+    pub indirect_graphics_pipeline: IndirectGraphicsPipeline,
     pub active_camera: Handle<jeriya_shared::Camera>,
     pub device: Arc<Device>,
 }
@@ -91,6 +93,16 @@ impl PresenterShared {
             debug_info!(format!("CullComputePipeline-for-Window{:?}", window_id)),
         )?;
 
+        // Indirect Graphics Pipeline
+        info!("Create Indirect Graphics Pipeline");
+        let indirect_graphics_pipeline = IndirectGraphicsPipeline::new(
+            &backend_shared.device,
+            &swapchain_render_pass,
+            &swapchain,
+            &backend_shared.renderer_config,
+            debug_info!(format!("IndirectGraphicsPipeline-for-Window{:?}", window_id)),
+        )?;
+
         // Create a camera for this window
         info!("Create Camera");
         let mut guard = CameraContainerGuard::new(
@@ -117,6 +129,7 @@ impl PresenterShared {
             device: backend_shared.device.clone(),
             active_camera,
             cull_compute_pipeline,
+            indirect_graphics_pipeline,
         })
     }
 
