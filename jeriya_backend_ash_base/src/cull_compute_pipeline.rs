@@ -88,7 +88,7 @@ impl ComputePipeline for CullComputePipeline {
         self.compute_pipeline
     }
 
-    fn compute_pipeline_layout(&self) -> vk::PipelineLayout {
+    fn pipeline_layout(&self) -> vk::PipelineLayout {
         self.pipeline_layout
     }
 }

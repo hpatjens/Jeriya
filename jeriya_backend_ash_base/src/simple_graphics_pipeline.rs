@@ -255,7 +255,7 @@ impl GraphicsPipeline for SimpleGraphicsPipeline {
         self.graphics_pipeline
     }
 
-    fn graphics_pipeline_layout(&self) -> vk::PipelineLayout {
+    fn pipeline_layout(&self) -> vk::PipelineLayout {
         self.graphics_pipeline_layout
     }
 }

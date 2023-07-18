@@ -139,7 +139,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 vk::PipelineBindPoint::GRAPHICS,
                 graphics_pipeline.graphics_pipeline(),
             );
-            self.bound_pipeline_layout = Some(graphics_pipeline.graphics_pipeline_layout());
+            self.bound_pipeline_layout = Some(graphics_pipeline.pipeline_layout());
         }
         self
     }
@@ -151,7 +151,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 vk::PipelineBindPoint::COMPUTE,
                 compute_pipeline.compute_pipeline(),
             );
-            self.bound_pipeline_layout = Some(compute_pipeline.compute_pipeline_layout());
+            self.bound_pipeline_layout = Some(compute_pipeline.pipeline_layout());
         }
         self
     }
