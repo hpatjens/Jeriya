@@ -12,7 +12,7 @@ use jeriya_shared::{
     debug_info,
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
     log::info,
-    nalgebra::Vector3,
+    nalgebra::Vector4,
     parking_lot::Mutex,
     Camera, CameraEvent, EventQueue, Handle, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent, IndexingContainer,
     RendererConfig,
@@ -30,7 +30,7 @@ pub struct BackendShared {
     pub inanimate_mesh_gpu_states: Arc<Mutex<HashMap<Handle<Arc<InanimateMesh>>, InanimateMeshGpuState>>>,
     pub inanimate_mesh_event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
     pub inanimate_mesh_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::InanimateMesh>>,
-    pub static_vertex_buffer: Mutex<StagedPushOnlyBuffer<Vector3<f32>>>,
+    pub static_vertex_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub inanimate_mesh_instances: Arc<Mutex<IndexingContainer<InanimateMeshInstance>>>,
     pub inanimate_mesh_instance_event_queue: Arc<Mutex<EventQueue<InanimateMeshInstanceEvent>>>,
 }

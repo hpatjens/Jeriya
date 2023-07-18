@@ -51,7 +51,7 @@ layout (set = 0, binding = 4) buffer InanimateMeshes {
 };
 
 layout (set = 0, binding = 5) buffer StaticVertexBuffer {
-    vec3 vertices[];
+    vec4 vertices[];
 };
 
 

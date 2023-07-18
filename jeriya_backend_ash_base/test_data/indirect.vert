@@ -51,7 +51,7 @@ layout (set = 0, binding = 4) buffer InanimateMeshes {
 };
 
 layout (set = 0, binding = 5) buffer StaticVertexBuffer {
-    vec3 vertices[];
+    vec4 vertices[];
 };
 
 
@@ -69,7 +69,7 @@ void main() {
     InanimateMesh inanimate_mesh = inanimate_meshes[0];
     uint64_t attribute_index = inanimate_mesh.start_offset + gl_VertexIndex;
 
-    vec3 inPosition = vertices[attribute_index];
+    vec3 inPosition = vertices[uint(attribute_index)];
 
-    gl_Position = matrix * vec4(inPosition, 1.0);
+    gl_Position = matrix * vec4(inPosition.xyz, 1.0);
 }

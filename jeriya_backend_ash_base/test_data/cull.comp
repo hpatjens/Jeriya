@@ -51,7 +51,7 @@ layout (set = 0, binding = 4) buffer InanimateMeshes {
 };
 
 layout (set = 0, binding = 5) buffer StaticVertexBuffer {
-    vec3 vertices[];
+    vec4 vertices[];
 };
 
 
@@ -68,11 +68,11 @@ void main() {
 
     uint64_t mesh_id = inanimate_mesh_instances.inanimate_mesh_instances[index].inanimate_mesh_id;
 
-    InanimateMesh inanimate_mesh = inanimate_meshes.inanimate_meshes[mesh_id];
+    InanimateMesh inanimate_mesh = inanimate_meshes[uint(mesh_id)];
 
     VkDrawIndirectCommand draw_indirect_command;
-    draw_indirect_command.vertex_count = inanimate_mesh.vertices_len;
-    draw_indirect_command.instance_count = 0;
+    draw_indirect_command.vertex_count = uint(inanimate_mesh.vertices_len);
+    draw_indirect_command.instance_count = 1;
     draw_indirect_command.first_vertex = 0;
     draw_indirect_command.first_instance = 0;
 

@@ -25,6 +25,7 @@ use jeriya_shared::{
     debug_info, immediate,
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
     log::{info, warn},
+    nalgebra::Vector4,
     winit::window::{Window, WindowId},
     AsDebugInfo, Backend, Camera, CameraContainerGuard, DebugInfo, Handle, ImmediateCommandBufferBuilderHandler,
     InanimateMeshInstanceContainerGuard, RendererConfig,
@@ -153,11 +154,15 @@ impl Backend for AshBackend {
                         vertex_positions,
                         indices,
                     } => {
+                        let vertex_positions4 = vertex_positions
+                            .iter()
+                            .map(|v| Vector4::new(v.x, v.y, v.z, 1.0))
+                            .collect::<Vec<_>>();
                         let vertices_start_offset = self
                             .backend_shared
                             .static_vertex_buffer
                             .lock()
-                            .push(&vertex_positions, &mut command_buffer_builder)?;
+                            .push(&vertex_positions4, &mut command_buffer_builder)?;
                         let inanimate_mesh_gpu = shader_interface::InanimateMesh {
                             start_offset: vertices_start_offset as u64,
                             vertices_len: vertex_positions.len() as u64,
