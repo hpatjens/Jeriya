@@ -4,9 +4,7 @@ use base::compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfi
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     device::Device,
-    graphics_pipeline::{
-        GenericGraphicsPipeline, GenericGraphicsPipelineConfiguration, GraphicsPipelineInterface, PolygonMode, PrimitiveTopology,
-    },
+    graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, GraphicsPipelineInterface, PrimitiveTopology},
     surface::Surface,
     swapchain::Swapchain,
     swapchain_depth_buffer::SwapchainDepthBuffers,
@@ -78,37 +76,39 @@ impl PresenterShared {
 
         info!("Create Simple Graphics Pipeline");
         let simple_graphics_pipeline = {
-            let config = GenericGraphicsPipelineConfiguration::<SimpleGraphicsPipelineInterface>::new()
-                .with_vertex_shader(spirv!("red_triangle.vert.spv"))
-                .with_fragment_shader(spirv!("red_triangle.frag.spv"))
-                .with_polygon_mode(PolygonMode::Fill)
-                .with_primitive_topology(PrimitiveTopology::TriangleList);
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("red_triangle.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("red_triangle.frag.spv")),
+                primitive_topology: PrimitiveTopology::TriangleList,
+                debug_info: debug_info!(format!("Simple-GraphicsPipeline-for-Window{:?}", window_id)),
+                ..Default::default()
+            };
             GenericGraphicsPipeline::new(
                 &backend_shared.device,
                 &config,
                 &swapchain_render_pass,
                 &swapchain,
                 &backend_shared.renderer_config,
-                debug_info!(format!("SimpleGraphicsPipeline-for-Window{:?}", window_id)),
             )?
         };
 
         info!("Create Immediate Graphics Pipelines");
         let create_immediate_graphics_pipeline = |primitive_topology| {
-            let config = GenericGraphicsPipelineConfiguration::<ImmediateGraphicsPipelineInterface>::new()
-                .with_vertex_shader(spirv!("color.vert.spv"))
-                .with_fragment_shader(spirv!("color.frag.spv"))
-                .with_polygon_mode(PolygonMode::Fill)
-                .with_primitive_topology(primitive_topology)
-                .with_use_input_attributes(true)
-                .with_use_dynamic_state_line_width(true);
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("color.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("color.frag.spv")),
+                primitive_topology,
+                use_input_attributes: true,
+                use_dynamic_state_line_width: true,
+                debug_info: debug_info!(format!("Immediate-GraphicsPipeline-for-Window{:?}", window_id)),
+                ..Default::default()
+            };
             GenericGraphicsPipeline::new(
                 &backend_shared.device,
                 &config,
                 &swapchain_render_pass,
                 &swapchain,
                 &backend_shared.renderer_config,
-                debug_info!(format!("SimpleGraphicsPipeline-for-Window{:?}", window_id)),
             )
         };
         let immediate_graphics_pipeline_line_list = create_immediate_graphics_pipeline(PrimitiveTopology::LineList)?;
@@ -121,24 +121,25 @@ impl PresenterShared {
             &backend_shared.device,
             &GenericComputePipelineConfig {
                 shader_spirv: spirv!("cull.comp.spv"),
-                debug_info: debug_info!(format!("CullComputePipeline-for-Window{:?}", window_id)),
+                debug_info: debug_info!(format!("Cull-ComputePipeline-for-Window{:?}", window_id)),
             },
         )?;
 
         info!("Create Indirect Graphics Pipeline");
         let indirect_graphics_pipeline = {
-            let config = GenericGraphicsPipelineConfiguration::<IndirectGraphicsPipelineInterface>::new()
-                .with_vertex_shader(spirv!("indirect.vert.spv"))
-                .with_fragment_shader(spirv!("indirect.frag.spv"))
-                .with_polygon_mode(PolygonMode::Fill)
-                .with_primitive_topology(PrimitiveTopology::LineList);
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("indirect.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("indirect.frag.spv")),
+                primitive_topology: PrimitiveTopology::LineList,
+                debug_info: debug_info!(format!("Indirect-GraphicsPipeline-for-Window{:?}", window_id)),
+                ..Default::default()
+            };
             GenericGraphicsPipeline::new(
                 &backend_shared.device,
                 &config,
                 &swapchain_render_pass,
                 &swapchain,
                 &backend_shared.renderer_config,
-                debug_info!(format!("IndirectGraphicsPipeline-for-Window{:?}", window_id)),
             )?
         };
 

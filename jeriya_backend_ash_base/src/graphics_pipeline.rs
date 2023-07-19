@@ -86,117 +86,28 @@ impl From<PrimitiveTopology> for vk::PrimitiveTopology {
     }
 }
 
-#[derive(Debug)]
-pub struct GenericGraphicsPipelineConfiguration<I: GraphicsPipelineInterface> {
-    vertex_shader_spirv: Option<Arc<Vec<u8>>>,
-    fragment_shader_spirv: Option<Arc<Vec<u8>>>,
-    polygon_mode: Option<PolygonMode>,
-    primitive_topology: Option<PrimitiveTopology>,
-    cull_mode: Option<CullMode>,
-    use_input_attributes: bool,
-    use_dynamic_state_line_width: bool,
-    debug_info: Option<DebugInfo>,
-    _phantom_data: PhantomData<I>,
-}
-
-impl<I> Clone for GenericGraphicsPipelineConfiguration<I>
-where
-    I: GraphicsPipelineInterface,
-{
-    fn clone(&self) -> Self {
-        Self {
-            vertex_shader_spirv: self.vertex_shader_spirv.clone(),
-            fragment_shader_spirv: self.fragment_shader_spirv.clone(),
-            polygon_mode: self.polygon_mode,
-            primitive_topology: self.primitive_topology,
-            cull_mode: self.cull_mode,
-            use_input_attributes: self.use_input_attributes,
-            use_dynamic_state_line_width: self.use_dynamic_state_line_width,
-            debug_info: self.debug_info.clone(),
-            _phantom_data: PhantomData,
-        }
-    }
-}
-
-impl<I> GenericGraphicsPipelineConfiguration<I>
-where
-    I: GraphicsPipelineInterface,
-{
-    /// Creates a new `GenericGraphicsPipelineConfiguration`
-    pub fn new() -> Self {
-        Self {
-            vertex_shader_spirv: None,
-            fragment_shader_spirv: None,
-            polygon_mode: None,
-            primitive_topology: None,
-            cull_mode: None,
-            use_input_attributes: false,
-            use_dynamic_state_line_width: false,
-            debug_info: None,
-            _phantom_data: PhantomData,
-        }
-    }
-
-    /// Adds a vertex shader to the pipeline
-    pub fn with_vertex_shader(mut self, vertex_shader_spirv: Arc<Vec<u8>>) -> Self {
-        self.vertex_shader_spirv = Some(vertex_shader_spirv);
-        self
-    }
-
-    /// Adds a fragment shader to the pipeline
-    pub fn with_fragment_shader(mut self, fragment_shader_spirv: Arc<Vec<u8>>) -> Self {
-        self.fragment_shader_spirv = Some(fragment_shader_spirv);
-        self
-    }
-
-    /// Sets the [`PolygonMode`] of the pipeline
-    pub fn with_polygon_mode(mut self, polygon_mode: PolygonMode) -> Self {
-        self.polygon_mode = Some(polygon_mode);
-        self
-    }
-
-    /// Sets the [`PrimitiveTopology`] of the pipeline
-    pub fn with_primitive_topology(mut self, primitive_topology: PrimitiveTopology) -> Self {
-        self.primitive_topology = Some(primitive_topology);
-        self
-    }
-
-    /// Sets the [`CullMode`] of the pipeline
-    pub fn with_cull_mode(mut self, cull_mode: CullMode) -> Self {
-        self.cull_mode = Some(cull_mode);
-        self
-    }
-
-    /// Sets the [`DebugInfo`] of the pipeline
-    pub fn with_debug_info(mut self, debug_info: DebugInfo) -> Self {
-        self.debug_info = Some(debug_info);
-        self
-    }
-
-    /// Sets whether to use input attributes
-    pub fn with_use_input_attributes(mut self, use_input_attributes: bool) -> Self {
-        self.use_input_attributes = use_input_attributes;
-        self
-    }
-
-    /// Sets whether to use dynamic state line width
-    pub fn with_use_dynamic_state_line_width(mut self, use_dynamic_state_line_width: bool) -> Self {
-        self.use_dynamic_state_line_width = use_dynamic_state_line_width;
-        self
-    }
+#[derive(Debug, Default, Clone)]
+pub struct GenericGraphicsPipelineConfig {
+    pub vertex_shader_spirv: Option<Arc<Vec<u8>>>,
+    pub fragment_shader_spirv: Option<Arc<Vec<u8>>>,
+    pub primitive_topology: PrimitiveTopology,
+    pub polygon_mode: PolygonMode,
+    pub cull_mode: CullMode,
+    pub use_input_attributes: bool,
+    pub use_dynamic_state_line_width: bool,
+    pub debug_info: DebugInfo,
 }
 
 pub struct GenericGraphicsPipeline<I>
 where
     I: GraphicsPipelineInterface,
 {
-    _config: GenericGraphicsPipelineConfiguration<I>,
+    config: GenericGraphicsPipelineConfig,
     _vertex_shader: ShaderModule,
     _fragment_shader: ShaderModule,
     graphics_pipeline: vk::Pipeline,
     graphics_pipeline_layout: vk::PipelineLayout,
     pub descriptor_set_layout: Arc<DescriptorSetLayout>,
-    debug_info: DebugInfo,
     device: Arc<Device>,
     _phantom_data: PhantomData<I>,
 }
@@ -220,29 +131,21 @@ where
 {
     pub fn new(
         device: &Arc<Device>,
-        config: &GenericGraphicsPipelineConfiguration<I>,
+        config: &GenericGraphicsPipelineConfig,
         renderpass: &SwapchainRenderPass,
         swapchain: &Swapchain,
         renderer_config: &RendererConfig,
-        debug_info: DebugInfo,
     ) -> crate::Result<Self> {
         let entry_name = CString::new("main").expect("Valid c string");
 
-        let vertex_shader_spirv = config
-            .vertex_shader_spirv
-            .as_ref()
-            .expect("GenericGraphicsPipelineConfiguration::vertex_shader_spirv must be set");
-        let fragment_shader_spirv = config
-            .fragment_shader_spirv
-            .as_ref()
-            .expect("GenericGraphicsPipelineConfiguration::fragment_shader_spirv must be set");
-
-        info!("Create shader modules for GenericGraphicsPipeline \"{}\"", debug_info.name());
+        info!("Create shader modules for GenericGraphicsPipeline \"{}\"", config.debug_info.name());
+        let vertex_shader_spirv = config.vertex_shader_spirv.as_ref().expect("No vertex shader spirv");
         let vertex_shader = ShaderModule::new(
             device,
             Cursor::new(vertex_shader_spirv.as_ref()),
             debug_info!("GenericGraphicsPipeline-vertex-ShaderModule"),
         )?;
+        let fragment_shader_spirv = config.fragment_shader_spirv.as_ref().expect("No fragment shader spirv");
         let fragment_shader = ShaderModule::new(
             device,
             Cursor::new(fragment_shader_spirv.as_ref()),
@@ -298,7 +201,10 @@ where
             },
         ];
 
-        info!("Create pipeline layout for GenericGraphicsPipeline \"{}\"", debug_info.name());
+        info!(
+            "Create pipeline layout for GenericGraphicsPipeline \"{}\"",
+            config.debug_info.name()
+        );
         let descriptor_set_layout = Arc::new(
             DescriptorSetLayout::builder()
                 .push_uniform_buffer::<PerFrameData>(0, 1)
@@ -327,7 +233,7 @@ where
         let graphics_pipeline_layout = unsafe { device.as_raw_vulkan().create_pipeline_layout(&layout_create_info, None)? };
 
         let vertex_input_assembly_state_info = vk::PipelineInputAssemblyStateCreateInfo {
-            topology: config.primitive_topology.unwrap_or_default().into(),
+            topology: config.primitive_topology.into(),
             ..Default::default()
         };
 
@@ -353,8 +259,8 @@ where
         let rasterization_info = vk::PipelineRasterizationStateCreateInfo {
             front_face: vk::FrontFace::CLOCKWISE,
             line_width: 1.0,
-            polygon_mode: config.polygon_mode.unwrap_or_default().into(),
-            cull_mode: config.cull_mode.unwrap_or_default().into(),
+            polygon_mode: config.polygon_mode.into(),
+            cull_mode: config.cull_mode.into(),
             ..Default::default()
         };
         let multisample_state_info = vk::PipelineMultisampleStateCreateInfo {
@@ -441,23 +347,20 @@ where
                 .map_err(|(_, err)| err)?[0]
         };
 
-        let debug_info = debug_info.with_vulkan_ptr(graphics_pipeline);
+        let config = GenericGraphicsPipelineConfig {
+            debug_info: config.debug_info.clone().with_vulkan_ptr(graphics_pipeline),
+            ..config.clone()
+        };
         Ok(Self {
-            _config: config.clone(),
+            config,
             _vertex_shader: vertex_shader,
             _fragment_shader: fragment_shader,
             graphics_pipeline,
             graphics_pipeline_layout,
             descriptor_set_layout,
-            debug_info,
             device: device.clone(),
             _phantom_data: PhantomData,
         })
-    }
-
-    /// Create a new builder for a `GenericGraphicsPipeline`.
-    pub fn builder() -> GenericGraphicsPipelineConfiguration<I> {
-        GenericGraphicsPipelineConfiguration::new()
     }
 }
 
@@ -489,7 +392,7 @@ where
     I: GraphicsPipelineInterface,
 {
     fn as_debug_info(&self) -> &DebugInfo {
-        &self.debug_info
+        &self.config.debug_info
     }
 }
 
@@ -502,9 +405,7 @@ mod tests {
 
         use crate::{
             device::tests::TestFixtureDevice,
-            graphics_pipeline::{
-                GenericGraphicsPipeline, GenericGraphicsPipelineConfiguration, GraphicsPipelineInterface, PolygonMode, PrimitiveTopology,
-            },
+            graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, GraphicsPipelineInterface, PrimitiveTopology},
             swapchain::Swapchain,
             swapchain_render_pass::SwapchainRenderPass,
         };
@@ -519,19 +420,19 @@ mod tests {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
             let swapchain = Swapchain::new(&test_fixture_device.device, &test_fixture_device.surface, 2, None).unwrap();
             let render_pass = SwapchainRenderPass::new(&test_fixture_device.device, &swapchain).unwrap();
-            let config = GenericGraphicsPipelineConfiguration::new()
-                .with_vertex_shader(Arc::new(include_bytes!("../test_data/red_triangle.vert.spv").to_vec()))
-                .with_fragment_shader(Arc::new(include_bytes!("../test_data/red_triangle.frag.spv").to_vec()))
-                .with_primitive_topology(PrimitiveTopology::LineList)
-                .with_polygon_mode(PolygonMode::Fill)
-                .with_debug_info(debug_info!("my_graphics_pipeline"));
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(Arc::new(include_bytes!("../test_data/red_triangle.vert.spv").to_vec())),
+                fragment_shader_spirv: Some(Arc::new(include_bytes!("../test_data/red_triangle.frag.spv").to_vec())),
+                primitive_topology: PrimitiveTopology::LineList,
+                debug_info: debug_info!("my_graphics_pipeline"),
+                ..Default::default()
+            };
             let _graphics_pipeline = GenericGraphicsPipeline::<TestGraphicsPipelineInterface>::new(
                 &test_fixture_device.device,
                 &config,
                 &render_pass,
                 &swapchain,
                 &RendererConfig::default(),
-                debug_info!("my_graphics_pipeline"),
             )
             .unwrap();
         }
