@@ -1,11 +1,7 @@
 use std::{ffi::CString, io::Cursor, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::{
-    debug_info,
-    nalgebra::{Vector3, Vector4},
-    AsDebugInfo, DebugInfo,
-};
+use jeriya_shared::{debug_info, nalgebra::Vector4, AsDebugInfo, DebugInfo};
 
 use crate::{
     compute_pipeline::ComputePipeline,
