@@ -2,22 +2,19 @@ use std::{iter, mem, sync::Arc};
 
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
-    buffer::BufferUsageFlags,
-    command_buffer::CommandBuffer,
-    command_buffer_builder::CommandBufferBuilder,
-    command_buffer_builder::PipelineBindPoint,
-    descriptor_set_layout::DescriptorSetLayout,
-    device_visible_buffer::DeviceVisibleBuffer,
-    frame_index::FrameIndex,
-    host_visible_buffer::HostVisibleBuffer,
-    immediate_graphics_pipeline::{PushConstants, Topology},
-    push_descriptors::PushDescriptors,
-    semaphore::Semaphore,
-    shader_interface, DrawIndirectCommand,
+    buffer::BufferUsageFlags, command_buffer::CommandBuffer, command_buffer_builder::CommandBufferBuilder,
+    command_buffer_builder::PipelineBindPoint, descriptor_set_layout::DescriptorSetLayout, device_visible_buffer::DeviceVisibleBuffer,
+    frame_index::FrameIndex, graphics_pipeline::PrimitiveTopology, host_visible_buffer::HostVisibleBuffer,
+    push_descriptors::PushDescriptors, semaphore::Semaphore, shader_interface, DrawIndirectCommand,
 };
 use jeriya_shared::{debug_info, log::info, nalgebra::Matrix4, winit::window::WindowId};
 
-use crate::{ash_immediate::ImmediateCommand, backend_shared::BackendShared, presenter_shared::PresenterShared, ImmediateRenderingRequest};
+use crate::{
+    ash_immediate::ImmediateCommand,
+    backend_shared::BackendShared,
+    presenter_shared::{PresenterShared, PushConstants},
+    ImmediateRenderingRequest,
+};
 
 pub struct Frame {
     image_available_semaphore: Option<Arc<Semaphore>>,
@@ -294,7 +291,7 @@ impl Frame {
                 match command {
                     ImmediateCommand::Matrix(matrix) => last_matrix = *matrix,
                     ImmediateCommand::LineList(line_list) => {
-                        if !matches!(last_topology, Some(Topology::LineList)) {
+                        if !matches!(last_topology, Some(PrimitiveTopology::LineList)) {
                             command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_list);
                             self.push_descriptors(
                                 PipelineBindPoint::Graphics,
@@ -311,10 +308,10 @@ impl Frame {
                         command_buffer_builder.set_line_width(line_list.config().line_width);
                         command_buffer_builder.draw_vertices(line_list.positions().len() as u32, first_vertex as u32);
                         first_vertex += line_list.positions().len();
-                        last_topology = Some(Topology::LineList);
+                        last_topology = Some(PrimitiveTopology::LineList);
                     }
                     ImmediateCommand::LineStrip(line_strip) => {
-                        if !matches!(last_topology, Some(Topology::LineStrip)) {
+                        if !matches!(last_topology, Some(PrimitiveTopology::LineStrip)) {
                             command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_strip);
                             self.push_descriptors(
                                 PipelineBindPoint::Graphics,
@@ -331,10 +328,10 @@ impl Frame {
                         command_buffer_builder.set_line_width(line_strip.config().line_width);
                         command_buffer_builder.draw_vertices(line_strip.positions().len() as u32, first_vertex as u32);
                         first_vertex += line_strip.positions().len();
-                        last_topology = Some(Topology::LineStrip);
+                        last_topology = Some(PrimitiveTopology::LineStrip);
                     }
                     ImmediateCommand::TriangleList(triangle_list) => {
-                        if !matches!(last_topology, Some(Topology::TriangleList)) {
+                        if !matches!(last_topology, Some(PrimitiveTopology::TriangleList)) {
                             command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_list);
                             self.push_descriptors(
                                 PipelineBindPoint::Graphics,
@@ -350,10 +347,10 @@ impl Frame {
                         command_buffer_builder.push_constants(&[push_constants])?;
                         command_buffer_builder.draw_vertices(triangle_list.positions().len() as u32, first_vertex as u32);
                         first_vertex += triangle_list.positions().len();
-                        last_topology = Some(Topology::TriangleList);
+                        last_topology = Some(PrimitiveTopology::TriangleList);
                     }
                     ImmediateCommand::TriangleStrip(triangle_strip) => {
-                        if !matches!(last_topology, Some(Topology::TriangleStrip)) {
+                        if !matches!(last_topology, Some(PrimitiveTopology::TriangleStrip)) {
                             command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_strip);
                             self.push_descriptors(
                                 PipelineBindPoint::Graphics,
@@ -369,7 +366,7 @@ impl Frame {
                         command_buffer_builder.push_constants(&[push_constants])?;
                         command_buffer_builder.draw_vertices(triangle_strip.positions().len() as u32, first_vertex as u32);
                         first_vertex += triangle_strip.positions().len();
-                        last_topology = Some(Topology::TriangleStrip);
+                        last_topology = Some(PrimitiveTopology::TriangleStrip);
                     }
                 }
             }
