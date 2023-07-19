@@ -130,7 +130,7 @@ impl PresenterShared {
             let config = GenericGraphicsPipelineConfig {
                 vertex_shader_spirv: Some(spirv!("indirect.vert.spv")),
                 fragment_shader_spirv: Some(spirv!("indirect.frag.spv")),
-                primitive_topology: PrimitiveTopology::LineList,
+                primitive_topology: PrimitiveTopology::TriangleList,
                 debug_info: debug_info!(format!("Indirect-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
