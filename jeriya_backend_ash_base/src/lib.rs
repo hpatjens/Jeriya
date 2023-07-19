@@ -3,7 +3,6 @@ pub mod command_buffer;
 pub mod command_buffer_builder;
 pub mod command_pool;
 pub mod compute_pipeline;
-pub mod cull_compute_pipeline;
 pub mod debug;
 pub mod descriptor;
 pub mod descriptor_pool;

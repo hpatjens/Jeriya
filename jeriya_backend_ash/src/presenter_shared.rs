@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use base::compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
-    cull_compute_pipeline::CullComputePipeline,
     device::Device,
     graphics_pipeline::{
         GenericGraphicsPipeline, GenericGraphicsPipelineConfiguration, GraphicsPipelineInterface, PolygonMode, PrimitiveTopology,
@@ -54,7 +54,7 @@ pub struct PresenterShared {
     pub immediate_graphics_pipeline_line_strip: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
     pub immediate_graphics_pipeline_triangle_list: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
     pub immediate_graphics_pipeline_triangle_strip: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
-    pub cull_compute_pipeline: CullComputePipeline,
+    pub cull_compute_pipeline: GenericComputePipeline,
     pub indirect_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
     pub active_camera: Handle<jeriya_shared::Camera>,
     pub device: Arc<Device>,
@@ -117,9 +117,12 @@ impl PresenterShared {
         let immediate_graphics_pipeline_triangle_strip = create_immediate_graphics_pipeline(PrimitiveTopology::TriangleStrip)?;
 
         info!("Create Compute Pipeline");
-        let cull_compute_pipeline = CullComputePipeline::new(
+        let cull_compute_pipeline = GenericComputePipeline::new(
             &backend_shared.device,
-            debug_info!(format!("CullComputePipeline-for-Window{:?}", window_id)),
+            &GenericComputePipelineConfig {
+                shader_spirv: spirv!("cull.comp.spv"),
+                debug_info: debug_info!(format!("CullComputePipeline-for-Window{:?}", window_id)),
+            },
         )?;
 
         info!("Create Indirect Graphics Pipeline");
