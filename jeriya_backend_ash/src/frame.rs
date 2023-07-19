@@ -157,55 +157,55 @@ impl Frame {
             &backend_shared.command_pool,
             debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
         )?;
-        let mut command_buffer_builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
-        command_buffer_builder
-            .begin_command_buffer_for_one_time_submit()?
-            .depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(frame_index))?;
+        let mut builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
+        builder.begin_command_buffer_for_one_time_submit()?;
+        builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(frame_index))?;
 
         // Cull
-        command_buffer_builder.bind_compute_pipeline(&presenter_shared.cull_compute_pipeline);
+        builder.bind_compute_pipeline(&presenter_shared.cull_compute_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Compute,
             &presenter_shared.cull_compute_pipeline.descriptor_set_layout,
             backend_shared,
-            &mut command_buffer_builder,
+            &mut builder,
         )?;
-        command_buffer_builder.dispatch(cull_compute_shader_group_count, 1, 1);
-        command_buffer_builder.indirect_draw_commands_buffer_pipeline_barrier(&self.indirect_draw_buffer);
+        builder.dispatch(cull_compute_shader_group_count, 1, 1);
+        builder.indirect_draw_commands_buffer_pipeline_barrier(&self.indirect_draw_buffer);
 
         // Render Pass
-        command_buffer_builder.begin_render_pass(
+        builder.begin_render_pass(
             presenter_shared.swapchain(),
             presenter_shared.render_pass(),
             (presenter_shared.framebuffers(), frame_index.swapchain_index()),
         )?;
 
         // Render with IndirectGraphicsPipeline
-        command_buffer_builder.bind_graphics_pipeline(&presenter_shared.indirect_graphics_pipeline);
+        builder.bind_graphics_pipeline(&presenter_shared.indirect_graphics_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Graphics,
             &presenter_shared.indirect_graphics_pipeline.descriptor_set_layout,
             backend_shared,
-            &mut command_buffer_builder,
+            &mut builder,
         )?;
-        command_buffer_builder.draw_indirect(&self.indirect_draw_buffer, inanimate_mesh_instances.len());
+        builder.draw_indirect(&self.indirect_draw_buffer, inanimate_mesh_instances.len());
 
         // Render with SimpleGraphicsPipeline
-        command_buffer_builder.bind_graphics_pipeline(&presenter_shared.simple_graphics_pipeline);
+        builder.bind_graphics_pipeline(&presenter_shared.simple_graphics_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Graphics,
             &presenter_shared.simple_graphics_pipeline.descriptor_set_layout,
             backend_shared,
-            &mut command_buffer_builder,
+            &mut builder,
         )?;
         // Render with ImmediateRenderingPipeline
         self.append_immediate_rendering_commands(
             backend_shared,
             presenter_shared,
-            &mut command_buffer_builder,
+            &mut builder,
             &presenter_shared.immediate_rendering_requests,
         )?;
-        command_buffer_builder.end_render_pass()?.end_command_buffer()?;
+        builder.end_render_pass()?;
+        builder.end_command_buffer()?;
 
         // Save CommandBuffer to be able to check whether this frame was completed
         let command_buffer = Arc::new(command_buffer);
