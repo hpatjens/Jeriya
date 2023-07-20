@@ -1,5 +1,6 @@
-use std::io;
+use std::{io, path::PrefixComponent};
 
+use gltf::{accessor::DataType, mesh::util::ReadIndices, Gltf, Semantic};
 use jeriya::Renderer;
 use jeriya_backend_ash::AshBackend;
 use jeriya_shared::{
@@ -7,8 +8,9 @@ use jeriya_shared::{
     immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
     log,
-    nalgebra::{Affine3, Matrix4, Vector3, Vector4},
+    nalgebra::{Affine3, Dim, Matrix4, Vector3, Vector4},
     winit::{
+        dpi::LogicalSize,
         event::{Event, WindowEvent},
         event_loop::EventLoop,
         window::WindowBuilder,
@@ -80,6 +82,37 @@ where
     Ok(())
 }
 
+fn load_model() -> Vec<Vector3<f32>> {
+    let (document, buffers, _images) = gltf::import("Jeriya/examples/rotated_cube.glb").unwrap();
+    let mut vertex_positions = Vec::new();
+    for mesh in document.meshes() {
+        for primitive in mesh.primitives() {
+            let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+            let temp_vertex_positions = reader.read_positions().expect("no positions in mesh").collect::<Vec<_>>();
+            if let Some(indices) = reader.read_indices() {
+                match &indices {
+                    ReadIndices::U8(iter) => {
+                        for index in iter.clone() {
+                            vertex_positions.push(temp_vertex_positions[index as usize]);
+                        }
+                    }
+                    ReadIndices::U16(iter) => {
+                        for index in iter.clone() {
+                            vertex_positions.push(temp_vertex_positions[index as usize]);
+                        }
+                    }
+                    ReadIndices::U32(iter) => {
+                        for index in iter.clone() {
+                            vertex_positions.push(temp_vertex_positions[index as usize]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    vertex_positions.into_iter().map(|v| Vector3::new(v[0], v[1], v[2])).collect()
+}
+
 fn main() -> io::Result<()> {
     fern::Dispatch::new()
         .format(|out, message, record| {
@@ -99,12 +132,12 @@ fn main() -> io::Result<()> {
     let event_loop = EventLoop::new();
     let window1 = WindowBuilder::new()
         .with_title("Example")
-        .with_inner_size(jeriya_shared::winit::dpi::LogicalSize::new(640.0, 480.0))
+        .with_inner_size(LogicalSize::new(640.0, 480.0))
         .build(&event_loop)
         .unwrap();
     let window2 = WindowBuilder::new()
         .with_title("Example")
-        .with_inner_size(jeriya_shared::winit::dpi::LogicalSize::new(640.0, 480.0))
+        .with_inner_size(LogicalSize::new(640.0, 480.0))
         .build(&event_loop)
         .unwrap();
     let renderer = jeriya::Renderer::<AshBackend>::builder()
@@ -119,16 +152,11 @@ fn main() -> io::Result<()> {
         println!("Camera: {:?}", camera.matrix());
     }
 
+    let model = load_model();
+
     let inanimate_mesh1 = renderer
         .inanimate_meshes()
-        .create(
-            MeshType::TriangleList,
-            vec![
-                Vector3::new(0.0, 0.0, 0.0),
-                Vector3::new(0.8, 0.9, 0.0),
-                Vector3::new(0.4, 0.2, 0.0),
-            ],
-        )
+        .create(MeshType::TriangleList, model)
         .with_debug_info(debug_info!("my_mesh"))
         .build()
         .unwrap();

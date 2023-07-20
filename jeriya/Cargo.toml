@@ -12,3 +12,4 @@ jeriya_shared = { path = "../jeriya_shared" }
 jeriya_backend_ash = { path = "../jeriya_backend_ash" }
 fern = "0.6.1"
 spin_sleep = "1.1.1"
+gltf = "1.2.0"
