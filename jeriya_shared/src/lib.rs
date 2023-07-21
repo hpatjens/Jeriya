@@ -28,6 +28,7 @@ pub use nalgebra;
 pub use nalgebra_glm;
 pub use parking_lot;
 pub use thiserror;
+pub use tracy_client;
 pub use winit;
 
 use winit::window::WindowId;

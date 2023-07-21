@@ -1,6 +1,7 @@
 use std::{collections::VecDeque, sync::Arc};
 
 use ash::vk;
+use jeriya_shared::tracy_client::span;
 
 use crate::{command_buffer::CommandBuffer, device::Device, fence::Fence, semaphore::Semaphore, AsRawVulkan};
 
@@ -118,6 +119,7 @@ impl Queue {
 
     /// Polls the fences that signal the completion of the submitted [`CommandBuffer`]s and executes the finished operations of the [`CommandBuffer`]s that have finished executing.s
     pub fn poll_completed_fences(&mut self) -> crate::Result<()> {
+        let _span = span!("poll_completed_fences");
         loop {
             let result = self
                 .submitted_command_buffers

@@ -1,6 +1,7 @@
 use jeriya_shared::{
     immediate::{CommandBuffer, CommandBufferBuilder},
     inanimate_mesh::InanimateMeshGroup,
+    tracy_client::Client,
     winit::window::{Window, WindowId},
     Backend, Camera, CameraContainerGuard, DebugInfo, Handle, InanimateMeshInstanceContainerGuard, RendererConfig, Result,
 };
@@ -13,6 +14,7 @@ where
     B: Backend,
 {
     backend: B,
+    _tracy_client: Client,
 }
 
 impl<B> Renderer<B>
@@ -20,7 +22,10 @@ where
     B: Backend,
 {
     fn new(backend: B) -> Self {
-        Self { backend }
+        Self {
+            backend,
+            _tracy_client: Client::start(),
+        }
     }
 
     /// Creates a new [`RendererBuilder`] to create an instance of the `Renderer`

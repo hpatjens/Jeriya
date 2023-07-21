@@ -7,6 +7,7 @@ use jeriya_backend_ash_base::{
     frame_index::FrameIndex, graphics_pipeline::PrimitiveTopology, host_visible_buffer::HostVisibleBuffer,
     push_descriptors::PushDescriptors, semaphore::Semaphore, shader_interface, DrawIndirectCommand,
 };
+use jeriya_shared::tracy_client::span;
 use jeriya_shared::{debug_info, log::info, nalgebra::Matrix4, winit::window::WindowId};
 
 use crate::{
@@ -93,11 +94,15 @@ impl Frame {
         backend_shared: &BackendShared,
         presenter_shared: &mut PresenterShared,
     ) -> jeriya_shared::Result<()> {
+        let _span = span!("Frame::render_frame");
+
         // Wait for the previous work for the currently occupied frame to finish
+        let wait_span = span!("wait for rendering complete");
         for command_buffer in &self.rendering_complete_command_buffers {
             command_buffer.wait_for_completion()?;
         }
         self.rendering_complete_command_buffers.clear();
+        drop(wait_span);
 
         // Prepare rendering complete semaphore
         let main_rendering_complete_semaphore = Arc::new(Semaphore::new(
@@ -114,6 +119,8 @@ impl Frame {
 
         // Prepare InanimateMeshInstances
         let inanimate_mesh_instances = {
+            let _span = span!("prepare inanimate mesh instances");
+
             let inanimate_mesh_instances = backend_shared.inanimate_mesh_instances.lock();
             let padding = backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances - inanimate_mesh_instances.len();
             &inanimate_mesh_instances
@@ -128,10 +135,14 @@ impl Frame {
         };
 
         // Update Buffers
+        let span = span!("update per frame data buffer");
         self.per_frame_data_buffer.set_memory_unaligned(&[shader_interface::PerFrameData {
             active_camera: presenter_shared.active_camera.index() as u32,
             inanimate_mesh_instance_count: inanimate_mesh_instances.len() as u32,
         }])?;
+        drop(span);
+
+        let span = span!("update cameras buffer");
         self.cameras_buffer.set_memory_unaligned({
             let cameras = backend_shared.cameras.lock();
             let padding = backend_shared.renderer_config.maximum_number_of_cameras - cameras.len();
@@ -146,12 +157,19 @@ impl Frame {
                 .chain(iter::repeat(shader_interface::Camera::default()).take(padding))
                 .collect::<Vec<_>>()
         })?;
+        drop(span);
+
+        let span = span!("update inanimate_mesh_instances_buffer");
         self.inanimate_mesh_instance_buffer
             .set_memory_unaligned(&inanimate_mesh_instances)?;
+        drop(span);
+
         const LOCAL_SIZE_X: u32 = 128;
         let cull_compute_shader_group_count = (inanimate_mesh_instances.len() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
 
         // Build CommandBuffer
+        let span = span!("build command buffer");
+
         let mut command_buffer = CommandBuffer::new(
             &backend_shared.device,
             &backend_shared.command_pool,
@@ -206,6 +224,7 @@ impl Frame {
         )?;
         builder.end_render_pass()?;
         builder.end_command_buffer()?;
+        drop(span);
 
         // Save CommandBuffer to be able to check whether this frame was completed
         let command_buffer = Arc::new(command_buffer);

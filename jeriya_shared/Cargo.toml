@@ -16,3 +16,6 @@ bumpalo = "3.13.0"
 byteorder = "1.4.3"
 thiserror = "1.0.40"
 byte-unit = "4.0.19"
+
+# see https://crates.io/crates/tracy-client for version support table
+tracy-client = { version = "0.14.2", features = ["enable", "broadcast"] }

@@ -26,6 +26,7 @@ use jeriya_shared::{
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
     log::{info, warn},
     nalgebra::Vector4,
+    tracy_client::{span, Client},
     winit::window::{Window, WindowId},
     AsDebugInfo, Backend, Camera, CameraContainerGuard, DebugInfo, Handle, ImmediateCommandBufferBuilderHandler,
     InanimateMeshInstanceContainerGuard, RendererConfig,
@@ -134,9 +135,13 @@ impl Backend for AshBackend {
     }
 
     fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
+        let _span = span!("AshBackend::handle_render_frame");
+
         self.backend_shared.presentation_queue.borrow_mut().poll_completed_fences()?;
 
         if !self.backend_shared.inanimate_mesh_event_queue.lock().is_empty() {
+            let _span = span!("Handle inanimate mesh events");
+
             // Create a new command buffer for maintaining the meshes
             let mut command_buffer = CommandBuffer::new(
                 &self.backend_shared.device,
@@ -214,6 +219,8 @@ impl Backend for AshBackend {
             let presenter = &mut *presenter.borrow_mut();
             presenter.render_frame(window_id, &self.backend_shared)?;
         }
+
+        Client::running().expect("client must be running").frame_mark();
 
         Ok(())
     }

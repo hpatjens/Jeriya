@@ -1,5 +1,8 @@
 use ash::{extensions::khr, prelude::VkResult, vk};
-use jeriya_shared::log::{info, warn};
+use jeriya_shared::{
+    log::{info, warn},
+    tracy_client::span,
+};
 
 use std::{ops::Drop, sync::Arc};
 
@@ -154,6 +157,8 @@ impl Swapchain {
     }
 
     pub fn acquire_next_image(&self, frame_index: &FrameIndex, semaphore_to_signal: &Semaphore) -> crate::Result<FrameIndex> {
+        let _span = span!("acquire_next_image");
+
         let (present_index, is_suboptimal) = unsafe {
             self.swapchain.acquire_next_image(
                 self.swapchain_khr,

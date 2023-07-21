@@ -3,6 +3,7 @@ use std::{collections::VecDeque, sync::Arc};
 use crate::{backend_shared::BackendShared, frame::Frame, presenter_shared::PresenterShared, ImmediateRenderingRequest};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{frame_index::FrameIndex, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
+use jeriya_shared::tracy_client::span;
 use jeriya_shared::{debug_info, winit::window::WindowId, Handle};
 
 pub struct Presenter {
@@ -25,6 +26,8 @@ impl Presenter {
     }
 
     pub fn render_frame(&mut self, window_id: &WindowId, backend_shared: &BackendShared) -> jeriya_shared::Result<()> {
+        let _span = span!("Presenter::render_frame");
+
         // Acquire the next swapchain index and set the frame index
         let image_available_semaphore = Arc::new(Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?);
         let frame_index = self
