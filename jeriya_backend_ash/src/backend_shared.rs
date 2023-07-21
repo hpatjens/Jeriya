@@ -22,8 +22,6 @@ use jeriya_shared::{
 pub struct BackendShared {
     pub device: Arc<Device>,
     pub renderer_config: Arc<RendererConfig>,
-    pub presentation_queue: RefCell<Queue>,
-    pub command_pool: Rc<CommandPool>,
     pub cameras: Arc<Mutex<IndexingContainer<Camera>>>,
     pub camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
     pub inanimate_meshes: Arc<InanimateMeshGroup>,
@@ -49,17 +47,6 @@ impl BackendShared {
         let inanimate_mesh_instances = Arc::new(Mutex::new(IndexingContainer::new()));
         let inanimate_mesh_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
 
-        // Presentation Queue
-        let presentation_queue = Queue::new(device, QueueType::Presentation)?;
-
-        info!("Creating CommandPool");
-        let command_pool = CommandPool::new(
-            device,
-            &presentation_queue,
-            CommandPoolCreateFlags::ResetCommandBuffer,
-            debug_info!("preliminary-CommandPool"),
-        )?;
-
         info!("Creating StagedPushOnlyBuffer for InanimateMeshes");
         const INANIMATE_MESH_BUFFER_CAPACITY: usize = 100;
         let inanimate_mesh_buffer = Mutex::new(StagedPushOnlyBuffer::new(
@@ -81,8 +68,6 @@ impl BackendShared {
         Ok(Self {
             device: device.clone(),
             renderer_config: renderer_config.clone(),
-            presentation_queue: RefCell::new(presentation_queue),
-            command_pool,
             cameras,
             camera_event_queue,
             inanimate_meshes,

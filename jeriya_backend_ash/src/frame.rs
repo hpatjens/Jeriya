@@ -2,10 +2,19 @@ use std::{iter, mem, sync::Arc};
 
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
-    buffer::BufferUsageFlags, command_buffer::CommandBuffer, command_buffer_builder::CommandBufferBuilder,
-    command_buffer_builder::PipelineBindPoint, descriptor_set_layout::DescriptorSetLayout, device_visible_buffer::DeviceVisibleBuffer,
-    frame_index::FrameIndex, graphics_pipeline::PrimitiveTopology, host_visible_buffer::HostVisibleBuffer,
-    push_descriptors::PushDescriptors, semaphore::Semaphore, shader_interface, DrawIndirectCommand,
+    buffer::BufferUsageFlags,
+    command_buffer::CommandBuffer,
+    command_buffer_builder::CommandBufferBuilder,
+    command_buffer_builder::PipelineBindPoint,
+    command_pool::{CommandPool, CommandPoolCreateFlags},
+    descriptor_set_layout::DescriptorSetLayout,
+    device_visible_buffer::DeviceVisibleBuffer,
+    graphics_pipeline::PrimitiveTopology,
+    host_visible_buffer::HostVisibleBuffer,
+    push_descriptors::PushDescriptors,
+    queue::Queue,
+    semaphore::Semaphore,
+    shader_interface, DrawIndirectCommand,
 };
 use jeriya_shared::{debug_info, log::info, nalgebra::Matrix4, tracy_client::span, winit::window::WindowId};
 
@@ -19,7 +28,6 @@ use crate::{
 pub struct Frame {
     image_available_semaphore: Option<Arc<Semaphore>>,
     rendering_complete_semaphores: Vec<Arc<Semaphore>>,
-    rendering_complete_command_buffers: Vec<Arc<CommandBuffer>>,
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
     cameras_buffer: HostVisibleBuffer<shader_interface::Camera>,
     inanimate_mesh_instance_buffer: HostVisibleBuffer<shader_interface::InanimateMeshInstance>,
@@ -30,7 +38,6 @@ impl Frame {
     pub fn new(window_id: &WindowId, backend_shared: &BackendShared) -> base::Result<Self> {
         let image_available_semaphore = None;
         let rendering_complete_semaphores = Vec::new();
-        let rendering_complete_command_buffer = Vec::new();
         let per_frame_data_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
             &[shader_interface::PerFrameData::default(); 1],
@@ -68,7 +75,6 @@ impl Frame {
         Ok(Self {
             image_available_semaphore,
             rendering_complete_semaphores,
-            rendering_complete_command_buffers: rendering_complete_command_buffer,
             per_frame_data_buffer,
             cameras_buffer,
             inanimate_mesh_instance_buffer,
@@ -88,19 +94,19 @@ impl Frame {
 
     pub fn render_frame(
         &mut self,
-        frame_index: &FrameIndex,
         _window_id: &WindowId,
+        presentation_queue: &mut Queue,
         backend_shared: &BackendShared,
         presenter_shared: &mut PresenterShared,
+        rendering_complete_command_buffer: &mut Option<Arc<CommandBuffer>>,
     ) -> jeriya_shared::Result<()> {
         let _span = span!("Frame::render_frame");
 
         // Wait for the previous work for the currently occupied frame to finish
         let wait_span = span!("wait for rendering complete");
-        for command_buffer in &self.rendering_complete_command_buffers {
+        if let Some(command_buffer) = rendering_complete_command_buffer.take() {
             command_buffer.wait_for_completion()?;
         }
-        self.rendering_complete_command_buffers.clear();
         drop(wait_span);
 
         // Prepare rendering complete semaphore
@@ -166,20 +172,30 @@ impl Frame {
         const LOCAL_SIZE_X: u32 = 128;
         let cull_compute_shader_group_count = (inanimate_mesh_instances.len() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
 
+        // Create a CommandPool
+        let command_pool_span = span!("create commnad pool");
+        let command_pool = CommandPool::new(
+            &backend_shared.device,
+            presentation_queue,
+            CommandPoolCreateFlags::ResetCommandBuffer,
+            debug_info!("preliminary-CommandPool"),
+        )?;
+        drop(command_pool_span);
+
         // Build CommandBuffer
         let command_buffer_span = span!("build command buffer");
 
         let creation_span = span!("command buffer creation");
         let mut command_buffer = CommandBuffer::new(
             &backend_shared.device,
-            &backend_shared.command_pool,
+            &command_pool,
             debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
         )?;
         let mut builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
         drop(creation_span);
 
         builder.begin_command_buffer_for_one_time_submit()?;
-        builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(frame_index))?;
+        builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(&presenter_shared.frame_index))?;
 
         // Cull
         let cull_span = span!("record cull commands");
@@ -198,7 +214,7 @@ impl Frame {
         builder.begin_render_pass(
             presenter_shared.swapchain(),
             presenter_shared.render_pass(),
-            (presenter_shared.framebuffers(), frame_index.swapchain_index()),
+            (presenter_shared.framebuffers(), presenter_shared.frame_index.swapchain_index()),
         )?;
 
         // Render with IndirectGraphicsPipeline
@@ -239,7 +255,7 @@ impl Frame {
 
         // Save CommandBuffer to be able to check whether this frame was completed
         let command_buffer = Arc::new(command_buffer);
-        self.rendering_complete_command_buffers.push(command_buffer.clone());
+        *rendering_complete_command_buffer = Some(command_buffer.clone());
 
         // Submit immediate rendering
         let image_available_semaphore = self
@@ -249,11 +265,7 @@ impl Frame {
 
         // Insert into Queue
         let submit_span = span!("submit command buffer commands");
-        backend_shared.presentation_queue.borrow_mut().submit_for_rendering_complete(
-            command_buffer,
-            image_available_semaphore,
-            &main_rendering_complete_semaphore,
-        )?;
+        presentation_queue.submit_for_rendering_complete(command_buffer, image_available_semaphore, &main_rendering_complete_semaphore)?;
         drop(submit_span);
 
         // Remove all ImmediateRenderingRequests that don't have to be rendered anymore

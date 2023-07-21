@@ -22,9 +22,11 @@ where
     B: Backend,
 {
     fn new(backend: B) -> Self {
+        let tracy_client = Client::start();
+        tracy_client.set_thread_name("renderer_thread");
         Self {
             backend,
-            _tracy_client: Client::start(),
+            _tracy_client: tracy_client,
         }
     }
 

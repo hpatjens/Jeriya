@@ -10,7 +10,13 @@ use crate::{
     backend_shared::BackendShared,
     presenter::Presenter,
 };
-use base::{command_buffer::CommandBuffer, command_buffer_builder::CommandBufferBuilder, shader_interface};
+use base::{
+    command_buffer::CommandBuffer,
+    command_buffer_builder::CommandBufferBuilder,
+    command_pool::{CommandPool, CommandPoolCreateFlags},
+    queue::{Queue, QueueType},
+    shader_interface,
+};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     debug::{set_panic_on_message, ValidationLayerCallback},
@@ -26,6 +32,7 @@ use jeriya_shared::{
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
     log::{info, warn},
     nalgebra::Vector4,
+    parking_lot::Mutex,
     tracy_client::{span, Client},
     winit::window::{Window, WindowId},
     AsDebugInfo, Backend, Camera, CameraContainerGuard, DebugInfo, Handle, ImmediateCommandBufferBuilderHandler,
@@ -44,7 +51,8 @@ pub struct AshBackend {
     _validation_layer_callback: Option<ValidationLayerCallback>,
     _instance: Arc<Instance>,
     _entry: Arc<Entry>,
-    backend_shared: BackendShared,
+    queue: Mutex<Queue>,
+    backend_shared: Arc<BackendShared>,
 }
 
 impl Backend for AshBackend {
@@ -103,16 +111,20 @@ impl Backend for AshBackend {
         info!("Creating Device");
         let device = Device::new(physical_device, &instance)?;
 
-        let backend_shared = BackendShared::new(&device, &Arc::new(renderer_config))?;
+        let backend_shared = Arc::new(BackendShared::new(&device, &Arc::new(renderer_config))?);
 
         let presenters = surfaces
             .iter()
-            .map(|(window_id, surface)| {
+            .enumerate()
+            .map(|(presenter_index, (window_id, surface))| {
                 info!("Creating presenter for window {window_id:?}");
-                let presenter = Presenter::new(window_id, surface, &backend_shared)?;
+                let presenter = Presenter::new(presenter_index, window_id, surface, backend_shared.clone())?;
                 Ok((*window_id, RefCell::new(presenter)))
             })
             .collect::<jeriya_shared::Result<HashMap<_, _>>>()?;
+
+        info!("Creating Queue");
+        let queue = Mutex::new(Queue::new(&device, QueueType::Presentation, 0)?);
 
         Ok(Self {
             _entry: entry,
@@ -120,12 +132,13 @@ impl Backend for AshBackend {
             _surfaces: surfaces,
             _validation_layer_callback: validation_layer_callback,
             presenters,
+            queue,
             backend_shared,
         })
     }
 
     fn handle_window_resized(&self, window_id: WindowId) -> jeriya_shared::Result<()> {
-        let mut presenter = self
+        let presenter = self
             .presenters
             .get(&window_id)
             .ok_or_else(|| base::Error::UnknownWindowId(window_id))?
@@ -137,15 +150,21 @@ impl Backend for AshBackend {
     fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
         let _span = span!("AshBackend::handle_render_frame");
 
-        self.backend_shared.presentation_queue.borrow_mut().poll_completed_fences()?;
-
         if !self.backend_shared.inanimate_mesh_event_queue.lock().is_empty() {
             let _span = span!("Handle inanimate mesh events");
+
+            info!("Creating CommandPool");
+            let command_pool = CommandPool::new(
+                &self.backend_shared.device,
+                &self.queue.lock(),
+                CommandPoolCreateFlags::ResetCommandBuffer,
+                debug_info!("preliminary-CommandPool"),
+            )?;
 
             // Create a new command buffer for maintaining the meshes
             let mut command_buffer = CommandBuffer::new(
                 &self.backend_shared.device,
-                &self.backend_shared.command_pool.clone(),
+                &command_pool.clone(),
                 debug_info!("maintanance-CommandBuffer"),
             )?;
             let mut command_buffer_builder = CommandBufferBuilder::new(&self.backend_shared.device, &mut command_buffer)?;
@@ -211,13 +230,13 @@ impl Backend for AshBackend {
                 }
             }
             command_buffer_builder.end_command_buffer()?;
-            self.backend_shared.presentation_queue.borrow_mut().submit(command_buffer)?;
+            self.queue.lock().submit(command_buffer)?;
         }
 
         // Render on all surfaces
-        for (window_id, presenter) in &self.presenters {
+        for (_window_id, presenter) in &self.presenters {
             let presenter = &mut *presenter.borrow_mut();
-            presenter.render_frame(window_id, &self.backend_shared)?;
+            presenter.request_frame()?;
         }
 
         Client::running().expect("client must be running").frame_mark();

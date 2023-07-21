@@ -66,13 +66,12 @@ impl Queue {
     }
 
     /// Creates a new `Queue` with the given [`QueueType`]
-    pub fn new(device: &Arc<Device>, queue_type: QueueType) -> crate::Result<Self> {
+    pub fn new(device: &Arc<Device>, queue_type: QueueType, queue_index: u32) -> crate::Result<Self> {
         match queue_type {
             QueueType::Presentation => {
                 assert!(!device.physical_device.suitable_presentation_graphics_queue_family_infos.is_empty());
-                assert!(device.physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_count > 0);
+                assert!(device.physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_count > queue_index);
                 let queue_family_index = device.physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_family_index;
-                let queue_index = 0;
                 unsafe { Ok(Queue::get_from_family(device, queue_family_index, queue_index)) }
             }
         }
@@ -154,7 +153,7 @@ mod tests {
         #[test]
         fn smoke() {
             let device_test_fixture = TestFixtureDevice::new().unwrap();
-            let _queue = Queue::new(&device_test_fixture.device, QueueType::Presentation).unwrap();
+            let _queue = Queue::new(&device_test_fixture.device, QueueType::Presentation, 0).unwrap();
         }
     }
 }

@@ -1,9 +1,12 @@
+use std::rc::Rc;
 use std::sync::Arc;
 
-use base::compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig};
+use base::command_pool::{CommandPool, CommandPoolCreateFlags};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
+    compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig},
     device::Device,
+    frame_index::FrameIndex,
     graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, GraphicsPipelineInterface, PrimitiveTopology},
     surface::Surface,
     swapchain::Swapchain,
@@ -40,6 +43,7 @@ impl GraphicsPipelineInterface for ImmediateGraphicsPipelineInterface {
 
 /// All the state that is required for presenting to the [`Surface`]
 pub struct PresenterShared {
+    pub frame_index: FrameIndex,
     pub desired_swapchain_length: u32,
     pub surface: Arc<Surface>,
     pub swapchain: Swapchain,
@@ -154,6 +158,7 @@ impl PresenterShared {
         drop(guard);
 
         Ok(Self {
+            frame_index: FrameIndex::new(),
             desired_swapchain_length,
             surface: surface.clone(),
             swapchain,
