@@ -15,7 +15,7 @@ use jeriya_shared::{
         event_loop::EventLoop,
         window::WindowBuilder,
     },
-    Backend, InanimateMeshInstance,
+    Backend, InanimateMeshInstance, RendererConfig,
 };
 
 /// Shows how the immediate rendering API can be used.
@@ -141,6 +141,12 @@ fn main() -> io::Result<()> {
         .build(&event_loop)
         .unwrap();
     let renderer = jeriya::Renderer::<AshBackend>::builder()
+        .add_renderer_config(RendererConfig {
+            maximum_number_of_cameras: 2,
+            maximum_number_of_inanimate_mesh_instances: 10,
+            maximum_number_of_inanimate_meshes: 10,
+            ..Default::default()
+        })
         .add_windows(&[&window1, &window2])
         .build()
         .unwrap();
