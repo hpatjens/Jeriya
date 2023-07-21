@@ -29,6 +29,7 @@ impl Presenter {
         let _span = span!("Presenter::render_frame");
 
         // Acquire the next swapchain index and set the frame index
+        let prepare_span = span!("prepare next image");
         let image_available_semaphore = Arc::new(Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?);
         let frame_index = self
             .presenter_shared
@@ -38,6 +39,7 @@ impl Presenter {
         self.frames
             .get_mut(&self.frame_index())
             .set_image_available_semaphore(image_available_semaphore);
+        drop(prepare_span);
 
         // Render the frames
         self.frames
@@ -45,11 +47,13 @@ impl Presenter {
             .render_frame(&self.frame_index, window_id, backend_shared, &mut self.presenter_shared)?;
 
         // Present
+        let present_span = span!("present");
         self.presenter_shared.swapchain().present(
             &self.frame_index(),
             self.frames.get(&frame_index).rendering_complete_semaphores(),
             &backend_shared.presentation_queue.borrow(),
         )?;
+        drop(present_span);
 
         Ok(())
     }

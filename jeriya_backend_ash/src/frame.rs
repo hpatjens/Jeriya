@@ -168,18 +168,22 @@ impl Frame {
         let cull_compute_shader_group_count = (inanimate_mesh_instances.len() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
 
         // Build CommandBuffer
-        let span = span!("build command buffer");
+        let command_buffer_span = span!("build command buffer");
 
+        let creation_span = span!("command buffer creation");
         let mut command_buffer = CommandBuffer::new(
             &backend_shared.device,
             &backend_shared.command_pool,
             debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
         )?;
         let mut builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
+        drop(creation_span);
+
         builder.begin_command_buffer_for_one_time_submit()?;
         builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(frame_index))?;
 
         // Cull
+        let cull_span = span!("record cull commands");
         builder.bind_compute_pipeline(&presenter_shared.cull_compute_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Compute,
@@ -189,6 +193,7 @@ impl Frame {
         )?;
         builder.dispatch(cull_compute_shader_group_count, 1, 1);
         builder.indirect_draw_commands_buffer_pipeline_barrier(&self.indirect_draw_buffer);
+        drop(cull_span);
 
         // Render Pass
         builder.begin_render_pass(
@@ -198,6 +203,7 @@ impl Frame {
         )?;
 
         // Render with IndirectGraphicsPipeline
+        let indirect_span = span!("record indirect commands");
         builder.bind_graphics_pipeline(&presenter_shared.indirect_graphics_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -206,8 +212,10 @@ impl Frame {
             &mut builder,
         )?;
         builder.draw_indirect(&self.indirect_draw_buffer, inanimate_mesh_instances.len());
+        drop(indirect_span);
 
         // Render with SimpleGraphicsPipeline
+        let simple_span = span!("record simple commands");
         builder.bind_graphics_pipeline(&presenter_shared.simple_graphics_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -215,6 +223,8 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
+        drop(simple_span);
+
         // Render with ImmediateRenderingPipeline
         self.append_immediate_rendering_commands(
             backend_shared,
@@ -222,9 +232,11 @@ impl Frame {
             &mut builder,
             &presenter_shared.immediate_rendering_requests,
         )?;
+
         builder.end_render_pass()?;
         builder.end_command_buffer()?;
-        drop(span);
+
+        drop(command_buffer_span);
 
         // Save CommandBuffer to be able to check whether this frame was completed
         let command_buffer = Arc::new(command_buffer);
@@ -237,11 +249,13 @@ impl Frame {
             .expect("not image available semaphore assigned for the frame");
 
         // Insert into Queue
+        let submit_span = span!("submit command buffer commands");
         backend_shared.presentation_queue.borrow_mut().submit_for_rendering_complete(
             command_buffer,
             image_available_semaphore,
             &main_rendering_complete_semaphore,
         )?;
+        drop(submit_span);
 
         // Remove all ImmediateRenderingRequests that don't have to be rendered anymore
         presenter_shared.immediate_rendering_requests.clear();
@@ -257,6 +271,7 @@ impl Frame {
         backend_shared: &BackendShared,
         command_buffer_builder: &mut CommandBufferBuilder,
     ) -> base::Result<()> {
+        let _span = span!("push_descriptors");
         let push_descriptors = &PushDescriptors::builder(&descriptor_set_layout)
             .push_uniform_buffer(0, &self.per_frame_data_buffer)
             .push_storage_buffer(1, &self.cameras_buffer)
@@ -276,6 +291,8 @@ impl Frame {
         command_buffer_builder: &mut CommandBufferBuilder,
         immediate_rendering_requests: &Vec<ImmediateRenderingRequest>,
     ) -> base::Result<()> {
+        let _span = span!("append_immediate_rendering_commands");
+
         if immediate_rendering_requests.is_empty() {
             return Ok(());
         }
