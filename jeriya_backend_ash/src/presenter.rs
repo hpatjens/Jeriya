@@ -3,8 +3,12 @@ use std::{collections::VecDeque, sync::Arc};
 use crate::{backend_shared::BackendShared, frame::Frame, presenter_shared::PresenterShared, ImmediateRenderingRequest};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{frame_index::FrameIndex, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
-use jeriya_shared::tracy_client::span;
-use jeriya_shared::{debug_info, winit::window::WindowId, Handle};
+use jeriya_shared::{
+    debug_info,
+    tracy_client::{plot, span},
+    winit::window::WindowId,
+    Handle,
+};
 
 pub struct Presenter {
     frame_index: FrameIndex,
@@ -35,7 +39,7 @@ impl Presenter {
             .presenter_shared
             .swapchain()
             .acquire_next_image(&self.frame_index, &image_available_semaphore)?;
-        self.start_frame(frame_index.clone());
+        self.frame_index = frame_index.clone();
         self.frames
             .get_mut(&self.frame_index())
             .set_image_available_semaphore(image_available_semaphore);
@@ -66,15 +70,6 @@ impl Presenter {
     /// Recreates the [`PresenterShared`] in case of a swapchain resize
     pub fn recreate(&mut self) -> base::Result<()> {
         self.presenter_shared.recreate()
-    }
-
-    /// Sets the given [`FrameIndex`] and appends the previous one to the history
-    pub fn start_frame(&mut self, frame_index: FrameIndex) {
-        self.frame_index_history.push_front(self.frame_index.clone());
-        self.frame_index = frame_index;
-        while self.frame_index_history.len() > self.presenter_shared.swapchain().len() - 1 {
-            self.frame_index_history.pop_back();
-        }
     }
 
     /// Returns the current [`FrameIndex`]

@@ -7,8 +7,7 @@ use jeriya_backend_ash_base::{
     frame_index::FrameIndex, graphics_pipeline::PrimitiveTopology, host_visible_buffer::HostVisibleBuffer,
     push_descriptors::PushDescriptors, semaphore::Semaphore, shader_interface, DrawIndirectCommand,
 };
-use jeriya_shared::tracy_client::span;
-use jeriya_shared::{debug_info, log::info, nalgebra::Matrix4, winit::window::WindowId};
+use jeriya_shared::{debug_info, log::info, nalgebra::Matrix4, tracy_client::span, winit::window::WindowId};
 
 use crate::{
     ash_immediate::ImmediateCommand,
