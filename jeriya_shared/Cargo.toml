@@ -3,6 +3,9 @@ name = "jeriya_shared"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+profile = ["tracy-client/default"]
+
 [dependencies]
 chrono = "0.4.24"
 log = "0.4.17"
@@ -18,4 +21,4 @@ thiserror = "1.0.40"
 byte-unit = "4.0.19"
 
 # see https://crates.io/crates/tracy-client for version support table
-tracy-client = { version = "0.14.2", features = ["enable", "broadcast"] }
+tracy-client = { version = "0.14.2", default-features = false }
