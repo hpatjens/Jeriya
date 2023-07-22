@@ -16,7 +16,14 @@ use jeriya_backend_ash_base::{
     semaphore::Semaphore,
     shader_interface, DrawIndirectCommand,
 };
-use jeriya_shared::{debug_info, log::info, nalgebra::Matrix4, tracy_client::span, winit::window::WindowId};
+use jeriya_shared::plot_with_index;
+use jeriya_shared::{
+    debug_info,
+    log::info,
+    nalgebra::Matrix4,
+    tracy_client::{plot, span},
+    winit::window::WindowId,
+};
 
 use crate::{
     ash_immediate::ImmediateCommand,
@@ -26,6 +33,7 @@ use crate::{
 };
 
 pub struct Frame {
+    presenter_index: usize,
     image_available_semaphore: Option<Arc<Semaphore>>,
     rendering_complete_semaphores: Vec<Arc<Semaphore>>,
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
@@ -35,7 +43,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn new(window_id: &WindowId, backend_shared: &BackendShared) -> base::Result<Self> {
+    pub fn new(presenter_index: usize, window_id: &WindowId, backend_shared: &BackendShared) -> base::Result<Self> {
         let image_available_semaphore = None;
         let rendering_complete_semaphores = Vec::new();
         let per_frame_data_buffer = HostVisibleBuffer::new(
@@ -73,6 +81,7 @@ impl Frame {
         )?;
 
         Ok(Self {
+            presenter_index,
             image_available_semaphore,
             rendering_complete_semaphores,
             per_frame_data_buffer,
@@ -328,6 +337,12 @@ impl Frame {
             debug_info!("Immediate-VertexBuffer"),
         )?);
         command_buffer_builder.bind_vertex_buffers(0, &vertex_buffer);
+
+        plot_with_index!(
+            "immediate_rendering_requests_on_presenter_",
+            self.presenter_index,
+            immediate_rendering_requests.len() as f64
+        );
 
         // Append the draw commands
         let mut first_vertex = 0;

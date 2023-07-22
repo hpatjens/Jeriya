@@ -103,7 +103,7 @@ impl Presenter {
     ) -> jeriya_shared::Result<Self> {
         let presenter_shared = Arc::new(Mutex::new(PresenterShared::new(window_id, &backend_shared, surface)?));
         let frames = Arc::new(Mutex::new(SwapchainVec::new(presenter_shared.lock().swapchain(), |_| {
-            Frame::new(window_id, &backend_shared)
+            Frame::new(presenter_index, window_id, &backend_shared)
         })?));
         let (sender, receiver) = channel();
         let window_id = window_id.clone();

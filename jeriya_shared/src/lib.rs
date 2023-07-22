@@ -112,3 +112,23 @@ pub fn c_null_terminated_char_array_to_string(char_array: &[i8]) -> result::Resu
     let chars = char_array.iter().take_while(|c| **c != 0).map(|i| *i as u8).collect::<Vec<_>>();
     Ok(std::str::from_utf8(chars.as_slice())?.to_owned())
 }
+
+pub fn leak_string(s: String) -> &'static str {
+    Box::leak(s.into_boxed_str())
+}
+
+#[macro_export]
+macro_rules! plot_with_index {
+    ($prefix:literal, $index:expr, $value:expr) => {{
+        match $index {
+            0 => plot!(concat!($prefix, "0"), $value),
+            1 => plot!(concat!($prefix, "1"), $value),
+            2 => plot!(concat!($prefix, "2"), $value),
+            3 => plot!(concat!($prefix, "3"), $value),
+            4 => plot!(concat!($prefix, "4"), $value),
+            5 => plot!(concat!($prefix, "5"), $value),
+            6 => plot!(concat!($prefix, "6"), $value),
+            _ => plot!(concat!($prefix, "unknown"), $value),
+        }
+    }};
+}
