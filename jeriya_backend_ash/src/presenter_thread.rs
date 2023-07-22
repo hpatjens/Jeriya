@@ -1,13 +1,12 @@
 use crate::{backend_shared::BackendShared, frame::Frame, presenter_shared::PresenterShared};
 use jeriya_backend_ash_base::{
-    command_buffer::CommandBuffer,
     queue::{Queue, QueueType},
     semaphore::Semaphore,
     swapchain_vec::SwapchainVec,
 };
 use jeriya_shared::{
     self,
-    crossbeam_channel::{bounded, Sender},
+    crossbeam_channel::{bounded, Receiver, Sender},
     debug_info,
     parking_lot::Mutex,
     tracy_client::{span, Client},
@@ -48,39 +47,15 @@ impl PresenterThread {
         let (frame_request_sender, frame_request_receiver) = bounded(presenter_shared.lock().swapchain().len());
 
         let thread = thread::spawn(move || {
-            // Setup Tracy profiling
-            let name = PRESENTER_NAMES[presenter_index.min(PRESENTER_NAMES.len() - 1)];
-            let client = Client::start();
-            client.set_thread_name(name);
-
-            // Thread-local Queue for the Presenter
-            let Ok(mut presentation_queue) = Queue::new(&backend_shared.device, QueueType::Presentation, presenter_index as u32 + 1) else {
-                panic!("Failed to allocate presentation Queue for Presenter {presenter_index} (Window: {window_id:?})");
-            };
-
-            // Command Buffer that is checked to determine whether the rendering is complete
-            let Ok(mut rendering_complete_command_buffer) = SwapchainVec::new(&presenter_shared.lock().swapchain(), |_| Ok(None)) else {
-                panic!("Failed to create SwapchainVec for rendering complete CommandBuffers for Presenter {presenter_index} (Window: {window_id:?})");
-            };
-
-            loop {
-                if let Err(_) = frame_request_receiver.recv() {
-                    panic!("Failed to receive message for Presenter {presenter_index} (Window: {window_id:?})");
-                }
-                let mut presenter_shared = presenter_shared.lock();
-                let mut frames = frames.lock();
-
-                // Render the frame
-                if let Err(err) = render(
-                    &window_id,
-                    &mut presentation_queue,
-                    &mut *presenter_shared,
-                    &mut *frames,
-                    &backend_shared,
-                    &mut rendering_complete_command_buffer,
-                ) {
-                    panic!("Failed to render frame for Presenter {presenter_index} (Window: {window_id:?}): {err:?}");
-                }
+            if let Err(err) = run_presenter_thread(
+                presenter_index,
+                backend_shared,
+                presenter_shared,
+                frame_request_receiver,
+                frames,
+                window_id,
+            ) {
+                panic!("Error on PresenterThread {presenter_index} (Window: {window_id:?}): {err:?}");
             }
         });
 
@@ -104,48 +79,63 @@ impl PresenterThread {
     }
 }
 
-fn render(
-    window_id: &WindowId,
-    presentation_queue: &mut Queue,
-    presenter_shared: &mut PresenterShared,
-    frames: &mut SwapchainVec<Frame>,
-    backend_shared: &BackendShared,
-    rendering_complete_command_buffer: &mut SwapchainVec<Option<Arc<CommandBuffer>>>,
+fn run_presenter_thread(
+    presenter_index: usize,
+    backend_shared: Arc<BackendShared>,
+    presenter_shared: Arc<Mutex<PresenterShared>>,
+    frame_request_receiver: Receiver<()>,
+    frames: Arc<Mutex<SwapchainVec<Frame>>>,
+    window_id: WindowId,
 ) -> jeriya_shared::Result<()> {
-    // Finish command buffer execution
-    presentation_queue.poll_completed_fences()?;
+    // Setup Tracy profiling
+    let name = PRESENTER_NAMES[presenter_index.min(PRESENTER_NAMES.len() - 1)];
+    let client = Client::start();
+    client.set_thread_name(name);
 
-    // Acquire the next swapchain index and set the frame index
-    let prepare_span = span!("prepare next image");
-    let image_available_semaphore = Arc::new(Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?);
-    let frame_index = presenter_shared
-        .swapchain()
-        .acquire_next_image(&presenter_shared.frame_index, &image_available_semaphore)?;
-    presenter_shared.frame_index = frame_index.clone();
-    frames
-        .get_mut(&presenter_shared.frame_index)
-        .set_image_available_semaphore(image_available_semaphore);
-    drop(prepare_span);
+    // Thread-local Queue for the Presenter
+    let mut presentation_queue = Queue::new(&backend_shared.device, QueueType::Presentation, presenter_index as u32 + 1)?;
 
-    let rendering_complete_command_buffer = rendering_complete_command_buffer.get_mut(&frame_index);
+    // Command Buffer that is checked to determine whether the rendering is complete
+    let mut rendering_complete_command_buffer = SwapchainVec::new(&presenter_shared.lock().swapchain(), |_| Ok(None))?;
 
-    // Render the frames
-    frames.get_mut(&presenter_shared.frame_index).render_frame(
-        window_id,
-        presentation_queue,
-        backend_shared,
-        &mut *presenter_shared,
-        rendering_complete_command_buffer,
-    )?;
+    loop {
+        if let Err(_) = frame_request_receiver.recv() {
+            panic!("Failed to receive message for Presenter {presenter_index} (Window: {window_id:?})");
+        }
+        let mut presenter_shared = presenter_shared.lock();
+        let mut frames = frames.lock();
 
-    // Present
-    let present_span = span!("present");
-    presenter_shared.swapchain().present(
-        &presenter_shared.frame_index,
-        frames.get(&frame_index).rendering_complete_semaphores(),
-        presentation_queue,
-    )?;
-    drop(present_span);
+        // Finish command buffer execution
+        presentation_queue.poll_completed_fences()?;
 
-    Ok(())
+        // Acquire the next swapchain image
+        let acquire_span = span!("acquire swapchain image");
+        let image_available_semaphore = Arc::new(Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?);
+        let frame_index = presenter_shared
+            .swapchain()
+            .acquire_next_image(&presenter_shared.frame_index, &image_available_semaphore)?;
+        presenter_shared.frame_index = frame_index.clone();
+        frames
+            .get_mut(&presenter_shared.frame_index)
+            .set_image_available_semaphore(image_available_semaphore);
+        drop(acquire_span);
+
+        let mut rendering_complete_command_buffer = rendering_complete_command_buffer.get_mut(&frame_index);
+
+        // Render the frames
+        frames.get_mut(&presenter_shared.frame_index).render_frame(
+            &window_id,
+            &mut presentation_queue,
+            &backend_shared,
+            &mut *presenter_shared,
+            &mut rendering_complete_command_buffer,
+        )?;
+
+        // Present
+        presenter_shared.swapchain().present(
+            &presenter_shared.frame_index,
+            frames.get(&frame_index).rendering_complete_semaphores(),
+            &presentation_queue,
+        )?;
+    }
 }
