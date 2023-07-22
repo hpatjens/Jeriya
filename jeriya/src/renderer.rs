@@ -14,7 +14,6 @@ where
     B: Backend,
 {
     backend: B,
-    _tracy_client: Client,
 }
 
 impl<B> Renderer<B>
@@ -22,12 +21,7 @@ where
     B: Backend,
 {
     fn new(backend: B) -> Self {
-        let tracy_client = Client::start();
-        tracy_client.set_thread_name("renderer_thread");
-        Self {
-            backend,
-            _tracy_client: tracy_client,
-        }
+        Self { backend }
     }
 
     /// Creates a new [`RendererBuilder`] to create an instance of the `Renderer`
@@ -126,6 +120,9 @@ where
     }
 
     pub fn build(self) -> Result<Renderer<B>> {
+        // Create a Tracy client before the backend is created because the first thread creating a Client is called "Main thread".
+        let _tracy_client = Client::start();
+
         let renderer_config = self.renderer_config.unwrap_or(RendererConfig::default());
         let backend_config = self.backend_config.unwrap_or(B::BackendConfig::default());
         let backend = B::new(renderer_config, backend_config, self.windows)?;
