@@ -16,6 +16,7 @@ use jeriya_backend_ash_base::{
     semaphore::Semaphore,
     shader_interface, DrawIndirectCommand,
 };
+use jeriya_macros::profile;
 use jeriya_shared::plot_with_index;
 use jeriya_shared::{
     debug_info,
@@ -42,6 +43,7 @@ pub struct Frame {
     indirect_draw_buffer: Arc<DeviceVisibleBuffer<DrawIndirectCommand>>,
 }
 
+#[profile]
 impl Frame {
     pub fn new(presenter_index: usize, window_id: &WindowId, backend_shared: &BackendShared) -> base::Result<Self> {
         let image_available_semaphore = None;
@@ -109,8 +111,6 @@ impl Frame {
         presenter_shared: &mut PresenterShared,
         rendering_complete_command_buffer: &mut Option<Arc<CommandBuffer>>,
     ) -> jeriya_shared::Result<()> {
-        let _span = span!("Frame::render_frame");
-
         // Wait for the previous work for the currently occupied frame to finish
         let wait_span = span!("wait for rendering complete");
         if let Some(command_buffer) = rendering_complete_command_buffer.take() {
@@ -291,7 +291,6 @@ impl Frame {
         backend_shared: &BackendShared,
         command_buffer_builder: &mut CommandBufferBuilder,
     ) -> base::Result<()> {
-        let _span = span!("push_descriptors");
         let push_descriptors = &PushDescriptors::builder(&descriptor_set_layout)
             .push_uniform_buffer(0, &self.per_frame_data_buffer)
             .push_storage_buffer(1, &self.cameras_buffer)
@@ -311,8 +310,6 @@ impl Frame {
         command_buffer_builder: &mut CommandBufferBuilder,
         immediate_rendering_requests: &Vec<ImmediateRenderingRequest>,
     ) -> base::Result<()> {
-        let _span = span!("append_immediate_rendering_commands");
-
         if immediate_rendering_requests.is_empty() {
             return Ok(());
         }

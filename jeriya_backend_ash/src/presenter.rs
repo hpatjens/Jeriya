@@ -6,6 +6,7 @@ use crate::{
 };
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{surface::Surface, swapchain_vec::SwapchainVec};
+use jeriya_macros::profile;
 use jeriya_shared::{parking_lot::Mutex, tracy_client::span, winit::window::WindowId, Handle};
 
 pub struct Presenter {
@@ -15,6 +16,7 @@ pub struct Presenter {
     _frames: Arc<Mutex<SwapchainVec<Frame>>>,
 }
 
+#[profile]
 impl Presenter {
     pub fn new(
         presenter_index: usize,
@@ -53,7 +55,6 @@ impl Presenter {
     ///
     /// This will block when more frames are requested than the swapchain can hold.
     pub fn request_frame(&mut self) -> jeriya_shared::Result<()> {
-        let _span = span!("Presenter::request_frame");
         self.thread.request_frame()?;
         Ok(())
     }

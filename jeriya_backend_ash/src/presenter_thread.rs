@@ -4,6 +4,7 @@ use jeriya_backend_ash_base::{
     semaphore::Semaphore,
     swapchain_vec::SwapchainVec,
 };
+use jeriya_macros::profile;
 use jeriya_shared::{
     self,
     crossbeam_channel::{bounded, Receiver, Sender},
@@ -23,6 +24,7 @@ pub struct PresenterThread {
     frame_request_sender: Sender<()>,
 }
 
+#[profile]
 impl PresenterThread {
     /// Spawns a new presenter thread that will render frames that are requested via [`PresenterThread::request_frame`].
     pub fn spawn(
@@ -59,7 +61,6 @@ impl PresenterThread {
     ///
     /// This will block when more frames are requested than the swapchain can hold.
     pub fn request_frame(&mut self) -> jeriya_shared::Result<()> {
-        let _span = span!("PresenterThread::request_frame");
         // Just shutting down the whole renderer when one of the presenter threads has shut down unexpectedly.
         self.frame_request_sender
             .send(())
