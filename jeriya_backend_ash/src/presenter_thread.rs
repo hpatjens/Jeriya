@@ -17,17 +17,6 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-const PRESENTER_NAMES: [&'static str; 8] = [
-    "presenter_thread_0",
-    "presenter_thread_1",
-    "presenter_thread_2",
-    "presenter_thread_3",
-    "presenter_thread_4",
-    "presenter_thread_5",
-    "presenter_thread_6",
-    "presenter_thread_unknown",
-];
-
 pub struct PresenterThread {
     _presenter_index: usize,
     _thread: JoinHandle<()>,
@@ -88,6 +77,11 @@ fn run_presenter_thread(
     window_id: WindowId,
 ) -> jeriya_shared::Result<()> {
     // Setup Tracy profiling
+    #[rustfmt::skip]
+    const PRESENTER_NAMES: [&'static str; 8] = [
+        "presenter_thread_0", "presenter_thread_1", "presenter_thread_2", "presenter_thread_3",
+        "presenter_thread_4", "presenter_thread_5", "presenter_thread_6", "presenter_thread_unknown",
+    ];
     let name = PRESENTER_NAMES[presenter_index.min(PRESENTER_NAMES.len() - 1)];
     let client = Client::start();
     client.set_thread_name(name);
