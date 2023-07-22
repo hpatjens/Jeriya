@@ -64,13 +64,13 @@ fn profile_impl(item_impl: ItemImpl) -> TokenStream {
     let new_items = item_impl
         .items
         .iter()
-        .filter_map(|item| match item {
+        .map(|item| match item {
             ImplItem::Fn(item_fn) => {
                 let token_stream = profile_method(item_fn.clone(), type_ident);
                 let impl_item_fn: ImplItemFn = syn::parse::<ImplItemFn>(token_stream).unwrap();
-                Some(ImplItem::Fn(impl_item_fn))
+                ImplItem::Fn(impl_item_fn)
             }
-            _ => None,
+            item => item.clone(),
         })
         .collect::<Vec<ImplItem>>();
     let new_item_impl = ItemImpl {

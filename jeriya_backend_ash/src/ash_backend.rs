@@ -22,6 +22,7 @@ use jeriya_backend_ash_base::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
+use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info, immediate,
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
@@ -50,6 +51,7 @@ pub struct AshBackend {
     backend_shared: Arc<BackendShared>,
 }
 
+#[profile]
 impl Backend for AshBackend {
     type BackendConfig = Config;
 

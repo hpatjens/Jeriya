@@ -196,7 +196,7 @@ fn main() -> io::Result<()> {
 
                 renderer.render_frame().unwrap();
 
-                loop_helper.loop_sleep();
+                // loop_helper.loop_sleep();
             }
             _ => (),
         }
