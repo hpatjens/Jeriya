@@ -1,28 +1,18 @@
 use std::{
-    sync::{
-        mpsc::{channel, Sender},
-        Arc,
-    },
+    sync::Arc,
     thread::{self, JoinHandle},
-    time::Duration,
 };
 
-use crate::{
-    backend_shared::BackendShared,
-    frame::{self, Frame},
-    presenter_shared::{self, PresenterShared},
-    ImmediateRenderingRequest,
-};
+use crate::{backend_shared::BackendShared, frame::Frame, presenter_shared::PresenterShared, ImmediateRenderingRequest};
 use base::{
     command_buffer::CommandBuffer,
-    command_pool::{CommandPool, CommandPoolCreateFlags},
     queue::{Queue, QueueType},
 };
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_shared::{
+    crossbeam_channel::{bounded, Sender},
     debug_info,
-    log::error,
     parking_lot::Mutex,
     tracy_client::{span, Client},
     winit::window::WindowId,
@@ -63,7 +53,7 @@ fn render_thread(
         .set_image_available_semaphore(image_available_semaphore);
     drop(prepare_span);
 
-    let mut rendering_complete_command_buffer = rendering_complete_command_buffer.get_mut(&frame_index);
+    let rendering_complete_command_buffer = rendering_complete_command_buffer.get_mut(&frame_index);
 
     // Render the frames
     frames.get_mut(&presenter_shared.frame_index).render_frame(
@@ -87,11 +77,11 @@ fn render_thread(
 }
 
 pub struct Presenter {
-    presenter_index: usize,
-    thread: JoinHandle<()>,
-    sender: Sender<()>,
+    _presenter_index: usize,
+    _thread: JoinHandle<()>,
+    frame_request_sender: Sender<()>,
     presenter_shared: Arc<Mutex<PresenterShared>>,
-    frames: Arc<Mutex<SwapchainVec<Frame>>>,
+    _frames: Arc<Mutex<SwapchainVec<Frame>>>,
 }
 
 impl Presenter {
@@ -105,25 +95,32 @@ impl Presenter {
         let frames = Arc::new(Mutex::new(SwapchainVec::new(presenter_shared.lock().swapchain(), |_| {
             Frame::new(presenter_index, window_id, &backend_shared)
         })?));
-        let (sender, receiver) = channel();
+
+        // Channel for requesting a frame from the renderer thread. Requesting more frames than the swapchain can hold will block the thread.
+        let (frame_request_sender, frame_request_receiver) = bounded(presenter_shared.lock().swapchain().len());
+
+        // Spawn the presenter thread
         let window_id = window_id.clone();
         let presenter_shared2 = presenter_shared.clone();
         let frames2 = frames.clone();
         let thread = thread::spawn(move || {
+            // Setup Tracy profiling
             let name = PRESENTER_NAMES[presenter_index.min(PRESENTER_NAMES.len() - 1)];
             let client = Client::start();
             client.set_thread_name(name);
 
+            // Thread-local Queue for the Presenter
             let Ok(mut presentation_queue) = Queue::new(&backend_shared.device, QueueType::Presentation, presenter_index as u32 + 1) else {
                 panic!("Failed to allocate presentation Queue for Presenter {presenter_index} (Window: {window_id:?})");
             };
 
+            // Command Buffer that is checked to determine whether the rendering is complete
             let Ok(mut rendering_complete_command_buffer) = SwapchainVec::new(&presenter_shared2.lock().swapchain(), |_| Ok(None)) else {
                 panic!("Failed to create SwapchainVec for rendering complete CommandBuffers for Presenter {presenter_index} (Window: {window_id:?})");
             };
 
             loop {
-                if let Err(_) = receiver.recv() {
+                if let Err(_) = frame_request_receiver.recv() {
                     panic!("Failed to receive message for Presenter {presenter_index} (Window: {window_id:?})");
                 }
                 let mut presenter_shared = presenter_shared2.lock();
@@ -139,18 +136,30 @@ impl Presenter {
                 .unwrap();
             }
         });
+
         Ok(Self {
-            presenter_index,
-            thread,
-            sender,
+            _presenter_index: presenter_index,
+            _thread: thread,
+            frame_request_sender,
             presenter_shared,
-            frames,
+            _frames: frames,
         })
     }
 
+    /// Returns the index of the presenter
+    pub fn presenter_index(&self) -> usize {
+        self._presenter_index
+    }
+
+    /// Sends a request to the presenter thread to render a frame.
+    ///
+    /// This will block when more frames are requested than the swapchain can hold.
     pub fn request_frame(&mut self) -> jeriya_shared::Result<()> {
         let _span = span!("Presenter::request_frame");
-        self.sender.send(());
+        // Just shutting down the whole renderer when one of the presenter threads has shut down unexpectedly.
+        self.frame_request_sender
+            .send(())
+            .expect("Failed to send message to Presenter thread");
         Ok(())
     }
 

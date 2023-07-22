@@ -1,7 +1,5 @@
-use std::rc::Rc;
 use std::sync::Arc;
 
-use base::command_pool::{CommandPool, CommandPoolCreateFlags};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig},

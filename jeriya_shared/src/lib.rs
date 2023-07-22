@@ -22,6 +22,7 @@ pub use bumpalo;
 pub use byte_unit;
 pub use byteorder;
 pub use chrono;
+pub use crossbeam_channel;
 pub use derive_more;
 pub use log;
 pub use nalgebra;

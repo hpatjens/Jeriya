@@ -1,9 +1,4 @@
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    mem,
-    sync::{mpsc::Receiver, Arc},
-};
+use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use crate::{
     ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler},
@@ -30,7 +25,7 @@ use jeriya_backend_ash_base::{
 use jeriya_shared::{
     debug_info, immediate,
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
-    log::{info, warn},
+    log::info,
     nalgebra::Vector4,
     parking_lot::Mutex,
     tracy_client::{span, Client},
@@ -176,7 +171,7 @@ impl Backend for AshBackend {
                     InanimateMeshEvent::Insert {
                         inanimate_mesh,
                         vertex_positions,
-                        indices,
+                        indices: _,
                     } => {
                         let vertex_positions4 = vertex_positions
                             .iter()
@@ -222,8 +217,8 @@ impl Backend for AshBackend {
                         }));
                     }
                     InanimateMeshEvent::SetVertexPositions {
-                        inanimate_mesh,
-                        vertex_posisions,
+                        inanimate_mesh: _,
+                        vertex_posisions: _,
                     } => {
                         todo!()
                     }

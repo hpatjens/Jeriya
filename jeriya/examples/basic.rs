@@ -1,6 +1,6 @@
-use std::{io, path::PrefixComponent};
+use std::io;
 
-use gltf::{accessor::DataType, mesh::util::ReadIndices, Gltf, Semantic};
+use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend_ash::AshBackend;
 use jeriya_shared::{
@@ -8,7 +8,7 @@ use jeriya_shared::{
     immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
     log,
-    nalgebra::{Affine3, Dim, Matrix4, Vector3, Vector4},
+    nalgebra::{Affine3, Matrix4, Vector3, Vector4},
     winit::{
         dpi::LogicalSize,
         event::{Event, WindowEvent},
