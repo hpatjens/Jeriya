@@ -203,7 +203,10 @@ impl Frame {
         let mut builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
         drop(creation_span);
 
+        let begin_span = span!("begin command buffer");
         builder.begin_command_buffer_for_one_time_submit()?;
+        drop(begin_span);
+
         builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(&presenter_shared.frame_index))?;
 
         // Cull
