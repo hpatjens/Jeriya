@@ -161,12 +161,14 @@ impl<'buf> CommandBufferBuilder<'buf> {
         T: Copy + 'static,
     {
         let vertex_buffer = vertex_buffer.into();
+        let vertex_buffers = [*vertex_buffer.as_raw_vulkan()];
+        let offsets = [0];
         unsafe {
             self.device.as_raw_vulkan().cmd_bind_vertex_buffers(
                 *self.command_buffer.as_raw_vulkan(),
                 first_binding,
-                &[*vertex_buffer.as_raw_vulkan()],
-                &[0],
+                &vertex_buffers,
+                &offsets,
             );
             self.command_buffer.push_dependency(vertex_buffer.as_command_buffer_dependency());
         }
@@ -204,11 +206,12 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 dst_offset: 0,
                 size: src.byte_size() as u64,
             };
+            let copy_regions = [copy_region];
             self.device.as_raw_vulkan().cmd_copy_buffer(
                 *self.command_buffer.as_raw_vulkan(),
                 *src.as_raw_vulkan(),
                 *dst.as_raw_vulkan(),
-                &[copy_region],
+                &copy_regions,
             );
             self.command_buffer.push_dependency(src.clone());
             self.command_buffer.push_dependency(dst.clone());
@@ -237,11 +240,12 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 dst_offset: 0,
                 size: byte_size as u64,
             };
+            let copy_regions = [copy_region];
             self.device.as_raw_vulkan().cmd_copy_buffer(
                 *self.command_buffer.as_raw_vulkan(),
                 *src.as_raw_vulkan(),
                 *dst_guard.as_raw_vulkan(),
-                &[copy_region],
+                &copy_regions,
             );
             self.command_buffer.push_dependency(src.clone());
             self.command_buffer.push_dependency(dst.clone());
@@ -270,6 +274,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
                     .build(),
             )
             .build();
+        let image_memory_barriers = [layout_transition_barrier];
         unsafe {
             self.device.as_raw_vulkan().cmd_pipeline_barrier(
                 *self.command_buffer.as_raw_vulkan(),
@@ -278,7 +283,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 vk::DependencyFlags::empty(),
                 &[],
                 &[],
-                &[layout_transition_barrier],
+                &image_memory_barriers,
             )
         };
         Ok(self)
@@ -295,6 +300,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
             .offset(0)
             .size(vk::WHOLE_SIZE)
             .build();
+        let buffer_barriers = [buffer_memory_barrier];
         unsafe {
             self.device.as_raw_vulkan().cmd_pipeline_barrier(
                 *self.command_buffer.as_raw_vulkan(),
@@ -302,7 +308,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 vk::PipelineStageFlags::VERTEX_SHADER,
                 vk::DependencyFlags::empty(),
                 &[],
-                &[buffer_memory_barrier],
+                &buffer_barriers,
                 &[],
             )
         };

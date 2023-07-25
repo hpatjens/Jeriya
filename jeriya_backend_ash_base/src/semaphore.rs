@@ -25,7 +25,8 @@ impl AsDebugInfo for Semaphore {
 
 impl Semaphore {
     pub fn new(device: &Arc<Device>, debug_info: DebugInfo) -> crate::Result<Self> {
-        let semaphore = unsafe { device.as_raw_vulkan().create_semaphore(&Default::default(), None)? };
+        let create_info = Default::default();
+        let semaphore = unsafe { device.as_raw_vulkan().create_semaphore(&create_info, None)? };
         let debug_info = debug_info.with_vulkan_ptr(semaphore);
         Ok(Self {
             semaphore,

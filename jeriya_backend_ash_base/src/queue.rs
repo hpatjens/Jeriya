@@ -98,11 +98,15 @@ impl Queue {
         wait_semaphore: &Arc<Semaphore>,
         signal_semaphore: &Arc<Semaphore>,
     ) -> crate::Result<()> {
+        let wait_semaphores = [*wait_semaphore.as_raw_vulkan()];
+        let signal_semaphores = [*signal_semaphore.as_raw_vulkan()];
+        let command_buffers = [*command_buffer.as_raw_vulkan()];
+        let wait_dst_stage_mask = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
         let submit_info = vk::SubmitInfo::builder()
-            .wait_semaphores(&[*wait_semaphore.as_raw_vulkan()])
-            .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
-            .command_buffers(&[*command_buffer.as_raw_vulkan()])
-            .signal_semaphores(&[*signal_semaphore.as_raw_vulkan()])
+            .wait_semaphores(&wait_semaphores)
+            .wait_dst_stage_mask(&wait_dst_stage_mask)
+            .command_buffers(&command_buffers)
+            .signal_semaphores(&signal_semaphores)
             .build();
         unsafe {
             self.device
