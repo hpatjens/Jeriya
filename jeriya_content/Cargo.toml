@@ -1,0 +1,14 @@
+[package]
+name = "jeriya_content"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+jeriya_shared = { path = "../jeriya_shared" }
+notify = "6.0.1"
+serde = { version = "1.0.177", features = ["derive"] }
+serde_yaml = "0.9.25"
+
+[dev-dependencies]
+tempdir = "0.3.7"
+simple_logger = "4.2.0"

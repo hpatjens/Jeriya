@@ -20,6 +20,10 @@ byteorder = "1.4.3"
 thiserror = "1.0.40"
 byte-unit = "4.0.19"
 crossbeam-channel = "0.5.8"
+async-trait = "0.1.72"
+rayon = "1.7.0"
+pathdiff = "0.2.1"
+indoc = "2.0.3"
 
 # see https://crates.io/crates/tracy-client for version support table
 tracy-client = { version = "0.14.2", default-features = false }
