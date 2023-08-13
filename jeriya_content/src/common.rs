@@ -1,13 +1,13 @@
 use std::{
     borrow::Cow,
     fmt::{self, Formatter},
-    io,
+    fs, io,
     path::{Path, PathBuf},
     result,
     time::SystemTime,
 };
 
-use jeriya_shared::thiserror;
+use jeriya_shared::{log::trace, thiserror};
 
 pub const ASSET_META_FILE_NAME: &str = "asset.yaml";
 
@@ -33,6 +33,79 @@ pub enum Error {
     InvalidAssetData(PathBuf),
     #[error("Other: {0}")]
     Other(Box<dyn std::error::Error + Send + Sync>),
+}
+
+/// Directories that are used by the [`AssetProcessor`].
+#[derive(Debug, Clone)]
+pub struct Directories {
+    unprocessed_assets_path: PathBuf,
+    processed_assets_path: PathBuf,
+}
+
+impl Directories {
+    /// Creates the directories that are used by the [`AssetProcessor`].
+    pub fn create_all_dir(unprocessed_assets_path: impl AsRef<Path>, processed_assets_path: impl AsRef<Path>) -> io::Result<Directories> {
+        trace!("Creating directory for unprocessed assets: {:?}", unprocessed_assets_path.as_ref());
+        fs::create_dir_all(&unprocessed_assets_path)?;
+        trace!("Creating directory for processed assets: {:?}", processed_assets_path.as_ref());
+        fs::create_dir_all(&processed_assets_path)?;
+        let unprocessed_assets_path = unprocessed_assets_path
+            .as_ref()
+            .canonicalize()
+            .expect("failed to canonicalize path to the unprocessed assets")
+            .to_path_buf();
+        let processed_assets_path = processed_assets_path
+            .as_ref()
+            .canonicalize()
+            .expect("failed to canonicalize path to the processed assets")
+            .to_path_buf();
+        let result = Self {
+            unprocessed_assets_path,
+            processed_assets_path,
+        };
+        assert!(result.check().is_ok());
+        Ok(result)
+    }
+
+    /// Returns `true` if the directories exist.
+    pub fn exist(&self) -> bool {
+        self.unprocessed_assets_path.exists() && self.processed_assets_path.exists()
+    }
+
+    /// Assets that the directories exist and returns a specific error if they don't.
+    pub fn check(&self) -> Result<()> {
+        if !self.processed_assets_path.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!(
+                    "Directory for processed assets '{}' does not exist",
+                    self.processed_assets_path.display()
+                ),
+            )
+            .into());
+        }
+        if !self.unprocessed_assets_path.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!(
+                    "Directory for unprocessed assets '{}' does not exist",
+                    self.unprocessed_assets_path.display()
+                ),
+            )
+            .into());
+        }
+        Ok(())
+    }
+
+    /// Returns the path to the directory where the unprocessed assets are located.
+    pub fn unprocessed_assets_path(&self) -> &Path {
+        &self.unprocessed_assets_path
+    }
+
+    /// Returns the path to the directory where the processed assets are located.
+    pub fn processed_assets_path(&self) -> &Path {
+        &self.processed_assets_path
+    }
 }
 
 /// Identifies the asset. It's a relative path in the asset directory.

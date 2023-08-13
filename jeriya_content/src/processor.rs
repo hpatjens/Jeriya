@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-    common::{extract_extension_from_path, modified_system_time, ASSET_META_FILE_NAME},
+    common::{extract_extension_from_path, modified_system_time, Directories, ASSET_META_FILE_NAME},
     AssetKey, Error, Result,
 };
 use jeriya_shared::{
@@ -38,79 +38,6 @@ pub struct ProcessConfiguration {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Event {
     Processed(PathBuf),
-}
-
-/// Directories that are used by the [`AssetProcessor`].
-#[derive(Debug, Clone)]
-pub struct Directories {
-    unprocessed_assets_path: PathBuf,
-    processed_assets_path: PathBuf,
-}
-
-impl Directories {
-    /// Creates the directories that are used by the [`AssetProcessor`].
-    pub fn create_all_dir(unprocessed_assets_path: impl AsRef<Path>, processed_assets_path: impl AsRef<Path>) -> io::Result<Directories> {
-        trace!("Creating directory for unprocessed assets: {:?}", unprocessed_assets_path.as_ref());
-        fs::create_dir_all(&unprocessed_assets_path)?;
-        trace!("Creating directory for processed assets: {:?}", processed_assets_path.as_ref());
-        fs::create_dir_all(&processed_assets_path)?;
-        let unprocessed_assets_path = unprocessed_assets_path
-            .as_ref()
-            .canonicalize()
-            .expect("failed to canonicalize path to the unprocessed assets")
-            .to_path_buf();
-        let processed_assets_path = processed_assets_path
-            .as_ref()
-            .canonicalize()
-            .expect("failed to canonicalize path to the processed assets")
-            .to_path_buf();
-        let result = Self {
-            unprocessed_assets_path,
-            processed_assets_path,
-        };
-        assert!(result.check().is_ok());
-        Ok(result)
-    }
-
-    /// Returns `true` if the directories exist.
-    pub fn exist(&self) -> bool {
-        self.unprocessed_assets_path.exists() && self.processed_assets_path.exists()
-    }
-
-    /// Assets that the directories exist and returns a specific error if they don't.
-    pub fn check(&self) -> Result<()> {
-        if !self.processed_assets_path.exists() {
-            return Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                format!(
-                    "Directory for processed assets '{}' does not exist",
-                    self.processed_assets_path.display()
-                ),
-            )
-            .into());
-        }
-        if !self.unprocessed_assets_path.exists() {
-            return Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                format!(
-                    "Directory for unprocessed assets '{}' does not exist",
-                    self.unprocessed_assets_path.display()
-                ),
-            )
-            .into());
-        }
-        Ok(())
-    }
-
-    /// Returns the path to the directory where the unprocessed assets are located.
-    pub fn unprocessed_assets_path(&self) -> &Path {
-        &self.unprocessed_assets_path
-    }
-
-    /// Returns the path to the directory where the processed assets are located.
-    pub fn processed_assets_path(&self) -> &Path {
-        &self.processed_assets_path
-    }
 }
 
 #[derive(Debug)]
@@ -145,8 +72,8 @@ impl AssetProcessor {
         directories.check()?;
         info!("Creating AssetProcessor for '{directories:?}'");
 
-        let event_senders: Arc<Mutex<Vec<Sender<Event>>>> = Arc::new(Mutex::new(Vec::new()));
-        let processors: Arc<Mutex<BTreeMap<String, Arc<ProcessFn>>>> = Arc::new(Mutex::new(BTreeMap::new()));
+        let event_senders = Arc::new(Mutex::new(Vec::new()));
+        let processors = Arc::new(Mutex::new(BTreeMap::new()));
 
         // The [`AssetProcessor`] has to be started manually after the constructor has run so
         // that the user can register processors and receive events for all assets.
@@ -440,7 +367,7 @@ fn run_inventory(
 
     let extensions = processors.lock().keys().cloned().collect::<HashSet<_>>();
 
-    for entry in WalkDir::new(&directories.unprocessed_assets_path) {
+    for entry in WalkDir::new(&directories.unprocessed_assets_path()) {
         let Ok(entry) = entry else {
                 warn!("Failed to read directory entry in WalkDir {:?}: {}", entry, entry.as_ref().unwrap_err());
                 continue;
@@ -462,7 +389,7 @@ fn run_inventory(
         };
 
         // Check if the processed asset exists.
-        let processed_asset_path = directories.processed_assets_path.join(entry.path());
+        let processed_asset_path = directories.processed_assets_path().join(entry.path());
         if !processed_asset_path.exists() {
             info!("Asset is going to be processed because it doesn't exist yet: {processed_asset_path:?}");
             inventory.entry(extension).or_insert_with(Vec::new).push(entry.path().to_owned());
@@ -556,7 +483,7 @@ mod tests {
     use jeriya_test::setup_logger;
     use tempdir::TempDir;
 
-    use crate::{processor::Event, AssetProcessor, Directories, ProcessConfiguration};
+    use crate::{common::Directories, processor::Event, AssetProcessor, ProcessConfiguration};
 
     /// Creates an unprocessed asset with the given content.
     fn create_unprocessed_asset(root: &Path, content: &str) -> PathBuf {
