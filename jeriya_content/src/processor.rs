@@ -40,10 +40,14 @@ pub enum Event {
     Processed(PathBuf),
 }
 
-#[derive(Debug)]
 pub enum Item {
     Wakeup,
-    Process { asset_key: AssetKey },
+    Process(ProcessItem),
+}
+
+pub struct ProcessItem {
+    asset_key: AssetKey,
+    processor: Arc<ProcessFn>,
 }
 
 pub struct AssetProcessor {
@@ -83,7 +87,7 @@ impl AssetProcessor {
 
         let (item_sender, item_receiver) = crossbeam_channel::unbounded::<Item>();
         for thread_index in 0..num_threads {
-            spawn_thread(&wants_drop, &item_receiver, &directories, &processors, &event_senders, thread_index)?;
+            spawn_thread(&wants_drop, &item_receiver, &directories, &event_senders, thread_index)?;
         }
 
         let running2 = running.clone();
@@ -225,14 +229,12 @@ fn spawn_thread(
     wants_drop: &Arc<AtomicBool>,
     item_receiver: &Receiver<Item>,
     directories: &Directories,
-    processors: &Arc<Mutex<BTreeMap<String, Arc<ProcessFn>>>>,
     event_senders: &Arc<Mutex<Vec<Sender<Event>>>>,
     thread_index: usize,
 ) -> Result<()> {
     let wants_drop = wants_drop.clone();
     let item_receiver = item_receiver.clone();
     let directories = directories.clone();
-    let processors = processors.clone();
     let event_senders2 = event_senders.clone();
     let thread_name = format!("AssetProcessor thread {}", thread_index);
     let builder = thread::Builder::new().name(thread_name.clone());
@@ -249,28 +251,20 @@ fn spawn_thread(
                     break;
                 }
 
-                let asset_key = match item {
+                let process_item = match item {
                     Item::Wakeup => continue,
-                    Item::Process { asset_key } => asset_key,
+                    Item::Process(process_item) => process_item,
                 };
-                info!("AssetProcessor starting work on item: {asset_key}");
+                info!("AssetProcessor starting work on item: {}", process_item.asset_key);
 
-                let extension = extract_extension_from_path(asset_key.as_path()).unwrap(); // TODO
-
-                let processors = processors.lock();
-                let processor = processors
-                    .get(&extension)
-                    // The process function checks if the extension is registered, so this should never happen.
-                    .expect("processor not found")
-                    .clone();
                 if !directories.unprocessed_assets_path().exists() {
-                    info!("Asset '{}' was deleted before it could be processed", asset_key);
+                    info!("Asset '{}' was deleted before it could be processed", process_item.asset_key);
                     return;
                 }
-                processor(
-                    &asset_key,
-                    &directories.unprocessed_assets_path().join(asset_key.as_path()),
-                    &directories.processed_assets_path().join(asset_key.as_path()),
+                (process_item.processor)(
+                    &process_item.asset_key,
+                    &directories.unprocessed_assets_path().join(process_item.asset_key.as_path()),
+                    &directories.processed_assets_path().join(process_item.asset_key.as_path()),
                 );
 
                 // Send a Processed event to all observers and remove the channels
@@ -278,7 +272,7 @@ fn spawn_thread(
                 let mut senders = event_senders2.lock();
                 let mut outdated_channels = Vec::new();
                 for (index, sender) in senders.iter().enumerate() {
-                    let asset_path = asset_key.as_path();
+                    let asset_path = process_item.asset_key.as_path();
                     if let Err(err) = sender.send(Event::Processed(asset_path.to_owned())) {
                         warn!("Failed to send Processed event for asset {asset_path:?}: \"{err}\". Channel will be removed.");
                         outdated_channels.push(index);
@@ -337,19 +331,20 @@ fn process(
     trace!("Extracing extension from path: {asset_path:?}");
     let extension = extract_extension_from_path(&asset_path)?;
 
-    trace!("Checking if the extension '{extension}' is registered");
-    if !processors.lock().contains_key(&extension) {
+    trace!("Querying the processor for the extension '{extension}'");
+    let Some(processor) = processors.lock().get(&extension).cloned() else {
         return Err(Error::ExtensionNotRegistered(extension));
-    }
+    };
 
     // Creating the directory for the processed asset that has the same name as the unprocessed asset.
     let processed_asset_path = directories.processed_assets_path().join(&asset_path);
     info!("Creating directory for processed assets: {processed_asset_path:?}");
     fs::create_dir_all(&processed_asset_path)?;
 
-    let item = Item::Process {
+    let item = Item::Process(ProcessItem {
         asset_key: asset_key.clone(),
-    };
+        processor,
+    });
     if let Err(err) = sender.send(item) {
         error!("Failed to send item to AssetProcessor thread: {err}");
     }
