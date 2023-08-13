@@ -1,7 +1,7 @@
 use std::{fs, io};
 
 use jeriya_content::{AssetImporter, AssetProcessor, Error, FileSystem, ImportConfiguration, ProcessConfiguration};
-use jeriya_shared::log::{self, info};
+use jeriya_shared::log;
 
 fn main() -> io::Result<()> {
     fern::Dispatch::new()
@@ -28,9 +28,9 @@ fn main() -> io::Result<()> {
     asset_processor
         .register(ProcessConfiguration {
             extension: "txt".to_owned(),
-            processor: Box::new(|_asset_path, unprocessed_asset_path, asset_builder| {
+            processor: Box::new(|asset_builder| {
                 // Just move the text without any processing
-                let content = fs::read_to_string(unprocessed_asset_path).unwrap();
+                let content = fs::read_to_string(asset_builder.unprocessed_asset_path()).unwrap();
                 fs::write(asset_builder.processed_asset_path().join("test.bin"), content).unwrap();
                 Ok(())
             }),

@@ -15,7 +15,6 @@ use crate::{
 };
 use jeriya_shared::{
     crossbeam_channel::{self, Receiver, Sender},
-    indoc::{formatdoc, indoc},
     log::{error, info, trace, warn},
     parking_lot::Mutex,
     pathdiff,
@@ -29,7 +28,7 @@ use notify_debouncer_full::{
 
 type ProcessFn = dyn Fn(&Path, &Path, &Path) + Send + Sync;
 
-pub type Processor = dyn Fn(&Path, &Path, &mut AssetBuilder) -> Result<()> + Send + Sync;
+pub type Processor = dyn Fn(&mut AssetBuilder) -> Result<()> + Send + Sync;
 
 pub struct ProcessConfiguration {
     pub extension: String,
@@ -232,7 +231,7 @@ impl AssetProcessor {
     /// # Example
     ///
     /// ```rust
-    /// use jeriya_content::AssetProcessor;
+    /// use jeriya_content::{AssetProcessor, ProcessConfiguration};
     /// std::fs::create_dir_all("unprocessed").unwrap();
     /// std::fs::create_dir_all("processed").unwrap();
     /// let mut asset_processor = AssetProcessor::new("unprocessed", "processed", 4).unwrap();
@@ -240,10 +239,10 @@ impl AssetProcessor {
     /// asset_processor
     ///     .register(ProcessConfiguration {
     ///         extension: "txt".to_owned(),
-    ///         processor: Box::new(|asset_path, processed_asset_path| {
-    ///             let content = fs::read_to_string(asset_path).unwrap();
+    ///         processor: Box::new(|asset_builder| {
+    ///             let content = std::fs::read_to_string(asset_builder.unprocessed_asset_path()).unwrap();
     ///             let processed_content = content.replace("World", "Universe");
-    ///             fs::write(processed_asset_path.join("test.bin"), processed_content).unwrap();
+    ///             std::fs::write(asset_builder.processed_asset_path().join("test.bin"), processed_content).unwrap();
     ///             Ok(())
     ///         }),
     ///     })
@@ -259,8 +258,8 @@ impl AssetProcessor {
             process_config.extension,
             Arc::new(move |asset_path, unprocessed_asset_path, processed_asset_path| {
                 info!("Processing file: {asset_path:?}");
-                let mut asset_builder = AssetBuilder::new(processed_asset_path);
-                let process_result = (process_config.processor)(asset_path, unprocessed_asset_path, &mut asset_builder);
+                let mut asset_builder = AssetBuilder::new(asset_path, unprocessed_asset_path, processed_asset_path);
+                let process_result = (process_config.processor)(&mut asset_builder);
                 let asset_write_result = asset_builder.build();
                 match process_result.or(asset_write_result) {
                     Ok(()) => info!("Successfully processed file: {}", asset_path.display()),
@@ -422,16 +421,28 @@ fn run_inventory(
 }
 
 pub struct AssetBuilder {
+    asset_path: PathBuf,
+    unprocessed_asset_path: PathBuf,
     processed_asset_path: PathBuf,
     relative_content_file_path: Option<PathBuf>,
 }
 
 impl AssetBuilder {
-    fn new(processed_asset_path: impl Into<PathBuf>) -> Self {
+    fn new(asset_path: impl Into<PathBuf>, unprocessed_asset_path: impl Into<PathBuf>, processed_asset_path: impl Into<PathBuf>) -> Self {
         Self {
+            asset_path: asset_path.into(),
+            unprocessed_asset_path: unprocessed_asset_path.into(),
             processed_asset_path: processed_asset_path.into(),
             relative_content_file_path: None,
         }
+    }
+
+    pub fn asset_path(&self) -> &Path {
+        &self.asset_path
+    }
+
+    pub fn unprocessed_asset_path(&self) -> &Path {
+        &self.unprocessed_asset_path
     }
 
     pub fn processed_asset_path(&self) -> &Path {
@@ -488,8 +499,8 @@ mod tests {
         asset_processor
             .register(ProcessConfiguration {
                 extension: "txt".to_owned(),
-                processor: Box::new(|_asset_path, unprocessed_asset_path, asset_builder| {
-                    let content = fs::read_to_string(unprocessed_asset_path).unwrap();
+                processor: Box::new(|asset_builder| {
+                    let content = fs::read_to_string(asset_builder.unprocessed_asset_path()).unwrap();
                     let processed_content = content.replace("World", "Universe");
                     const CONTENT_FILE: &'static str = "test.bin";
                     let content_file_path = asset_builder.processed_asset_path.join(CONTENT_FILE);
