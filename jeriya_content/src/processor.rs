@@ -23,7 +23,7 @@ use jeriya_shared::{
 };
 use notify_debouncer_full::{
     notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher},
-    DebounceEventResult, Debouncer, FileIdMap,
+    DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap,
 };
 
 type ProcessFn = dyn Fn(&AssetKey, &Path, &Path) + Send + Sync;
@@ -40,32 +40,20 @@ pub enum Event {
     Processed(PathBuf),
 }
 
-pub struct AssetProcessor {
-    running: Arc<AtomicBool>,
-    senders: Arc<Mutex<Vec<Sender<Event>>>>,
-    thread_pool: Arc<ThreadPool>,
-    processors: Arc<Mutex<BTreeMap<String, Arc<ProcessFn>>>>,
-    watcher: Debouncer<RecommendedWatcher, FileIdMap>,
+/// Directories that are used by the [`AssetProcessor`].
+#[derive(Debug, Clone)]
+pub struct Directories {
     unprocessed_assets_path: PathBuf,
     processed_assets_path: PathBuf,
 }
 
-impl AssetProcessor {
-    /// Creates a new [`AssetProcessor`].
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use jeriya_content::AssetProcessor;
-    /// std::fs::create_dir_all("unprocessed").unwrap();
-    /// std::fs::create_dir_all("processed").unwrap();
-    /// let asset_processor = AssetProcessor::new("unprocessed", "processed", 4).unwrap();
-    /// ```
-    pub fn new(
-        unprocessed_assets_path: impl AsRef<Path>,
-        processed_assets_path: impl AsRef<Path>,
-        num_threads: usize,
-    ) -> crate::Result<Self> {
+impl Directories {
+    /// Creates the directories that are used by the [`AssetProcessor`].
+    pub fn create_all_dir(unprocessed_assets_path: impl AsRef<Path>, processed_assets_path: impl AsRef<Path>) -> io::Result<Directories> {
+        trace!("Creating directory for unprocessed assets: {:?}", unprocessed_assets_path.as_ref());
+        fs::create_dir_all(&unprocessed_assets_path)?;
+        trace!("Creating directory for processed assets: {:?}", processed_assets_path.as_ref());
+        fs::create_dir_all(&processed_assets_path)?;
         let unprocessed_assets_path = unprocessed_assets_path
             .as_ref()
             .canonicalize()
@@ -76,28 +64,81 @@ impl AssetProcessor {
             .canonicalize()
             .expect("failed to canonicalize path to the processed assets")
             .to_path_buf();
+        let result = Self {
+            unprocessed_assets_path,
+            processed_assets_path,
+        };
+        assert!(result.check().is_ok());
+        Ok(result)
+    }
 
-        if !unprocessed_assets_path.exists() {
+    /// Returns `true` if the directories exist.
+    pub fn exist(&self) -> bool {
+        self.unprocessed_assets_path.exists() && self.processed_assets_path.exists()
+    }
+
+    /// Assets that the directories exist and returns a specific error if they don't.
+    pub fn check(&self) -> Result<()> {
+        if !self.processed_assets_path.exists() {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
-                format!("Directory '{}' does not exist", unprocessed_assets_path.display()),
+                format!(
+                    "Directory for processed assets '{}' does not exist",
+                    self.processed_assets_path.display()
+                ),
             )
             .into());
         }
-
-        if !processed_assets_path.exists() {
+        if !self.unprocessed_assets_path.exists() {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
-                format!("Directory '{}' does not exist", processed_assets_path.display()),
+                format!(
+                    "Directory for unprocessed assets '{}' does not exist",
+                    self.unprocessed_assets_path.display()
+                ),
             )
             .into());
         }
+        Ok(())
+    }
 
-        info! {
-            "Creating AssetProcessor for ...\n\tunprocessed assets in '{}' and\n\tprocessed assets in '{}'",
-            unprocessed_assets_path.display(),
-            processed_assets_path.display()
-        }
+    /// Returns the path to the directory where the unprocessed assets are located.
+    pub fn unprocessed_assets_path(&self) -> &Path {
+        &self.unprocessed_assets_path
+    }
+
+    /// Returns the path to the directory where the processed assets are located.
+    pub fn processed_assets_path(&self) -> &Path {
+        &self.processed_assets_path
+    }
+}
+
+pub struct AssetProcessor {
+    running: Arc<AtomicBool>,
+    senders: Arc<Mutex<Vec<Sender<Event>>>>,
+    thread_pool: Arc<ThreadPool>,
+    processors: Arc<Mutex<BTreeMap<String, Arc<ProcessFn>>>>,
+    watcher: Debouncer<RecommendedWatcher, FileIdMap>,
+    directories: Directories,
+}
+
+impl AssetProcessor {
+    /// Creates a new [`AssetProcessor`].
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jeriya_content::{AssetProcessor, Directories};
+    /// std::fs::create_dir_all("unprocessed").unwrap();
+    /// std::fs::create_dir_all("processed").unwrap();
+    /// let directories = Directories::create_all_dir("unprocessed", "processed").unwrap();
+    /// let asset_processor = AssetProcessor::new(&directories, 4).unwrap();
+    /// ```
+    pub fn new(directories: &Directories, num_threads: usize) -> crate::Result<Self> {
+        let directories = directories.clone();
+        dbg!(&directories);
+        directories.check()?;
+        info!("Creating AssetProcessor for '{directories:?}'");
 
         let senders = Arc::new(Mutex::new(Vec::new()));
         let processors = Arc::new(Mutex::new(BTreeMap::new()));
@@ -116,8 +157,7 @@ impl AssetProcessor {
         let running2 = running.clone();
         let processors2 = processors.clone();
         let thread_pool2 = thread_pool.clone();
-        let processed_assets_path2 = processed_assets_path.clone();
-        let unprocessed_assets_path2 = unprocessed_assets_path.clone();
+        let directories2 = directories.clone();
         let senders2 = senders.clone();
         let watch_fn = move |result: DebounceEventResult| match result {
             Ok(events) => {
@@ -125,14 +165,8 @@ impl AssetProcessor {
                     let absolute_path = event.paths.first().expect("Event has no path");
                     assert!(absolute_path.is_absolute(), "path '{}' is not absolute", absolute_path.display());
 
-                    let event_name = match &event.kind {
-                        EventKind::Any => "Any",
-                        EventKind::Access(_) => "Access",
-                        EventKind::Create(_) => "Create",
-                        EventKind::Modify(_) => "Modify",
-                        EventKind::Remove(_) => "Remove",
-                        EventKind::Other => "Other",
-                    };
+                    // Check if the processor is active.
+                    let event_name = event_name(&event);
                     if !running2.load(Ordering::SeqCst) {
                         info! {
                             "Watcher is inactive and reported '{event_name}' event for path '{}'",
@@ -147,16 +181,15 @@ impl AssetProcessor {
                     }
 
                     let thread_pool = thread_pool2.clone();
-                    let processed_assets_path = processed_assets_path2.clone();
                     let processors = processors2.clone();
 
                     // The file watcher returns absolute paths but he whole asset handling is based on
                     // relative paths because it's irrelavant where on the system they are located.
-                    let Some(path) = pathdiff::diff_paths(&absolute_path, &unprocessed_assets_path2) else {
+                    let Some(path) = pathdiff::diff_paths(&absolute_path, &directories2.unprocessed_assets_path()) else {
                         warn! {
                             "Failed to get relative path of '{absolute_path}' relative to '{unprocessed_assets_path}'", 
                             absolute_path = absolute_path.display(),
-                            unprocessed_assets_path = unprocessed_assets_path2.display()
+                            unprocessed_assets_path = directories2.unprocessed_assets_path().display()
                         };
                         return;
                     };
@@ -165,26 +198,12 @@ impl AssetProcessor {
 
                     match &event.kind {
                         EventKind::Create(_create_event) => {
-                            if let Err(err) = process(
-                                &asset_key,
-                                &unprocessed_assets_path2,
-                                &processed_assets_path,
-                                &thread_pool,
-                                &processors,
-                                &senders2,
-                            ) {
+                            if let Err(err) = process(&asset_key, &directories2, &thread_pool, &processors, &senders2) {
                                 error!("Failed to process file '{asset_key}': {err}");
                             }
                         }
                         EventKind::Modify(_modify_event) => {
-                            if let Err(err) = process(
-                                &asset_key,
-                                &unprocessed_assets_path2,
-                                &processed_assets_path,
-                                &thread_pool,
-                                &processors,
-                                &senders2,
-                            ) {
+                            if let Err(err) = process(&asset_key, &directories2, &thread_pool, &processors, &senders2) {
                                 error!("Failed to process file '{asset_key}': {err}");
                             }
                         }
@@ -195,21 +214,15 @@ impl AssetProcessor {
             Err(_) => {}
         };
 
-        run_inventory(
-            &unprocessed_assets_path,
-            &processed_assets_path,
-            &thread_pool,
-            &processors,
-            &senders,
-        )?;
+        run_inventory(&directories, &thread_pool, &processors, &senders)?;
 
         // Start the directory watcher.
         let mut watcher = notify_debouncer_full::new_debouncer(Duration::from_millis(1000), None, watch_fn)
-            .map_err(|_| Error::FailedToStartDirectoryWatcher(unprocessed_assets_path.clone()))?;
+            .map_err(|_| Error::FailedToStartDirectoryWatcher(directories.unprocessed_assets_path().to_owned()))?;
         watcher
             .watcher()
-            .watch(&unprocessed_assets_path, RecursiveMode::Recursive)
-            .map_err(|_| Error::FailedToStartDirectoryWatcher(unprocessed_assets_path.clone()))?;
+            .watch(directories.unprocessed_assets_path(), RecursiveMode::Recursive)
+            .map_err(|_| Error::FailedToStartDirectoryWatcher(directories.unprocessed_assets_path().to_owned()))?;
 
         Ok(Self {
             running,
@@ -217,8 +230,7 @@ impl AssetProcessor {
             processors,
             watcher,
             thread_pool,
-            unprocessed_assets_path,
-            processed_assets_path,
+            directories,
         })
     }
 
@@ -232,10 +244,9 @@ impl AssetProcessor {
     /// # Example
     ///
     /// ```rust
-    /// use jeriya_content::{AssetProcessor, ProcessConfiguration};
-    /// std::fs::create_dir_all("unprocessed").unwrap();
-    /// std::fs::create_dir_all("processed").unwrap();
-    /// let mut asset_processor = AssetProcessor::new("unprocessed", "processed", 4).unwrap();
+    /// use jeriya_content::{AssetProcessor, ProcessConfiguration, Directories};
+    /// let directories = Directories::create_all_dir("unprocessed", "processed").unwrap();
+    /// let mut asset_processor = AssetProcessor::new(&directories, 4).unwrap();
     ///
     /// asset_processor
     ///     .register(ProcessConfiguration {
@@ -280,10 +291,20 @@ impl AssetProcessor {
     }
 }
 
+fn event_name(event: &DebouncedEvent) -> &str {
+    match &event.kind {
+        EventKind::Any => "Any",
+        EventKind::Access(_) => "Access",
+        EventKind::Create(_) => "Create",
+        EventKind::Modify(_) => "Modify",
+        EventKind::Remove(_) => "Remove",
+        EventKind::Other => "Other",
+    }
+}
+
 fn process(
     asset_key: &AssetKey,
-    unprocessed_assets_path: &Path,
-    processed_assets_path: &Path,
+    directories: &Directories,
     thread_pool: &ThreadPool,
     processors: &Arc<Mutex<BTreeMap<String, Arc<ProcessFn>>>>,
     senders: &Arc<Mutex<Vec<Sender<Event>>>>,
@@ -309,11 +330,11 @@ fn process(
     }
 
     // Creating the directory for the processed asset that has the same name as the unprocessed asset.
-    let processed_asset_path = processed_assets_path.join(&asset_path);
+    let processed_asset_path = directories.processed_assets_path().join(&asset_path);
     info!("Creating directory for processed assets: {processed_asset_path:?}");
     fs::create_dir_all(&processed_asset_path)?;
 
-    let unprocessed_asset_path = unprocessed_assets_path.join(&asset_path);
+    let unprocessed_asset_path = directories.unprocessed_assets_path().join(&asset_path);
 
     let senders2 = senders.clone();
     let asset_key2 = asset_key.clone();
@@ -352,8 +373,7 @@ fn process(
 
 /// Iterates through all unprocessed assets and checks whether they are outdated.
 fn run_inventory(
-    unprocessed_assets_path: &Path,
-    processed_assets_path: &Path,
+    directories: &Directories,
     thread_pool: &ThreadPool,
     processors: &Arc<Mutex<BTreeMap<String, Arc<ProcessFn>>>>,
     senders: &Arc<Mutex<Vec<Sender<Event>>>>,
@@ -362,7 +382,7 @@ fn run_inventory(
 
     let extensions = processors.lock().keys().cloned().collect::<HashSet<_>>();
 
-    for entry in WalkDir::new(&unprocessed_assets_path) {
+    for entry in WalkDir::new(&directories.unprocessed_assets_path) {
         let Ok(entry) = entry else {
                 warn!("Failed to read directory entry in WalkDir {:?}: {}", entry, entry.as_ref().unwrap_err());
                 continue;
@@ -384,7 +404,7 @@ fn run_inventory(
         };
 
         // Check if the processed asset exists.
-        let processed_asset_path = processed_assets_path.join(entry.path());
+        let processed_asset_path = directories.processed_assets_path.join(entry.path());
         if !processed_asset_path.exists() {
             info!("Asset is going to be processed because it doesn't exist yet: {processed_asset_path:?}");
             inventory.entry(extension).or_insert_with(Vec::new).push(entry.path().to_owned());
@@ -408,14 +428,7 @@ fn run_inventory(
 
     for (_, asset_paths) in inventory {
         for asset_path in asset_paths {
-            process(
-                &AssetKey::new(asset_path),
-                &unprocessed_assets_path,
-                &processed_assets_path,
-                &thread_pool,
-                &processors,
-                &senders,
-            )?;
+            process(&AssetKey::new(asset_path), directories, &thread_pool, &processors, &senders)?;
         }
     }
 
@@ -485,7 +498,7 @@ mod tests {
     use jeriya_test::setup_logger;
     use tempdir::TempDir;
 
-    use crate::{processor::Event, AssetProcessor, ProcessConfiguration};
+    use crate::{processor::Event, AssetProcessor, Directories, ProcessConfiguration};
 
     /// Creates an unprocessed asset with the given content.
     fn create_unprocessed_asset(root: &Path, content: &str) -> PathBuf {
@@ -495,19 +508,7 @@ mod tests {
         ASSET_PATH.into()
     }
 
-    #[test]
-    fn smoke() {
-        setup_logger();
-
-        // Setup the required directories.
-        let root = TempDir::new("root").unwrap();
-        let unprocessed_asset_path = root.path().to_owned().join("unprocessed");
-        let processed_asset_path = root.path().to_owned().join("processed");
-        fs::create_dir_all(&unprocessed_asset_path).unwrap();
-        fs::create_dir_all(&processed_asset_path).unwrap();
-
-        // Setup the AssetProcessor.
-        let mut asset_processor = AssetProcessor::new(&unprocessed_asset_path, &processed_asset_path, 4).unwrap();
+    fn setup_dummy_txt_process_configuration(asset_processor: &mut AssetProcessor) {
         asset_processor
             .register(ProcessConfiguration {
                 extension: "txt".to_owned(),
@@ -522,11 +523,23 @@ mod tests {
                 }),
             })
             .unwrap();
+    }
+
+    #[test]
+    fn smoke() {
+        setup_logger();
+        let root = TempDir::new("root").unwrap();
+        let directories =
+            Directories::create_all_dir(root.path().to_owned().join("unprocessed"), root.path().to_owned().join("processed")).unwrap();
+
+        // Setup the AssetProcessor.
+        let mut asset_processor = AssetProcessor::new(&directories, 4).unwrap();
+        setup_dummy_txt_process_configuration(&mut asset_processor);
         let observer_channel = asset_processor.observe();
         asset_processor.set_active(true);
 
         // Create a sample asset to be processed.
-        let asset_path = create_unprocessed_asset(&unprocessed_asset_path, "Hello World!");
+        let asset_path = create_unprocessed_asset(&directories.unprocessed_assets_path(), "Hello World!");
 
         // Expect the Processed event from the create operation.
         let event = observer_channel.recv_timeout(Duration::from_millis(1500)).unwrap();
@@ -536,7 +549,7 @@ mod tests {
         let event = observer_channel.recv_timeout(Duration::from_millis(1500)).unwrap();
         assert_eq!(event, Event::Processed(asset_path.clone()));
 
-        let asset_folder = processed_asset_path.join(&asset_path);
+        let asset_folder = directories.processed_assets_path().join(&asset_path);
         assert!(asset_folder.join("test.bin").exists());
         let asset_meta_file_path = asset_folder.join("asset.yaml");
         assert!(asset_meta_file_path.exists());
