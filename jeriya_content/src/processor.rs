@@ -521,7 +521,7 @@ mod tests {
     }
 
     #[test]
-    fn smoke() {
+    fn smoke1() {
         setup_logger();
         let root = TempDir::new("root").unwrap();
         let directories =

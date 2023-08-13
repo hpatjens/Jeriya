@@ -23,14 +23,14 @@ use std::{
 
 pub type Importer<T> = dyn Fn(&[u8]) -> Result<T> + Send + Sync;
 
-pub type ObserverFn = dyn Fn(Event) + Send + Sync;
+pub type ObserverFn = dyn Fn(FileSystemEvent) + Send + Sync;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AssetMetaData {
     pub file: PathBuf,
 }
 
-pub enum Event {
+pub enum FileSystemEvent {
     Create(PathBuf),
     Modify(PathBuf),
 }
@@ -136,7 +136,7 @@ impl ImportSource for FileSystem {
                 match &event.kind {
                     EventKind::Modify(_modify_event) => {
                         info!("Emitting modify event for asset '{}'", path.display());
-                        observer_fn(Event::Modify(asset_path.to_owned()))
+                        observer_fn(FileSystemEvent::Modify(asset_path.to_owned()))
                     }
                     // We don't care about other events like Create because we would handle multiple
                     // events per processing operation of an asset: one when the file is created and
@@ -243,15 +243,15 @@ impl AssetImporter {
         let importers = Arc::new(Mutex::new(BTreeMap::new()));
         let importers2 = importers.clone();
         let thread_pool2 = thread_pool.clone();
-        let watch_fn = move |event: Event| match event {
-            Event::Create(path) => {
+        let watch_fn = move |event: FileSystemEvent| match event {
+            FileSystemEvent::Create(path) => {
                 trace!("Path '{}' was created", path.display());
                 let asset_key = AssetKey::new(path);
                 if let Err(err) = import(&asset_key, &thread_pool2, &importers2) {
                     error!("{err}");
                 }
             }
-            Event::Modify(path) => {
+            FileSystemEvent::Modify(path) => {
                 trace!("Path '{}' was modified", path.display());
                 let asset_key = AssetKey::new(path);
                 if let Err(err) = import(&asset_key, &thread_pool2, &importers2) {
