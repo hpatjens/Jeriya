@@ -422,6 +422,7 @@ fn run_inventory(
     Ok(())
 }
 
+/// Builder for creating a processed asset.
 pub struct AssetBuilder {
     asset_key: AssetKey,
     unprocessed_asset_path: PathBuf,
@@ -430,6 +431,7 @@ pub struct AssetBuilder {
 }
 
 impl AssetBuilder {
+    /// Creates a new [`AssetBuilder`].
     fn new(asset_key: impl Into<AssetKey>, unprocessed_asset_path: impl Into<PathBuf>, processed_asset_path: impl Into<PathBuf>) -> Self {
         Self {
             asset_key: asset_key.into(),
@@ -439,23 +441,31 @@ impl AssetBuilder {
         }
     }
 
+    /// Returns the [`AssetKey`] of the asset.
     pub fn asset_key(&self) -> &AssetKey {
         &self.asset_key
     }
 
+    /// Path to the file that is the unprocessed asset.
     pub fn unprocessed_asset_path(&self) -> &Path {
         &self.unprocessed_asset_path
     }
 
+    /// Path to the directory where the processed asset is located.
+    ///
+    /// This is that directory that is named after the unprocessed asset and is located at
+    /// the same relative path in the processed assets directory.
     pub fn processed_asset_path(&self) -> &Path {
         &self.processed_asset_path
     }
 
+    /// Sets the content file of the asset. This is the file that contains the actual data that will be loaded at runtime.
     pub fn with_file(&mut self, relative_file_path: impl Into<PathBuf>) -> &mut Self {
         self.relative_content_file_path = Some(relative_file_path.into());
         self
     }
 
+    /// Builds the asset by creating the asset meta file.
     fn build(self) -> io::Result<()> {
         let content_file_path = self.relative_content_file_path.expect("content file path not set");
         let meta_file_path = self.processed_asset_path.join(ASSET_META_FILE_NAME);
