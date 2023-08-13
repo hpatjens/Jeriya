@@ -24,6 +24,7 @@ async-trait = "0.1.72"
 rayon = "1.7.0"
 pathdiff = "0.2.1"
 indoc = "2.0.3"
+walkdir = "2.3.3"
 
 # see https://crates.io/crates/tracy-client for version support table
 tracy-client = { version = "0.14.2", default-features = false }

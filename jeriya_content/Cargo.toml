@@ -5,10 +5,10 @@ edition = "2021"
 
 [dependencies]
 jeriya_shared = { path = "../jeriya_shared" }
-notify = "6.0.1"
+jeriya_test = { path = "../jeriya_test" }
+notify-debouncer-full = "0.2.0"
 serde = { version = "1.0.177", features = ["derive"] }
 serde_yaml = "0.9.25"
 
 [dev-dependencies]
 tempdir = "0.3.7"
-simple_logger = "4.2.0"

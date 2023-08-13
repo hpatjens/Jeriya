@@ -6,11 +6,20 @@ use std::{
 
 use chrono::Utc;
 use image::{codecs::png::PngEncoder, DynamicImage, ImageBuffer, ImageEncoder, ImageError, PixelWithColorType, Rgb, RgbImage};
-use jeriya_shared::winit::{
-    event_loop::EventLoopBuilder,
-    platform::windows::EventLoopBuilderExtWindows,
-    window::{Window, WindowBuilder},
+use jeriya_shared::{
+    log::LevelFilter,
+    winit::{
+        event_loop::EventLoopBuilder,
+        platform::windows::EventLoopBuilderExtWindows,
+        window::{Window, WindowBuilder},
+    },
 };
+use simple_logger::SimpleLogger;
+
+/// Sets up the logger for the tests.
+pub fn setup_logger() {
+    let _ = SimpleLogger::new().with_colors(true).with_level(LevelFilter::Trace).init();
+}
 
 /// Creates a new `TestContext` for the test function in which the macro is executed.
 #[cfg(test)]

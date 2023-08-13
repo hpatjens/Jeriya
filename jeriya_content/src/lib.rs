@@ -49,8 +49,10 @@
 //! from the source directory to the target directory. The [`AssetImporter`] is
 //! used to import assets from the target directory into the renderer.
 
+mod common;
 mod importer;
 mod processor;
 
+pub use common::{Error, Result};
 pub use importer::*;
 pub use processor::*;

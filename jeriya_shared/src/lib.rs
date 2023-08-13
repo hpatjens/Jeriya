@@ -34,6 +34,7 @@ pub use pathdiff;
 pub use rayon;
 pub use thiserror;
 pub use tracy_client;
+pub use walkdir;
 pub use winit;
 
 use winit::window::WindowId;

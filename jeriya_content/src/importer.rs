@@ -1,3 +1,16 @@
+use crate::{
+    common::{extract_extension_from_path, extract_file_name_from_path, ASSET_META_FILE_NAME},
+    Error, Result,
+};
+use jeriya_shared::{
+    crossbeam_channel::{self, Receiver},
+    log::{error, info, trace, warn},
+    parking_lot::{Mutex, RwLock},
+    pathdiff,
+    rayon::{ThreadPool, ThreadPoolBuilder},
+};
+use notify_debouncer_full::notify::{self, EventKind, ReadDirectoryChangesWatcher, RecursiveMode, Watcher};
+use serde::{Deserialize, Serialize};
 use std::{
     any::{Any, TypeId},
     collections::BTreeMap,
@@ -7,43 +20,6 @@ use std::{
     result,
     sync::Arc,
 };
-
-use jeriya_shared::{
-    crossbeam_channel::{self, Receiver},
-    log::{error, info, trace, warn},
-    parking_lot::{Mutex, RwLock},
-    pathdiff,
-    rayon::{ThreadPool, ThreadPoolBuilder},
-    thiserror,
-};
-use notify::{EventKind, ReadDirectoryChangesWatcher, RecursiveMode, Watcher};
-use serde::{Deserialize, Serialize};
-
-pub type Result<T> = result::Result<T, Error>;
-
-const ASSET_META_FILE_NAME: &str = "asset.yaml";
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Invalid path: {0}")]
-    InvalidPath(PathBuf),
-    #[error("Invalid extension '{0}' in path {1}")]
-    InvalidExtension(String, PathBuf),
-    #[error("IoError: {0}")]
-    IoError(#[from] io::Error),
-    #[error("Extension already registered: {0}")]
-    ExtensionAlreadyRegistered(String),
-    #[error("Extension not registered: {0}")]
-    ExtensionNotRegistered(String),
-    #[error("Failed to start directory watcher in directory: {0}")]
-    FailedToStartDirectoryWatcher(PathBuf),
-    #[error("Failed to start thread pool")]
-    FailedToStartThreadPool,
-    #[error("Failed to read the asset: {0}")]
-    InvalidAssetData(PathBuf),
-    #[error("Other: {0}")]
-    Other(Box<dyn std::error::Error + Send + Sync>),
-}
 
 pub type Importer<T> = dyn Fn(&[u8]) -> Result<T> + Send + Sync;
 
@@ -69,7 +45,7 @@ pub trait ReadAsset {
 
 pub trait ImportSource: ReadAsset + Send + Sync {
     /// Sets the observer function that is called when an asset is created or modified.
-    fn set_observer(&mut self, observer_fn: Box<ObserverFn>) -> crate::Result<()>;
+    fn set_observer(&mut self, observer_fn: Box<ObserverFn>) -> Result<()>;
 }
 
 pub struct FileSystem {
@@ -87,7 +63,7 @@ impl FileSystem {
     /// std::fs::create_dir_all("assets").unwrap();
     /// let _file_system = FileSystem::new("assets").unwrap();
     /// ```
-    pub fn new(root: impl AsRef<Path>) -> crate::Result<Self> {
+    pub fn new(root: impl AsRef<Path>) -> Result<Self> {
         let root = env::current_dir().expect("unable to determine the working directory").join(root);
         if !root.exists() {
             return Err(io::Error::new(io::ErrorKind::NotFound, format!("Directory '{}' does not exist", root.display())).into());
@@ -125,7 +101,7 @@ impl ImportSource for FileSystem {
     /// # Panics
     ///
     /// If the `observer_fn` is already set.
-    fn set_observer(&mut self, observer_fn: Box<ObserverFn>) -> crate::Result<()> {
+    fn set_observer(&mut self, observer_fn: Box<ObserverFn>) -> Result<()> {
         if self.watcher.is_some() {
             panic!("set_observer called although the observer is already set");
         }
@@ -245,17 +221,16 @@ impl AssetImporter {
     /// # Example
     ///
     /// ```
-    /// # use std::sync::Arc;
     /// use jeriya_content::{AssetImporter, FileSystem};
     /// std::fs::create_dir_all("assets").unwrap();
     /// let asset_source = FileSystem::new("assets").unwrap();
     /// let asset_importer = AssetImporter::new(asset_source, 4).unwrap();
     /// ```
-    pub fn new<I>(import_source: I, num_threads: usize) -> crate::Result<Self>
+    pub fn new<I>(import_source: I, num_threads: usize) -> Result<Self>
     where
         I: ImportSource + 'static,
     {
-        info!("Create thread pool with {} threads", num_threads);
+        info!("Create thread pool with {} threads for AssetImporter", num_threads);
         let thread_pool = ThreadPoolBuilder::new()
             .num_threads(num_threads)
             .build()
@@ -328,7 +303,7 @@ impl AssetImporter {
         let (sender, receiver) = crossbeam_channel::unbounded();
 
         // Function to import an asset from a file.
-        let import_from_file = move |path: &Path| -> crate::Result<Arc<Asset<T>>> {
+        let import_from_file = move |path: &Path| -> Result<Arc<Asset<T>>> {
             trace!("Reading meta data for asset '{}'", path.display());
             let meta_data = import_source2.read().read_meta_data(path)?;
             info!("Meta data for asset '{}': {:#?}", path.display(), &meta_data);
@@ -350,7 +325,6 @@ impl AssetImporter {
                 _phantom: PhantomData,
             });
 
-            info!("Import of asset '{}' finished", path.display());
             Ok(asset)
         };
 
@@ -364,7 +338,7 @@ impl AssetImporter {
                     Err(..) => format!("Err"),
                 };
                 match sender.send(result) {
-                    Ok(()) => {}
+                    Ok(()) => info!("Successfully imported asset '{}'", path.display()),
                     Err(err) => {
                         error!(
                             "Failed to send result '{result_string}' of import for asset '{}': {err:?}",
@@ -379,31 +353,14 @@ impl AssetImporter {
     }
 
     /// Imports all assets of the given type.
-    pub fn import_all<T>(&self) -> crate::Result<()> {
+    pub fn import_all<T>(&self) -> Result<()> {
         todo!()
     }
 
     /// Imports an asset from the given path.
-    pub fn import<T>(&self, path: impl AsRef<Path>) -> crate::Result<()> {
+    pub fn import<T>(&self, path: impl AsRef<Path>) -> Result<()> {
         import(path, &self.thread_pool, &self.importers)
     }
-}
-
-fn extract_extension_from_path(path: &Path) -> crate::Result<String> {
-    Ok(path
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .map(|extension| extension.to_lowercase())
-        .ok_or(Error::InvalidPath(path.to_owned()))?
-        .to_owned())
-}
-
-fn extract_file_name_from_path(path: &Path) -> crate::Result<String> {
-    Ok(path
-        .file_name()
-        .and_then(|file_name| file_name.to_str())
-        .ok_or(Error::InvalidPath(path.to_owned()))?
-        .to_owned())
 }
 
 fn is_meta_file(path: &Path) -> bool {
@@ -417,15 +374,11 @@ fn is_meta_file(path: &Path) -> bool {
     file_name == ASSET_META_FILE_NAME
 }
 
-fn import(
-    import_path: impl AsRef<Path>,
-    thread_pool: &ThreadPool,
-    importers: &Arc<Mutex<BTreeMap<String, Arc<ImportFn>>>>,
-) -> crate::Result<()> {
+fn import(import_path: impl AsRef<Path>, thread_pool: &ThreadPool, importers: &Arc<Mutex<BTreeMap<String, Arc<ImportFn>>>>) -> Result<()> {
     let importers = importers.clone();
     let path = import_path.as_ref().to_owned();
 
-    trace!("Extracting extension from path '{:?}'", path);
+    trace!("Extracting extension from path '{path:?}'");
     let extension = extract_extension_from_path(&path)?;
 
     trace!("Checking if the extension '{extension}' is registered");
@@ -452,15 +405,11 @@ fn import(
 mod tests {
     use std::time::Duration;
 
-    use jeriya_shared::{indoc::indoc, log::LevelFilter};
-    use simple_logger::SimpleLogger;
+    use jeriya_shared::indoc::indoc;
+    use jeriya_test::setup_logger;
     use tempdir::TempDir;
 
     use super::*;
-
-    fn setup_logger() {
-        let _ = SimpleLogger::new().with_colors(true).with_level(LevelFilter::Trace).init();
-    }
 
     /// Creates a sample asset containing only a string.
     fn create_processed_asset(root: &Path, content: &str) {
