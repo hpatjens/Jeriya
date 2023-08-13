@@ -1,4 +1,6 @@
 use std::{
+    borrow::Cow,
+    fmt::{self, Formatter},
     io,
     path::{Path, PathBuf},
     result,
@@ -31,6 +33,77 @@ pub enum Error {
     InvalidAssetData(PathBuf),
     #[error("Other: {0}")]
     Other(Box<dyn std::error::Error + Send + Sync>),
+}
+
+/// Identifies the asset. It's a relative path in the asset directory.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AssetKey(PathBuf);
+
+impl AssetKey {
+    /// Create a new [`AssetKey`] from a path. No validation is done on the path.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use jeriya_content::AssetKey;
+    /// let asset_key = AssetKey::new("textures/character.png");
+    /// assert_eq!(asset_key.as_str(), "textures/character.png");
+    /// ```
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self(path.into())
+    }
+
+    /// Returns the path of the asset.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use std::ffi::OsStr;
+    /// use jeriya_content::AssetKey;
+    /// let asset_key = AssetKey::new("textures/character.png");
+    /// assert_eq!(asset_key.as_path().extension(), Some(OsStr::new("png")));
+    /// ```
+    pub fn as_path(&self) -> &Path {
+        &self.0
+    }
+
+    /// Returns the path of the asset.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use std::ffi::OsStr;
+    /// use jeriya_content::AssetKey;
+    /// let asset_key = AssetKey::new("textures/character.png");
+    /// assert_eq!(asset_key.as_str(), "textures/character.png");
+    /// ```
+    pub fn as_str(&self) -> Cow<str> {
+        self.0.to_string_lossy()
+    }
+}
+
+impl fmt::Display for AssetKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "AssetKey({})", self.as_str())
+    }
+}
+
+impl From<&str> for AssetKey {
+    fn from(value: &str) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<&Path> for AssetKey {
+    fn from(value: &Path) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<&AssetKey> for AssetKey {
+    fn from(value: &AssetKey) -> Self {
+        value.clone()
+    }
 }
 
 pub(crate) fn extract_extension_from_path(path: &Path) -> Result<String> {

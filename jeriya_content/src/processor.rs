@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     common::{extract_extension_from_path, modified_system_time, ASSET_META_FILE_NAME},
-    Error, Result,
+    AssetKey, Error, Result,
 };
 use jeriya_shared::{
     crossbeam_channel::{self, Receiver, Sender},
@@ -26,7 +26,7 @@ use notify_debouncer_full::{
     DebounceEventResult, Debouncer, FileIdMap,
 };
 
-type ProcessFn = dyn Fn(&Path, &Path, &Path) + Send + Sync;
+type ProcessFn = dyn Fn(&AssetKey, &Path, &Path) + Send + Sync;
 
 pub type Processor = dyn Fn(&mut AssetBuilder) -> Result<()> + Send + Sync;
 
@@ -161,30 +161,31 @@ impl AssetProcessor {
                         return;
                     };
                     assert!(path.is_relative(), "path '{}' is not relative", path.display());
+                    let asset_key = AssetKey::new(path);
 
                     match &event.kind {
                         EventKind::Create(_create_event) => {
                             if let Err(err) = process(
-                                &path,
+                                &asset_key,
                                 &unprocessed_assets_path2,
                                 &processed_assets_path,
                                 &thread_pool,
                                 &processors,
                                 &senders2,
                             ) {
-                                error!("Failed to process file '{}': {}", path.display(), err);
+                                error!("Failed to process file '{asset_key}': {err}");
                             }
                         }
                         EventKind::Modify(_modify_event) => {
                             if let Err(err) = process(
-                                &path,
+                                &asset_key,
                                 &unprocessed_assets_path2,
                                 &processed_assets_path,
                                 &thread_pool,
                                 &processors,
                                 &senders2,
                             ) {
-                                error!("Failed to process file '{}': {}", path.display(), err);
+                                error!("Failed to process file '{asset_key}': {err}");
                             }
                         }
                         _ => {}
@@ -256,14 +257,14 @@ impl AssetProcessor {
 
         processors.insert(
             process_config.extension,
-            Arc::new(move |asset_path, unprocessed_asset_path, processed_asset_path| {
-                info!("Processing file: {asset_path:?}");
-                let mut asset_builder = AssetBuilder::new(asset_path, unprocessed_asset_path, processed_asset_path);
+            Arc::new(move |asset_key, unprocessed_asset_path, processed_asset_path| {
+                info!("Processing file: {asset_key}");
+                let mut asset_builder = AssetBuilder::new(asset_key, unprocessed_asset_path, processed_asset_path);
                 let process_result = (process_config.processor)(&mut asset_builder);
                 let asset_write_result = asset_builder.build();
                 match process_result.or(asset_write_result) {
-                    Ok(()) => info!("Successfully processed file: {}", asset_path.display()),
-                    Err(err) => error!("Failed to process file '{}': {err}", asset_path.display()),
+                    Ok(()) => info!("Successfully processed file: {asset_key}"),
+                    Err(err) => error!("Failed to process file '{asset_key}': {err}"),
                 }
             }),
         );
@@ -280,7 +281,7 @@ impl AssetProcessor {
 }
 
 fn process(
-    asset_path: &Path,
+    asset_key: &AssetKey,
     unprocessed_assets_path: &Path,
     processed_assets_path: &Path,
     thread_pool: &ThreadPool,
@@ -288,15 +289,15 @@ fn process(
     senders: &Arc<Mutex<Vec<Sender<Event>>>>,
 ) -> Result<()> {
     let processors = processors.clone();
-    let asset_path = asset_path.to_owned();
+    let asset_path = asset_key.as_path().to_owned();
 
     assert! {
         asset_path.is_relative(),
-        "asset_path must be relative so that it can be used in the unprocessed and processed directories"
+        "asset_key must be relative so that it can be used in the unprocessed and processed directories"
     }
     assert! {
         asset_path.extension().is_some(),
-        "asset_path must have an extension so that the AssetImporter can determine the correct importer"
+        "asset_key must have an extension so that the AssetImporter can determine the correct importer"
     }
 
     trace!("Extracing extension from path: {asset_path:?}");
@@ -315,6 +316,7 @@ fn process(
     let unprocessed_asset_path = unprocessed_assets_path.join(&asset_path);
 
     let senders2 = senders.clone();
+    let asset_key2 = asset_key.clone();
     thread_pool.spawn(move || {
         let processors = processors.lock();
         let processor = processors
@@ -326,7 +328,7 @@ fn process(
             info!("Asset '{asset_path:?}' was deleted before it could be processed");
             return;
         }
-        processor(&asset_path, &unprocessed_asset_path, &processed_asset_path);
+        processor(&asset_key2, &unprocessed_asset_path, &processed_asset_path);
 
         // Send a Processed event to all observers and remove the channels
         // that are no longer active.
@@ -407,7 +409,7 @@ fn run_inventory(
     for (_, asset_paths) in inventory {
         for asset_path in asset_paths {
             process(
-                &asset_path,
+                &AssetKey::new(asset_path),
                 &unprocessed_assets_path,
                 &processed_assets_path,
                 &thread_pool,
@@ -421,24 +423,24 @@ fn run_inventory(
 }
 
 pub struct AssetBuilder {
-    asset_path: PathBuf,
+    asset_key: AssetKey,
     unprocessed_asset_path: PathBuf,
     processed_asset_path: PathBuf,
     relative_content_file_path: Option<PathBuf>,
 }
 
 impl AssetBuilder {
-    fn new(asset_path: impl Into<PathBuf>, unprocessed_asset_path: impl Into<PathBuf>, processed_asset_path: impl Into<PathBuf>) -> Self {
+    fn new(asset_key: impl Into<AssetKey>, unprocessed_asset_path: impl Into<PathBuf>, processed_asset_path: impl Into<PathBuf>) -> Self {
         Self {
-            asset_path: asset_path.into(),
+            asset_key: asset_key.into(),
             unprocessed_asset_path: unprocessed_asset_path.into(),
             processed_asset_path: processed_asset_path.into(),
             relative_content_file_path: None,
         }
     }
 
-    pub fn asset_path(&self) -> &Path {
-        &self.asset_path
+    pub fn asset_key(&self) -> &AssetKey {
+        &self.asset_key
     }
 
     pub fn unprocessed_asset_path(&self) -> &Path {

@@ -3,7 +3,7 @@
 //! Crate for [processing](AssetProcessor) and [importing](AssetImporter) assets.
 //!
 //! This crate is based around the idea of two structurally mirrored directory
-//! structures. One is the source directory, which contains the original assets
+//! trees. One is the source directory, which contains the original assets
 //! and the other is the target directory, which contains the processed assets.
 //! For every file in the source directory, there is a corresponding *directory*
 //! in the target directory which has the same name as the file. The relative
@@ -53,6 +53,6 @@ mod common;
 mod importer;
 mod processor;
 
-pub use common::{Error, Result};
+pub use common::{AssetKey, Error, Result};
 pub use importer::*;
 pub use processor::*;

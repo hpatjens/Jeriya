@@ -1,5 +1,5 @@
 use crate::{
-    common::{extract_extension_from_path, extract_file_name_from_path, ASSET_META_FILE_NAME},
+    common::{extract_extension_from_path, extract_file_name_from_path, AssetKey, ASSET_META_FILE_NAME},
     Error, Result,
 };
 use jeriya_shared::{
@@ -37,10 +37,10 @@ pub enum Event {
 
 pub trait ReadAsset {
     /// Read the [`AssetMetaData`] from the given asset path.
-    fn read_meta_data(&self, asset_path: &Path) -> Result<AssetMetaData>;
+    fn read_meta_data(&self, asset_key: &AssetKey) -> Result<AssetMetaData>;
 
-    /// Read the content of the file that belongs to the given `asset_path`.
-    fn read_content(&self, asset_path: &Path, file_path: &Path) -> Result<Vec<u8>>;
+    /// Read the content of the file that belongs to the given `asset_key`.
+    fn read_content(&self, asset_key: &AssetKey, file_path: &Path) -> Result<Vec<u8>>;
 }
 
 pub trait ImportSource: ReadAsset + Send + Sync {
@@ -72,25 +72,25 @@ impl FileSystem {
     }
 }
 
-fn check_path(path: &Path) -> Result<()> {
-    if path.is_absolute() {
-        return Err(Error::InvalidPath(path.to_owned()));
+fn check_path(asset_key: &AssetKey) -> Result<()> {
+    if asset_key.as_path().is_absolute() {
+        return Err(Error::InvalidPath(asset_key.as_path().to_owned()));
     }
     Ok(())
 }
 
 impl ReadAsset for FileSystem {
-    fn read_meta_data(&self, asset_path: &Path) -> Result<AssetMetaData> {
-        check_path(asset_path)?;
-        let meta_file_path = self.root.join(asset_path).join(ASSET_META_FILE_NAME);
+    fn read_meta_data(&self, asset_key: &AssetKey) -> Result<AssetMetaData> {
+        check_path(asset_key)?;
+        let meta_file_path = self.root.join(asset_key.as_path()).join(ASSET_META_FILE_NAME);
         let meta_file_content = fs::read_to_string(&meta_file_path)?;
         let meta_data = serde_yaml::from_str(&meta_file_content).map_err(|_| Error::InvalidAssetData(meta_file_path.clone()))?;
         Ok(meta_data)
     }
 
-    fn read_content(&self, asset_path: &Path, file_path: &Path) -> Result<Vec<u8>> {
-        check_path(asset_path)?;
-        let path = self.root.join(asset_path).join(file_path);
+    fn read_content(&self, asset_key: &AssetKey, file_path: &Path) -> Result<Vec<u8>> {
+        check_path(asset_key)?;
+        let path = self.root.join(asset_key.as_path()).join(file_path);
         fs::read(&path).map_err(|_| Error::InvalidAssetData(path))
     }
 }
@@ -159,7 +159,7 @@ impl ImportSource for FileSystem {
 }
 
 pub struct RawAsset {
-    path: PathBuf,
+    asset_key: AssetKey,
     ty: TypeId,
     value: Mutex<Option<Arc<dyn Any + Send + Sync>>>,
 }
@@ -174,8 +174,8 @@ where
     T: 'static + Send + Sync,
 {
     /// Returns the path of the asset.
-    pub fn path(&self) -> &Path {
-        &self.raw_asset.path
+    pub fn as_path(&self) -> &Path {
+        &self.raw_asset.asset_key.as_path()
     }
 
     /// Drops the data of the asset but keeps it as a tracked asset.
@@ -203,7 +203,7 @@ where
     pub importer: Box<Importer<T>>,
 }
 
-type ImportFn = dyn for<'a> Fn(&Path) + Send + Sync;
+type ImportFn = dyn for<'a> Fn(&AssetKey) + Send + Sync;
 
 pub struct AssetImporter {
     thread_pool: Arc<ThreadPool>,
@@ -211,7 +211,7 @@ pub struct AssetImporter {
     /// Maps the file extension to the importer function.
     importers: Arc<Mutex<BTreeMap<String, Arc<ImportFn>>>>,
 
-    tracked_assets: Arc<RwLock<BTreeMap<PathBuf, Arc<RawAsset>>>>,
+    tracked_assets: Arc<RwLock<BTreeMap<AssetKey, Arc<RawAsset>>>>,
     import_source: Arc<RwLock<dyn ImportSource>>,
 }
 
@@ -246,13 +246,15 @@ impl AssetImporter {
         let watch_fn = move |event: Event| match event {
             Event::Create(path) => {
                 trace!("Path '{}' was created", path.display());
-                if let Err(err) = import(path, &thread_pool2, &importers2) {
+                let asset_key = AssetKey::new(path);
+                if let Err(err) = import(&asset_key, &thread_pool2, &importers2) {
                     error!("{err}");
                 }
             }
             Event::Modify(path) => {
                 trace!("Path '{}' was modified", path.display());
-                if let Err(err) = import(path, &thread_pool2, &importers2) {
+                let asset_key = AssetKey::new(path);
+                if let Err(err) = import(&asset_key, &thread_pool2, &importers2) {
                     error!("{err}");
                 }
             }
@@ -303,23 +305,23 @@ impl AssetImporter {
         let (sender, receiver) = crossbeam_channel::unbounded();
 
         // Function to import an asset from a file.
-        let import_from_file = move |path: &Path| -> Result<Arc<Asset<T>>> {
-            trace!("Reading meta data for asset '{}'", path.display());
-            let meta_data = import_source2.read().read_meta_data(path)?;
-            info!("Meta data for asset '{}': {:#?}", path.display(), &meta_data);
+        let import_from_file = move |asset_key: &AssetKey| -> Result<Arc<Asset<T>>> {
+            trace!("Reading meta data for asset '{asset_key}'");
+            let meta_data = import_source2.read().read_meta_data(asset_key)?;
+            info!("Meta data for asset '{asset_key}': {meta_data:#?}");
 
-            trace!("Reading content for asset '{}'", path.display());
-            let content = import_source2.read().read_content(path, &meta_data.file)?;
+            trace!("Reading content for asset '{asset_key}'");
+            let content = import_source2.read().read_content(asset_key, &meta_data.file)?;
 
-            trace!("Starting the import for asset '{}'", path.display());
+            trace!("Starting the import for asset '{asset_key}'");
             let value = (import_configuration.importer)(&content)?;
 
             let raw_asset = Arc::new(RawAsset {
-                path: path.to_owned(),
+                asset_key: asset_key.clone(),
                 ty: TypeId::of::<T>(),
                 value: Mutex::new(Some(Arc::new(value))),
             });
-            tracked_assets2.write().insert(path.to_owned(), raw_asset.clone());
+            tracked_assets2.write().insert(asset_key.clone(), raw_asset.clone());
             let asset = Arc::new(Asset {
                 raw_asset,
                 _phantom: PhantomData,
@@ -331,20 +333,15 @@ impl AssetImporter {
         // Insert an import function into the map that does the import and sends the result to the receiver.
         importers.insert(
             extension.clone(),
-            Arc::new(move |path| {
-                let result = import_from_file(path);
+            Arc::new(move |asset_key| {
+                let result = import_from_file(asset_key);
                 let result_string = match &result {
                     Ok(..) => format!("Ok"),
                     Err(..) => format!("Err"),
                 };
                 match sender.send(result) {
-                    Ok(()) => info!("Successfully imported asset '{}'", path.display()),
-                    Err(err) => {
-                        error!(
-                            "Failed to send result '{result_string}' of import for asset '{}': {err:?}",
-                            path.display()
-                        )
-                    }
+                    Ok(()) => info!("Successfully imported asset '{asset_key}'"),
+                    Err(err) => error!("Failed to send result '{result_string}' of import for asset '{asset_key}': {err:?}"),
                 }
             }),
         );
@@ -358,8 +355,8 @@ impl AssetImporter {
     }
 
     /// Imports an asset from the given path.
-    pub fn import<T>(&self, path: impl AsRef<Path>) -> Result<()> {
-        import(path, &self.thread_pool, &self.importers)
+    pub fn import<T>(&self, asset_key: impl Into<AssetKey>) -> Result<()> {
+        import(&asset_key.into(), &self.thread_pool, &self.importers)
     }
 }
 
@@ -374,12 +371,11 @@ fn is_meta_file(path: &Path) -> bool {
     file_name == ASSET_META_FILE_NAME
 }
 
-fn import(import_path: impl AsRef<Path>, thread_pool: &ThreadPool, importers: &Arc<Mutex<BTreeMap<String, Arc<ImportFn>>>>) -> Result<()> {
+fn import(asset_key: &AssetKey, thread_pool: &ThreadPool, importers: &Arc<Mutex<BTreeMap<String, Arc<ImportFn>>>>) -> Result<()> {
     let importers = importers.clone();
-    let path = import_path.as_ref().to_owned();
 
-    trace!("Extracting extension from path '{path:?}'");
-    let extension = extract_extension_from_path(&path)?;
+    trace!("Extracting extension from '{asset_key}'");
+    let extension = extract_extension_from_path(&asset_key.as_path())?;
 
     trace!("Checking if the extension '{extension}' is registered");
     if !importers.lock().contains_key(&extension) {
@@ -387,6 +383,7 @@ fn import(import_path: impl AsRef<Path>, thread_pool: &ThreadPool, importers: &A
     }
 
     // Spawn a thread to import the asset.
+    let asset_key = asset_key.clone();
     thread_pool.spawn(move || {
         let importers = importers.lock();
         let importer = importers
@@ -395,7 +392,7 @@ fn import(import_path: impl AsRef<Path>, thread_pool: &ThreadPool, importers: &A
             // remove an extension, this should never fail.
             .expect("failed to find the configuration for the given extension")
             .clone();
-        importer(&path.to_owned());
+        importer(&asset_key);
     });
 
     Ok(())
@@ -480,7 +477,7 @@ mod tests {
         // Receive and check the result.
         let result = receiver.recv_timeout(Duration::from_millis(100)).unwrap().unwrap();
         assert_eq!(*result.value().unwrap(), "Hello World!");
-        assert_eq!(result.path(), Path::new("test.txt"));
+        assert_eq!(result.as_path(), Path::new("test.txt"));
         assert_eq!(result.value(), Some(Arc::new("Hello World!".to_owned())));
         result.drop_data();
         assert_eq!(result.value(), None);
