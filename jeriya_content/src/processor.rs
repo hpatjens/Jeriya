@@ -19,7 +19,6 @@ use jeriya_shared::{
     log::{error, info, trace, warn},
     parking_lot::Mutex,
     pathdiff,
-    rayon::{ThreadPool, ThreadPoolBuilder},
     walkdir::WalkDir,
 };
 use notify_debouncer_full::{
@@ -115,12 +114,15 @@ impl Directories {
 }
 
 #[derive(Debug)]
-pub struct Item {
-    asset_key: AssetKey,
+pub enum Item {
+    Wakeup,
+    Process { asset_key: AssetKey },
 }
 
 pub struct AssetProcessor {
+    wants_drop: Arc<AtomicBool>,
     running: Arc<AtomicBool>,
+    item_sender: Sender<Item>,
     senders: Arc<Mutex<Vec<Sender<Event>>>>,
     processors: Arc<Mutex<BTreeMap<String, Arc<ProcessFn>>>>,
     _watcher: Debouncer<RecommendedWatcher, FileIdMap>,
@@ -150,8 +152,11 @@ impl AssetProcessor {
         // that the user can register processors and receive events for all assets.
         let running = Arc::new(AtomicBool::new(false));
 
-        let (item_sender, item_receiver) = crossbeam_channel::unbounded();
+        let wants_drop = Arc::new(AtomicBool::new(false));
+
+        let (item_sender, item_receiver) = crossbeam_channel::unbounded::<Item>();
         for thread_index in 0..num_threads {
+            let wants_drop = wants_drop.clone();
             let item_receiver = item_receiver.clone();
             let directories = directories.clone();
             let processors = processors.clone();
@@ -163,10 +168,21 @@ impl AssetProcessor {
                     info!("Starting AssetProcessor thread '{thread_name}'");
                     loop {
                         trace!("Waiting for item on AssetProcessor thread '{thread_name}'");
-                        let item: Item = item_receiver.recv().unwrap(); // TODO
-                        info!("AssetProcessor starting work on item: {item:?}");
+                        let Ok(item) = item_receiver.recv() else {
+                            info!("AssetProcessor thread '{thread_name}' failed to receive item");
+                            break;
+                        };
+                        if wants_drop.load(Ordering::SeqCst) {
+                            break;
+                        }
 
-                        let extension = extract_extension_from_path(item.asset_key.as_path()).unwrap(); // TODO
+                        let asset_key = match item {
+                            Item::Wakeup => continue,
+                            Item::Process { asset_key } => asset_key,
+                        };
+                        info!("AssetProcessor starting work on item: {asset_key}");
+
+                        let extension = extract_extension_from_path(asset_key.as_path()).unwrap(); // TODO
 
                         let processors = processors.lock();
                         let processor = processors
@@ -175,13 +191,13 @@ impl AssetProcessor {
                             .expect("processor not found")
                             .clone();
                         if !directories.unprocessed_assets_path().exists() {
-                            info!("Asset '{}' was deleted before it could be processed", item.asset_key);
+                            info!("Asset '{}' was deleted before it could be processed", asset_key);
                             return;
                         }
                         processor(
-                            &item.asset_key,
-                            &directories.unprocessed_assets_path().join(item.asset_key.as_path()),
-                            &directories.processed_assets_path().join(item.asset_key.as_path()),
+                            &asset_key,
+                            &directories.unprocessed_assets_path().join(asset_key.as_path()),
+                            &directories.processed_assets_path().join(asset_key.as_path()),
                         );
 
                         // Send a Processed event to all observers and remove the channels
@@ -189,7 +205,7 @@ impl AssetProcessor {
                         let mut senders = event_senders2.lock();
                         let mut outdated_channels = Vec::new();
                         for (index, sender) in senders.iter().enumerate() {
-                            let asset_path = item.asset_key.as_path();
+                            let asset_path = asset_key.as_path();
                             if let Err(err) = sender.send(Event::Processed(asset_path.to_owned())) {
                                 warn!("Failed to send Processed event for asset {asset_path:?}: \"{err}\". Channel will be removed.");
                                 outdated_channels.push(index);
@@ -201,6 +217,7 @@ impl AssetProcessor {
                             senders.remove(index);
                         }
                     }
+                    info!("AssetProcessor thread '{thread_name}' will stop now");
                 })
                 .map_err(|_| Error::FailedToStartThreadPool)?;
         }
@@ -274,7 +291,9 @@ impl AssetProcessor {
             .map_err(|_| Error::FailedToStartDirectoryWatcher(directories.unprocessed_assets_path().to_owned()))?;
 
         Ok(Self {
+            wants_drop,
             running,
+            item_sender,
             senders: event_senders,
             processors,
             _watcher: watcher,
@@ -338,6 +357,15 @@ impl AssetProcessor {
     }
 }
 
+impl Drop for AssetProcessor {
+    fn drop(&mut self) {
+        self.wants_drop.store(true, Ordering::SeqCst);
+        if let Err(err) = self.item_sender.send(Item::Wakeup) {
+            error!("Failed to send wakeup item to AssetProcessor in drop implementation: {err}");
+        }
+    }
+}
+
 fn event_name(event: &DebouncedEvent) -> &str {
     match &event.kind {
         EventKind::Any => "Any",
@@ -380,7 +408,7 @@ fn process(
     info!("Creating directory for processed assets: {processed_asset_path:?}");
     fs::create_dir_all(&processed_asset_path)?;
 
-    let item = Item {
+    let item = Item::Process {
         asset_key: asset_key.clone(),
     };
     if let Err(err) = sender.send(item) {
