@@ -116,10 +116,8 @@ impl Directories {
 pub struct AssetProcessor {
     running: Arc<AtomicBool>,
     senders: Arc<Mutex<Vec<Sender<Event>>>>,
-    thread_pool: Arc<ThreadPool>,
     processors: Arc<Mutex<BTreeMap<String, Arc<ProcessFn>>>>,
-    watcher: Debouncer<RecommendedWatcher, FileIdMap>,
-    directories: Directories,
+    _watcher: Debouncer<RecommendedWatcher, FileIdMap>,
 }
 
 impl AssetProcessor {
@@ -136,7 +134,6 @@ impl AssetProcessor {
     /// ```
     pub fn new(directories: &Directories, num_threads: usize) -> crate::Result<Self> {
         let directories = directories.clone();
-        dbg!(&directories);
         directories.check()?;
         info!("Creating AssetProcessor for '{directories:?}'");
 
@@ -228,9 +225,7 @@ impl AssetProcessor {
             running,
             senders,
             processors,
-            watcher,
-            thread_pool,
-            directories,
+            _watcher: watcher,
         })
     }
 
