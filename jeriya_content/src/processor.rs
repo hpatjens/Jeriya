@@ -6,6 +6,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
+    thread,
     time::Duration,
 };
 
@@ -113,6 +114,11 @@ impl Directories {
     }
 }
 
+#[derive(Debug)]
+pub struct Item {
+    asset_key: AssetKey,
+}
+
 pub struct AssetProcessor {
     running: Arc<AtomicBool>,
     senders: Arc<Mutex<Vec<Sender<Event>>>>,
@@ -137,25 +143,72 @@ impl AssetProcessor {
         directories.check()?;
         info!("Creating AssetProcessor for '{directories:?}'");
 
-        let senders = Arc::new(Mutex::new(Vec::new()));
-        let processors = Arc::new(Mutex::new(BTreeMap::new()));
+        let event_senders: Arc<Mutex<Vec<Sender<Event>>>> = Arc::new(Mutex::new(Vec::new()));
+        let processors: Arc<Mutex<BTreeMap<String, Arc<ProcessFn>>>> = Arc::new(Mutex::new(BTreeMap::new()));
 
         // The [`AssetProcessor`] has to be started manually after the constructor has run so
         // that the user can register processors and receive events for all assets.
         let running = Arc::new(AtomicBool::new(false));
 
-        info!("Create thread pool with {} threads for AssetProcessor", num_threads);
-        let thread_pool = ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build()
-            .map(Arc::new)
-            .map_err(|_| Error::FailedToStartThreadPool)?;
+        let (item_sender, item_receiver) = crossbeam_channel::unbounded();
+        for thread_index in 0..num_threads {
+            let item_receiver = item_receiver.clone();
+            let directories = directories.clone();
+            let processors = processors.clone();
+            let event_senders2 = event_senders.clone();
+            let thread_name = format!("AssetProcessor thread {}", thread_index);
+            let builder = thread::Builder::new().name(thread_name.clone());
+            builder
+                .spawn(move || {
+                    info!("Starting AssetProcessor thread '{thread_name}'");
+                    loop {
+                        trace!("Waiting for item on AssetProcessor thread '{thread_name}'");
+                        let item: Item = item_receiver.recv().unwrap(); // TODO
+                        info!("AssetProcessor starting work on item: {item:?}");
+
+                        let extension = extract_extension_from_path(item.asset_key.as_path()).unwrap(); // TODO
+
+                        let processors = processors.lock();
+                        let processor = processors
+                            .get(&extension)
+                            // The process function checks if the extension is registered, so this should never happen.
+                            .expect("processor not found")
+                            .clone();
+                        if !directories.unprocessed_assets_path().exists() {
+                            info!("Asset '{}' was deleted before it could be processed", item.asset_key);
+                            return;
+                        }
+                        processor(
+                            &item.asset_key,
+                            &directories.unprocessed_assets_path().join(item.asset_key.as_path()),
+                            &directories.processed_assets_path().join(item.asset_key.as_path()),
+                        );
+
+                        // Send a Processed event to all observers and remove the channels
+                        // that are no longer active.
+                        let mut senders = event_senders2.lock();
+                        let mut outdated_channels = Vec::new();
+                        for (index, sender) in senders.iter().enumerate() {
+                            let asset_path = item.asset_key.as_path();
+                            if let Err(err) = sender.send(Event::Processed(asset_path.to_owned())) {
+                                warn!("Failed to send Processed event for asset {asset_path:?}: \"{err}\". Channel will be removed.");
+                                outdated_channels.push(index);
+                            } else {
+                                info!("Sent Processed event for asset {asset_path:?}");
+                            }
+                        }
+                        for index in outdated_channels.into_iter().rev() {
+                            senders.remove(index);
+                        }
+                    }
+                })
+                .map_err(|_| Error::FailedToStartThreadPool)?;
+        }
 
         let running2 = running.clone();
+        let sender2 = item_sender.clone();
         let processors2 = processors.clone();
-        let thread_pool2 = thread_pool.clone();
         let directories2 = directories.clone();
-        let senders2 = senders.clone();
         let watch_fn = move |result: DebounceEventResult| match result {
             Ok(events) => {
                 for event in events {
@@ -177,7 +230,6 @@ impl AssetProcessor {
                         }
                     }
 
-                    let thread_pool = thread_pool2.clone();
                     let processors = processors2.clone();
 
                     // The file watcher returns absolute paths but he whole asset handling is based on
@@ -195,12 +247,12 @@ impl AssetProcessor {
 
                     match &event.kind {
                         EventKind::Create(_create_event) => {
-                            if let Err(err) = process(&asset_key, &directories2, &thread_pool, &processors, &senders2) {
+                            if let Err(err) = process(&asset_key, &directories2, &sender2, &processors) {
                                 error!("Failed to process file '{asset_key}': {err}");
                             }
                         }
                         EventKind::Modify(_modify_event) => {
-                            if let Err(err) = process(&asset_key, &directories2, &thread_pool, &processors, &senders2) {
+                            if let Err(err) = process(&asset_key, &directories2, &sender2, &processors) {
                                 error!("Failed to process file '{asset_key}': {err}");
                             }
                         }
@@ -211,7 +263,7 @@ impl AssetProcessor {
             Err(_) => {}
         };
 
-        run_inventory(&directories, &thread_pool, &processors, &senders)?;
+        run_inventory(&directories, &item_sender, &processors)?;
 
         // Start the directory watcher.
         let mut watcher = notify_debouncer_full::new_debouncer(Duration::from_millis(1000), None, watch_fn)
@@ -223,7 +275,7 @@ impl AssetProcessor {
 
         Ok(Self {
             running,
-            senders,
+            senders: event_senders,
             processors,
             _watcher: watcher,
         })
@@ -300,9 +352,8 @@ fn event_name(event: &DebouncedEvent) -> &str {
 fn process(
     asset_key: &AssetKey,
     directories: &Directories,
-    thread_pool: &ThreadPool,
+    sender: &Sender<Item>,
     processors: &Arc<Mutex<BTreeMap<String, Arc<ProcessFn>>>>,
-    senders: &Arc<Mutex<Vec<Sender<Event>>>>,
 ) -> Result<()> {
     let processors = processors.clone();
     let asset_path = asset_key.as_path().to_owned();
@@ -329,39 +380,12 @@ fn process(
     info!("Creating directory for processed assets: {processed_asset_path:?}");
     fs::create_dir_all(&processed_asset_path)?;
 
-    let unprocessed_asset_path = directories.unprocessed_assets_path().join(&asset_path);
-
-    let senders2 = senders.clone();
-    let asset_key2 = asset_key.clone();
-    thread_pool.spawn(move || {
-        let processors = processors.lock();
-        let processor = processors
-            .get(&extension)
-            // The process function checks if the extension is registered, so this should never happen.
-            .expect("processor not found")
-            .clone();
-        if !unprocessed_asset_path.exists() {
-            info!("Asset '{asset_path:?}' was deleted before it could be processed");
-            return;
-        }
-        processor(&asset_key2, &unprocessed_asset_path, &processed_asset_path);
-
-        // Send a Processed event to all observers and remove the channels
-        // that are no longer active.
-        let mut senders = senders2.lock();
-        let mut outdated_channels = Vec::new();
-        for (index, sender) in senders.iter().enumerate() {
-            if let Err(err) = sender.send(Event::Processed(asset_path.clone())) {
-                warn!("Failed to send Processed event for asset {asset_path:?}: \"{err}\". Channel will be removed.");
-                outdated_channels.push(index);
-            } else {
-                info!("Sent Processed event for asset {asset_path:?}");
-            }
-        }
-        for index in outdated_channels.into_iter().rev() {
-            senders.remove(index);
-        }
-    });
+    let item = Item {
+        asset_key: asset_key.clone(),
+    };
+    if let Err(err) = sender.send(item) {
+        error!("Failed to send item to AssetProcessor thread: {err}");
+    }
 
     Ok(())
 }
@@ -369,9 +393,8 @@ fn process(
 /// Iterates through all unprocessed assets and checks whether they are outdated.
 fn run_inventory(
     directories: &Directories,
-    thread_pool: &ThreadPool,
+    sender: &Sender<Item>,
     processors: &Arc<Mutex<BTreeMap<String, Arc<ProcessFn>>>>,
-    senders: &Arc<Mutex<Vec<Sender<Event>>>>,
 ) -> Result<()> {
     let mut inventory = BTreeMap::new();
 
@@ -423,7 +446,7 @@ fn run_inventory(
 
     for (_, asset_paths) in inventory {
         for asset_path in asset_paths {
-            process(&AssetKey::new(asset_path), directories, &thread_pool, &processors, &senders)?;
+            process(&AssetKey::new(asset_path), directories, &sender, &processors)?;
         }
     }
 
