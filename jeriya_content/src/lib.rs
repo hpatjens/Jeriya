@@ -53,6 +53,6 @@ mod common;
 mod importer;
 mod processor;
 
-pub use common::{AssetKey, Error, Result};
+pub use common::{AssetKey, Directories, Error, Result};
 pub use importer::*;
 pub use processor::*;
