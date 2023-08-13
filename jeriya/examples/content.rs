@@ -1,6 +1,6 @@
 use std::{fs, io};
 
-use jeriya_content::{AssetImporter, AssetProcessor, Error, FileSystem, ImportConfiguration, ProcessConfiguration};
+use jeriya_content::{AssetImporter, AssetProcessor, Directories, Error, FileSystem, ImportConfiguration, ProcessConfiguration};
 use jeriya_shared::log;
 
 fn main() -> io::Result<()> {
@@ -24,7 +24,8 @@ fn main() -> io::Result<()> {
     fs::create_dir_all(unprocessed_assets_path).unwrap();
     fs::create_dir_all(processed_assets_path).unwrap();
 
-    let mut asset_processor = AssetProcessor::new(unprocessed_assets_path, processed_assets_path, 4).unwrap();
+    let directories = Directories::create_all_dir(unprocessed_assets_path, processed_assets_path).unwrap();
+    let mut asset_processor = AssetProcessor::new(&directories, 4).unwrap();
     asset_processor
         .register(ProcessConfiguration {
             extension: "txt".to_owned(),
