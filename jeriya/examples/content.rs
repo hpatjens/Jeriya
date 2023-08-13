@@ -19,12 +19,7 @@ fn main() -> io::Result<()> {
         .apply()
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
 
-    let unprocessed_assets_path = "assets/unprocessed_assets";
-    let processed_assets_path = "assets/processed_assets";
-    fs::create_dir_all(unprocessed_assets_path).unwrap();
-    fs::create_dir_all(processed_assets_path).unwrap();
-
-    let directories = Directories::create_all_dir(unprocessed_assets_path, processed_assets_path).unwrap();
+    let directories = Directories::create_all_dir("assets/unprocessed_assets", "assets/processed_assets").unwrap();
     let mut asset_processor = AssetProcessor::new(&directories, 4).unwrap();
     asset_processor
         .register(ProcessConfiguration {
@@ -38,7 +33,7 @@ fn main() -> io::Result<()> {
         })
         .unwrap();
 
-    let import_source = FileSystem::new(processed_assets_path).unwrap();
+    let import_source = FileSystem::new(directories.processed_assets_path()).unwrap();
     let mut asset_importer = AssetImporter::new(import_source, 4).unwrap();
 
     let receiver = asset_importer
