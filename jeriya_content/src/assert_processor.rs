@@ -478,7 +478,7 @@ mod tests {
     use jeriya_test::setup_logger;
     use tempdir::TempDir;
 
-    use crate::{common::Directories, processor::Event, AssetProcessor, ProcessConfiguration};
+    use crate::{common::Directories, assert_processor::Event, AssetProcessor, ProcessConfiguration};
 
     /// Creates an unprocessed asset with the given content.
     fn create_unprocessed_asset(root: &Path, content: &str) -> PathBuf {
