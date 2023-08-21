@@ -6,5 +6,6 @@ members = [
     "jeriya_shared", 
     "jeriya_test", 
     "jeriya_macros", 
-    "jeriya_content"
+    "jeriya_content",
+    "jeriya_viewer"
 ]

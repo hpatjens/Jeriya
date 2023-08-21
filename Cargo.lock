@@ -1015,6 +1015,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "jeriya_viewer"
+version = "0.1.0"
+dependencies = [
+ "fern",
+ "gltf",
+ "jeriya",
+ "jeriya_backend_ash",
+ "jeriya_content",
+ "jeriya_shared",
+ "jeriya_test",
+ "spin_sleep",
+]
+
+[[package]]
 name = "jni-sys"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
