@@ -1,5 +1,7 @@
 use std::io;
 
+use color_eyre as ey;
+use ey::eyre::{eyre, Context};
 use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend_ash::AshBackend;
@@ -7,7 +9,7 @@ use jeriya_shared::{
     debug_info,
     immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
-    log,
+    log::{self, error},
     nalgebra::{Affine3, Matrix4, Vector3, Vector4},
     winit::{
         dpi::LogicalSize,
@@ -82,8 +84,8 @@ where
     Ok(())
 }
 
-fn load_model() -> Vec<Vector3<f32>> {
-    let (document, buffers, _images) = gltf::import("sample_assets/rotated_cube.glb").unwrap();
+fn load_model() -> ey::Result<Vec<Vector3<f32>>> {
+    let (document, buffers, _images) = gltf::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import glTF model")?;
     let mut vertex_positions = Vec::new();
     for mesh in document.meshes() {
         for primitive in mesh.primitives() {
@@ -110,10 +112,10 @@ fn load_model() -> Vec<Vector3<f32>> {
             }
         }
     }
-    vertex_positions.into_iter().map(|v| Vector3::new(v[0], v[1], v[2])).collect()
+    Ok(vertex_positions.into_iter().map(|v| Vector3::new(v[0], v[1], v[2])).collect())
 }
 
-fn main() -> io::Result<()> {
+fn main() -> ey::Result<()> {
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -134,12 +136,12 @@ fn main() -> io::Result<()> {
         .with_title("Example")
         .with_inner_size(LogicalSize::new(640.0, 480.0))
         .build(&event_loop)
-        .unwrap();
+        .wrap_err("Failed to create window 1")?;
     let window2 = WindowBuilder::new()
         .with_title("Example")
         .with_inner_size(LogicalSize::new(640.0, 480.0))
         .build(&event_loop)
-        .unwrap();
+        .wrap_err("Failed to create window 2")?;
     let renderer = jeriya::Renderer::<AshBackend>::builder()
         .add_renderer_config(RendererConfig {
             maximum_number_of_cameras: 2,
@@ -149,29 +151,29 @@ fn main() -> io::Result<()> {
         })
         .add_windows(&[&window1, &window2])
         .build()
-        .unwrap();
+        .wrap_err("Failed to create renderer")?;
 
     {
         let cameras = renderer.cameras();
-        let handle = renderer.active_camera(window1.id()).unwrap();
-        let camera = cameras.get(&handle).unwrap();
+        let handle = renderer.active_camera(window1.id()).wrap_err("Failed to get active camera")?;
+        let camera = cameras.get(&handle).ok_or(eyre!("Failed to get camera"))?;
         println!("Camera: {:?}", camera.matrix());
     }
 
-    let model = load_model();
+    let model = load_model().wrap_err("Failed to load model")?;
 
     let inanimate_mesh1 = renderer
         .inanimate_meshes()
         .create(MeshType::TriangleList, model)
         .with_debug_info(debug_info!("my_mesh"))
         .build()
-        .unwrap();
+        .wrap_err("Failed to create inanimate mesh")?;
 
     {
         let mut inanimate_mesh_instance = renderer.inanimate_mesh_instances();
         inanimate_mesh_instance
             .insert(InanimateMeshInstance::new(inanimate_mesh1.clone(), Affine3::identity()))
-            .unwrap();
+            .wrap_err("Failed to insert inanimate mesh instance")?;
     }
 
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(60.0);
@@ -187,14 +189,25 @@ fn main() -> io::Result<()> {
                 window_id,
                 event: WindowEvent::Resized(..),
             } => {
-                renderer.window_resized(window_id).unwrap();
+                if let Err(err) = renderer.window_resized(window_id) {
+                    error!("Failed to resize window: {}", err);
+                    control_flow.set_exit();
+                }
             }
             Event::MainEventsCleared => {
                 loop_helper.loop_start();
 
-                immediate_rendering(&renderer).unwrap();
+                if let Err(err) = immediate_rendering(&renderer) {
+                    error!("Failed to do immediate rendering: {}", err);
+                    control_flow.set_exit();
+                    return;
+                }
 
-                renderer.render_frame().unwrap();
+                if let Err(err) = renderer.render_frame() {
+                    error!("Failed to render frame: {}", err);
+                    control_flow.set_exit();
+                    return;
+                }
 
                 // loop_helper.loop_sleep();
             }
