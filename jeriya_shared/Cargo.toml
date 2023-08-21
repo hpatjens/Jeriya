@@ -11,7 +11,7 @@ chrono = "0.4.24"
 log = "0.4.17"
 parking_lot = "0.12.1"
 winit = "0.28.3"
-nalgebra = "0.32.2"
+nalgebra = { version = "0.32.2", features = ["serde-serialize"] }
 nalgebra-glm = "0.18.0"
 bitflags = "2.1.0"
 derive_more = "0.99.17"
@@ -25,6 +25,7 @@ rayon = "1.7.0"
 pathdiff = "0.2.1"
 indoc = "2.0.3"
 walkdir = "2.3.3"
+rand = "0.8.5"
 
 # see https://crates.io/crates/tracy-client for version support table
 tracy-client = { version = "0.14.2", default-features = false }

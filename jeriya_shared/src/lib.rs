@@ -7,13 +7,18 @@ mod indexing_container;
 mod objects;
 mod resources;
 
-use std::result;
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    result,
+};
 
 pub use backend::*;
 pub use camera::*;
 pub use debug_info::*;
 pub use event_queue::*;
 pub use indexing_container::*;
+use nalgebra::Vector4;
 pub use objects::*;
 pub use resources::*;
 
@@ -31,6 +36,7 @@ pub use nalgebra;
 pub use nalgebra_glm;
 pub use parking_lot;
 pub use pathdiff;
+pub use rand;
 pub use rayon;
 pub use thiserror;
 pub use tracy_client;
@@ -137,4 +143,27 @@ macro_rules! plot_with_index {
             _ => plot!(concat!($prefix, "unknown"), $value),
         }
     }};
+}
+
+/// Returns a random color with alpha set to 1.0
+pub fn pseudo_random_color(index: usize) -> Vector4<f32> {
+    fn calculate_hash<T: Hash>(t: &T) -> u64 {
+        let mut s = DefaultHasher::new();
+        t.hash(&mut s);
+        s.finish()
+    }
+
+    let hash = calculate_hash(&index);
+
+    const RESOLUTION: u64 = 36;
+    let r = (hash % (RESOLUTION / 1)) as f32 / RESOLUTION as f32;
+    let g = (hash % (RESOLUTION / 3)) as f32 / RESOLUTION as f32;
+    let b = (hash % (RESOLUTION / 9)) as f32 / RESOLUTION as f32;
+
+    const BASE: f32 = 0.4;
+    let r = BASE + r * (1.0 - BASE);
+    let g = BASE + g * (1.0 - BASE);
+    let b = BASE + b * (1.0 - BASE);
+
+    Vector4::new(r, g, b, 1.0)
 }

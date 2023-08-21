@@ -425,7 +425,11 @@ pub struct AssetBuilder {
 
 impl AssetBuilder {
     /// Creates a new [`AssetBuilder`].
-    fn new(asset_key: impl Into<AssetKey>, unprocessed_asset_path: impl Into<PathBuf>, processed_asset_path: impl Into<PathBuf>) -> Self {
+    pub(crate) fn new(
+        asset_key: impl Into<AssetKey>,
+        unprocessed_asset_path: impl Into<PathBuf>,
+        processed_asset_path: impl Into<PathBuf>,
+    ) -> Self {
         Self {
             asset_key: asset_key.into(),
             unprocessed_asset_path: unprocessed_asset_path.into(),
@@ -478,7 +482,7 @@ mod tests {
     use jeriya_test::setup_logger;
     use tempdir::TempDir;
 
-    use crate::{common::Directories, assert_processor::Event, AssetProcessor, ProcessConfiguration};
+    use crate::{assert_processor::Event, common::Directories, AssetProcessor, ProcessConfiguration};
 
     /// Creates an unprocessed asset with the given content.
     fn create_unprocessed_asset(root: &Path, content: &str) -> PathBuf {

@@ -16,6 +16,8 @@ use jeriya_shared::{
 };
 use simple_logger::SimpleLogger;
 
+pub use spectral;
+
 /// Sets up the logger for the tests.
 pub fn setup_logger() {
     let _ = SimpleLogger::new().with_colors(true).with_level(LevelFilter::Trace).init();

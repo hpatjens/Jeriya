@@ -83,7 +83,7 @@ where
 }
 
 fn load_model() -> Vec<Vector3<f32>> {
-    let (document, buffers, _images) = gltf::import("Jeriya/examples/rotated_cube.glb").unwrap();
+    let (document, buffers, _images) = gltf::import("sample_assets/rotated_cube.glb").unwrap();
     let mut vertex_positions = Vec::new();
     for mesh in document.meshes() {
         for primitive in mesh.primitives() {

@@ -9,6 +9,8 @@ jeriya_test = { path = "../jeriya_test" }
 notify-debouncer-full = "0.2.0"
 serde = { version = "1.0.177", features = ["derive"] }
 serde_yaml = "0.9.25"
+meshopt = "0.1.9"
+gltf = "1.2.0"
 
 [dev-dependencies]
 tempdir = "0.3.7"
