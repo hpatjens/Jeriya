@@ -31,6 +31,8 @@ pub enum Error {
     FailedToStartThreadPool,
     #[error("Failed to read the asset: {0}")]
     InvalidAssetData(PathBuf),
+    #[error("Failed to serialize the asset: {0}")]
+    FailedSerialization(Box<dyn std::error::Error + Send + Sync>),
     #[error("Other: {0}")]
     Other(Box<dyn std::error::Error + Send + Sync>),
 }

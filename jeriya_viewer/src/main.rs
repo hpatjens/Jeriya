@@ -116,6 +116,20 @@ fn load_model() -> ey::Result<Vec<Vector3<f32>>> {
     Ok(vertex_positions.into_iter().map(|v| Vector3::new(v[0], v[1], v[2])).collect())
 }
 
+fn setup_asset_processor() -> ey::Result<AssetProcessor> {
+    let directories = Directories::create_all_dir("assets/unprocessed", "assets/processed")
+        .wrap_err("Failed to create Directories for AssetProcessor")?;
+    let mut asset_processor = AssetProcessor::new(&directories, 4).wrap_err("Failed to create AssetProcessor")?;
+    asset_processor
+        .register(ProcessConfiguration {
+            extension: "glb".to_string(),
+            processor: Box::new(jeriya_content::model::process_model),
+        })
+        .unwrap();
+    asset_processor.set_active(true)?;
+    Ok(asset_processor)
+}
+
 fn main() -> ey::Result<()> {
     fern::Dispatch::new()
         .format(|out, message, record| {
@@ -127,7 +141,7 @@ fn main() -> ey::Result<()> {
                 message
             ))
         })
-        .level(log::LevelFilter::Debug)
+        .level(log::LevelFilter::Trace)
         .chain(io::stdout())
         .apply()
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
@@ -154,15 +168,7 @@ fn main() -> ey::Result<()> {
         .build()
         .wrap_err("Failed to create renderer")?;
 
-    let directories = Directories::create_all_dir("assets/unprocessed", "assets/processed")
-        .wrap_err("Failed to create Directories for AssetProcessor")?;
-    let mut asset_processor = AssetProcessor::new(&directories, 4).wrap_err("Failed to create AssetProcessor")?;
-    asset_processor
-        .register(ProcessConfiguration {
-            extension: "glb".to_string(),
-            processor: Box::new(jeriya_content::model::process_model),
-        })
-        .unwrap();
+    let _asset_processor = setup_asset_processor()?;
 
     let import_source = FileSystem::new("assets/unprocessed").wrap_err("Failed to create ImportSource for AssetImporter")?;
     let _asset_importer = AssetImporter::new(import_source, 4).wrap_err("Failed to create AssetImporter")?;

@@ -1,5 +1,6 @@
 use std::{
     collections::BTreeMap,
+    fs::File,
     io::Write,
     path::{Path, PathBuf},
 };
@@ -154,9 +155,14 @@ pub struct Meshlet {
     vertex_count: u8,
 }
 
+/// Function for the [`AssetProcessor`]
 pub fn process_model(asset_builder: &mut AssetBuilder) -> crate::Result<()> {
     let path = asset_builder.unprocessed_asset_path().to_owned();
-    build_model(&path)?;
+    let model = build_model(&path)?;
+    let file_name = asset_builder.asset_key().as_path().with_extension("bin");
+    let file = File::create(asset_builder.processed_asset_path().join(&file_name))?;
+    bincode::serialize_into(file, &model).map_err(|err| crate::Error::FailedSerialization(err))?;
+    asset_builder.with_file(file_name);
     Ok(())
 }
 

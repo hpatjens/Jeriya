@@ -51,6 +51,7 @@ pub struct ProcessItem {
 }
 
 pub struct AssetProcessor {
+    directories: Directories,
     wants_drop: Arc<AtomicBool>,
     running: Arc<AtomicBool>,
     item_sender: Sender<Item>,
@@ -148,8 +149,6 @@ impl AssetProcessor {
             Err(_) => {}
         };
 
-        run_inventory(&directories, &item_sender, &processors)?;
-
         // Start the directory watcher.
         let mut watcher = notify_debouncer_full::new_debouncer(Duration::from_millis(1000), None, watch_fn)
             .map_err(|_| Error::FailedToStartDirectoryWatcher(directories.unprocessed_assets_path().to_owned()))?;
@@ -159,6 +158,7 @@ impl AssetProcessor {
             .map_err(|_| Error::FailedToStartDirectoryWatcher(directories.unprocessed_assets_path().to_owned()))?;
 
         Ok(Self {
+            directories,
             wants_drop,
             running,
             item_sender,
@@ -169,8 +169,14 @@ impl AssetProcessor {
     }
 
     /// Either sets the [`AssetProcessor`] to active or inactive.
-    pub fn set_active(&self, active: bool) {
+    pub fn set_active(&self, active: bool) -> Result<()> {
         self.running.store(active, Ordering::SeqCst);
+
+        if active {
+            run_inventory(&self.directories, &self.item_sender, &self.processors)?;
+        }
+
+        Ok(())
     }
 
     /// Registers a [`Processor`] for the given file extension.
@@ -362,38 +368,50 @@ fn run_inventory(
 
     let extensions = processors.lock().keys().cloned().collect::<HashSet<_>>();
 
-    for entry in WalkDir::new(&directories.unprocessed_assets_path()) {
+    let path = directories.unprocessed_assets_path();
+    info!("Running inventory in path: {path:?}");
+
+    for entry in WalkDir::new(&path) {
         let Ok(entry) = entry else {
-                warn!("Failed to read directory entry in WalkDir {:?}: {}", entry, entry.as_ref().unwrap_err());
-                continue;
-            };
+            warn!("Failed to read directory entry in WalkDir {:?}: {}", entry, entry.as_ref().unwrap_err());
+            continue;
+        };
 
         if entry.path().is_dir() {
             continue;
         }
 
+        let Some(relative_path) = pathdiff::diff_paths(entry.path(), &path) else {
+            warn!("Failed to get relative path of '{}' relative to '{path:?}'", entry.path().display());
+            continue;
+        };
+        let asset_key = AssetKey::new(relative_path);
+
         // We are only interested in files with registered extensions.
-        let extension = if let Ok(extension) = extract_extension_from_path(entry.path()) {
+        let extension = if let Ok(extension) = extract_extension_from_path(asset_key.as_path()) {
             if !extensions.contains(&extension) {
                 continue;
             }
             extension
         } else {
-            info!("Failed to extract extension from path: {:?}", entry.path());
+            info!("Failed to extract extension from path: {:?}", asset_key.as_path());
             continue;
         };
 
         // Check if the processed asset exists.
-        let processed_asset_path = directories.processed_assets_path().join(entry.path());
+        let processed_asset_path = directories.processed_assets_path().join(asset_key.as_path());
         if !processed_asset_path.exists() {
             info!("Asset is going to be processed because it doesn't exist yet: {processed_asset_path:?}");
-            inventory.entry(extension).or_insert_with(Vec::new).push(entry.path().to_owned());
+            inventory
+                .entry(extension)
+                .or_insert_with(Vec::new)
+                .push(asset_key.as_path().to_owned());
             continue;
         }
 
         // Check if the processed asset is outdated.
-        let Some(unprocessed_modified) = modified_system_time(entry.path()) else {
-            info!("Failed to read metadata for unprocessed file: {:?}", entry.path());
+        let Some(unprocessed_modified) = modified_system_time(asset_key.as_path()) else {
+            info!("Failed to read metadata for unprocessed file: {:?}", asset_key.as_path());
             continue;
         };
         let Some(processed_modified) = modified_system_time(&processed_asset_path) else {
@@ -402,10 +420,17 @@ fn run_inventory(
         };
         if processed_modified < unprocessed_modified {
             info!("Asset is going to be processed because it is outdated: {processed_asset_path:?}");
-            inventory.entry(extension).or_insert_with(Vec::new).push(entry.path().to_owned());
+            inventory
+                .entry(extension)
+                .or_insert_with(Vec::new)
+                .push(asset_key.as_path().to_owned());
+            continue;
         }
+
+        trace!("Asset doesn't need to be processed: {}", asset_key.as_path().display());
     }
 
+    trace!("Found {} assets to process", inventory.len());
     for (_, asset_paths) in inventory {
         for asset_path in asset_paths {
             process(&AssetKey::new(asset_path), directories, &sender, &processors)?;
