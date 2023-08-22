@@ -52,7 +52,8 @@
 mod assert_importer;
 mod assert_processor;
 mod common;
-mod model;
+
+pub mod model;
 
 pub use assert_importer::*;
 pub use assert_processor::*;

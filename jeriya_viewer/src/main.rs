@@ -5,6 +5,7 @@ use ey::eyre::{eyre, Context};
 use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend_ash::AshBackend;
+use jeriya_content::{AssetImporter, AssetProcessor, Directories, FileSystem, ImportConfiguration, ProcessConfiguration};
 use jeriya_shared::{
     debug_info,
     immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
@@ -152,6 +153,19 @@ fn main() -> ey::Result<()> {
         .add_windows(&[&window1, &window2])
         .build()
         .wrap_err("Failed to create renderer")?;
+
+    let directories = Directories::create_all_dir("assets/unprocessed", "assets/processed")
+        .wrap_err("Failed to create Directories for AssetProcessor")?;
+    let mut asset_processor = AssetProcessor::new(&directories, 4).wrap_err("Failed to create AssetProcessor")?;
+    asset_processor
+        .register(ProcessConfiguration {
+            extension: "glb".to_string(),
+            processor: Box::new(jeriya_content::model::process_model),
+        })
+        .unwrap();
+
+    let import_source = FileSystem::new("assets/unprocessed").wrap_err("Failed to create ImportSource for AssetImporter")?;
+    let _asset_importer = AssetImporter::new(import_source, 4).wrap_err("Failed to create AssetImporter")?;
 
     {
         let cameras = renderer.cameras();
