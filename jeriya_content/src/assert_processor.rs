@@ -212,9 +212,11 @@ impl AssetProcessor {
                 info!("Processing file: {asset_key}");
                 let mut asset_builder = AssetBuilder::new(asset_key, unprocessed_asset_path, processed_asset_path);
                 let process_result = (process_config.processor)(&mut asset_builder);
-                let asset_write_result = asset_builder.build();
-                match process_result.or(asset_write_result) {
-                    Ok(()) => info!("Successfully processed file: {asset_key}"),
+                match process_result {
+                    Ok(()) => match asset_builder.build() {
+                        Ok(_) => info!("Successfully processed and built file: {asset_key}"),
+                        Err(_) => error!("Failed to build the meta file for asset '{asset_key}'"),
+                    },
                     Err(err) => error!("Failed to process file '{asset_key}': {err}"),
                 }
             }),
@@ -411,11 +413,9 @@ fn run_inventory(
 
         // Check if the processed asset is outdated.
         let Some(unprocessed_modified) = modified_system_time(asset_key.as_path()) else {
-            info!("Failed to read metadata for unprocessed file: {:?}", asset_key.as_path());
             continue;
         };
         let Some(processed_modified) = modified_system_time(&processed_asset_path) else {
-            info!("Failed to read metadata for processed file: {:?}", processed_asset_path);
             continue;
         };
         if processed_modified < unprocessed_modified {

@@ -125,7 +125,7 @@ fn setup_asset_processor() -> ey::Result<AssetProcessor> {
             extension: "glb".to_string(),
             processor: Box::new(jeriya_content::model::process_model),
         })
-        .unwrap();
+        .wrap_err("Failed to register model processor")?;
     asset_processor.set_active(true)?;
     Ok(asset_processor)
 }
