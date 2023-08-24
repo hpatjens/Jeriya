@@ -4,7 +4,6 @@ use crate::{
 };
 use jeriya_shared::{
     bus::{Bus, BusReader},
-    crossbeam_channel::{self, Receiver, Sender},
     log::{error, info, trace, warn},
     parking_lot::{Mutex, RwLock},
     pathdiff,
@@ -161,7 +160,7 @@ impl ImportSource for FileSystem {
 
 pub struct RawAsset {
     asset_key: AssetKey,
-    ty: TypeId,
+    _ty: TypeId,
     value: Mutex<Option<Arc<dyn Any + Send + Sync>>>,
 }
 
@@ -339,7 +338,7 @@ impl AssetImporter {
 
             let raw_asset = Arc::new(RawAsset {
                 asset_key: asset_key.clone(),
-                ty: TypeId::of::<T>(),
+                _ty: TypeId::of::<T>(),
                 value: Mutex::new(Some(Arc::new(value))),
             });
             tracked_assets2.write().insert(asset_key.clone(), raw_asset.clone());

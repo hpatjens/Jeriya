@@ -1,6 +1,6 @@
 use std::{fs, io};
 
-use jeriya_content::{AssetImporter, AssetProcessor, Directories, Error, FileSystem, ImportConfiguration, ProcessConfiguration};
+use jeriya_content::{AssetImporter, AssetProcessor, Directories, Error, FileSystem, ImportConfiguration};
 use jeriya_shared::log;
 
 fn main() -> io::Result<()> {
@@ -20,17 +20,17 @@ fn main() -> io::Result<()> {
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
 
     let directories = Directories::create_all_dir("assets/unprocessed_assets", "assets/processed_assets").unwrap();
-    let mut asset_processor = AssetProcessor::new(&directories, 4).unwrap();
-    asset_processor
-        .register(ProcessConfiguration {
-            extension: "txt".to_owned(),
-            processor: Box::new(|asset_builder| {
+    let _asset_processor = AssetProcessor::new(&directories, 4)
+        .unwrap()
+        .register(
+            "txt",
+            Box::new(|asset_builder| {
                 // Just move the text without any processing
                 let content = fs::read_to_string(asset_builder.unprocessed_asset_path()).unwrap();
                 fs::write(asset_builder.processed_asset_path().join("test.bin"), content).unwrap();
                 Ok(())
             }),
-        })
+        )
         .unwrap();
 
     let import_source = FileSystem::new(directories.processed_assets_path()).unwrap();

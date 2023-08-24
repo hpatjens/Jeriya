@@ -30,11 +30,6 @@ type ProcessFn = dyn Fn(&AssetKey, &Path, &Path) + Send + Sync;
 
 pub type Processor = dyn Fn(&mut AssetBuilder) -> Result<()> + Send + Sync;
 
-pub struct ProcessConfiguration {
-    pub extension: String,
-    pub processor: Box<Processor>,
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum Event {
     Processed(PathBuf),
@@ -189,29 +184,31 @@ impl AssetProcessor {
     /// let mut asset_processor = AssetProcessor::new(&directories, 4).unwrap();
     ///
     /// asset_processor
-    ///     .register(ProcessConfiguration {
-    ///         extension: "txt".to_owned(),
-    ///         processor: Box::new(|asset_builder| {
+    ///     .register(
+    ///         "txt",
+    ///         Box::new(|asset_builder| {
     ///             let content = std::fs::read_to_string(asset_builder.unprocessed_asset_path()).unwrap();
     ///             let processed_content = content.replace("World", "Universe");
     ///             std::fs::write(asset_builder.processed_asset_path().join("test.bin"), processed_content).unwrap();
     ///             Ok(())
-    ///         }),
-    ///     })
+    ///         })
+    ///     )
     ///     .unwrap();
     /// ```
-    pub fn register(self, process_config: ProcessConfiguration) -> Result<Self> {
+    pub fn register(self, extension: impl Into<String>, processor: Box<Processor>) -> Result<Self> {
+        let extension = extension.into();
+
         let mut processors = self.processors.lock();
-        if processors.contains_key(&process_config.extension) {
-            return Err(Error::ExtensionAlreadyRegistered(process_config.extension.clone()));
+        if processors.contains_key(&extension) {
+            return Err(Error::ExtensionAlreadyRegistered(extension));
         }
 
         processors.insert(
-            process_config.extension,
+            extension,
             Arc::new(move |asset_key, unprocessed_asset_path, processed_asset_path| {
                 info!("Processing file: {asset_key}");
                 let mut asset_builder = AssetBuilder::new(asset_key, unprocessed_asset_path, processed_asset_path);
-                let process_result = (process_config.processor)(&mut asset_builder);
+                let process_result = (processor)(&mut asset_builder);
                 match process_result {
                     Ok(()) => match asset_builder.build() {
                         Ok(_) => info!("Successfully processed and built file: {asset_key}"),
@@ -508,7 +505,7 @@ mod tests {
     use jeriya_test::setup_logger;
     use tempdir::TempDir;
 
-    use crate::{assert_processor::Event, common::Directories, AssetProcessor, ProcessConfiguration};
+    use crate::{assert_processor::Event, common::Directories, AssetProcessor};
 
     /// Creates an unprocessed asset with the given content.
     fn create_unprocessed_asset(root: &Path, content: &str) -> PathBuf {
@@ -520,9 +517,9 @@ mod tests {
 
     fn setup_dummy_txt_process_configuration(asset_processor: AssetProcessor) -> AssetProcessor {
         asset_processor
-            .register(ProcessConfiguration {
-                extension: "txt".to_owned(),
-                processor: Box::new(|asset_builder| {
+            .register(
+                "txt",
+                Box::new(|asset_builder| {
                     let content = fs::read_to_string(asset_builder.unprocessed_asset_path()).unwrap();
                     let processed_content = content.replace("World", "Universe");
                     const CONTENT_FILE: &'static str = "test.bin";
@@ -531,7 +528,7 @@ mod tests {
                     asset_builder.with_file("test.bin");
                     Ok(())
                 }),
-            })
+            )
             .unwrap()
     }
 

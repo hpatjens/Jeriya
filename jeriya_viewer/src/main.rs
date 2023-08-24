@@ -5,7 +5,7 @@ use ey::eyre::{eyre, Context};
 use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend_ash::AshBackend;
-use jeriya_content::{AssetImporter, AssetProcessor, Directories, FileSystem, ImportConfiguration, ProcessConfiguration};
+use jeriya_content::{AssetImporter, AssetProcessor, Directories, FileSystem};
 use jeriya_shared::{
     debug_info,
     immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
@@ -121,10 +121,7 @@ fn setup_asset_processor() -> ey::Result<AssetProcessor> {
         .wrap_err("Failed to create Directories for AssetProcessor")?;
     let asset_processor = AssetProcessor::new(&directories, 4)
         .wrap_err("Failed to create AssetProcessor")?
-        .register(ProcessConfiguration {
-            extension: "glb".to_string(),
-            processor: Box::new(jeriya_content::model::process_model),
-        })
+        .register("glb", Box::new(jeriya_content::model::process_model))
         .wrap_err("Failed to register model processor")?;
     asset_processor.set_active(true)?;
     Ok(asset_processor)
