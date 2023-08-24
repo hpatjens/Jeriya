@@ -1,6 +1,6 @@
 use std::{fs, io};
 
-use jeriya_content::{AssetImporter, AssetProcessor, Directories, Error, FileSystem, ImportConfiguration};
+use jeriya_content::{AssetImporter, AssetProcessor, Directories, Error, FileSystem};
 use jeriya_shared::log;
 
 fn main() -> io::Result<()> {
@@ -31,14 +31,14 @@ fn main() -> io::Result<()> {
     );
 
     let import_source = FileSystem::new(directories.processed_assets_path()).unwrap();
-    let asset_importer = AssetImporter::new(import_source, 4).unwrap().register(ImportConfiguration {
-        extension: "txt".to_owned(),
-        importer: Box::new(|data| {
+    let asset_importer = AssetImporter::new(import_source, 4).unwrap().register(
+        "txt",
+        Box::new(|data| {
             std::str::from_utf8(data)
                 .map_err(|err| Error::Other(Box::new(err)))
                 .map(|s| s.to_owned())
         }),
-    });
+    );
     let mut receiver = asset_importer.receiver::<String>().unwrap();
 
     loop {

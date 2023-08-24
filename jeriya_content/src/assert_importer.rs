@@ -202,16 +202,6 @@ impl<T> Clone for Asset<T> {
     }
 }
 
-pub struct ImportConfiguration<T>
-where
-    T: 'static + Send + Sync,
-{
-    /// Extension of the files that should be imported with the given [`Importer`].
-    pub extension: String,
-    /// The [`Importer`] function that converts the raw data into the asset type.
-    pub importer: Box<Importer<T>>,
-}
-
 type ImportFn = dyn for<'a> Fn(&AssetKey) + Send + Sync;
 
 pub struct AssetImporter {
@@ -305,15 +295,16 @@ impl AssetImporter {
     ///     })
     ///     .unwrap();
     /// ```
-    pub fn register<T>(self, import_configuration: ImportConfiguration<T>) -> Self
+    pub fn register<T>(self, extension: impl Into<String>, importer: Box<Importer<T>>) -> Self
     where
         T: 'static + Send + Sync,
     {
+        let extension = extension.into();
+
         let mut importers = self.importers.lock();
-        if importers.contains_key(&import_configuration.extension) {
-            panic!("importer for extension '{}' already registered", import_configuration.extension);
+        if importers.contains_key(&extension) {
+            panic!("importer for extension '{}' already registered", extension);
         }
-        let extension = import_configuration.extension.clone();
         let tracked_assets2 = self.tracked_assets.clone();
         let import_source2 = self.import_source.clone();
 
@@ -334,7 +325,7 @@ impl AssetImporter {
             let content = import_source2.read().read_content(asset_key, &meta_data.file)?;
 
             trace!("Starting the import for asset '{asset_key}'");
-            let value = (import_configuration.importer)(&content)?;
+            let value = (importer)(&content)?;
 
             let raw_asset = Arc::new(RawAsset {
                 asset_key: asset_key.clone(),
@@ -517,16 +508,14 @@ mod tests {
         create_processed_asset(root.path(), "Hello World!");
 
         let asset_source = FileSystem::new(root.path().to_owned()).unwrap();
-        let asset_importer = AssetImporter::new(asset_source, 4)
-            .unwrap()
-            .register::<String>(ImportConfiguration {
-                extension: "txt".to_owned(),
-                importer: Box::new(|data| {
-                    std::str::from_utf8(data)
-                        .map_err(|err| Error::Other(Box::new(err)))
-                        .map(|s| s.to_owned())
-                }),
-            });
+        let asset_importer = AssetImporter::new(asset_source, 4).unwrap().register::<String>(
+            "txt",
+            Box::new(|data| {
+                std::str::from_utf8(data)
+                    .map_err(|err| Error::Other(Box::new(err)))
+                    .map(|s| s.to_owned())
+            }),
+        );
         let mut receiver = asset_importer.receiver::<String>().unwrap();
 
         // Start the import process.
@@ -558,16 +547,14 @@ mod tests {
         create_processed_asset(root.path(), "Hello World!");
 
         let asset_source = FileSystem::new(root.path().to_owned()).unwrap();
-        let asset_importer = AssetImporter::new(asset_source, 4)
-            .unwrap()
-            .register::<String>(ImportConfiguration {
-                extension: "txt".to_owned(),
-                importer: Box::new(|data| {
-                    std::str::from_utf8(data)
-                        .map_err(|err| Error::Other(Box::new(err)))
-                        .map(|s| s.to_owned())
-                }),
-            });
+        let asset_importer = AssetImporter::new(asset_source, 4).unwrap().register::<String>(
+            "txt",
+            Box::new(|data| {
+                std::str::from_utf8(data)
+                    .map_err(|err| Error::Other(Box::new(err)))
+                    .map(|s| s.to_owned())
+            }),
+        );
         let mut receiver = asset_importer.receiver::<String>().unwrap();
 
         // Update the file content
