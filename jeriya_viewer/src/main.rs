@@ -121,8 +121,7 @@ fn setup_asset_processor() -> ey::Result<AssetProcessor> {
         .wrap_err("Failed to create Directories for AssetProcessor")?;
     let asset_processor = AssetProcessor::new(&directories, 4)
         .wrap_err("Failed to create AssetProcessor")?
-        .register("glb", Box::new(jeriya_content::model::process_model))
-        .wrap_err("Failed to register model processor")?;
+        .register("glb", Box::new(jeriya_content::model::process_model));
     asset_processor.set_active(true)?;
     Ok(asset_processor)
 }

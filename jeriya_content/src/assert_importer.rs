@@ -311,7 +311,7 @@ impl AssetImporter {
     {
         let mut importers = self.importers.lock();
         if importers.contains_key(&import_configuration.extension) {
-            return Err(Error::ExtensionAlreadyRegistered(import_configuration.extension.clone()));
+            panic!("importer for extension '{}' already registered", import_configuration.extension);
         }
         let extension = import_configuration.extension.clone();
         let tracked_assets2 = self.tracked_assets.clone();

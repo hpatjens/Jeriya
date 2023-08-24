@@ -21,8 +21,6 @@ pub enum Error {
     InvalidExtension(String, PathBuf),
     #[error("IoError: {0}")]
     IoError(#[from] io::Error),
-    #[error("Extension already registered: {0}")]
-    ExtensionAlreadyRegistered(String),
     #[error("Extension not registered: {0}")]
     ExtensionNotRegistered(String),
     #[error("Failed to start directory watcher in directory: {0}")]

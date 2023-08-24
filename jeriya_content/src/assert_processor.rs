@@ -195,14 +195,12 @@ impl AssetProcessor {
     ///     )
     ///     .unwrap();
     /// ```
-    pub fn register(self, extension: impl Into<String>, processor: Box<Processor>) -> Result<Self> {
+    pub fn register(self, extension: impl Into<String>, processor: Box<Processor>) -> Self {
         let extension = extension.into();
-
         let mut processors = self.processors.lock();
         if processors.contains_key(&extension) {
-            return Err(Error::ExtensionAlreadyRegistered(extension));
+            panic!("importer for extension '{extension}' already registered");
         }
-
         processors.insert(
             extension,
             Arc::new(move |asset_key, unprocessed_asset_path, processed_asset_path| {
@@ -219,8 +217,7 @@ impl AssetProcessor {
             }),
         );
         drop(processors);
-
-        Ok(self)
+        self
     }
 
     /// Returns a channel that can be used to observe [`Event`]s.
@@ -516,20 +513,18 @@ mod tests {
     }
 
     fn setup_dummy_txt_process_configuration(asset_processor: AssetProcessor) -> AssetProcessor {
-        asset_processor
-            .register(
-                "txt",
-                Box::new(|asset_builder| {
-                    let content = fs::read_to_string(asset_builder.unprocessed_asset_path()).unwrap();
-                    let processed_content = content.replace("World", "Universe");
-                    const CONTENT_FILE: &'static str = "test.bin";
-                    let content_file_path = asset_builder.processed_asset_path.join(CONTENT_FILE);
-                    fs::write(&content_file_path, processed_content).unwrap();
-                    asset_builder.with_file("test.bin");
-                    Ok(())
-                }),
-            )
-            .unwrap()
+        asset_processor.register(
+            "txt",
+            Box::new(|asset_builder| {
+                let content = fs::read_to_string(asset_builder.unprocessed_asset_path()).unwrap();
+                let processed_content = content.replace("World", "Universe");
+                const CONTENT_FILE: &'static str = "test.bin";
+                let content_file_path = asset_builder.processed_asset_path.join(CONTENT_FILE);
+                fs::write(&content_file_path, processed_content).unwrap();
+                asset_builder.with_file("test.bin");
+                Ok(())
+            }),
+        )
     }
 
     #[test]
