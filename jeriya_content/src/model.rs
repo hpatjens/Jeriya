@@ -37,6 +37,7 @@ pub enum ObjWriteConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Model {
+    name: String,
     meshes: Vec<Mesh>,
 }
 
@@ -178,10 +179,13 @@ fn build_model(path: impl AsRef<Path>) -> crate::Result<Model> {
         .map(|mesh| build_mesh(&model_name, &mesh, &buffers))
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(Model { meshes })
+    Ok(Model {
+        name: model_name.to_owned(),
+        meshes,
+    })
 }
 
-fn build_simple_mesh(model_name: &str, mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<SimpleMesh> {
+fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<SimpleMesh> {
     let mut used_vertex_positions = BTreeMap::new();
     let mut old_indices = Vec::new();
 
@@ -260,7 +264,7 @@ fn build_mesh(model_name: &str, mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate
     let name = mesh.name().unwrap_or("unknown");
     trace!("Processing mesh '{name}' in model '{model_name}'");
 
-    let simple_mesh = build_simple_mesh(model_name, mesh, buffers)?;
+    let simple_mesh = build_simple_mesh(mesh, buffers)?;
     let meshlets = build_meshlets(&simple_mesh)?;
 
     let mesh = Mesh { simple_mesh, meshlets };
