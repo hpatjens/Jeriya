@@ -119,8 +119,8 @@ fn load_model() -> ey::Result<Vec<Vector3<f32>>> {
 fn setup_asset_processor() -> ey::Result<AssetProcessor> {
     let directories = Directories::create_all_dir("assets/unprocessed", "assets/processed")
         .wrap_err("Failed to create Directories for AssetProcessor")?;
-    let mut asset_processor = AssetProcessor::new(&directories, 4).wrap_err("Failed to create AssetProcessor")?;
-    asset_processor
+    let asset_processor = AssetProcessor::new(&directories, 4)
+        .wrap_err("Failed to create AssetProcessor")?
         .register(ProcessConfiguration {
             extension: "glb".to_string(),
             processor: Box::new(jeriya_content::model::process_model),

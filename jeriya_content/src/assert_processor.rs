@@ -200,7 +200,7 @@ impl AssetProcessor {
     ///     })
     ///     .unwrap();
     /// ```
-    pub fn register(&mut self, process_config: ProcessConfiguration) -> Result<()> {
+    pub fn register(self, process_config: ProcessConfiguration) -> Result<Self> {
         let mut processors = self.processors.lock();
         if processors.contains_key(&process_config.extension) {
             return Err(Error::ExtensionAlreadyRegistered(process_config.extension.clone()));
@@ -221,8 +221,9 @@ impl AssetProcessor {
                 }
             }),
         );
+        drop(processors);
 
-        Ok(())
+        Ok(self)
     }
 
     /// Returns a channel that can be used to observe [`Event`]s.
@@ -517,7 +518,7 @@ mod tests {
         ASSET_PATH.into()
     }
 
-    fn setup_dummy_txt_process_configuration(asset_processor: &mut AssetProcessor) {
+    fn setup_dummy_txt_process_configuration(asset_processor: AssetProcessor) -> AssetProcessor {
         asset_processor
             .register(ProcessConfiguration {
                 extension: "txt".to_owned(),
@@ -531,7 +532,7 @@ mod tests {
                     Ok(())
                 }),
             })
-            .unwrap();
+            .unwrap()
     }
 
     #[test]
@@ -542,10 +543,9 @@ mod tests {
             Directories::create_all_dir(root.path().to_owned().join("unprocessed"), root.path().to_owned().join("processed")).unwrap();
 
         // Setup the AssetProcessor.
-        let mut asset_processor = AssetProcessor::new(&directories, 4).unwrap();
-        setup_dummy_txt_process_configuration(&mut asset_processor);
+        let mut asset_processor = setup_dummy_txt_process_configuration(AssetProcessor::new(&directories, 4).unwrap());
         let observer_channel = asset_processor.observe();
-        asset_processor.set_active(true);
+        asset_processor.set_active(true).unwrap();
 
         // Create a sample asset to be processed.
         let asset_path = create_unprocessed_asset(&directories.unprocessed_assets_path(), "Hello World!");
