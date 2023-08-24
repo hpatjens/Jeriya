@@ -36,7 +36,7 @@ fn main() -> io::Result<()> {
     let import_source = FileSystem::new(directories.processed_assets_path()).unwrap();
     let mut asset_importer = AssetImporter::new(import_source, 4).unwrap();
 
-    let receiver = asset_importer
+    asset_importer
         .register(ImportConfiguration {
             extension: "txt".to_owned(),
             importer: Box::new(|data| {
@@ -46,9 +46,10 @@ fn main() -> io::Result<()> {
             }),
         })
         .unwrap();
+    let mut receiver = asset_importer.receiver::<String>().unwrap();
 
     loop {
-        match receiver.recv().unwrap() {
+        match receiver.recv().unwrap().as_ref() {
             Ok(asset) => println!("{:?}", asset.value()),
             Err(err) => eprintln!("{err}"),
         }

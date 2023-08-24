@@ -3,7 +3,8 @@ use crate::{
     Error, Result,
 };
 use jeriya_shared::{
-    crossbeam_channel::{self, Receiver},
+    bus::{Bus, BusReader},
+    crossbeam_channel::{self, Receiver, Sender},
     log::{error, info, trace, warn},
     parking_lot::{Mutex, RwLock},
     pathdiff,
@@ -193,6 +194,15 @@ where
     }
 }
 
+impl<T> Clone for Asset<T> {
+    fn clone(&self) -> Self {
+        Self {
+            raw_asset: self.raw_asset.clone(),
+            _phantom: self._phantom.clone(),
+        }
+    }
+}
+
 pub struct ImportConfiguration<T>
 where
     T: 'static + Send + Sync,
@@ -210,6 +220,10 @@ pub struct AssetImporter {
 
     /// Maps the file extension to the importer function.
     importers: Arc<Mutex<BTreeMap<String, Arc<ImportFn>>>>,
+
+    /// Maps the type id to the channel that is used to send the result of the import. Any
+    /// is used because the type of the channel depends on the type of the asset.
+    buses: Arc<Mutex<BTreeMap<TypeId, Box<dyn Any + Sync + Send>>>>,
 
     tracked_assets: Arc<RwLock<BTreeMap<AssetKey, Arc<RawAsset>>>>,
     import_source: Arc<RwLock<dyn ImportSource>>,
@@ -266,6 +280,7 @@ impl AssetImporter {
             importers,
             tracked_assets: Arc::new(RwLock::new(BTreeMap::new())),
             import_source,
+            buses: Arc::new(Mutex::new(BTreeMap::new())),
         })
     }
 
@@ -291,7 +306,7 @@ impl AssetImporter {
     ///     })
     ///     .unwrap();
     /// ```
-    pub fn register<T>(&mut self, import_configuration: ImportConfiguration<T>) -> Result<Receiver<Result<Arc<Asset<T>>>>>
+    pub fn register<T>(&mut self, import_configuration: ImportConfiguration<T>) -> Result<()>
     where
         T: 'static + Send + Sync,
     {
@@ -302,10 +317,16 @@ impl AssetImporter {
         let extension = import_configuration.extension.clone();
         let tracked_assets2 = self.tracked_assets.clone();
         let import_source2 = self.import_source.clone();
-        let (sender, receiver) = crossbeam_channel::unbounded();
+
+        // Create bus to send the result of the import.
+        let bus = Bus::<Arc<Result<Asset<T>>>>::new(1024);
+        let mut buses = self.buses.lock();
+        buses.insert(TypeId::of::<T>(), Box::new(bus));
+        drop(buses);
+        let buses2 = self.buses.clone();
 
         // Function to import an asset from a file.
-        let import_from_file = move |asset_key: &AssetKey| -> Result<Arc<Asset<T>>> {
+        let import_from_file = move |asset_key: &AssetKey| -> Result<Asset<T>> {
             trace!("Reading meta data for asset '{asset_key}'");
             let meta_data = import_source2.read().read_meta_data(asset_key)?;
             info!("Meta data for asset '{asset_key}': {meta_data:#?}");
@@ -322,12 +343,10 @@ impl AssetImporter {
                 value: Mutex::new(Some(Arc::new(value))),
             });
             tracked_assets2.write().insert(asset_key.clone(), raw_asset.clone());
-            let asset = Arc::new(Asset {
+            Ok(Asset {
                 raw_asset,
                 _phantom: PhantomData,
-            });
-
-            Ok(asset)
+            })
         };
 
         // Insert an import function into the map that does the import and sends the result to the receiver.
@@ -335,18 +354,52 @@ impl AssetImporter {
             extension.clone(),
             Arc::new(move |asset_key| {
                 let result = import_from_file(asset_key);
-                let result_string = match &result {
-                    Ok(..) => format!("Ok"),
-                    Err(..) => format!("Err"),
-                };
-                match sender.send(result) {
-                    Ok(()) => info!("Successfully imported asset '{asset_key}'"),
-                    Err(err) => error!("Failed to send result '{result_string}' of import for asset '{asset_key}': {err:?}"),
-                }
+                let mut buses = buses2.lock();
+                let bus = buses
+                    .get_mut(&TypeId::of::<T>())
+                    .and_then(|any| any.downcast_mut::<Bus<Arc<Result<Asset<T>>>>>())
+                    .expect("failed to get bus for asset type although it must have been inserted at registration");
+                bus.broadcast(Arc::new(result));
             }),
         );
         info!("Registerd importer for extension '{extension}'");
-        Ok(receiver)
+        Ok(())
+    }
+
+    /// Returns the receiver for the given asset type when it was registered before.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::sync::Arc;
+    /// # use jeriya_content::{AssetImporter, FileSystem, ImportConfiguration, Error};
+    /// # std::fs::create_dir_all("assets").unwrap();
+    /// # let asset_source = FileSystem::new("assets").unwrap();
+    /// let mut asset_importer = AssetImporter::new(asset_source, 4).unwrap();
+    /// asset_importer
+    ///     .register::<String>(ImportConfiguration {
+    ///          // snip
+    /// #        extension: "txt".to_owned(),
+    /// #        importer: Box::new(|data| {
+    /// #            std::str::from_utf8(data)
+    /// #                .map_err(|err| Error::Other(Box::new(err)))
+    /// #                .map(|s| s.to_owned())
+    /// #        }),
+    ///     })
+    ///     .unwrap();
+    ///
+    /// let receiver = asset_importer.receiver::<String>().unwrap();
+    /// assert!(receiver.is_some());
+    /// ```
+    pub fn receiver<T>(&self) -> Option<BusReader<Arc<Result<Asset<T>>>>>
+    where
+        T: 'static + Send + Sync,
+    {
+        let mut buses = self.buses.lock();
+        buses
+            .get_mut(&TypeId::of::<T>())
+            .and_then(|any| any.downcast_mut::<Bus<Arc<Result<Asset<T>>>>>())
+            .map(|bus| bus.add_rx())
     }
 
     /// Imports all assets of the given type.
@@ -448,6 +501,13 @@ mod tests {
         assert!(root.path().to_owned().join("test.txt/asset.yaml").is_file());
     }
 
+    fn expect_asset<T>(result: std::result::Result<Arc<Result<Asset<T>>>, std::sync::mpsc::RecvTimeoutError>) -> Asset<T> {
+        match result.unwrap().as_ref() {
+            Ok(asset) => asset.clone(),
+            Err(err) => panic!("Failed to import asset: {:#?}", err),
+        }
+    }
+
     #[test]
     fn smoke() {
         setup_logger();
@@ -460,7 +520,7 @@ mod tests {
         let mut asset_importer = AssetImporter::new(asset_source, 4).unwrap();
 
         // Importer that converts a text file to a `String`.
-        let receiver = asset_importer
+        asset_importer
             .register::<String>(ImportConfiguration {
                 extension: "txt".to_owned(),
                 importer: Box::new(|data| {
@@ -470,12 +530,13 @@ mod tests {
                 }),
             })
             .unwrap();
+        let mut receiver = asset_importer.receiver::<String>().unwrap();
 
         // Start the import process.
         asset_importer.import::<String>("test.txt").unwrap();
 
         // Receive and check the result.
-        let result = receiver.recv_timeout(Duration::from_millis(100)).unwrap().unwrap();
+        let result = expect_asset(receiver.recv_timeout(Duration::from_millis(100)));
         assert_eq!(*result.value().unwrap(), "Hello World!");
         assert_eq!(result.as_path(), Path::new("test.txt"));
         assert_eq!(result.value(), Some(Arc::new("Hello World!".to_owned())));
@@ -503,7 +564,7 @@ mod tests {
         let mut asset_importer = AssetImporter::new(asset_source, 4).unwrap();
 
         // Importer that converts a text file to a `String`.
-        let receiver = asset_importer
+        asset_importer
             .register::<String>(ImportConfiguration {
                 extension: "txt".to_owned(),
                 importer: Box::new(|data| {
@@ -513,12 +574,13 @@ mod tests {
                 }),
             })
             .unwrap();
+        let mut receiver = asset_importer.receiver::<String>().unwrap();
 
         // Update the file content
         create_processed_asset(root.path(), "Hello World 2!");
 
         // Receive and check the result.
-        let asset = receiver.recv_timeout(Duration::from_millis(1000)).unwrap().unwrap();
+        let asset = expect_asset(receiver.recv_timeout(Duration::from_millis(1000)));
         assert_eq!(asset.value(), Some(Arc::new("Hello World 2!".to_owned())));
     }
 }

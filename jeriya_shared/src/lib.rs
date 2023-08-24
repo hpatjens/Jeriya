@@ -25,6 +25,7 @@ pub use resources::*;
 pub use async_trait;
 pub use bitflags;
 pub use bumpalo;
+pub use bus;
 pub use byte_unit;
 pub use byteorder;
 pub use chrono;
