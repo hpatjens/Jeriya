@@ -279,21 +279,20 @@ impl AssetImporter {
     ///
     /// ```
     /// # use std::sync::Arc;
-    /// use jeriya_content::{AssetImporter, FileSystem, ImportConfiguration, Error};
+    /// use jeriya_content::{AssetImporter, FileSystem, Error};
     /// std::fs::create_dir_all("assets").unwrap();
     /// let asset_source = FileSystem::new("assets").unwrap();
     /// let mut asset_importer = AssetImporter::new(asset_source, 4).unwrap();
     ///
     /// asset_importer
-    ///     .register::<String>(ImportConfiguration {
-    ///         extension: "txt".to_owned(),
-    ///         importer: Box::new(|data| {
+    ///     .register::<String>(
+    ///         "txt",
+    ///         Box::new(|data| {
     ///             std::str::from_utf8(data)
     ///                 .map_err(|err| Error::Other(Box::new(err)))
     ///                 .map(|s| s.to_owned())
-    ///         }),
-    ///     })
-    ///     .unwrap();
+    ///         })
+    ///     );
     /// ```
     pub fn register<T>(self, extension: impl Into<String>, importer: Box<Importer<T>>) -> Self
     where
@@ -363,23 +362,22 @@ impl AssetImporter {
     ///
     /// ```
     /// # use std::sync::Arc;
-    /// # use jeriya_content::{AssetImporter, FileSystem, ImportConfiguration, Error};
+    /// # use jeriya_content::{AssetImporter, FileSystem, Error};
     /// # std::fs::create_dir_all("assets").unwrap();
     /// # let asset_source = FileSystem::new("assets").unwrap();
-    /// let mut asset_importer = AssetImporter::new(asset_source, 4).unwrap();
-    /// asset_importer
-    ///     .register::<String>(ImportConfiguration {
+    /// let mut asset_importer = AssetImporter::new(asset_source, 4)
+    ///     .unwrap()
+    ///     .register::<String>(
     ///          // snip
-    /// #        extension: "txt".to_owned(),
-    /// #        importer: Box::new(|data| {
+    /// #        "txt",
+    /// #        Box::new(|data| {
     /// #            std::str::from_utf8(data)
     /// #                .map_err(|err| Error::Other(Box::new(err)))
     /// #                .map(|s| s.to_owned())
-    /// #        }),
-    ///     })
-    ///     .unwrap();
+    /// #        })
+    ///     );
     ///
-    /// let receiver = asset_importer.receiver::<String>().unwrap();
+    /// let receiver = asset_importer.receiver::<String>();
     /// assert!(receiver.is_some());
     /// ```
     pub fn receiver<T>(&self) -> Option<BusReader<Arc<Result<Asset<T>>>>>

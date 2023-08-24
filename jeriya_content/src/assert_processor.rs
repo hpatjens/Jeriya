@@ -179,11 +179,10 @@ impl AssetProcessor {
     /// # Example
     ///
     /// ```rust
-    /// use jeriya_content::{AssetProcessor, ProcessConfiguration, Directories};
+    /// use jeriya_content::{AssetProcessor, Directories};
     /// let directories = Directories::create_all_dir("unprocessed", "processed").unwrap();
-    /// let mut asset_processor = AssetProcessor::new(&directories, 4).unwrap();
-    ///
-    /// asset_processor
+    /// let asset_processor = AssetProcessor::new(&directories, 4)
+    ///     .unwrap()
     ///     .register(
     ///         "txt",
     ///         Box::new(|asset_builder| {
@@ -192,8 +191,7 @@ impl AssetProcessor {
     ///             std::fs::write(asset_builder.processed_asset_path().join("test.bin"), processed_content).unwrap();
     ///             Ok(())
     ///         })
-    ///     )
-    ///     .unwrap();
+    ///     );
     /// ```
     pub fn register(self, extension: impl Into<String>, processor: Box<Processor>) -> Self {
         let extension = extension.into();
