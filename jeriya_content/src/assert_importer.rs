@@ -305,7 +305,7 @@ impl AssetImporter {
     ///     })
     ///     .unwrap();
     /// ```
-    pub fn register<T>(&mut self, import_configuration: ImportConfiguration<T>) -> Result<()>
+    pub fn register<T>(self, import_configuration: ImportConfiguration<T>) -> Self
     where
         T: 'static + Send + Sync,
     {
@@ -361,8 +361,9 @@ impl AssetImporter {
                 bus.broadcast(Arc::new(result));
             }),
         );
+        drop(importers);
         info!("Registerd importer for extension '{extension}'");
-        Ok(())
+        self
     }
 
     /// Returns the receiver for the given asset type when it was registered before.
@@ -516,10 +517,8 @@ mod tests {
         create_processed_asset(root.path(), "Hello World!");
 
         let asset_source = FileSystem::new(root.path().to_owned()).unwrap();
-        let mut asset_importer = AssetImporter::new(asset_source, 4).unwrap();
-
-        // Importer that converts a text file to a `String`.
-        asset_importer
+        let asset_importer = AssetImporter::new(asset_source, 4)
+            .unwrap()
             .register::<String>(ImportConfiguration {
                 extension: "txt".to_owned(),
                 importer: Box::new(|data| {
@@ -527,8 +526,7 @@ mod tests {
                         .map_err(|err| Error::Other(Box::new(err)))
                         .map(|s| s.to_owned())
                 }),
-            })
-            .unwrap();
+            });
         let mut receiver = asset_importer.receiver::<String>().unwrap();
 
         // Start the import process.
@@ -560,10 +558,8 @@ mod tests {
         create_processed_asset(root.path(), "Hello World!");
 
         let asset_source = FileSystem::new(root.path().to_owned()).unwrap();
-        let mut asset_importer = AssetImporter::new(asset_source, 4).unwrap();
-
-        // Importer that converts a text file to a `String`.
-        asset_importer
+        let asset_importer = AssetImporter::new(asset_source, 4)
+            .unwrap()
             .register::<String>(ImportConfiguration {
                 extension: "txt".to_owned(),
                 importer: Box::new(|data| {
@@ -571,8 +567,7 @@ mod tests {
                         .map_err(|err| Error::Other(Box::new(err)))
                         .map(|s| s.to_owned())
                 }),
-            })
-            .unwrap();
+            });
         let mut receiver = asset_importer.receiver::<String>().unwrap();
 
         // Update the file content

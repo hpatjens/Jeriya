@@ -31,18 +31,14 @@ fn main() -> io::Result<()> {
     );
 
     let import_source = FileSystem::new(directories.processed_assets_path()).unwrap();
-    let mut asset_importer = AssetImporter::new(import_source, 4).unwrap();
-
-    asset_importer
-        .register(ImportConfiguration {
-            extension: "txt".to_owned(),
-            importer: Box::new(|data| {
-                std::str::from_utf8(data)
-                    .map_err(|err| Error::Other(Box::new(err)))
-                    .map(|s| s.to_owned())
-            }),
-        })
-        .unwrap();
+    let asset_importer = AssetImporter::new(import_source, 4).unwrap().register(ImportConfiguration {
+        extension: "txt".to_owned(),
+        importer: Box::new(|data| {
+            std::str::from_utf8(data)
+                .map_err(|err| Error::Other(Box::new(err)))
+                .map(|s| s.to_owned())
+        }),
+    });
     let mut receiver = asset_importer.receiver::<String>().unwrap();
 
     loop {
