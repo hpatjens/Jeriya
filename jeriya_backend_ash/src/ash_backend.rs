@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler},
@@ -42,7 +42,7 @@ pub struct ImmediateRenderingRequest {
 }
 
 pub struct AshBackend {
-    presenters: HashMap<WindowId, RefCell<Presenter>>,
+    presenters: HashMap<WindowId, Arc<Mutex<Presenter>>>,
     _surfaces: HashMap<WindowId, Arc<Surface>>,
     _validation_layer_callback: Option<ValidationLayerCallback>,
     _instance: Arc<Instance>,
@@ -116,7 +116,7 @@ impl Backend for AshBackend {
             .map(|(presenter_index, (window_id, surface))| {
                 info!("Creating presenter for window {window_id:?}");
                 let presenter = Presenter::new(presenter_index, window_id, surface, backend_shared.clone())?;
-                Ok((*window_id, RefCell::new(presenter)))
+                Ok((*window_id, Arc::new(Mutex::new(presenter))))
             })
             .collect::<jeriya_shared::Result<HashMap<_, _>>>()?;
 
@@ -139,7 +139,7 @@ impl Backend for AshBackend {
             .presenters
             .get(&window_id)
             .ok_or_else(|| base::Error::UnknownWindowId(window_id))?
-            .borrow_mut();
+            .lock();
         presenter.recreate()?;
         Ok(())
     }
@@ -232,7 +232,7 @@ impl Backend for AshBackend {
 
         // Render on all surfaces
         for (_window_id, presenter) in &self.presenters {
-            let presenter = &mut *presenter.borrow_mut();
+            let presenter = &mut *presenter.lock();
             presenter.request_frame()?;
         }
 
@@ -258,7 +258,7 @@ impl Backend for AshBackend {
                 },
                 count: 1,
             };
-            presenter.borrow_mut().render_immediate_command_buffer(immediate_rendering_request);
+            presenter.lock().render_immediate_command_buffer(immediate_rendering_request);
         }
         Ok(())
     }
@@ -288,7 +288,7 @@ impl Backend for AshBackend {
             .presenters
             .get(&window_id)
             .ok_or(jeriya_shared::Error::UnknownWindowId(window_id))?;
-        presenter.borrow_mut().set_active_camera(handle);
+        presenter.lock().set_active_camera(handle);
         Ok(())
     }
 
@@ -296,7 +296,7 @@ impl Backend for AshBackend {
         self.presenters
             .get(&window_id)
             .ok_or(jeriya_shared::Error::UnknownWindowId(window_id))
-            .map(|presenter| presenter.borrow().active_camera())
+            .map(|presenter| presenter.lock().active_camera())
     }
 }
 
