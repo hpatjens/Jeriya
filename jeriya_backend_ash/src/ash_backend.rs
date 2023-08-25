@@ -1,4 +1,11 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{
+        mpsc::{self, Receiver},
+        Arc,
+    },
+    thread,
+};
 
 use crate::{
     ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler},
@@ -26,7 +33,7 @@ use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info, immediate,
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
-    log::info,
+    log::{error, info},
     nalgebra::Vector4,
     parking_lot::Mutex,
     tracy_client::{span, Client},
@@ -47,8 +54,8 @@ pub struct AshBackend {
     _validation_layer_callback: Option<ValidationLayerCallback>,
     _instance: Arc<Instance>,
     _entry: Arc<Entry>,
-    queue: Mutex<Queue>,
     backend_shared: Arc<BackendShared>,
+    frame_start_sender: mpsc::Sender<()>,
 }
 
 #[profile]
@@ -110,6 +117,18 @@ impl Backend for AshBackend {
 
         let backend_shared = Arc::new(BackendShared::new(&device, &Arc::new(renderer_config))?);
 
+        info!("Creating inanimate mesh events thread");
+        let (frame_start_sender, receiver) = mpsc::channel();
+        let backend_shared2 = backend_shared.clone();
+        thread::spawn(move || {
+            let client = Client::start();
+            client.set_thread_name("inanimate_mesh_events_thread");
+
+            if let Err(err) = run_inanimate_mesh_events_thread(receiver, &backend_shared2) {
+                error!("Failed to run inanimate mesh events thread: {err:?}");
+            }
+        });
+
         let presenters = surfaces
             .iter()
             .enumerate()
@@ -120,17 +139,14 @@ impl Backend for AshBackend {
             })
             .collect::<jeriya_shared::Result<HashMap<_, _>>>()?;
 
-        info!("Creating Queue");
-        let queue = Mutex::new(Queue::new(&device, QueueType::Presentation, 0)?);
-
         Ok(Self {
             _entry: entry,
             _instance: instance,
             _surfaces: surfaces,
             _validation_layer_callback: validation_layer_callback,
             presenters,
-            queue,
             backend_shared,
+            frame_start_sender,
         })
     }
 
@@ -147,88 +163,7 @@ impl Backend for AshBackend {
     fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
         let _span = span!("AshBackend::handle_render_frame");
 
-        if !self.backend_shared.inanimate_mesh_event_queue.lock().is_empty() {
-            let _span = span!("Handle inanimate mesh events");
-
-            info!("Creating CommandPool");
-            let command_pool = CommandPool::new(
-                &self.backend_shared.device,
-                &self.queue.lock(),
-                CommandPoolCreateFlags::ResetCommandBuffer,
-                debug_info!("preliminary-CommandPool"),
-            )?;
-
-            // Create a new command buffer for maintaining the meshes
-            let mut command_buffer = CommandBuffer::new(
-                &self.backend_shared.device,
-                &command_pool.clone(),
-                debug_info!("maintanance-CommandBuffer"),
-            )?;
-            let mut command_buffer_builder = CommandBufferBuilder::new(&self.backend_shared.device, &mut command_buffer)?;
-            command_buffer_builder.begin_command_buffer_for_one_time_submit()?;
-
-            // Handle inanimate mesh events
-            while let Some(event) = self.backend_shared.inanimate_mesh_event_queue.lock().pop() {
-                match event {
-                    InanimateMeshEvent::Insert {
-                        inanimate_mesh,
-                        vertex_positions,
-                        indices: _,
-                    } => {
-                        let vertex_positions4 = vertex_positions
-                            .iter()
-                            .map(|v| Vector4::new(v.x, v.y, v.z, 1.0))
-                            .collect::<Vec<_>>();
-                        let vertices_start_offset = self
-                            .backend_shared
-                            .static_vertex_buffer
-                            .lock()
-                            .push(&vertex_positions4, &mut command_buffer_builder)?;
-                        let inanimate_mesh_gpu = shader_interface::InanimateMesh {
-                            start_offset: vertices_start_offset as u64,
-                            vertices_len: vertex_positions.len() as u64,
-                        };
-                        info!(
-                            "Inserting a new inanimate mesh with start_offset: {start_offset} and vertices_len: {vertices_len}",
-                            start_offset = vertices_start_offset,
-                            vertices_len = vertex_positions.len()
-                        );
-                        let inanimate_mesh_start_offset = self
-                            .backend_shared
-                            .inanimate_mesh_buffer
-                            .lock()
-                            .push(&[inanimate_mesh_gpu], &mut command_buffer_builder)?;
-                        let inanimate_mesh2 = inanimate_mesh.clone();
-                        let inanimate_mesh_gpu_states2 = self.backend_shared.inanimate_mesh_gpu_states.clone();
-
-                        // Insert the GPU state for the InanimateMesh when the upload to the GPU is done
-                        command_buffer_builder.push_finished_operation(Box::new(move || {
-                            let handle = inanimate_mesh2.handle();
-                            inanimate_mesh_gpu_states2.lock().insert(
-                                handle.clone(),
-                                InanimateMeshGpuState::Uploaded {
-                                    inanimate_mesh_offset: inanimate_mesh_start_offset as u64,
-                                },
-                            );
-                            info!(
-                                "Upload of inanimate mesh {} ({:?}) to GPU is done",
-                                inanimate_mesh.as_debug_info().format_one_line(),
-                                handle
-                            );
-                            Ok(())
-                        }));
-                    }
-                    InanimateMeshEvent::SetVertexPositions {
-                        inanimate_mesh: _,
-                        vertex_posisions: _,
-                    } => {
-                        todo!()
-                    }
-                }
-            }
-            command_buffer_builder.end_command_buffer()?;
-            self.queue.lock().submit(command_buffer)?;
-        }
+        self.frame_start_sender.send(()).expect("failed to send frame start");
 
         // Render on all surfaces
         for (_window_id, presenter) in &self.presenters {
@@ -298,6 +233,106 @@ impl Backend for AshBackend {
             .ok_or(jeriya_shared::Error::UnknownWindowId(window_id))
             .map(|presenter| presenter.lock().active_camera())
     }
+}
+
+fn run_inanimate_mesh_events_thread(frame_start_receiver: Receiver<()>, backend_shared: &BackendShared) -> jeriya_shared::Result<()> {
+    info!("Creating Queue");
+    let mut queue = Queue::new(&backend_shared.device, QueueType::Presentation, 0)?;
+
+    loop {
+        let Ok(()) = frame_start_receiver.recv() else {
+            panic!("failed to receive frame start");
+        };
+        handle_events(&mut queue, backend_shared)?;
+    }
+}
+
+#[profile]
+fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_shared::Result<()> {
+    if !backend_shared.inanimate_mesh_event_queue.lock().is_empty() {
+        let _span = span!("Handle inanimate mesh events");
+
+        info!("Creating CommandPool");
+        let command_pool = CommandPool::new(
+            &backend_shared.device,
+            queue,
+            CommandPoolCreateFlags::ResetCommandBuffer,
+            debug_info!("preliminary-CommandPool"),
+        )?;
+
+        // Create a new command buffer for maintaining the meshes
+        let mut command_buffer = CommandBuffer::new(
+            &backend_shared.device,
+            &command_pool.clone(),
+            debug_info!("maintanance-CommandBuffer"),
+        )?;
+        let mut command_buffer_builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
+        command_buffer_builder.begin_command_buffer_for_one_time_submit()?;
+
+        // Handle inanimate mesh events
+        while let Some(event) = backend_shared.inanimate_mesh_event_queue.lock().pop() {
+            match event {
+                InanimateMeshEvent::Insert {
+                    inanimate_mesh,
+                    vertex_positions,
+                    indices: _,
+                } => {
+                    let _span = span!("Insert inanimate mesh");
+
+                    let vertex_positions4 = vertex_positions
+                        .iter()
+                        .map(|v| Vector4::new(v.x, v.y, v.z, 1.0))
+                        .collect::<Vec<_>>();
+                    let vertices_start_offset = backend_shared
+                        .static_vertex_buffer
+                        .lock()
+                        .push(&vertex_positions4, &mut command_buffer_builder)?;
+                    let inanimate_mesh_gpu = shader_interface::InanimateMesh {
+                        start_offset: vertices_start_offset as u64,
+                        vertices_len: vertex_positions.len() as u64,
+                    };
+                    info!(
+                        "Inserting a new inanimate mesh with start_offset: {start_offset} and vertices_len: {vertices_len}",
+                        start_offset = vertices_start_offset,
+                        vertices_len = vertex_positions.len()
+                    );
+                    let inanimate_mesh_start_offset = backend_shared
+                        .inanimate_mesh_buffer
+                        .lock()
+                        .push(&[inanimate_mesh_gpu], &mut command_buffer_builder)?;
+                    let inanimate_mesh2 = inanimate_mesh.clone();
+                    let inanimate_mesh_gpu_states2 = backend_shared.inanimate_mesh_gpu_states.clone();
+
+                    // Insert the GPU state for the InanimateMesh when the upload to the GPU is done
+                    command_buffer_builder.push_finished_operation(Box::new(move || {
+                        let handle = inanimate_mesh2.handle();
+                        inanimate_mesh_gpu_states2.lock().insert(
+                            handle.clone(),
+                            InanimateMeshGpuState::Uploaded {
+                                inanimate_mesh_offset: inanimate_mesh_start_offset as u64,
+                            },
+                        );
+                        info!(
+                            "Upload of inanimate mesh {} ({:?}) to GPU is done",
+                            inanimate_mesh.as_debug_info().format_one_line(),
+                            handle
+                        );
+                        Ok(())
+                    }));
+                }
+                InanimateMeshEvent::SetVertexPositions {
+                    inanimate_mesh: _,
+                    vertex_posisions: _,
+                } => {
+                    todo!()
+                }
+            }
+        }
+        command_buffer_builder.end_command_buffer()?;
+        queue.submit(command_buffer)?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
