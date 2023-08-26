@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 jeriya_shared = { path = "../jeriya_shared" }
+jeriya_backend = { path = "../jeriya_backend" }
 
 [dev-dependencies]
 jeriya_test = { path = "../jeriya_test" }

@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
-use nalgebra::{Matrix4, Vector3, Vector4};
+use jeriya_shared::{
+    nalgebra::{Matrix4, Vector3, Vector4},
+    AsDebugInfo, DebugInfo,
+};
 
-use crate::{backend::Backend, AsDebugInfo, DebugInfo, ImmediateCommandBufferBuilderHandler};
+use crate::{backend::Backend, ImmediateCommandBufferBuilderHandler};
 
 /// Configuration for immediate line rendering
 #[derive(Debug, Clone)]

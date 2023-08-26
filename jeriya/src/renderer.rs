@@ -1,9 +1,13 @@
 use jeriya_shared::{
-    immediate::{CommandBuffer, CommandBufferBuilder},
-    inanimate_mesh::InanimateMeshGroup,
     tracy_client::Client,
     winit::window::{Window, WindowId},
-    Backend, Camera, CameraContainerGuard, DebugInfo, Handle, InanimateMeshInstanceContainerGuard, RendererConfig, Result,
+    DebugInfo, Handle, RendererConfig,
+};
+
+use jeriya_backend::{
+    immediate::{CommandBuffer, CommandBufferBuilder},
+    inanimate_mesh::InanimateMeshGroup,
+    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, Result,
 };
 
 use std::{marker::PhantomData, sync::Arc};
@@ -132,31 +136,30 @@ where
 
 #[cfg(test)]
 mod tests {
-    use jeriya_shared::{
-        debug_info,
+    use jeriya_backend::{
         immediate::{CommandBuffer, CommandBufferBuilder},
         inanimate_mesh::InanimateMeshGroup,
+        Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, InanimateMeshInstance,
+        InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent,
+    };
+    use jeriya_shared::{
+        debug_info,
         parking_lot::Mutex,
         winit::window::{Window, WindowId},
-        AsDebugInfo, Backend, Camera, CameraContainerGuard, CameraEvent, DebugInfo, EventQueue, Handle,
-        ImmediateCommandBufferBuilderHandler, InanimateMeshInstance, InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent,
-        IndexingContainer, RendererConfig,
+        AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer, RendererConfig,
     };
     use std::sync::Arc;
 
     mod immediate_command_buffer {
+        use jeriya_backend::immediate::{LineConfig, LineList};
         use jeriya_backend_ash::AshBackend;
-        use jeriya_shared::{
-            debug_info,
-            immediate::{LineConfig, LineList},
-            nalgebra::Vector3,
-        };
+        use jeriya_shared::{debug_info, nalgebra::Vector3};
         use jeriya_test::create_window;
 
         use crate::Renderer;
 
         #[test]
-        fn smoke() -> jeriya_shared::Result<()> {
+        fn smoke() -> jeriya_backend::Result<()> {
             let window = create_window();
             let renderer = Renderer::<AshBackend>::builder().add_windows(&[&window]).build()?;
             let line_list = LineList::new(
@@ -194,7 +197,7 @@ mod tests {
             _renderer_config: jeriya_shared::RendererConfig,
             _backend_config: Self::BackendConfig,
             _windows: &[&Window],
-        ) -> jeriya_shared::Result<Self>
+        ) -> jeriya_backend::Result<Self>
         where
             Self: Sized,
         {
@@ -215,21 +218,21 @@ mod tests {
             })
         }
 
-        fn handle_window_resized(&self, _window_id: WindowId) -> jeriya_shared::Result<()> {
+        fn handle_window_resized(&self, _window_id: WindowId) -> jeriya_backend::Result<()> {
             Ok(())
         }
 
-        fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
+        fn handle_render_frame(&self) -> jeriya_backend::Result<()> {
             Ok(())
         }
 
-        fn create_immediate_command_buffer_builder(&self, _debug_info: DebugInfo) -> jeriya_shared::Result<CommandBufferBuilder<Self>> {
+        fn create_immediate_command_buffer_builder(&self, _debug_info: DebugInfo) -> jeriya_backend::Result<CommandBufferBuilder<Self>> {
             Ok(CommandBufferBuilder::new(DummyImmediateCommandBufferBuilderHandler(debug_info!(
                 "dummy"
             ))))
         }
 
-        fn render_immediate_command_buffer(&self, _command_buffer: Arc<CommandBuffer<Self>>) -> jeriya_shared::Result<()> {
+        fn render_immediate_command_buffer(&self, _command_buffer: Arc<CommandBuffer<Self>>) -> jeriya_backend::Result<()> {
             Ok(())
         }
 
@@ -241,7 +244,7 @@ mod tests {
             &self.inanimate_mesh_group
         }
 
-        fn inanimate_mesh_instances(&self) -> jeriya_shared::InanimateMeshInstanceContainerGuard {
+        fn inanimate_mesh_instances(&self) -> jeriya_backend::InanimateMeshInstanceContainerGuard {
             InanimateMeshInstanceContainerGuard::new(
                 self.inanimate_mesh_instance_event_queue.lock(),
                 self.inanimate_mesh_instances.lock(),
@@ -249,41 +252,41 @@ mod tests {
             )
         }
 
-        fn set_active_camera(&self, _window_id: WindowId, _handle: jeriya_shared::Handle<Camera>) -> jeriya_shared::Result<()> {
+        fn set_active_camera(&self, _window_id: WindowId, _handle: jeriya_shared::Handle<Camera>) -> jeriya_backend::Result<()> {
             Ok(())
         }
 
-        fn active_camera(&self, _window_id: WindowId) -> jeriya_shared::Result<jeriya_shared::Handle<Camera>> {
+        fn active_camera(&self, _window_id: WindowId) -> jeriya_backend::Result<jeriya_shared::Handle<Camera>> {
             Ok(self.active_camera.clone())
         }
     }
     impl ImmediateCommandBufferBuilderHandler for DummyImmediateCommandBufferBuilderHandler {
         type Backend = DummyBackend;
 
-        fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
+        fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_backend::Result<Self>
         where
             Self: Sized,
         {
             Ok(DummyImmediateCommandBufferBuilderHandler(debug_info))
         }
 
-        fn build(self) -> jeriya_shared::Result<Arc<CommandBuffer<Self::Backend>>> {
+        fn build(self) -> jeriya_backend::Result<Arc<CommandBuffer<Self::Backend>>> {
             Ok(Arc::new(CommandBuffer::new(DummyImmediateCommandBufferHandler(self.0))))
         }
-        fn matrix(&mut self, _matrix: jeriya_shared::nalgebra::Matrix4<f32>) -> jeriya_shared::Result<()> {
+        fn matrix(&mut self, _matrix: jeriya_shared::nalgebra::Matrix4<f32>) -> jeriya_backend::Result<()> {
             Ok(())
         }
-        fn push_line_lists(&mut self, _line_lists: &[jeriya_shared::immediate::LineList]) -> jeriya_shared::Result<()> {
+        fn push_line_lists(&mut self, _line_lists: &[jeriya_backend::immediate::LineList]) -> jeriya_backend::Result<()> {
             Ok(())
         }
 
-        fn push_line_strips(&mut self, _line_strips: &[jeriya_shared::immediate::LineStrip]) -> jeriya_shared::Result<()> {
+        fn push_line_strips(&mut self, _line_strips: &[jeriya_backend::immediate::LineStrip]) -> jeriya_backend::Result<()> {
             Ok(())
         }
-        fn push_triangle_lists(&mut self, _triangle_lists: &[jeriya_shared::immediate::TriangleList]) -> jeriya_shared::Result<()> {
+        fn push_triangle_lists(&mut self, _triangle_lists: &[jeriya_backend::immediate::TriangleList]) -> jeriya_backend::Result<()> {
             Ok(())
         }
-        fn push_triangle_strips(&mut self, _triangle_strips: &[jeriya_shared::immediate::TriangleStrip]) -> jeriya_shared::Result<()> {
+        fn push_triangle_strips(&mut self, _triangle_strips: &[jeriya_backend::immediate::TriangleStrip]) -> jeriya_backend::Result<()> {
             Ok(())
         }
     }

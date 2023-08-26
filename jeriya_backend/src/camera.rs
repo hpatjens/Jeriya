@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
-use derive_more::Constructor;
-use parking_lot::MutexGuard;
-
-use crate::{
-    event_queue::EventQueue,
+use jeriya_shared::{
+    derive_more::Constructor,
     nalgebra::{Matrix4, Vector3},
-    nalgebra_glm, Error, Handle, IndexingContainer, RendererConfig,
+    nalgebra_glm,
+    parking_lot::MutexGuard,
+    EventQueue, Handle, IndexingContainer, RendererConfig,
 };
+
+use crate::Error;
 
 /// Type of projection for a camera.
 #[derive(Debug, Clone)]

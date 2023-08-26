@@ -23,7 +23,7 @@ impl Presenter {
         window_id: &WindowId,
         surface: &Arc<Surface>,
         backend_shared: Arc<BackendShared>,
-    ) -> jeriya_shared::Result<Self> {
+    ) -> jeriya_backend::Result<Self> {
         let presenter_shared = Arc::new(Mutex::new(PresenterShared::new(window_id, &backend_shared, surface)?));
         let frames = Arc::new(Mutex::new(SwapchainVec::new(presenter_shared.lock().swapchain(), |_| {
             Frame::new(presenter_index, window_id, &backend_shared)
@@ -54,7 +54,7 @@ impl Presenter {
     /// Sends a request to the presenter thread to render a frame.
     ///
     /// This will block when more frames are requested than the swapchain can hold.
-    pub fn request_frame(&mut self) -> jeriya_shared::Result<()> {
+    pub fn request_frame(&mut self) -> jeriya_backend::Result<()> {
         self.thread.request_frame()?;
         Ok(())
     }
@@ -73,12 +73,12 @@ impl Presenter {
     }
 
     /// Sets the active camera
-    pub fn set_active_camera(&self, handle: Handle<jeriya_shared::Camera>) {
+    pub fn set_active_camera(&self, handle: Handle<jeriya_backend::Camera>) {
         self.presenter_shared.lock().active_camera = handle;
     }
 
     /// Returns the active camera
-    pub fn active_camera(&self) -> Handle<jeriya_shared::Camera> {
+    pub fn active_camera(&self) -> Handle<jeriya_backend::Camera> {
         self.presenter_shared.lock().active_camera.clone()
     }
 }

@@ -19,6 +19,11 @@ use base::{
     queue::{Queue, QueueType},
     shader_interface,
 };
+use jeriya_backend::{
+    immediate,
+    inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
+    Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
+};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     debug::{set_panic_on_message, ValidationLayerCallback},
@@ -31,15 +36,13 @@ use jeriya_backend_ash_base::{
 };
 use jeriya_macros::profile;
 use jeriya_shared::{
-    debug_info, immediate,
-    inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
+    debug_info,
     log::{error, info},
     nalgebra::Vector4,
     parking_lot::Mutex,
     tracy_client::{span, Client},
     winit::window::{Window, WindowId},
-    AsDebugInfo, Backend, Camera, CameraContainerGuard, DebugInfo, Handle, ImmediateCommandBufferBuilderHandler,
-    InanimateMeshInstanceContainerGuard, RendererConfig,
+    AsDebugInfo, DebugInfo, Handle, RendererConfig,
 };
 
 #[derive(Debug)]
@@ -65,12 +68,12 @@ impl Backend for AshBackend {
     type ImmediateCommandBufferBuilderHandler = AshImmediateCommandBufferBuilderHandler;
     type ImmediateCommandBufferHandler = AshImmediateCommandBufferHandler;
 
-    fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> jeriya_shared::Result<Self>
+    fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> jeriya_backend::Result<Self>
     where
         Self: Sized,
     {
         if windows.is_empty() {
-            return Err(jeriya_shared::Error::ExpectedWindow);
+            return Err(jeriya_backend::Error::ExpectedWindow);
         }
 
         info!("Creating Vulkan Entry");
@@ -137,7 +140,7 @@ impl Backend for AshBackend {
                 let presenter = Presenter::new(presenter_index, window_id, surface, backend_shared.clone())?;
                 Ok((*window_id, Arc::new(Mutex::new(presenter))))
             })
-            .collect::<jeriya_shared::Result<HashMap<_, _>>>()?;
+            .collect::<jeriya_backend::Result<HashMap<_, _>>>()?;
 
         Ok(Self {
             _entry: entry,
@@ -150,7 +153,7 @@ impl Backend for AshBackend {
         })
     }
 
-    fn handle_window_resized(&self, window_id: WindowId) -> jeriya_shared::Result<()> {
+    fn handle_window_resized(&self, window_id: WindowId) -> jeriya_backend::Result<()> {
         let presenter = self
             .presenters
             .get(&window_id)
@@ -160,7 +163,7 @@ impl Backend for AshBackend {
         Ok(())
     }
 
-    fn handle_render_frame(&self) -> jeriya_shared::Result<()> {
+    fn handle_render_frame(&self) -> jeriya_backend::Result<()> {
         let _span = span!("AshBackend::handle_render_frame");
 
         self.frame_start_sender.send(()).expect("failed to send frame start");
@@ -179,12 +182,12 @@ impl Backend for AshBackend {
     fn create_immediate_command_buffer_builder(
         &self,
         debug_info: DebugInfo,
-    ) -> jeriya_shared::Result<immediate::CommandBufferBuilder<Self>> {
+    ) -> jeriya_backend::Result<immediate::CommandBufferBuilder<Self>> {
         let command_buffer_builder = AshImmediateCommandBufferBuilderHandler::new(self, debug_info)?;
         Ok(immediate::CommandBufferBuilder::new(command_buffer_builder))
     }
 
-    fn render_immediate_command_buffer(&self, command_buffer: Arc<immediate::CommandBuffer<Self>>) -> jeriya_shared::Result<()> {
+    fn render_immediate_command_buffer(&self, command_buffer: Arc<immediate::CommandBuffer<Self>>) -> jeriya_backend::Result<()> {
         for presenter in self.presenters.values() {
             let immediate_rendering_request = ImmediateRenderingRequest {
                 immediate_command_buffer: AshImmediateCommandBufferHandler {
@@ -218,24 +221,24 @@ impl Backend for AshBackend {
         )
     }
 
-    fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> jeriya_shared::Result<()> {
+    fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> jeriya_backend::Result<()> {
         let presenter = self
             .presenters
             .get(&window_id)
-            .ok_or(jeriya_shared::Error::UnknownWindowId(window_id))?;
+            .ok_or(jeriya_backend::Error::UnknownWindowId(window_id))?;
         presenter.lock().set_active_camera(handle);
         Ok(())
     }
 
-    fn active_camera(&self, window_id: WindowId) -> jeriya_shared::Result<Handle<Camera>> {
+    fn active_camera(&self, window_id: WindowId) -> jeriya_backend::Result<Handle<Camera>> {
         self.presenters
             .get(&window_id)
-            .ok_or(jeriya_shared::Error::UnknownWindowId(window_id))
+            .ok_or(jeriya_backend::Error::UnknownWindowId(window_id))
             .map(|presenter| presenter.lock().active_camera())
     }
 }
 
-fn run_inanimate_mesh_events_thread(frame_start_receiver: Receiver<()>, backend_shared: &BackendShared) -> jeriya_shared::Result<()> {
+fn run_inanimate_mesh_events_thread(frame_start_receiver: Receiver<()>, backend_shared: &BackendShared) -> jeriya_backend::Result<()> {
     info!("Creating Queue");
     let mut queue = Queue::new(&backend_shared.device, QueueType::Presentation, 0)?;
 
@@ -248,7 +251,7 @@ fn run_inanimate_mesh_events_thread(frame_start_receiver: Receiver<()>, backend_
 }
 
 #[profile]
-fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_shared::Result<()> {
+fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_backend::Result<()> {
     if !backend_shared.inanimate_mesh_event_queue.lock().is_empty() {
         let _span = span!("Handle inanimate mesh events");
 
@@ -369,7 +372,7 @@ mod tests {
             let backend_config = Config::default();
             assert!(matches!(
                 AshBackend::new(renderer_config, backend_config, &[]),
-                Err(jeriya_shared::Error::ExpectedWindow)
+                Err(jeriya_backend::Error::ExpectedWindow)
             ));
         }
     }

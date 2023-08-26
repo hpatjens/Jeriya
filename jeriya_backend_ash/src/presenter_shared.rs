@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use jeriya_backend::CameraContainerGuard;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig},
@@ -12,8 +13,13 @@ use jeriya_backend_ash_base::{
     swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
-use jeriya_shared::nalgebra::{Matrix4, Vector4};
-use jeriya_shared::{debug_info, log::info, winit::window::WindowId, CameraContainerGuard, Handle};
+use jeriya_shared::{
+    debug_info,
+    log::info,
+    nalgebra::{Matrix4, Vector4},
+    winit::window::WindowId,
+    Handle,
+};
 
 use crate::{backend_shared::BackendShared, ImmediateRenderingRequest};
 
@@ -56,13 +62,13 @@ pub struct PresenterShared {
     pub immediate_graphics_pipeline_triangle_strip: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
     pub cull_compute_pipeline: GenericComputePipeline,
     pub indirect_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
-    pub active_camera: Handle<jeriya_shared::Camera>,
+    pub active_camera: Handle<jeriya_backend::Camera>,
     pub device: Arc<Device>,
 }
 
 impl PresenterShared {
     /// Creates a new `Presenter` for the [`Surface`]
-    pub fn new(window_id: &WindowId, backend_shared: &BackendShared, surface: &Arc<Surface>) -> jeriya_shared::Result<Self> {
+    pub fn new(window_id: &WindowId, backend_shared: &BackendShared, surface: &Arc<Surface>) -> jeriya_backend::Result<Self> {
         macro_rules! spirv {
             ($shader:literal) => {
                 Arc::new(include_bytes!(concat!("../../jeriya_backend_ash_base/test_data/", $shader)).to_vec())
@@ -152,7 +158,7 @@ impl PresenterShared {
             backend_shared.cameras.lock(),
             backend_shared.renderer_config.clone(),
         );
-        let active_camera = guard.insert(jeriya_shared::Camera::default())?;
+        let active_camera = guard.insert(jeriya_backend::Camera::default())?;
         drop(guard);
 
         Ok(Self {

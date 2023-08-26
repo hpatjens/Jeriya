@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use jeriya_shared::{
+use jeriya_backend::{
     immediate::{self, LineList, LineStrip, TriangleList, TriangleStrip},
-    nalgebra::Matrix4,
-    AsDebugInfo, DebugInfo, ImmediateCommandBufferBuilderHandler,
+    ImmediateCommandBufferBuilderHandler,
 };
+use jeriya_shared::{nalgebra::Matrix4, AsDebugInfo, DebugInfo};
 
 use crate::AshBackend;
 
@@ -37,7 +37,7 @@ pub struct AshImmediateCommandBufferBuilderHandler {
 impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilderHandler {
     type Backend = AshBackend;
 
-    fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_shared::Result<Self>
+    fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_backend::Result<Self>
     where
         Self: Sized,
     {
@@ -47,12 +47,12 @@ impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilderHa
         })
     }
 
-    fn matrix(&mut self, matrix: Matrix4<f32>) -> jeriya_shared::Result<()> {
+    fn matrix(&mut self, matrix: Matrix4<f32>) -> jeriya_backend::Result<()> {
         self.commands.push(ImmediateCommand::Matrix(matrix));
         Ok(())
     }
 
-    fn push_line_lists(&mut self, line_lists: &[LineList]) -> jeriya_shared::Result<()> {
+    fn push_line_lists(&mut self, line_lists: &[LineList]) -> jeriya_backend::Result<()> {
         for line_list in line_lists {
             if line_list.positions().is_empty() {
                 continue;
@@ -62,7 +62,7 @@ impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilderHa
         Ok(())
     }
 
-    fn push_line_strips(&mut self, line_strips: &[LineStrip]) -> jeriya_shared::Result<()> {
+    fn push_line_strips(&mut self, line_strips: &[LineStrip]) -> jeriya_backend::Result<()> {
         for line_strip in line_strips {
             if line_strip.positions().is_empty() {
                 continue;
@@ -72,7 +72,7 @@ impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilderHa
         Ok(())
     }
 
-    fn push_triangle_lists(&mut self, triangle_lists: &[TriangleList]) -> jeriya_shared::Result<()> {
+    fn push_triangle_lists(&mut self, triangle_lists: &[TriangleList]) -> jeriya_backend::Result<()> {
         for triangle_list in triangle_lists {
             if triangle_list.positions().is_empty() {
                 continue;
@@ -82,7 +82,7 @@ impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilderHa
         Ok(())
     }
 
-    fn push_triangle_strips(&mut self, triangle_strips: &[TriangleStrip]) -> jeriya_shared::Result<()> {
+    fn push_triangle_strips(&mut self, triangle_strips: &[TriangleStrip]) -> jeriya_backend::Result<()> {
         for triangle_strip in triangle_strips {
             if triangle_strip.positions().is_empty() {
                 continue;
@@ -92,7 +92,7 @@ impl ImmediateCommandBufferBuilderHandler for AshImmediateCommandBufferBuilderHa
         Ok(())
     }
 
-    fn build(self) -> jeriya_shared::Result<Arc<immediate::CommandBuffer<Self::Backend>>> {
+    fn build(self) -> jeriya_backend::Result<Arc<immediate::CommandBuffer<Self::Backend>>> {
         let command_buffer = AshImmediateCommandBufferHandler {
             commands: self.commands,
             debug_info: self.debug_info,

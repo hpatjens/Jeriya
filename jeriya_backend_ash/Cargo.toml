@@ -9,3 +9,4 @@ jeriya_test = { path = "../jeriya_test" }
 jeriya = { path = "../jeriya" }
 jeriya_shared = { path = "../jeriya_shared" }
 jeriya_macros = { path = "../jeriya_macros" }
+jeriya_backend = { path = "../jeriya_backend" }

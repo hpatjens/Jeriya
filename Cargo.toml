@@ -1,11 +1,12 @@
 [workspace]
 members = [
-    "jeriya", 
-    "jeriya_backend_ash", 
-    "jeriya_backend_ash_base", 
-    "jeriya_shared", 
-    "jeriya_test", 
-    "jeriya_macros", 
+    "jeriya",
+    "jeriya_backend_ash",
+    "jeriya_backend_ash_base",
+    "jeriya_shared",
+    "jeriya_test",
+    "jeriya_macros",
     "jeriya_content",
-    "jeriya_viewer"
+    "jeriya_viewer",
+    "jeriya_backend",
 ]

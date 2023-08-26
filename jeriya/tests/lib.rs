@@ -8,7 +8,7 @@ mod immediate_command_buffer {
     // use jeriya_test::create_window;
 
     #[test]
-    fn smoke() -> jeriya_shared::Result<()> {
+    fn smoke() -> jeriya_backend::Result<()> {
         // let window = create_window();
         // let renderer = jeriya::Renderer::<AshBackend>::builder().add_windows(&[&window]).build().unwrap();
         // renderer

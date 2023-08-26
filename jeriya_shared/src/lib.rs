@@ -1,11 +1,6 @@
-mod backend;
-mod camera;
 mod debug_info;
 mod event_queue;
-pub mod immediate;
 mod indexing_container;
-mod objects;
-mod resources;
 
 use std::{
     collections::hash_map::DefaultHasher,
@@ -13,14 +8,10 @@ use std::{
     result,
 };
 
-pub use backend::*;
-pub use camera::*;
 pub use debug_info::*;
 pub use event_queue::*;
 pub use indexing_container::*;
 use nalgebra::Vector4;
-pub use objects::*;
-pub use resources::*;
 
 pub use async_trait;
 pub use bitflags;
@@ -43,8 +34,6 @@ pub use thiserror;
 pub use tracy_client;
 pub use walkdir;
 pub use winit;
-
-use winit::window::WindowId;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AssertLevel {
@@ -73,23 +62,6 @@ macro_rules! assert_eq {
         }
     };
 }
-
-/// Error type for the whole library
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("No windows are given")]
-    ExpectedWindow,
-    #[error("The given window id is not known")]
-    UnknownWindowId(WindowId),
-    #[error("The maximum capacity of elements is reached: {0}")]
-    MaximumCapacityReached(usize),
-    #[error("Error from the backend: {0}")]
-    Backend(Box<dyn std::error::Error + Send + Sync>),
-    #[error("Error concerning the InanimateMeshes")]
-    InanimateMesh(resources::inanimate_mesh::Error),
-}
-
-pub type Result<T> = result::Result<T, Error>;
 
 /// Configuration for the [`Renderer`]
 pub struct RendererConfig {

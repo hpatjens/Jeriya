@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use nalgebra::Vector3;
-use parking_lot::Mutex;
-use thiserror::Error;
+use jeriya_shared::{
+    debug_info, nalgebra::Vector3, parking_lot::Mutex, thiserror, AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer,
+};
 
-use crate::{debug_info, event_queue::EventQueue, AsDebugInfo, DebugInfo, Handle, IndexingContainer, Resource};
+use crate::Resource;
 
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("The number of vertices doesn't match the allocated size. Expected {expected} but got {got}")]
     WrongSize { expected: usize, got: usize },

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use derive_more::Constructor;
-use nalgebra::Affine3;
-use parking_lot::MutexGuard;
+use jeriya_shared::{
+    derive_more::Constructor, nalgebra::Affine3, parking_lot::MutexGuard, EventQueue, Handle, IndexingContainer, RendererConfig,
+};
 
-use crate::{EventQueue, Handle, InanimateMesh, IndexingContainer, RendererConfig};
+use crate::InanimateMesh;
 
 #[derive(Constructor, Debug, Clone)]
 pub struct InanimateMeshInstance {

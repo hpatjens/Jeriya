@@ -114,7 +114,7 @@ impl<'a> DescriptorPoolBuilder<'a> {
     }
 
     /// Builds the [`DescriptorPool`]
-    pub fn build(self) -> jeriya_shared::Result<DescriptorPool> {
+    pub fn build(self) -> crate::Result<DescriptorPool> {
         // Create the vk::DescriptorPoolSizes
         let descriptor_pool_sizes = self
             .descriptor_type_capacities

@@ -146,9 +146,9 @@ pub enum Error {
     WouldOverflow,
 }
 
-impl From<Error> for jeriya_shared::Error {
+impl From<Error> for jeriya_backend::Error {
     fn from(value: Error) -> Self {
-        jeriya_shared::Error::Backend(Box::new(value))
+        jeriya_backend::Error::Backend(Box::new(value))
     }
 }
 

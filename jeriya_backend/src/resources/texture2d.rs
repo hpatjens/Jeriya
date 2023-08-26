@@ -1,4 +1,4 @@
-use crate::{AsDebugInfo, DebugInfo};
+use jeriya_shared::{AsDebugInfo, DebugInfo};
 
 #[derive(Default)]
 pub struct Texture2d {

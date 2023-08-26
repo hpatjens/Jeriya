@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
-use nalgebra::Matrix4;
+use jeriya_shared::{
+    nalgebra::Matrix4,
+    winit::window::{Window, WindowId},
+    AsDebugInfo, DebugInfo, Handle, RendererConfig,
+};
 
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
     inanimate_mesh::InanimateMeshGroup,
     objects::InanimateMeshInstanceContainerGuard,
-    winit::window::{Window, WindowId},
-    AsDebugInfo, Camera, CameraContainerGuard, DebugInfo, Handle, RendererConfig,
+    Camera, CameraContainerGuard,
 };
 
 /// Rendering backend that is used by the [`Renderer`]

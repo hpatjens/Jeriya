@@ -4,12 +4,15 @@ use color_eyre as ey;
 use ey::eyre::{eyre, Context};
 use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
+use jeriya_backend::{
+    immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
+    inanimate_mesh::MeshType,
+    Backend, InanimateMeshInstance,
+};
 use jeriya_backend_ash::AshBackend;
 use jeriya_content::{AssetImporter, AssetProcessor, Directories, FileSystem};
 use jeriya_shared::{
     debug_info,
-    immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
-    inanimate_mesh::MeshType,
     log::{self, error},
     nalgebra::{Affine3, Matrix4, Vector3, Vector4},
     winit::{
@@ -18,11 +21,11 @@ use jeriya_shared::{
         event_loop::EventLoop,
         window::WindowBuilder,
     },
-    Backend, InanimateMeshInstance, RendererConfig,
+    RendererConfig,
 };
 
 /// Shows how the immediate rendering API can be used.
-fn immediate_rendering<B>(renderer: &Renderer<B>) -> jeriya_shared::Result<()>
+fn immediate_rendering<B>(renderer: &Renderer<B>) -> jeriya_backend::Result<()>
 where
     B: Backend,
 {

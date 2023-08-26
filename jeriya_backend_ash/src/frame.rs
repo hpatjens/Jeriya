@@ -110,7 +110,7 @@ impl Frame {
         backend_shared: &BackendShared,
         presenter_shared: &mut PresenterShared,
         rendering_complete_command_buffer: &mut Option<Arc<CommandBuffer>>,
-    ) -> jeriya_shared::Result<()> {
+    ) -> jeriya_backend::Result<()> {
         // Wait for the previous work for the currently occupied frame to finish
         let wait_span = span!("wait for rendering complete");
         if let Some(command_buffer) = rendering_complete_command_buffer.take() {

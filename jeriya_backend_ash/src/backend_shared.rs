@@ -1,15 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
-use jeriya_backend_ash_base::{buffer::BufferUsageFlags, device::Device, shader_interface, staged_push_only_buffer::StagedPushOnlyBuffer};
-use jeriya_shared::{
-    debug_info,
+use jeriya_backend::{
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
-    log::info,
-    nalgebra::Vector4,
-    parking_lot::Mutex,
-    Camera, CameraEvent, EventQueue, Handle, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent, IndexingContainer,
-    RendererConfig,
+    Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent,
 };
+use jeriya_backend_ash_base::{buffer::BufferUsageFlags, device::Device, shader_interface, staged_push_only_buffer::StagedPushOnlyBuffer};
+use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, EventQueue, Handle, IndexingContainer, RendererConfig};
 
 /// Elements of the backend that are shared between all [`Presenter`]s.
 pub struct BackendShared {
@@ -27,7 +23,7 @@ pub struct BackendShared {
 }
 
 impl BackendShared {
-    pub fn new(device: &Arc<Device>, renderer_config: &Arc<RendererConfig>) -> jeriya_shared::Result<Self> {
+    pub fn new(device: &Arc<Device>, renderer_config: &Arc<RendererConfig>) -> jeriya_backend::Result<Self> {
         info!("Creating Cameras");
         let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
         let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
