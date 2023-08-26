@@ -42,6 +42,25 @@ pub struct Model {
 }
 
 impl Model {
+    /// Import model from a glTF file.
+    pub fn import(path: impl AsRef<Path>) -> crate::Result<Model> {
+        let (document, buffers, _images) = gltf::import(&path).map_err(|err| Error::FailedLoading {
+            path: path.as_ref().to_owned(),
+            error_message: err.to_string(),
+        })?;
+
+        let model_name = path.as_ref().to_str().unwrap_or("unknown");
+        let meshes = document
+            .meshes()
+            .map(|mesh| build_mesh(&model_name, &mesh, &buffers))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(Model {
+            name: model_name.to_owned(),
+            meshes,
+        })
+    }
+
     /// Writes the model to an OBJ file. The MTL file must be written to the same directory as the OBJ file. `mtl_reference_name` must be the filename of the MTL file.
     pub fn to_obj(
         &self,
@@ -159,30 +178,12 @@ pub struct Meshlet {
 /// Function for the [`AssetProcessor`]
 pub fn process_model(asset_builder: &mut AssetBuilder) -> crate::Result<()> {
     let path = asset_builder.unprocessed_asset_path().to_owned();
-    let model = build_model(&path)?;
+    let model = Model::import(&path)?;
     let file_name = "model.bin";
     let file = File::create(asset_builder.processed_asset_path().join(file_name))?;
     bincode::serialize_into(file, &model).map_err(|err| crate::Error::FailedSerialization(err))?;
     asset_builder.with_file(file_name);
     Ok(())
-}
-
-fn build_model(path: impl AsRef<Path>) -> crate::Result<Model> {
-    let (document, buffers, _images) = gltf::import(&path).map_err(|err| Error::FailedLoading {
-        path: path.as_ref().to_owned(),
-        error_message: err.to_string(),
-    })?;
-
-    let model_name = path.as_ref().to_str().unwrap_or("unknown");
-    let meshes = document
-        .meshes()
-        .map(|mesh| build_mesh(&model_name, &mesh, &buffers))
-        .collect::<Result<Vec<_>, _>>()?;
-
-    Ok(Model {
-        name: model_name.to_owned(),
-        meshes,
-    })
 }
 
 fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<SimpleMesh> {
@@ -291,7 +292,7 @@ mod tests {
     }
 
     fn export(src_path: impl AsRef<Path>, dst_name: &str, obj_write_config: ObjWriteConfig) -> Contents {
-        let model = build_model(&src_path).unwrap();
+        let model = Model::import(&src_path).unwrap();
         let mut obj_writer = BufWriter::new(Vec::new());
         let mut mtl_writer = BufWriter::new(Vec::new());
 
@@ -326,7 +327,7 @@ mod tests {
     #[test]
     fn smoke() {
         setup_logger();
-        let model = build_model("../sample_assets/rotated_cube.glb").unwrap();
+        let model = Model::import("../sample_assets/rotated_cube.glb").unwrap();
         asserting("mesh count").that(&model.meshes.len()).is_equal_to(1);
         asserting("vertex count")
             .that(&model.meshes[0].simple_mesh.vertex_positions.len())
