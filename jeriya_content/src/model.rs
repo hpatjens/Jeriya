@@ -37,8 +37,8 @@ pub enum ObjWriteConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Model {
-    name: String,
-    meshes: Vec<Mesh>,
+    pub name: String,
+    pub meshes: Vec<Mesh>,
 }
 
 impl Model {
@@ -135,14 +135,14 @@ impl Model {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Mesh {
-    simple_mesh: SimpleMesh,
-    meshlets: Vec<Meshlet>,
+    pub simple_mesh: SimpleMesh,
+    pub meshlets: Vec<Meshlet>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimpleMesh {
-    vertex_positions: Vec<Vector3<f32>>,
-    indices: Vec<u32>,
+    pub vertex_positions: Vec<Vector3<f32>>,
+    pub indices: Vec<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

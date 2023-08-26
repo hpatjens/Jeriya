@@ -1,7 +1,9 @@
 pub mod inanimate_mesh;
+pub mod model;
 mod texture2d;
 
 pub use inanimate_mesh::InanimateMesh;
+pub use model::Model;
 pub use texture2d::*;
 
 use jeriya_shared::AsDebugInfo;

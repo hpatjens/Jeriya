@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use jeriya_shared::{
-    debug_info, nalgebra::Vector3, parking_lot::Mutex, thiserror, AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer,
+    debug_info, derive_new::new, nalgebra::Vector3, parking_lot::Mutex, thiserror, AsDebugInfo, DebugInfo, EventQueue, Handle,
+    IndexingContainer,
 };
 
 use crate::Resource;
@@ -197,8 +198,10 @@ pub enum InanimateMeshEvent {
 }
 
 pub struct InanimateMeshGroup {
-    inanimate_meshes: Arc<Mutex<IndexingContainer<Arc<InanimateMesh>>>>,
-    event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
+    // This is pub(crate) because the ModelGroup needs access to it
+    pub(crate) inanimate_meshes: Arc<Mutex<IndexingContainer<Arc<InanimateMesh>>>>,
+    // This is pub(crate) because the ModelGroup needs access to it
+    pub(crate) event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
 }
 
 impl InanimateMeshGroup {
@@ -216,49 +219,48 @@ impl InanimateMeshGroup {
 
     /// Inserts a [`InanimateMesh`] into the [`InanimateMeshGroup`]
     fn insert(&self, inanimate_mesh: Arc<InanimateMesh>) {
-        match &inanimate_mesh.gpu_state {
-            InanimateMeshGpuState::WaitingForUpload { vertex_positions, indices } => {
-                self.event_queue.lock().push(InanimateMeshEvent::Insert {
-                    inanimate_mesh: inanimate_mesh.clone(),
-                    vertex_positions: vertex_positions.clone(),
-                    indices: indices.clone(),
-                });
-            }
-            InanimateMeshGpuState::Uploaded { .. } => {
-                panic!("InanimateMeshes that are already uploaded are not allowed to be inserted into the InanimateMeshGroup");
-            }
-        }
-        let handle = self.inanimate_meshes.lock().insert(inanimate_mesh.clone());
-        *inanimate_mesh.handle.lock() = Some(handle);
+        insert_inanimate_mesh(inanimate_mesh, self.inanimate_meshes.clone(), self.event_queue.clone());
     }
 }
 
+/// This function inserts the given [`InanimateMesh`] into the [`IndexingContainer`] and pushes
+/// an [`InanimateMeshEvent::Insert`] into the [`EventQueue`]. This function is used by the
+/// [`InanimateMeshGroup`] as well as the [`ModelGroup`] which also operates on [`InanimateMesh`]es.
+pub(crate) fn insert_inanimate_mesh(
+    inanimate_mesh: Arc<InanimateMesh>,
+    inanimate_meshes: Arc<Mutex<IndexingContainer<Arc<InanimateMesh>>>>,
+    event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
+) -> Handle<Arc<InanimateMesh>> {
+    match &inanimate_mesh.gpu_state {
+        InanimateMeshGpuState::WaitingForUpload { vertex_positions, indices } => {
+            event_queue.lock().push(InanimateMeshEvent::Insert {
+                inanimate_mesh: inanimate_mesh.clone(),
+                vertex_positions: vertex_positions.clone(),
+                indices: indices.clone(),
+            });
+        }
+        InanimateMeshGpuState::Uploaded { .. } => {
+            panic!("InanimateMeshes that are already uploaded are not allowed to be inserted into the InanimateMeshGroup");
+        }
+    }
+    let handle = inanimate_meshes.lock().insert(inanimate_mesh.clone());
+    *inanimate_mesh.handle.lock() = Some(handle.clone());
+    handle
+}
+
+#[derive(new)]
 pub struct InanimateMeshBuilder<'a> {
     inanimate_mesh_group: &'a InanimateMeshGroup,
     ty: MeshType,
     vertex_positions: Vec<Vector3<f32>>,
+    #[new(default)]
     indices: Option<Vec<u32>>,
+    #[new(default)]
     debug_info: Option<DebugInfo>,
     event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
 }
 
 impl<'a> InanimateMeshBuilder<'a> {
-    fn new(
-        inanimate_mesh_group: &'a InanimateMeshGroup,
-        ty: MeshType,
-        vertices: Vec<Vector3<f32>>,
-        event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
-    ) -> Self {
-        Self {
-            inanimate_mesh_group,
-            ty,
-            vertex_positions: vertices,
-            indices: None,
-            debug_info: None,
-            event_queue,
-        }
-    }
-
     /// Sets the indices of the [`InanimateMesh`]
     pub fn with_indices(mut self, indices: Vec<u32>) -> Self {
         self.indices = Some(indices);

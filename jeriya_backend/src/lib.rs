@@ -23,6 +23,8 @@ pub enum Error {
     Backend(Box<dyn std::error::Error + Send + Sync>),
     #[error("Error concerning the InanimateMeshes")]
     InanimateMesh(resources::inanimate_mesh::Error),
+    #[error("Error concerning the Models")]
+    Model(resources::model::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

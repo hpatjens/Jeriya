@@ -117,7 +117,7 @@ impl AssetProcessor {
                     // relative paths because it's irrelavant where on the system they are located.
                     let Some(path) = pathdiff::diff_paths(&absolute_path, &directories2.unprocessed_assets_path()) else {
                         warn! {
-                            "Failed to get relative path of '{absolute_path}' relative to '{unprocessed_assets_path}'", 
+                            "Failed to get relative path of '{absolute_path}' relative to '{unprocessed_assets_path}'",
                             absolute_path = absolute_path.display(),
                             unprocessed_assets_path = directories2.unprocessed_assets_path().display()
                         };
@@ -368,7 +368,11 @@ fn run_inventory(
 
     for entry in WalkDir::new(&path) {
         let Ok(entry) = entry else {
-            warn!("Failed to read directory entry in WalkDir {:?}: {}", entry, entry.as_ref().unwrap_err());
+            warn!(
+                "Failed to read directory entry in WalkDir {:?}: {}",
+                entry,
+                entry.as_ref().unwrap_err()
+            );
             continue;
         };
 

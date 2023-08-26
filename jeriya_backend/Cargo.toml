@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 jeriya_shared = { path = "../jeriya_shared" }
+jeriya_content = { path = "../jeriya_content" }

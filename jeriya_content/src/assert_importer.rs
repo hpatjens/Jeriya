@@ -122,7 +122,7 @@ impl ImportSource for FileSystem {
                 // relative paths because it's irrelavant where on the system they are located.
                 let Some(path) = pathdiff::diff_paths(absolute_path, &root) else {
                     warn! {
-                        "Failed to get relative path of '{absolute_path}' relative to '{root}'", 
+                        "Failed to get relative path of '{absolute_path}' relative to '{root}'",
                         absolute_path = absolute_path.display(),
                         root = root.display()
                     };

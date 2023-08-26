@@ -7,6 +7,7 @@ use jeriya_shared::{
 use jeriya_backend::{
     immediate::{CommandBuffer, CommandBufferBuilder},
     inanimate_mesh::InanimateMeshGroup,
+    model::ModelGroup,
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, Result,
 };
 
@@ -71,6 +72,11 @@ where
     /// Returns a guard to the [`InanimateMeshInstance`]s
     pub fn inanimate_mesh_instances(&self) -> InanimateMeshInstanceContainerGuard {
         self.backend.inanimate_mesh_instances()
+    }
+
+    /// Returns the [`ModelGroup`] of the `Renderer`
+    pub fn models(&self) -> &ModelGroup {
+        &self.backend.models()
     }
 
     /// Sets the active camera for the given window.
@@ -139,6 +145,7 @@ mod tests {
     use jeriya_backend::{
         immediate::{CommandBuffer, CommandBufferBuilder},
         inanimate_mesh::InanimateMeshGroup,
+        model::ModelGroup,
         Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, InanimateMeshInstance,
         InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent,
     };
@@ -184,6 +191,7 @@ mod tests {
         renderer_config: Arc<RendererConfig>,
         active_camera: Handle<Camera>,
         inanimate_mesh_group: InanimateMeshGroup,
+        model_group: ModelGroup,
     }
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
     struct DummyImmediateCommandBufferHandler(DebugInfo);
@@ -207,6 +215,7 @@ mod tests {
             let inanimate_mesh_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
             let active_camera = cameras.lock().insert(Camera::default());
             let inanimate_mesh_group = InanimateMeshGroup::new(Arc::new(Mutex::new(EventQueue::new())));
+            let model_group = ModelGroup::new(&inanimate_mesh_group);
             Ok(Self {
                 cameras,
                 camera_event_queue,
@@ -215,6 +224,7 @@ mod tests {
                 inanimate_mesh_group,
                 inanimate_mesh_instances,
                 inanimate_mesh_instance_event_queue,
+                model_group,
             })
         }
 
@@ -258,6 +268,10 @@ mod tests {
 
         fn active_camera(&self, _window_id: WindowId) -> jeriya_backend::Result<jeriya_shared::Handle<Camera>> {
             Ok(self.active_camera.clone())
+        }
+
+        fn models(&self) -> &jeriya_backend::model::ModelGroup {
+            &self.model_group
         }
     }
     impl ImmediateCommandBufferBuilderHandler for DummyImmediateCommandBufferBuilderHandler {

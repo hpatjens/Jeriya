@@ -9,6 +9,7 @@ use jeriya_shared::{
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
     inanimate_mesh::InanimateMeshGroup,
+    model::ModelGroup,
     objects::InanimateMeshInstanceContainerGuard,
     Camera, CameraContainerGuard,
 };
@@ -45,6 +46,9 @@ pub trait Backend: Sized {
 
     /// Returns a guard to the [`InanimateMeshInstance`]s
     fn inanimate_mesh_instances(&self) -> InanimateMeshInstanceContainerGuard;
+
+    /// Returns the [`ModelGroup`] of the `Renderer`
+    fn models(&self) -> &ModelGroup;
 
     /// Sets the active camera for the given window
     fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> crate::Result<()>;

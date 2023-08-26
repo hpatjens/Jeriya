@@ -22,6 +22,7 @@ pub use byteorder;
 pub use chrono;
 pub use crossbeam_channel;
 pub use derive_more;
+pub use derive_new;
 pub use indoc;
 pub use log;
 pub use nalgebra;
