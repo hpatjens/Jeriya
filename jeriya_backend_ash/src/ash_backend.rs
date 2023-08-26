@@ -38,7 +38,7 @@ use jeriya_backend_ash_base::{
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
-    log::{error, info},
+    log::{error, info, trace},
     nalgebra::Vector4,
     parking_lot::Mutex,
     tracy_client::{span, Client},

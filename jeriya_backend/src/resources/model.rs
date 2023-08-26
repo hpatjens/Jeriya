@@ -87,7 +87,7 @@ impl<'a> ModelBuilder<'a> {
                     let vertex_positions = Arc::new(mesh.simple_mesh.vertex_positions.clone());
                     let indices = Some(Arc::new(mesh.simple_mesh.indices.clone()));
                     let inanimate_mesh = InanimateMesh::new(
-                        MeshType::Triangles,
+                        MeshType::TriangleList,
                         ResourceAllocationType::Static,
                         vertex_positions.clone(),
                         indices.clone(),

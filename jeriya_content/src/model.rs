@@ -5,7 +5,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use gltf::{buffer::Data, mesh::util::ReadIndices};
+use gltf::{
+    buffer::Data,
+    mesh::{util::ReadIndices, Mode},
+};
 use jeriya_shared::{
     log::{info, trace},
     nalgebra::Vector3,
@@ -191,6 +194,8 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<Si
     let mut old_indices = Vec::new();
 
     for primitive in mesh.primitives() {
+        trace!("Primitive mode: {:?}", primitive.mode());
+        assert_eq!(primitive.mode(), Mode::Triangles, "Currently only triangles are supported");
         let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
         let temp_vertex_positions = reader.read_positions().ok_or(Error::NoVertexPositions)?.collect::<Vec<_>>();
         if let Some(indices) = reader.read_indices() {

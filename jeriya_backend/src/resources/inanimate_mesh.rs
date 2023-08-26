@@ -75,9 +75,10 @@ impl InanimateMesh {
         debug_info: DebugInfo,
         event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
     ) -> crate::Result<Arc<Self>> {
-        check_divisible_vertices_len(vertex_positions.len(), ty)?;
         if let Some(indices) = &indices {
             check_indices(vertex_positions.len(), indices)?;
+        } else {
+            check_divisible_vertices_len(vertex_positions.len(), ty)?;
         }
         let result = Arc::new(Self {
             debug_info,
@@ -94,7 +95,6 @@ impl InanimateMesh {
 
     /// Sets the vertex positions of the [`InanimateMesh`]
     pub fn set_vertex_positions(self: Arc<Self>, vertex_positions: Vec<Vector3<f32>>) -> crate::Result<()> {
-        check_divisible_vertices_len(vertex_positions.len(), self.ty)?;
         if self.allocation_type == ResourceAllocationType::Static && vertex_positions.len() != self.vertices_len {
             return Err(Error::WrongSize {
                 expected: self.vertices_len,

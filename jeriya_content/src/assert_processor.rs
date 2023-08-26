@@ -245,10 +245,11 @@ fn spawn_thread(
             loop {
                 trace!("Waiting for item on AssetProcessor thread '{thread_name}'");
                 let Ok(item) = item_receiver.recv() else {
-                    info!("AssetProcessor thread '{thread_name}' failed to receive item");
+                    error!("AssetProcessor thread '{thread_name}' failed to receive item");
                     break;
                 };
                 if wants_drop.load(Ordering::SeqCst) {
+                    trace!("AssetProcessor wants to be dropped");
                     break;
                 }
 
