@@ -27,7 +27,7 @@ impl From<jeriya_content::model::Model> for ModelSource {
 }
 
 /// Model that groups a set of [`InanimateMesh`]es together.
-#[derive(new)]
+#[derive(new, Debug)]
 pub struct Model {
     debug_info: DebugInfo,
     inanimate_meshes: Vec<Handle<Arc<InanimateMesh>>>,

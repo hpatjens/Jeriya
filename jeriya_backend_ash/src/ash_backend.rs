@@ -24,6 +24,7 @@ use jeriya_backend::{
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
     model::ModelGroup,
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
+    ModelInstanceContainerGuard,
 };
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
@@ -224,6 +225,13 @@ impl Backend for AshBackend {
 
     fn models(&self) -> &ModelGroup {
         &self.backend_shared.model_group
+    }
+
+    fn model_instances(&self) -> ModelInstanceContainerGuard {
+        ModelInstanceContainerGuard::new(
+            self.backend_shared.model_instance_event_queue.lock(),
+            self.backend_shared.model_instances.lock(),
+        )
     }
 
     fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> jeriya_backend::Result<()> {

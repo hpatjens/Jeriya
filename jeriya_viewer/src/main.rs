@@ -7,10 +7,10 @@ use jeriya::Renderer;
 use jeriya_backend::{
     immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
-    Backend, InanimateMeshInstance,
+    Backend, InanimateMeshInstance, ModelInstance,
 };
 use jeriya_backend_ash::AshBackend;
-use jeriya_content::{AssetImporter, AssetProcessor, Directories, FileSystem};
+use jeriya_content::{model::Model, AssetImporter, AssetProcessor, Directories, FileSystem};
 use jeriya_shared::{
     debug_info,
     log::{self, error},
@@ -188,11 +188,26 @@ fn main() -> ey::Result<()> {
         .build()
         .wrap_err("Failed to create inanimate mesh")?;
 
+    let cube_model = Model::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import model")?;
+    let cube_model = renderer
+        .models()
+        .create(cube_model)
+        .with_debug_info(debug_info!("my_model"))
+        .build()
+        .wrap_err("Failed to create model")?;
+
     {
-        let mut inanimate_mesh_instance = renderer.inanimate_mesh_instances();
-        inanimate_mesh_instance
+        let mut inanimate_mesh_instances = renderer.inanimate_mesh_instances();
+        inanimate_mesh_instances
             .insert(InanimateMeshInstance::new(inanimate_mesh1.clone(), Affine3::identity()))
             .wrap_err("Failed to insert inanimate mesh instance")?;
+    }
+
+    {
+        let mut model_instances = renderer.model_instances();
+        model_instances
+            .insert(ModelInstance::new(cube_model.clone()))
+            .wrap_err("Failed to insert model instance")?;
     }
 
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(60.0);

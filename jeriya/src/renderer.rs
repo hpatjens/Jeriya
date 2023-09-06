@@ -8,7 +8,7 @@ use jeriya_backend::{
     immediate::{CommandBuffer, CommandBufferBuilder},
     inanimate_mesh::InanimateMeshGroup,
     model::ModelGroup,
-    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, Result,
+    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstance, ModelInstanceContainerGuard, Result,
 };
 
 use std::{marker::PhantomData, sync::Arc};
@@ -79,6 +79,11 @@ where
         &self.backend.models()
     }
 
+    /// Returns a guard to the [`ModelInstance`]s
+    pub fn model_instances(&self) -> ModelInstanceContainerGuard {
+        self.backend.model_instances()
+    }
+
     /// Sets the active camera for the given window.
     pub fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> Result<()> {
         self.backend.set_active_camera(window_id, handle)
@@ -147,7 +152,7 @@ mod tests {
         inanimate_mesh::InanimateMeshGroup,
         model::ModelGroup,
         Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, InanimateMeshInstance,
-        InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent,
+        InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceContainerGuard, ModelInstanceEvent,
     };
     use jeriya_shared::{
         debug_info,
@@ -188,6 +193,8 @@ mod tests {
         camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
         inanimate_mesh_instances: Arc<Mutex<IndexingContainer<InanimateMeshInstance>>>,
         inanimate_mesh_instance_event_queue: Arc<Mutex<EventQueue<InanimateMeshInstanceEvent>>>,
+        model_instances: Arc<Mutex<IndexingContainer<ModelInstance>>>,
+        model_instance_event_queue: Arc<Mutex<EventQueue<ModelInstanceEvent>>>,
         renderer_config: Arc<RendererConfig>,
         active_camera: Handle<Camera>,
         inanimate_mesh_group: InanimateMeshGroup,
@@ -213,6 +220,8 @@ mod tests {
             let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
             let inanimate_mesh_instances = Arc::new(Mutex::new(IndexingContainer::new()));
             let inanimate_mesh_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
+            let model_instances = Arc::new(Mutex::new(IndexingContainer::new()));
+            let model_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
             let active_camera = cameras.lock().insert(Camera::default());
             let inanimate_mesh_group = InanimateMeshGroup::new(Arc::new(Mutex::new(EventQueue::new())));
             let model_group = ModelGroup::new(&inanimate_mesh_group);
@@ -225,6 +234,8 @@ mod tests {
                 inanimate_mesh_instances,
                 inanimate_mesh_instance_event_queue,
                 model_group,
+                model_instances,
+                model_instance_event_queue,
             })
         }
 
@@ -273,7 +284,12 @@ mod tests {
         fn models(&self) -> &jeriya_backend::model::ModelGroup {
             &self.model_group
         }
+
+        fn model_instances(&self) -> jeriya_backend::ModelInstanceContainerGuard {
+            ModelInstanceContainerGuard::new(self.model_instance_event_queue.lock(), self.model_instances.lock())
+        }
     }
+
     impl ImmediateCommandBufferBuilderHandler for DummyImmediateCommandBufferBuilderHandler {
         type Backend = DummyBackend;
 

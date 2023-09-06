@@ -11,7 +11,7 @@ use crate::{
     inanimate_mesh::InanimateMeshGroup,
     model::ModelGroup,
     objects::InanimateMeshInstanceContainerGuard,
-    Camera, CameraContainerGuard,
+    Camera, CameraContainerGuard, ModelInstanceContainerGuard,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
@@ -49,6 +49,9 @@ pub trait Backend: Sized {
 
     /// Returns the [`ModelGroup`] of the `Renderer`
     fn models(&self) -> &ModelGroup;
+
+    /// Returns a guard to the [`ModelInstance`]s
+    fn model_instances(&self) -> ModelInstanceContainerGuard;
 
     /// Sets the active camera for the given window
     fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> crate::Result<()>;

@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use jeriya_backend::{
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
     model::ModelGroup,
-    Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent,
+    Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceEvent,
 };
 use jeriya_backend_ash_base::{buffer::BufferUsageFlags, device::Device, shader_interface, staged_push_only_buffer::StagedPushOnlyBuffer};
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, EventQueue, Handle, IndexingContainer, RendererConfig};
@@ -27,6 +27,9 @@ pub struct BackendShared {
 
     pub inanimate_mesh_instances: Arc<Mutex<IndexingContainer<InanimateMeshInstance>>>,
     pub inanimate_mesh_instance_event_queue: Arc<Mutex<EventQueue<InanimateMeshInstanceEvent>>>,
+
+    pub model_instances: Arc<Mutex<IndexingContainer<ModelInstance>>>,
+    pub model_instance_event_queue: Arc<Mutex<EventQueue<ModelInstanceEvent>>>,
 }
 
 impl BackendShared {
@@ -42,6 +45,10 @@ impl BackendShared {
         info!("Creating InanimateMeshInstances");
         let inanimate_mesh_instances = Arc::new(Mutex::new(IndexingContainer::new()));
         let inanimate_mesh_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
+
+        info!("Creating ModelInstances");
+        let model_instances = Arc::new(Mutex::new(IndexingContainer::new()));
+        let model_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
 
         info!("Creating StagedPushOnlyBuffer for InanimateMeshes");
         const INANIMATE_MESH_BUFFER_CAPACITY: usize = 100;
@@ -77,6 +84,8 @@ impl BackendShared {
             inanimate_mesh_gpu_states: Arc::new(Mutex::new(HashMap::new())),
             inanimate_mesh_instances,
             inanimate_mesh_instance_event_queue,
+            model_instances,
+            model_instance_event_queue,
         })
     }
 }
