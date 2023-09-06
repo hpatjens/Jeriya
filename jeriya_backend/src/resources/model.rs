@@ -33,6 +33,12 @@ pub struct Model {
     inanimate_meshes: Vec<Handle<Arc<InanimateMesh>>>,
 }
 
+impl Model {
+    pub fn inanimate_meshes(&self) -> &[Handle<Arc<InanimateMesh>>] {
+        self.inanimate_meshes.as_ref()
+    }
+}
+
 /// Manages a group of [`Model`]s.
 pub struct ModelGroup {
     models: Arc<Mutex<Vec<Arc<Model>>>>,

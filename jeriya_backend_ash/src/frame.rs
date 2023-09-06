@@ -17,6 +17,7 @@ use jeriya_backend_ash_base::{
     shader_interface, DrawIndirectCommand,
 };
 use jeriya_macros::profile;
+use jeriya_shared::nalgebra::Affine3;
 use jeriya_shared::plot_with_index;
 use jeriya_shared::{
     debug_info,
@@ -132,27 +133,56 @@ impl Frame {
         );
 
         // Prepare InanimateMeshInstances
-        let inanimate_mesh_instances = {
+        let (inanimate_mesh_instance_memory, inanimate_mesh_instance_count) = {
             let _span = span!("prepare inanimate mesh instances");
 
             let inanimate_mesh_instances = backend_shared.inanimate_mesh_instances.lock();
-            let padding = backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances - inanimate_mesh_instances.len();
-            &inanimate_mesh_instances
-                .as_slice()
-                .iter()
-                .map(|inanimate_mesh_instance| shader_interface::InanimateMeshInstance {
+            let inanimate_meshes = backend_shared.inanimate_mesh_group.inanimate_meshes.lock();
+            let model_instances = backend_shared.model_instances.lock();
+
+            let mut gpu_instances = Vec::new();
+
+            // Add all inanimate mesh instances that are defined via models
+            for model_instance in model_instances.as_slice() {
+                for handle in model_instance.model.inanimate_meshes() {
+                    let inanimate_mesh = inanimate_meshes.get(handle).unwrap();
+                    gpu_instances.push(shader_interface::InanimateMeshInstance {
+                        inanimate_mesh_index: inanimate_mesh.handle().index() as u64,
+                        transform: Matrix4::identity(),
+                    });
+                }
+            }
+
+            // Add all directly defined inanimate mesh instances
+            for inanimate_mesh_instance in inanimate_mesh_instances.as_slice() {
+                gpu_instances.push(shader_interface::InanimateMeshInstance {
                     inanimate_mesh_index: inanimate_mesh_instance.inanimate_mesh.handle().index() as u64,
                     transform: inanimate_mesh_instance.transform.matrix().clone(),
-                })
+                });
+            }
+
+            let count = gpu_instances.len();
+
+            if gpu_instances.len() > backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances {
+                return Err(jeriya_backend::Error::MaximumCapacityReached(
+                    backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances,
+                ));
+            }
+
+            let padding = backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances - gpu_instances.len();
+            let memory = gpu_instances
+                .into_iter()
                 .chain(iter::repeat(shader_interface::InanimateMeshInstance::default()).take(padding))
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>();
+
+            (memory, count)
         };
 
         // Update Buffers
         let span = span!("update per frame data buffer");
         self.per_frame_data_buffer.set_memory_unaligned(&[shader_interface::PerFrameData {
             active_camera: presenter_shared.active_camera.index() as u32,
-            inanimate_mesh_instance_count: inanimate_mesh_instances.len() as u32,
+            inanimate_mesh_instance_count: inanimate_mesh_instance_count as u32,
         }])?;
         drop(span);
 
@@ -175,11 +205,11 @@ impl Frame {
 
         let span = span!("update inanimate_mesh_instances_buffer");
         self.inanimate_mesh_instance_buffer
-            .set_memory_unaligned(&inanimate_mesh_instances)?;
+            .set_memory_unaligned(&inanimate_mesh_instance_memory)?;
         drop(span);
 
         const LOCAL_SIZE_X: u32 = 128;
-        let cull_compute_shader_group_count = (inanimate_mesh_instances.len() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
+        let cull_compute_shader_group_count = (inanimate_mesh_instance_count as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
 
         // Create a CommandPool
         let command_pool_span = span!("create commnad pool");
@@ -238,7 +268,7 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
-        builder.draw_indirect(&self.indirect_draw_buffer, inanimate_mesh_instances.len());
+        builder.draw_indirect(&self.indirect_draw_buffer, inanimate_mesh_instance_memory.len());
         drop(indirect_span);
 
         // Render with SimpleGraphicsPipeline

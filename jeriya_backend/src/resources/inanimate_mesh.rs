@@ -198,10 +198,8 @@ pub enum InanimateMeshEvent {
 }
 
 pub struct InanimateMeshGroup {
-    // This is pub(crate) because the ModelGroup needs access to it
-    pub(crate) inanimate_meshes: Arc<Mutex<IndexingContainer<Arc<InanimateMesh>>>>,
-    // This is pub(crate) because the ModelGroup needs access to it
-    pub(crate) event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
+    pub inanimate_meshes: Arc<Mutex<IndexingContainer<Arc<InanimateMesh>>>>,
+    pub event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
 }
 
 impl InanimateMeshGroup {
