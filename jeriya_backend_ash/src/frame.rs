@@ -17,7 +17,6 @@ use jeriya_backend_ash_base::{
     shader_interface, DrawIndirectCommand,
 };
 use jeriya_macros::profile;
-use jeriya_shared::nalgebra::Affine3;
 use jeriya_shared::plot_with_index;
 use jeriya_shared::{
     debug_info,
@@ -270,7 +269,7 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
-        builder.draw_indirect(&self.indirect_draw_buffer, inanimate_mesh_instance_memory.len());
+        builder.draw_indirect(&self.indirect_draw_buffer, inanimate_mesh_instance_count);
         drop(indirect_span);
 
         // Render with SimpleGraphicsPipeline

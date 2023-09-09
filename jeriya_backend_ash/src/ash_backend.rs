@@ -259,6 +259,7 @@ fn run_inanimate_mesh_events_thread(frame_start_receiver: Receiver<()>, backend_
         let Ok(()) = frame_start_receiver.recv() else {
             panic!("failed to receive frame start");
         };
+        queue.poll_completed_fences()?;
         handle_events(&mut queue, backend_shared)?;
     }
 }

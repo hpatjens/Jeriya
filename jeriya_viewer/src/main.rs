@@ -181,12 +181,12 @@ fn main() -> ey::Result<()> {
 
     let model = load_model().wrap_err("Failed to load model")?;
 
-    let inanimate_mesh1 = renderer
-        .inanimate_meshes()
-        .create(MeshType::TriangleList, model)
-        .with_debug_info(debug_info!("my_mesh"))
-        .build()
-        .wrap_err("Failed to create inanimate mesh")?;
+    // let inanimate_mesh1 = renderer
+    //     .inanimate_meshes()
+    //     .create(MeshType::TriangleList, model)
+    //     .with_debug_info(debug_info!("my_mesh"))
+    //     .build()
+    //     .wrap_err("Failed to create inanimate mesh")?;
 
     let cube_model = Model::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import model")?;
     let cube_model = renderer
@@ -196,19 +196,19 @@ fn main() -> ey::Result<()> {
         .build()
         .wrap_err("Failed to create model")?;
 
-    {
-        let mut inanimate_mesh_instances = renderer.inanimate_mesh_instances();
-        inanimate_mesh_instances
-            .insert(InanimateMeshInstance::new(inanimate_mesh1.clone(), Affine3::identity()))
-            .wrap_err("Failed to insert inanimate mesh instance")?;
-    }
-
     // {
-    //     let mut model_instances = renderer.model_instances();
-    //     model_instances
-    //         .insert(ModelInstance::new(cube_model.clone()))
-    //         .wrap_err("Failed to insert model instance")?;
+    //     let mut inanimate_mesh_instances = renderer.inanimate_mesh_instances();
+    //     inanimate_mesh_instances
+    //         .insert(InanimateMeshInstance::new(inanimate_mesh1.clone(), Affine3::identity()))
+    //         .wrap_err("Failed to insert inanimate mesh instance")?;
     // }
+
+    {
+        let mut model_instances = renderer.model_instances();
+        model_instances
+            .insert(ModelInstance::new(cube_model.clone()))
+            .wrap_err("Failed to insert model instance")?;
+    }
 
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(60.0);
     event_loop.run(move |event, _, control_flow| {
