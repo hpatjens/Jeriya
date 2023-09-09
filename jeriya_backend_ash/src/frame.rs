@@ -136,17 +136,15 @@ impl Frame {
             let _span = span!("prepare inanimate mesh instances");
 
             let inanimate_mesh_instances = backend_shared.inanimate_mesh_instances.lock();
-            let inanimate_meshes = backend_shared.inanimate_mesh_group.inanimate_meshes.lock();
             let model_instances = backend_shared.model_instances.lock();
 
             let mut gpu_instances = Vec::new();
 
             // Add all inanimate mesh instances that are defined via models
             for model_instance in model_instances.as_slice() {
-                for handle in model_instance.model.inanimate_meshes() {
-                    let inanimate_mesh = inanimate_meshes.get(handle).unwrap();
+                for inanimate_mesh_handle in model_instance.model.inanimate_meshes() {
                     gpu_instances.push(shader_interface::InanimateMeshInstance {
-                        inanimate_mesh_index: inanimate_mesh.handle().index() as u64,
+                        inanimate_mesh_index: inanimate_mesh_handle.index() as u64,
                         transform: Matrix4::identity(),
                         ..Default::default()
                     });
