@@ -39,7 +39,7 @@ use jeriya_backend_ash_base::{
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
-    log::{error, info, trace},
+    log::{error, info},
     nalgebra::Vector4,
     parking_lot::Mutex,
     tracy_client::{span, Client},
@@ -296,6 +296,7 @@ fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_ba
                 } => {
                     let _span = span!("Insert inanimate mesh");
 
+                    // Upload the vertex positions to the GPU
                     let vertex_positions4 = vertex_positions
                         .iter()
                         .map(|v| Vector4::new(v.x, v.y, v.z, 1.0))
@@ -304,23 +305,26 @@ fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_ba
                         .static_vertex_buffer
                         .lock()
                         .push(&vertex_positions4, &mut command_buffer_builder)?;
+
+                    // Upload the InanimateMesh to the GPU
                     let inanimate_mesh_gpu = shader_interface::InanimateMesh {
                         start_offset: vertices_start_offset as u64,
                         vertices_len: vertex_positions.len() as u64,
                     };
+                    let inanimate_mesh_start_offset = backend_shared
+                        .inanimate_mesh_buffer
+                        .lock()
+                        .push(&[inanimate_mesh_gpu], &mut command_buffer_builder)?;
+
                     info!(
                         "Inserting a new inanimate mesh with start_offset: {start_offset} and vertices_len: {vertices_len}",
                         start_offset = vertices_start_offset,
                         vertices_len = vertex_positions.len()
                     );
-                    let inanimate_mesh_start_offset = backend_shared
-                        .inanimate_mesh_buffer
-                        .lock()
-                        .push(&[inanimate_mesh_gpu], &mut command_buffer_builder)?;
-                    let inanimate_mesh2 = inanimate_mesh.clone();
-                    let inanimate_mesh_gpu_states2 = backend_shared.inanimate_mesh_gpu_states.clone();
 
                     // Insert the GPU state for the InanimateMesh when the upload to the GPU is done
+                    let inanimate_mesh2 = inanimate_mesh.clone();
+                    let inanimate_mesh_gpu_states2 = backend_shared.inanimate_mesh_gpu_states.clone();
                     command_buffer_builder.push_finished_operation(Box::new(move || {
                         let handle = inanimate_mesh2.handle();
                         inanimate_mesh_gpu_states2.lock().insert(
