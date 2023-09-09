@@ -196,12 +196,12 @@ fn main() -> ey::Result<()> {
         .build()
         .wrap_err("Failed to create model")?;
 
-    // {
-    //     let mut inanimate_mesh_instances = renderer.inanimate_mesh_instances();
-    //     inanimate_mesh_instances
-    //         .insert(InanimateMeshInstance::new(inanimate_mesh1.clone(), Affine3::identity()))
-    //         .wrap_err("Failed to insert inanimate mesh instance")?;
-    // }
+    {
+        let mut inanimate_mesh_instances = renderer.inanimate_mesh_instances();
+        inanimate_mesh_instances
+            .insert(InanimateMeshInstance::new(inanimate_mesh1.clone(), Affine3::identity()))
+            .wrap_err("Failed to insert inanimate mesh instance")?;
+    }
 
     // {
     //     let mut model_instances = renderer.model_instances();

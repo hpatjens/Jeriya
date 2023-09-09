@@ -83,7 +83,7 @@ impl Instance {
             .application_version(0)
             .engine_name(&application_name)
             .engine_version(0)
-            .api_version(vk::make_api_version(0, 1, 0, 0));
+            .api_version(vk::make_api_version(0, 1, 3, 0));
 
         let create_info = vk::InstanceCreateInfo::builder()
             .application_info(&appinfo)

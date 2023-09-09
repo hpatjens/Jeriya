@@ -1,6 +1,7 @@
 #version 450
 
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_ARB_shader_draw_parameters : enable
 
 layout (constant_id = 0) const uint MAX_CAMERAS = 8;
 layout (constant_id = 1) const uint MAX_INANIMATE_MESH_INSTANCES = 1024;
@@ -14,6 +15,7 @@ struct Camera {
 
 struct InanimateMeshInstance {
     uint64_t inanimate_mesh_id;
+    uint64_t _pad0;
     mat4 transform;
 };
 
@@ -36,11 +38,11 @@ layout (set = 0, binding = 0) uniform PerFrameData {
 
 layout (set = 0, binding = 1) buffer Cameras { 
     Camera cameras[MAX_CAMERAS];
-} cameras;
+};
 
 layout (set = 0, binding = 2) buffer InanimateMeshInstances { 
     InanimateMeshInstance inanimate_mesh_instances[MAX_INANIMATE_MESH_INSTANCES];
-} inanimate_mesh_instances;
+};
 
 layout (set = 0, binding = 3) buffer IndirectDrawInanimateMeshInstances { 
     VkDrawIndirectCommand indirect_draw_inanimate_mesh_instances[MAX_INANIMATE_MESH_INSTANCES];
@@ -64,12 +66,16 @@ layout (push_constant) uniform PushConstants {
 } push_constants;
 
 void main() {
-    mat4 matrix = cameras.cameras[per_frame_data.active_camera].matrix;
+    InanimateMeshInstance inanimate_mesh_instance = inanimate_mesh_instances[gl_DrawIDARB];
 
-    InanimateMesh inanimate_mesh = inanimate_meshes[0];
+    InanimateMesh inanimate_mesh = inanimate_meshes[uint(inanimate_mesh_instance.inanimate_mesh_id)];
     uint64_t attribute_index = inanimate_mesh.start_offset + gl_VertexIndex;
 
-    vec3 inPosition = vertices[uint(attribute_index)];
+    mat4 view_projection_matrix = cameras[per_frame_data.active_camera].matrix;
+    mat4 model_matrix = inanimate_mesh_instance.transform;
+    mat4 matrix = view_projection_matrix * model_matrix;
+
+    vec3 inPosition = vertices[uint(attribute_index)].xyz;
 
     gl_Position = matrix * vec4(inPosition.xyz, 1.0);
 }

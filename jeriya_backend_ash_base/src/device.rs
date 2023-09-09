@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use ash::{extensions::khr, vk};
+use ash::{
+    extensions::khr,
+    vk::{self, PhysicalDeviceFeatures2, PhysicalDeviceShaderDrawParametersFeatures},
+};
 
 use crate::{instance::Instance, physical_device::PhysicalDevice, AsRawVulkan, Error, Extensions, PhysicalDeviceFeature};
 
@@ -41,6 +44,22 @@ impl Device {
                 .multi_draw_indirect(true)
         };
 
+        let features2 = {
+            let available_features = unsafe {
+                let mut shader_draw_parameters = PhysicalDeviceShaderDrawParametersFeatures::builder()
+                    .shader_draw_parameters(true)
+                    .build();
+
+                let mut features = PhysicalDeviceFeatures2::builder().push_next(&mut shader_draw_parameters).build();
+                instance
+                    .as_raw_vulkan()
+                    .get_physical_device_features2(*physical_device.as_raw_vulkan(), &mut features);
+
+                // dbg!(shader_draw_parameters.shader_draw_parameters);
+                // panic!();
+            };
+        };
+
         let queue_priorities = physical_device
             .suitable_presentation_graphics_queue_family_infos
             .iter()
@@ -62,7 +81,13 @@ impl Device {
             })
             .collect::<Vec<_>>();
         let device_extension_names_raw = [khr::Swapchain::name().as_ptr(), khr::PushDescriptor::name().as_ptr()];
+
+        let mut shader_draw_parameters = PhysicalDeviceShaderDrawParametersFeatures::builder()
+            .shader_draw_parameters(true)
+            .build();
+
         let device_create_info = vk::DeviceCreateInfo::builder()
+            .push_next(&mut shader_draw_parameters)
             .queue_create_infos(&queue_infos)
             .enabled_extension_names(&device_extension_names_raw)
             .enabled_features(&features);

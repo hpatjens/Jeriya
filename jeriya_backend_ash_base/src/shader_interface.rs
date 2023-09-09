@@ -36,6 +36,7 @@ impl Default for Camera {
 #[derive(Debug, Clone)]
 pub struct InanimateMeshInstance {
     pub inanimate_mesh_index: u64,
+    pub _padding: u64,
     pub transform: Matrix4<f32>,
 }
 
@@ -43,6 +44,7 @@ impl Default for InanimateMeshInstance {
     fn default() -> Self {
         Self {
             inanimate_mesh_index: 0,
+            _padding: 0,
             transform: Matrix4::identity(),
         }
     }

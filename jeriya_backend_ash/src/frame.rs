@@ -149,6 +149,7 @@ impl Frame {
                     gpu_instances.push(shader_interface::InanimateMeshInstance {
                         inanimate_mesh_index: inanimate_mesh.handle().index() as u64,
                         transform: Matrix4::identity(),
+                        ..Default::default()
                     });
                 }
             }
@@ -158,6 +159,7 @@ impl Frame {
                 gpu_instances.push(shader_interface::InanimateMeshInstance {
                     inanimate_mesh_index: inanimate_mesh_instance.inanimate_mesh.handle().index() as u64,
                     transform: inanimate_mesh_instance.transform.matrix().clone(),
+                    ..Default::default()
                 });
             }
 
