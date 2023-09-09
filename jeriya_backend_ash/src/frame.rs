@@ -1,5 +1,6 @@
 use std::{iter, mem, sync::Arc};
 
+use jeriya_backend::inanimate_mesh::InanimateMeshGpuState;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags,
@@ -26,6 +27,7 @@ use jeriya_shared::{
     winit::window::WindowId,
 };
 
+use crate::backend_shared;
 use crate::{
     ash_immediate::ImmediateCommand,
     backend_shared::BackendShared,
@@ -136,6 +138,7 @@ impl Frame {
             let _span = span!("prepare inanimate mesh instances");
 
             let inanimate_mesh_instances = backend_shared.inanimate_mesh_instances.lock();
+            let inanimate_mesh_gpu_states = backend_shared.inanimate_mesh_gpu_states.lock();
             let model_instances = backend_shared.model_instances.lock();
 
             let mut gpu_instances = Vec::new();
@@ -143,21 +146,31 @@ impl Frame {
             // Add all inanimate mesh instances that are defined via models
             for model_instance in model_instances.as_slice() {
                 for inanimate_mesh_handle in model_instance.model.inanimate_meshes() {
-                    gpu_instances.push(shader_interface::InanimateMeshInstance {
-                        inanimate_mesh_index: inanimate_mesh_handle.index() as u64,
-                        transform: Matrix4::identity(),
-                        ..Default::default()
-                    });
+                    // Make sure that the mesh is actually uploaded to the GPU
+                    if let Some(InanimateMeshGpuState::Uploaded { inanimate_mesh_offset }) =
+                        inanimate_mesh_gpu_states.get(inanimate_mesh_handle)
+                    {
+                        gpu_instances.push(shader_interface::InanimateMeshInstance {
+                            inanimate_mesh_index: *inanimate_mesh_offset,
+                            transform: Matrix4::identity(),
+                            ..Default::default()
+                        });
+                    }
                 }
             }
 
             // Add all directly defined inanimate mesh instances
             for inanimate_mesh_instance in inanimate_mesh_instances.as_slice() {
-                gpu_instances.push(shader_interface::InanimateMeshInstance {
-                    inanimate_mesh_index: inanimate_mesh_instance.inanimate_mesh.handle().index() as u64,
-                    transform: inanimate_mesh_instance.transform.matrix().clone(),
-                    ..Default::default()
-                });
+                // Make sure that the mesh is actually uploaded to the GPU
+                if let Some(InanimateMeshGpuState::Uploaded { inanimate_mesh_offset }) =
+                    inanimate_mesh_gpu_states.get(&inanimate_mesh_instance.inanimate_mesh.handle())
+                {
+                    gpu_instances.push(shader_interface::InanimateMeshInstance {
+                        inanimate_mesh_index: *inanimate_mesh_offset,
+                        transform: inanimate_mesh_instance.transform.matrix().clone(),
+                        ..Default::default()
+                    });
+                }
             }
 
             let count = gpu_instances.len();
