@@ -190,6 +190,12 @@ impl Frame {
             (memory, count)
         };
 
+        plot_with_index!(
+            "inanimate_mesh_instances_on_presenter_",
+            self.presenter_index,
+            inanimate_mesh_instance_count as f64
+        );
+
         // Update Buffers
         let span = span!("update per frame data buffer");
         self.per_frame_data_buffer.set_memory_unaligned(&[shader_interface::PerFrameData {
