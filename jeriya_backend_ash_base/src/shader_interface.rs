@@ -18,8 +18,11 @@ pub struct Camera {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct InanimateMesh {
-    pub start_offset: u64,
+    pub vertices_start_offset: u64,
     pub vertices_len: u64,
+    pub indices_start_offset: u64,
+    // When the mesh doesn't have indices, this is 0.
+    pub indices_len: u64,
 }
 
 impl Default for Camera {

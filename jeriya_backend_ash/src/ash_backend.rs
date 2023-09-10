@@ -308,8 +308,10 @@ fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_ba
 
                     // Upload the InanimateMesh to the GPU
                     let inanimate_mesh_gpu = shader_interface::InanimateMesh {
-                        start_offset: vertices_start_offset as u64,
+                        vertices_start_offset: vertices_start_offset as u64,
                         vertices_len: vertex_positions.len() as u64,
+                        indices_start_offset: 0,
+                        indices_len: 0,
                     };
                     let inanimate_mesh_start_offset = backend_shared
                         .inanimate_mesh_buffer

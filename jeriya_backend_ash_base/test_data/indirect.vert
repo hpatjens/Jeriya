@@ -27,8 +27,10 @@ struct VkDrawIndirectCommand {
 };
 
 struct InanimateMesh {
-    uint64_t start_offset;
+    uint64_t vertices_start_offset;
     uint64_t vertices_len;
+    uint64_t indices_start_offset;
+    uint64_t indices_len;
 };
 
 layout (set = 0, binding = 0) uniform PerFrameData { 
@@ -69,7 +71,7 @@ void main() {
     InanimateMeshInstance inanimate_mesh_instance = inanimate_mesh_instances[gl_DrawIDARB];
 
     InanimateMesh inanimate_mesh = inanimate_meshes[uint(inanimate_mesh_instance.inanimate_mesh_id)];
-    uint64_t attribute_index = inanimate_mesh.start_offset + gl_VertexIndex;
+    uint64_t attribute_index = inanimate_mesh.vertices_start_offset + gl_VertexIndex;
 
     mat4 view_projection_matrix = cameras[per_frame_data.active_camera].matrix;
     mat4 model_matrix = inanimate_mesh_instance.transform;

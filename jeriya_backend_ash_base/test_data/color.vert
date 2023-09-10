@@ -25,8 +25,10 @@ struct VkDrawIndirectCommand {
 };
 
 struct InanimateMesh {
-    uint64_t start_offset;
+    uint64_t vertices_start_offset;
     uint64_t vertices_len;
+    uint64_t indices_start_offset;
+    uint64_t indices_len;
 };
 
 layout (set = 0, binding = 0) uniform PerFrameData { 
