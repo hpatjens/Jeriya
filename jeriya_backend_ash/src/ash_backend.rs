@@ -302,7 +302,7 @@ fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_ba
                         .map(|v| Vector4::new(v.x, v.y, v.z, 1.0))
                         .collect::<Vec<_>>();
                     let vertices_start_offset = backend_shared
-                        .static_vertex_buffer
+                        .static_vertex_position_buffer
                         .lock()
                         .push(&vertex_positions4, &mut command_buffer_builder)?;
 

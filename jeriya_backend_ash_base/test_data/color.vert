@@ -52,8 +52,8 @@ layout (set = 0, binding = 4) buffer InanimateMeshes {
     InanimateMesh inanimate_meshes[MAX_INANIMATE_MESHES];
 };
 
-layout (set = 0, binding = 5) buffer StaticVertexBuffer {
-    vec4 vertices[];
+layout (set = 0, binding = 5) buffer StaticVertexPositionBuffer {
+    vec4 vertex_positions[];
 };
 
 layout (set = 0, binding = 6) buffer StaticIndexBuffer {

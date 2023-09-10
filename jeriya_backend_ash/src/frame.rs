@@ -347,7 +347,7 @@ impl Frame {
             .push_storage_buffer(2, &self.inanimate_mesh_instance_buffer)
             .push_storage_buffer(3, &self.indirect_draw_buffer)
             .push_storage_buffer(4, &*backend_shared.inanimate_mesh_buffer.lock())
-            .push_storage_buffer(5, &*backend_shared.static_vertex_buffer.lock())
+            .push_storage_buffer(5, &*backend_shared.static_vertex_position_buffer.lock())
             .push_storage_buffer(6, &*backend_shared.static_indices_buffer.lock())
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;

@@ -54,8 +54,8 @@ layout (set = 0, binding = 4) buffer InanimateMeshes {
     InanimateMesh inanimate_meshes[MAX_INANIMATE_MESHES];
 };
 
-layout (set = 0, binding = 5) buffer StaticVertexBuffer {
-    vec4 vertices[];
+layout (set = 0, binding = 5) buffer StaticVertexPositionBuffer {
+    vec4 vertex_positions[];
 };
 
 layout (set = 0, binding = 6) buffer StaticIndexBuffer {
@@ -87,11 +87,11 @@ void main() {
         uint index_index = uint(inanimate_mesh.indices_start_offset) + gl_VertexIndex;
         uint attribute_index = indices[index_index];
         uint offset = uint(inanimate_mesh.vertices_start_offset);
-        vertex_position = vertices[offset + attribute_index].xyz;
+        vertex_position = vertex_positions[offset + attribute_index].xyz;
     } else {
         // In this case, the shader invocation runs per vertex of the mesh directly.
         uint64_t attribute_index = inanimate_mesh.vertices_start_offset + gl_VertexIndex;
-        vertex_position = vertices[uint(attribute_index)].xyz;
+        vertex_position = vertex_positions[uint(attribute_index)].xyz;
     }
 
     gl_Position = matrix * vec4(vertex_position, 1.0);
