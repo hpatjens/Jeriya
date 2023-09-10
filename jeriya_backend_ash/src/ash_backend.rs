@@ -292,7 +292,7 @@ fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_ba
                 InanimateMeshEvent::Insert {
                     inanimate_mesh,
                     vertex_positions,
-                    indices: _,
+                    indices,
                 } => {
                     let _span = span!("Insert inanimate mesh");
 
@@ -306,12 +306,26 @@ fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_ba
                         .lock()
                         .push(&vertex_positions4, &mut command_buffer_builder)?;
 
+                    // Upload the indices to the GPU
+                    let indices_start_offset = if let Some(indices) = &indices {
+                        backend_shared
+                            .static_indices_buffer
+                            .lock()
+                            .push(&indices, &mut command_buffer_builder)?
+                    } else {
+                        0
+                    };
+
                     // Upload the InanimateMesh to the GPU
+                    let vertices_start_offset = vertices_start_offset as u64;
+                    let vertices_len = vertex_positions.len() as u64;
+                    let indices_start_offset = indices_start_offset as u64;
+                    let indices_len = indices.map(|indices| indices.len() as u64).unwrap_or(0);
                     let inanimate_mesh_gpu = shader_interface::InanimateMesh {
-                        vertices_start_offset: vertices_start_offset as u64,
-                        vertices_len: vertex_positions.len() as u64,
-                        indices_start_offset: 0,
-                        indices_len: 0,
+                        vertices_start_offset,
+                        vertices_len,
+                        indices_start_offset,
+                        indices_len,
                     };
                     let inanimate_mesh_start_offset = backend_shared
                         .inanimate_mesh_buffer
@@ -319,9 +333,7 @@ fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_ba
                         .push(&[inanimate_mesh_gpu], &mut command_buffer_builder)?;
 
                     info!(
-                        "Inserting a new inanimate mesh with start_offset: {start_offset} and vertices_len: {vertices_len}",
-                        start_offset = vertices_start_offset,
-                        vertices_len = vertex_positions.len()
+                        "Inserting a new inanimate mesh with: vertices_start_offset = {vertices_start_offset}, vertices_len = {vertices_len}, indices_start_offset = {indices_start_offset}, indices_len = {indices_len}",
                     );
 
                     // Insert the GPU state for the InanimateMesh when the upload to the GPU is done
