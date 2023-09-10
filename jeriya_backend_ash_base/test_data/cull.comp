@@ -76,8 +76,17 @@ void main() {
 
     InanimateMesh inanimate_mesh = inanimate_meshes[uint(mesh_id)];
 
+    // When the mesh has indices, there must be a shader invocation 
+    // for each index instead of for each vertex.
+    uint vertex_count;
+    if (inanimate_mesh.indices_len > 0) {
+        vertex_count = uint(inanimate_mesh.indices_len);
+    } else {
+        vertex_count = uint(inanimate_mesh.vertices_len);
+    }
+
     VkDrawIndirectCommand draw_indirect_command;
-    draw_indirect_command.vertex_count = uint(inanimate_mesh.vertices_len);
+    draw_indirect_command.vertex_count = vertex_count;
     draw_indirect_command.instance_count = 1;
     draw_indirect_command.first_vertex = 0;
     draw_indirect_command.first_instance = 0;

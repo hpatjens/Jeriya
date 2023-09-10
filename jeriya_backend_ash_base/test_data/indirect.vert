@@ -74,13 +74,25 @@ void main() {
     InanimateMeshInstance inanimate_mesh_instance = inanimate_mesh_instances[gl_DrawIDARB];
 
     InanimateMesh inanimate_mesh = inanimate_meshes[uint(inanimate_mesh_instance.inanimate_mesh_id)];
-    uint64_t attribute_index = inanimate_mesh.vertices_start_offset + gl_VertexIndex;
 
     mat4 view_projection_matrix = cameras[per_frame_data.active_camera].matrix;
     mat4 model_matrix = inanimate_mesh_instance.transform;
     mat4 matrix = view_projection_matrix * model_matrix;
 
-    vec3 inPosition = vertices[uint(attribute_index)].xyz;
+    // When the mesh doesn't contain indices, the `indices_len` is set to 0.
+    vec3 vertex_position;
+    if (inanimate_mesh.indices_len > 0) {
+        // In this case, the shader invocation runs per index of the mesh and the
+        // corresponding vertex attribute has to be looked up via the index buffer.
+        uint index_index = uint(inanimate_mesh.indices_start_offset) + gl_VertexIndex;
+        uint attribute_index = indices[index_index];
+        uint offset = uint(inanimate_mesh.vertices_start_offset);
+        vertex_position = vertices[offset + attribute_index].xyz;
+    } else {
+        // In this case, the shader invocation runs per vertex of the mesh directly.
+        uint64_t attribute_index = inanimate_mesh.vertices_start_offset + gl_VertexIndex;
+        vertex_position = vertices[uint(attribute_index)].xyz;
+    }
 
-    gl_Position = matrix * vec4(inPosition.xyz, 1.0);
+    gl_Position = matrix * vec4(vertex_position, 1.0);
 }
