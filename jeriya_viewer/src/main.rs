@@ -14,7 +14,7 @@ use jeriya_content::{model::Model, AssetImporter, AssetProcessor, Directories, F
 use jeriya_shared::{
     debug_info,
     log::{self, error},
-    nalgebra::{Affine3, Matrix4, Vector3, Vector4},
+    nalgebra::{self, Affine3, Matrix4, Translation3, Vector3, Vector4},
     winit::{
         dpi::LogicalSize,
         event::{Event, WindowEvent},
@@ -181,12 +181,12 @@ fn main() -> ey::Result<()> {
 
     let model = load_model().wrap_err("Failed to load model")?;
 
-    // let inanimate_mesh1 = renderer
-    //     .inanimate_meshes()
-    //     .create(MeshType::TriangleList, model)
-    //     .with_debug_info(debug_info!("my_mesh"))
-    //     .build()
-    //     .wrap_err("Failed to create inanimate mesh")?;
+    let inanimate_mesh1 = renderer
+        .inanimate_meshes()
+        .create(MeshType::TriangleList, model)
+        .with_debug_info(debug_info!("my_mesh"))
+        .build()
+        .wrap_err("Failed to create inanimate mesh")?;
 
     let cube_model = Model::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import model")?;
     let cube_model = renderer
@@ -196,12 +196,15 @@ fn main() -> ey::Result<()> {
         .build()
         .wrap_err("Failed to create model")?;
 
-    // {
-    //     let mut inanimate_mesh_instances = renderer.inanimate_mesh_instances();
-    //     inanimate_mesh_instances
-    //         .insert(InanimateMeshInstance::new(inanimate_mesh1.clone(), Affine3::identity()))
-    //         .wrap_err("Failed to insert inanimate mesh instance")?;
-    // }
+    {
+        let mut inanimate_mesh_instances = renderer.inanimate_mesh_instances();
+        inanimate_mesh_instances
+            .insert(InanimateMeshInstance::new(
+                inanimate_mesh1.clone(),
+                nalgebra::convert(Translation3::new(0.5, 0.0, 0.0)),
+            ))
+            .wrap_err("Failed to insert inanimate mesh instance")?;
+    }
 
     {
         let mut model_instances = renderer.model_instances();
