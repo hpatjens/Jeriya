@@ -1,7 +1,7 @@
 use jeriya_shared::{
     tracy_client::Client,
     winit::window::{Window, WindowId},
-    DebugInfo, Handle, RendererConfig,
+    DebugInfo, Handle, RendererConfig, WindowConfig,
 };
 
 use jeriya_backend::{
@@ -101,7 +101,7 @@ where
     B: Backend,
 {
     _phantom: PhantomData<B>,
-    windows: &'a [&'a Window],
+    window_configs: &'a [WindowConfig<'a>],
     renderer_config: Option<RendererConfig>,
     backend_config: Option<B::BackendConfig>,
 }
@@ -113,7 +113,7 @@ where
     fn new() -> Self {
         Self {
             _phantom: PhantomData,
-            windows: &[],
+            window_configs: &[],
             renderer_config: None,
             backend_config: None,
         }
@@ -129,8 +129,8 @@ where
         self
     }
 
-    pub fn add_windows(mut self, windows: &'a [&'a Window]) -> Self {
-        self.windows = windows;
+    pub fn add_windows(mut self, window_configs: &'a [WindowConfig<'a>]) -> Self {
+        self.window_configs = window_configs;
         self
     }
 
@@ -140,7 +140,7 @@ where
 
         let renderer_config = self.renderer_config.unwrap_or(RendererConfig::default());
         let backend_config = self.backend_config.unwrap_or(B::BackendConfig::default());
-        let backend = B::new(renderer_config, backend_config, self.windows)?;
+        let backend = B::new(renderer_config, backend_config, self.window_configs)?;
         Ok(Renderer::new(backend))
     }
 }
@@ -158,14 +158,14 @@ mod tests {
         debug_info,
         parking_lot::Mutex,
         winit::window::{Window, WindowId},
-        AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer, RendererConfig,
+        AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer, RendererConfig, WindowConfig,
     };
     use std::sync::Arc;
 
     mod immediate_command_buffer {
         use jeriya_backend::immediate::{LineConfig, LineList};
         use jeriya_backend_ash::AshBackend;
-        use jeriya_shared::{debug_info, nalgebra::Vector3};
+        use jeriya_shared::{debug_info, nalgebra::Vector3, FrameRate, WindowConfig};
         use jeriya_test::create_window;
 
         use crate::Renderer;
@@ -173,7 +173,11 @@ mod tests {
         #[test]
         fn smoke() -> jeriya_backend::Result<()> {
             let window = create_window();
-            let renderer = Renderer::<AshBackend>::builder().add_windows(&[&window]).build()?;
+            let window_config = WindowConfig {
+                window: &window,
+                frame_rate: FrameRate::Unlimited,
+            };
+            let renderer = Renderer::<AshBackend>::builder().add_windows(&[window_config]).build()?;
             let line_list = LineList::new(
                 vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0)],
                 LineConfig::default(),
@@ -211,7 +215,7 @@ mod tests {
         fn new(
             _renderer_config: jeriya_shared::RendererConfig,
             _backend_config: Self::BackendConfig,
-            _windows: &[&Window],
+            _window_configs: &[WindowConfig],
         ) -> jeriya_backend::Result<Self>
         where
             Self: Sized,

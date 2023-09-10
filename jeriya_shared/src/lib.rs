@@ -35,6 +35,7 @@ pub use thiserror;
 pub use tracy_client;
 pub use walkdir;
 pub use winit;
+use winit::window::Window;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AssertLevel {
@@ -62,6 +63,18 @@ macro_rules! assert_eq {
             std::assert_eq!($($arg)*);
         }
     };
+}
+
+/// Determines the frame rate at which a window is rendered.
+pub enum FrameRate {
+    Unlimited,
+    Limited(u32),
+}
+
+/// Configuration for the [`Window`]s
+pub struct WindowConfig<'w> {
+    pub window: &'w Window,
+    pub frame_rate: FrameRate,
 }
 
 /// Configuration for the [`Renderer`]

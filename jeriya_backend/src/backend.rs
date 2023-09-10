@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
-use jeriya_shared::{
-    nalgebra::Matrix4,
-    winit::window::{Window, WindowId},
-    AsDebugInfo, DebugInfo, Handle, RendererConfig,
-};
+use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, DebugInfo, Handle, RendererConfig, WindowConfig};
 
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
@@ -22,7 +18,7 @@ pub trait Backend: Sized {
     type ImmediateCommandBufferHandler: AsDebugInfo;
 
     /// Creates a new [`Backend`]
-    fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> crate::Result<Self>
+    fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, window_configs: &[WindowConfig]) -> crate::Result<Self>
     where
         Self: Sized;
 

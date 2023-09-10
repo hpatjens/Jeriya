@@ -43,8 +43,8 @@ use jeriya_shared::{
     nalgebra::Vector4,
     parking_lot::Mutex,
     tracy_client::{span, Client},
-    winit::window::{Window, WindowId},
-    AsDebugInfo, DebugInfo, Handle, RendererConfig,
+    winit::window::WindowId,
+    AsDebugInfo, DebugInfo, Handle, RendererConfig, WindowConfig,
 };
 
 #[derive(Debug)]
@@ -70,11 +70,15 @@ impl Backend for AshBackend {
     type ImmediateCommandBufferBuilderHandler = AshImmediateCommandBufferBuilderHandler;
     type ImmediateCommandBufferHandler = AshImmediateCommandBufferHandler;
 
-    fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, windows: &[&Window]) -> jeriya_backend::Result<Self>
+    fn new(
+        renderer_config: RendererConfig,
+        backend_config: Self::BackendConfig,
+        window_configs: &[WindowConfig],
+    ) -> jeriya_backend::Result<Self>
     where
         Self: Sized,
     {
-        if windows.is_empty() {
+        if window_configs.is_empty() {
             return Err(jeriya_backend::Error::ExpectedWindow);
         }
 
@@ -104,13 +108,16 @@ impl Backend for AshBackend {
             }
         };
 
-        let windows = windows.iter().map(|window| (window.id(), window)).collect::<HashMap<_, _>>();
-        let surfaces = windows
+        let windows = window_configs
             .iter()
+            .map(|config| (config.window.id(), config.window))
+            .collect::<HashMap<_, _>>();
+        let surfaces = windows
+            .into_iter()
             .map(|(window_id, window)| {
                 info!("Creating Surface for window {window_id:?}");
                 let surface = Surface::new(&entry, &instance, window)?;
-                Ok((*window_id, surface))
+                Ok((window_id, surface))
             })
             .collect::<base::Result<HashMap<WindowId, Arc<Surface>>>>()?;
 
@@ -375,6 +382,7 @@ mod tests {
     use super::*;
 
     mod backend_new {
+        use jeriya_shared::FrameRate;
         use jeriya_test::create_window;
 
         use super::*;
@@ -387,7 +395,11 @@ mod tests {
                 ..RendererConfig::default()
             };
             let backend_config = Config::default();
-            AshBackend::new(renderer_config, backend_config, &[&window]).unwrap();
+            let window_config = WindowConfig {
+                window: &window,
+                frame_rate: FrameRate::Unlimited,
+            };
+            AshBackend::new(renderer_config, backend_config, &[window_config]).unwrap();
         }
 
         #[test]
@@ -395,7 +407,11 @@ mod tests {
             let window = create_window();
             let renderer_config = RendererConfig::default();
             let backend_config = Config::default();
-            AshBackend::new(renderer_config, backend_config, &[&window]).unwrap();
+            let window_config = WindowConfig {
+                window: &window,
+                frame_rate: FrameRate::Unlimited,
+            };
+            AshBackend::new(renderer_config, backend_config, &[window_config]).unwrap();
         }
 
         #[test]
@@ -410,6 +426,7 @@ mod tests {
     }
 
     mod render_frame {
+        use jeriya_shared::FrameRate;
         use jeriya_test::create_window;
 
         use super::*;
@@ -422,7 +439,11 @@ mod tests {
                 ..RendererConfig::default()
             };
             let backend_config = Config::default();
-            let backend = AshBackend::new(renderer_config, backend_config, &[&window]).unwrap();
+            let window_config = WindowConfig {
+                window: &window,
+                frame_rate: FrameRate::Unlimited,
+            };
+            let backend = AshBackend::new(renderer_config, backend_config, &[window_config]).unwrap();
             backend.handle_render_frame().unwrap();
         }
     }
