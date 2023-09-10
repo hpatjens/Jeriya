@@ -57,7 +57,7 @@ layout (set = 0, binding = 5) buffer StaticVertexBuffer {
 };
 
 layout (set = 0, binding = 6) buffer StaticIndexBuffer {
-    vec4 indices[];
+    uint indices[];
 };
 
 
