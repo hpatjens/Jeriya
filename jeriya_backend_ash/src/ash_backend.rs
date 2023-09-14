@@ -54,7 +54,7 @@ pub struct ImmediateRenderingRequest {
 }
 
 pub struct AshBackend {
-    presenters: HashMap<WindowId, Arc<Mutex<Presenter>>>,
+    presenters: HashMap<WindowId, Presenter>,
     _surfaces: HashMap<WindowId, Arc<Surface>>,
     _validation_layer_callback: Option<ValidationLayerCallback>,
     _instance: Arc<Instance>,
@@ -154,7 +154,7 @@ impl Backend for AshBackend {
                     backend_shared.clone(),
                     window_config.frame_rate,
                 )?;
-                Ok((*window_id, Arc::new(Mutex::new(presenter))))
+                Ok((*window_id, presenter))
             })
             .collect::<jeriya_backend::Result<HashMap<_, _>>>()?;
 
@@ -173,8 +173,7 @@ impl Backend for AshBackend {
         let presenter = self
             .presenters
             .get(&window_id)
-            .ok_or_else(|| base::Error::UnknownWindowId(window_id))?
-            .lock();
+            .ok_or_else(|| base::Error::UnknownWindowId(window_id))?;
         presenter.recreate()?;
         Ok(())
     }
@@ -196,7 +195,7 @@ impl Backend for AshBackend {
                 },
                 count: 1,
             };
-            presenter.lock().render_immediate_command_buffer(immediate_rendering_request);
+            presenter.render_immediate_command_buffer(immediate_rendering_request);
         }
         Ok(())
     }
@@ -237,7 +236,7 @@ impl Backend for AshBackend {
             .presenters
             .get(&window_id)
             .ok_or(jeriya_backend::Error::UnknownWindowId(window_id))?;
-        presenter.lock().set_active_camera(handle);
+        presenter.set_active_camera(handle);
         Ok(())
     }
 
@@ -245,7 +244,7 @@ impl Backend for AshBackend {
         self.presenters
             .get(&window_id)
             .ok_or(jeriya_backend::Error::UnknownWindowId(window_id))
-            .map(|presenter| presenter.lock().active_camera())
+            .map(|presenter| presenter.active_camera())
     }
 }
 

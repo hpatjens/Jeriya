@@ -88,6 +88,8 @@ fn run_presenter_thread(
     loop {
         loop_helper.loop_start();
 
+        println!("presenter {presenter_index} thread loop start (framerate: {frame_rate:?})");
+
         let mut presenter_shared = presenter_shared.lock();
 
         // Finish command buffer execution
