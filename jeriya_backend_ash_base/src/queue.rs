@@ -1,9 +1,9 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::{collections::VecDeque, marker::PhantomData, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::tracy_client::span;
+use jeriya_shared::{log::info, tracy_client::span, AsDebugInfo, DebugInfo};
 
-use crate::{command_buffer::CommandBuffer, device::Device, fence::Fence, semaphore::Semaphore, AsRawVulkan};
+use crate::{command_buffer::CommandBuffer, device::Device, fence::Fence, semaphore::Semaphore, AsRawVulkan, DebugInfoAshExtension};
 
 pub enum SubmittedCommandBuffer {
     Value(CommandBuffer),
@@ -39,6 +39,8 @@ pub struct Queue {
     pub submitted_command_buffers: VecDeque<SubmittedCommandBuffer>,
     queue: vk::Queue,
     device: Arc<Device>,
+    debug_info: DebugInfo,
+    phantom_data: PhantomData<*const ()>, // Making this !Send
 }
 
 impl AsRawVulkan for Queue {
@@ -48,31 +50,46 @@ impl AsRawVulkan for Queue {
     }
 }
 
+impl AsDebugInfo for Queue {
+    fn as_debug_info(&self) -> &DebugInfo {
+        &self.debug_info
+    }
+}
+
 impl Queue {
     /// Creates a new `Queue`.
     ///
     /// Safety:
     ///
     /// The `queue_family_index` and `queue_index` must be correct.
-    pub(crate) unsafe fn get_from_family(device: &Arc<Device>, queue_family_index: u32, queue_index: u32) -> Self {
+    pub(crate) unsafe fn get_from_family(device: &Arc<Device>, queue_family_index: u32, queue_index: u32, debug_info: DebugInfo) -> Self {
         let vk_queue = device.as_raw_vulkan().get_device_queue(queue_family_index, queue_index);
+        let debug_info = debug_info.with_vulkan_ptr(vk_queue);
+        info! {
+            "Creating queue with queue_family_index: {}, queue_index: {}: {}",
+            queue_family_index,
+            queue_index,
+            debug_info.format_one_line()
+        }
         Self {
             queue_family_index,
             queue_index,
             submitted_command_buffers: VecDeque::new(),
             queue: vk_queue,
             device: device.clone(),
+            debug_info,
+            phantom_data: PhantomData,
         }
     }
 
     /// Creates a new `Queue` with the given [`QueueType`]
-    pub fn new(device: &Arc<Device>, queue_type: QueueType, queue_index: u32) -> crate::Result<Self> {
+    pub fn new(device: &Arc<Device>, queue_type: QueueType, queue_index: u32, debug_info: DebugInfo) -> crate::Result<Self> {
         match queue_type {
             QueueType::Presentation => {
                 assert!(!device.physical_device.suitable_presentation_graphics_queue_family_infos.is_empty());
                 assert!(device.physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_count > queue_index);
                 let queue_family_index = device.physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_family_index;
-                unsafe { Ok(Queue::get_from_family(device, queue_family_index, queue_index)) }
+                unsafe { Ok(Queue::get_from_family(device, queue_family_index, queue_index, debug_info)) }
             }
         }
     }
@@ -150,6 +167,8 @@ mod tests {
     use super::*;
 
     mod new {
+        use jeriya_shared::debug_info;
+
         use crate::device::tests::TestFixtureDevice;
 
         use super::*;
@@ -157,7 +176,7 @@ mod tests {
         #[test]
         fn smoke() {
             let device_test_fixture = TestFixtureDevice::new().unwrap();
-            let _queue = Queue::new(&device_test_fixture.device, QueueType::Presentation, 0).unwrap();
+            let _queue = Queue::new(&device_test_fixture.device, QueueType::Presentation, 0, debug_info!("my_queue")).unwrap();
         }
     }
 }

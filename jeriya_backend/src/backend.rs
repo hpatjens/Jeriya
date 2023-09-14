@@ -25,9 +25,6 @@ pub trait Backend: Sized {
     /// Is called when a window is resized so that the backend can respond.
     fn handle_window_resized(&self, window_id: WindowId) -> crate::Result<()>;
 
-    /// Is called when rendering is requested.
-    fn handle_render_frame(&self) -> crate::Result<()>;
-
     /// Creates a new [`CommandBufferBuilder`]
     fn create_immediate_command_buffer_builder(&self, debug_info: DebugInfo) -> crate::Result<CommandBufferBuilder<Self>>;
 

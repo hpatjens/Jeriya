@@ -8,7 +8,7 @@ use jeriya_backend::{
     immediate::{CommandBuffer, CommandBufferBuilder},
     inanimate_mesh::InanimateMeshGroup,
     model::ModelGroup,
-    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstance, ModelInstanceContainerGuard, Result,
+    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, Result,
 };
 
 use std::{marker::PhantomData, sync::Arc};
@@ -37,11 +37,6 @@ where
     /// Returns the [`Backend`] of the `Renderer`
     pub fn backend(&self) -> &B {
         &self.backend
-    }
-
-    /// Renders to all `Window`s.
-    pub fn render_frame(&self) -> Result<()> {
-        self.backend.handle_render_frame()
     }
 
     /// Has to be called when a window is gets resized.
@@ -155,10 +150,8 @@ mod tests {
         InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceContainerGuard, ModelInstanceEvent,
     };
     use jeriya_shared::{
-        debug_info,
-        parking_lot::Mutex,
-        winit::window::{Window, WindowId},
-        AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer, RendererConfig, WindowConfig,
+        debug_info, parking_lot::Mutex, winit::window::WindowId, AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer,
+        RendererConfig, WindowConfig,
     };
     use std::sync::Arc;
 
@@ -187,7 +180,6 @@ mod tests {
                 .push_line_lists(&[line_list])?
                 .build()?;
             renderer.render_immediate_command_buffer(immediate_command_buffer)?;
-            renderer.render_frame()?;
             Ok(())
         }
     }
@@ -244,10 +236,6 @@ mod tests {
         }
 
         fn handle_window_resized(&self, _window_id: WindowId) -> jeriya_backend::Result<()> {
-            Ok(())
-        }
-
-        fn handle_render_frame(&self) -> jeriya_backend::Result<()> {
             Ok(())
         }
 

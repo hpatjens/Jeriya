@@ -1084,6 +1084,7 @@ dependencies = [
  "pathdiff",
  "rand 0.8.5",
  "rayon",
+ "spin_sleep",
  "thiserror",
  "tracy-client",
  "walkdir",
@@ -1115,7 +1116,6 @@ dependencies = [
  "jeriya_content",
  "jeriya_shared",
  "jeriya_test",
- "spin_sleep",
 ]
 
 [[package]]

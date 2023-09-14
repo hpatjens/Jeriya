@@ -6,12 +6,13 @@ use jeriya_backend_ash_base::{
 };
 use jeriya_macros::profile;
 use jeriya_shared::{
-    self,
-    crossbeam_channel::{bounded, Receiver, Sender},
-    debug_info,
+    self, debug_info,
+    log::info,
     parking_lot::Mutex,
+    spin_sleep,
     tracy_client::{span, Client},
     winit::window::WindowId,
+    AsDebugInfo, FrameRate,
 };
 use std::{
     sync::Arc,
@@ -21,7 +22,6 @@ use std::{
 pub struct PresenterThread {
     _presenter_index: usize,
     _thread: JoinHandle<()>,
-    frame_request_sender: Sender<()>,
 }
 
 #[profile]
@@ -33,19 +33,10 @@ impl PresenterThread {
         backend_shared: Arc<BackendShared>,
         presenter_shared: Arc<Mutex<PresenterShared>>,
         frames: Arc<Mutex<SwapchainVec<Frame>>>,
+        frame_rate: FrameRate,
     ) -> jeriya_backend::Result<Self> {
-        // Channel for requesting a frame from the renderer thread. Requesting more frames than the swapchain can hold will block the thread.
-        let (frame_request_sender, frame_request_receiver) = bounded(presenter_shared.lock().swapchain().len());
-
         let thread = thread::spawn(move || {
-            if let Err(err) = run_presenter_thread(
-                presenter_index,
-                backend_shared,
-                presenter_shared,
-                frame_request_receiver,
-                frames,
-                window_id,
-            ) {
+            if let Err(err) = run_presenter_thread(presenter_index, backend_shared, presenter_shared, frames, window_id, frame_rate) {
                 panic!("Error on PresenterThread {presenter_index} (Window: {window_id:?}): {err:?}");
             }
         });
@@ -53,19 +44,7 @@ impl PresenterThread {
         Ok(Self {
             _presenter_index: presenter_index,
             _thread: thread,
-            frame_request_sender,
         })
-    }
-
-    /// Sends a request to the presenter thread to render a frame.
-    ///
-    /// This will block when more frames are requested than the swapchain can hold.
-    pub fn request_frame(&mut self) -> jeriya_backend::Result<()> {
-        // Just shutting down the whole renderer when one of the presenter threads has shut down unexpectedly.
-        self.frame_request_sender
-            .send(())
-            .expect("Failed to send message to Presenter thread");
-        Ok(())
     }
 }
 
@@ -73,9 +52,9 @@ fn run_presenter_thread(
     presenter_index: usize,
     backend_shared: Arc<BackendShared>,
     presenter_shared: Arc<Mutex<PresenterShared>>,
-    frame_request_receiver: Receiver<()>,
     frames: Arc<Mutex<SwapchainVec<Frame>>>,
     window_id: WindowId,
+    frame_rate: FrameRate,
 ) -> jeriya_backend::Result<()> {
     // Setup Tracy profiling
     #[rustfmt::skip]
@@ -88,15 +67,25 @@ fn run_presenter_thread(
     client.set_thread_name(name);
 
     // Thread-local Queue for the Presenter
-    let mut presentation_queue = Queue::new(&backend_shared.device, QueueType::Presentation, presenter_index as u32 + 1)?;
+    let mut presentation_queue = Queue::new(
+        &backend_shared.device,
+        QueueType::Presentation,
+        presenter_index as u32 + 1, // +1 because the first queue is used by the backend for transfering resources
+        debug_info!(format!("presenter-thread-queue-{}", presenter_index)),
+    )?;
 
     // Command Buffer that is checked to determine whether the rendering is complete
     let mut rendering_complete_command_buffer = SwapchainVec::new(&presenter_shared.lock().swapchain(), |_| Ok(None))?;
 
+    let mut loop_helper = match frame_rate {
+        FrameRate::Unlimited => spin_sleep::LoopHelper::builder().build_without_target_rate(),
+        FrameRate::Limited(frame_rate) => spin_sleep::LoopHelper::builder().build_with_target_rate(frame_rate as f64),
+    };
+
+    info!("Starting presenter loop with frame rate: {:?}", frame_rate);
     loop {
-        if let Err(_) = frame_request_receiver.recv() {
-            panic!("Failed to receive message for Presenter {presenter_index} (Window: {window_id:?})");
-        }
+        loop_helper.loop_start();
+
         let mut presenter_shared = presenter_shared.lock();
         let mut frames = frames.lock();
 
@@ -132,5 +121,10 @@ fn run_presenter_thread(
             frames.get(&frame_index).rendering_complete_semaphores(),
             &presentation_queue,
         )?;
+
+        drop(presenter_shared);
+        drop(frames);
+
+        loop_helper.loop_sleep();
     }
 }

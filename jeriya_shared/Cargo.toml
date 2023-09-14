@@ -28,6 +28,7 @@ walkdir = "2.3.3"
 rand = "0.8.5"
 bus = "2.4.1"
 derive-new = "0.5.9"
+spin_sleep = "1.1.1"
 
 # see https://crates.io/crates/tracy-client for version support table
 tracy-client = { version = "0.14.2", default-features = false }

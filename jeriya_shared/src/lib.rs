@@ -8,10 +8,12 @@ use std::{
     result,
 };
 
+use nalgebra::Vector4;
+use winit::window::Window;
+
 pub use debug_info::*;
 pub use event_queue::*;
 pub use indexing_container::*;
-use nalgebra::Vector4;
 
 pub use async_trait;
 pub use bitflags;
@@ -31,11 +33,11 @@ pub use parking_lot;
 pub use pathdiff;
 pub use rand;
 pub use rayon;
+pub use spin_sleep;
 pub use thiserror;
 pub use tracy_client;
 pub use walkdir;
 pub use winit;
-use winit::window::Window;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AssertLevel {
@@ -66,12 +68,14 @@ macro_rules! assert_eq {
 }
 
 /// Determines the frame rate at which a window is rendered.
+#[derive(Clone, Copy, Debug)]
 pub enum FrameRate {
     Unlimited,
     Limited(u32),
 }
 
 /// Configuration for the [`Window`]s
+#[derive(Clone, Debug)]
 pub struct WindowConfig<'w> {
     pub window: &'w Window,
     pub frame_rate: FrameRate,

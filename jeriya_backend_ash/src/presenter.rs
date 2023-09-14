@@ -7,6 +7,7 @@ use crate::{
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_macros::profile;
+use jeriya_shared::FrameRate;
 use jeriya_shared::{parking_lot::Mutex, tracy_client::span, winit::window::WindowId, Handle};
 
 pub struct Presenter {
@@ -23,6 +24,7 @@ impl Presenter {
         window_id: &WindowId,
         surface: &Arc<Surface>,
         backend_shared: Arc<BackendShared>,
+        frame_rate: FrameRate,
     ) -> jeriya_backend::Result<Self> {
         let presenter_shared = Arc::new(Mutex::new(PresenterShared::new(window_id, &backend_shared, surface)?));
         let frames = Arc::new(Mutex::new(SwapchainVec::new(presenter_shared.lock().swapchain(), |_| {
@@ -36,6 +38,7 @@ impl Presenter {
             backend_shared,
             presenter_shared.clone(),
             frames.clone(),
+            frame_rate,
         )?;
 
         Ok(Self {
@@ -49,14 +52,6 @@ impl Presenter {
     /// Returns the index of the presenter
     pub fn presenter_index(&self) -> usize {
         self._presenter_index
-    }
-
-    /// Sends a request to the presenter thread to render a frame.
-    ///
-    /// This will block when more frames are requested than the swapchain can hold.
-    pub fn request_frame(&mut self) -> jeriya_backend::Result<()> {
-        self.thread.request_frame()?;
-        Ok(())
     }
 
     /// Enqueues an [`ImmediateRenderingRequest`]

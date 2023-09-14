@@ -143,10 +143,17 @@ impl Backend for AshBackend {
 
         let presenters = surfaces
             .iter()
+            .zip(window_configs)
             .enumerate()
-            .map(|(presenter_index, (window_id, surface))| {
+            .map(|(presenter_index, ((window_id, surface), window_config))| {
                 info!("Creating presenter for window {window_id:?}");
-                let presenter = Presenter::new(presenter_index, window_id, surface, backend_shared.clone())?;
+                let presenter = Presenter::new(
+                    presenter_index,
+                    window_id,
+                    surface,
+                    backend_shared.clone(),
+                    window_config.frame_rate,
+                )?;
                 Ok((*window_id, Arc::new(Mutex::new(presenter))))
             })
             .collect::<jeriya_backend::Result<HashMap<_, _>>>()?;
@@ -169,22 +176,6 @@ impl Backend for AshBackend {
             .ok_or_else(|| base::Error::UnknownWindowId(window_id))?
             .lock();
         presenter.recreate()?;
-        Ok(())
-    }
-
-    fn handle_render_frame(&self) -> jeriya_backend::Result<()> {
-        let _span = span!("AshBackend::handle_render_frame");
-
-        self.frame_start_sender.send(()).expect("failed to send frame start");
-
-        // Render on all surfaces
-        for (_window_id, presenter) in &self.presenters {
-            let presenter = &mut *presenter.lock();
-            presenter.request_frame()?;
-        }
-
-        Client::running().expect("client must be running").frame_mark();
-
         Ok(())
     }
 
@@ -259,8 +250,12 @@ impl Backend for AshBackend {
 }
 
 fn run_inanimate_mesh_events_thread(frame_start_receiver: Receiver<()>, backend_shared: &BackendShared) -> jeriya_backend::Result<()> {
-    info!("Creating Queue");
-    let mut queue = Queue::new(&backend_shared.device, QueueType::Presentation, 0)?;
+    let mut queue = Queue::new(
+        &backend_shared.device,
+        QueueType::Presentation,
+        0,
+        debug_info!("inanimate-mesh-thread-queue"),
+    )?;
 
     loop {
         let Ok(()) = frame_start_receiver.recv() else {
@@ -422,29 +417,6 @@ mod tests {
                 AshBackend::new(renderer_config, backend_config, &[]),
                 Err(jeriya_backend::Error::ExpectedWindow)
             ));
-        }
-    }
-
-    mod render_frame {
-        use jeriya_shared::FrameRate;
-        use jeriya_test::create_window;
-
-        use super::*;
-
-        #[test]
-        fn smoke() {
-            let window = create_window();
-            let renderer_config = RendererConfig {
-                application_name: Some("my_application".to_owned()),
-                ..RendererConfig::default()
-            };
-            let backend_config = Config::default();
-            let window_config = WindowConfig {
-                window: &window,
-                frame_rate: FrameRate::Unlimited,
-            };
-            let backend = AshBackend::new(renderer_config, backend_config, &[window_config]).unwrap();
-            backend.handle_render_frame().unwrap();
         }
     }
 }

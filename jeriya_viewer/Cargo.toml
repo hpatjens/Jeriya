@@ -12,5 +12,4 @@ jeriya_backend_ash = { path = "../jeriya_backend_ash" }
 jeriya_content = { path = "../jeriya_content" }
 fern = "0.6.1"
 color-eyre = "0.6.2"
-spin_sleep = "1.1.1"
 gltf = "1.2.0"

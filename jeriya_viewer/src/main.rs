@@ -162,7 +162,7 @@ fn main() -> ey::Result<()> {
     };
     let window_config2 = WindowConfig {
         window: &window2,
-        frame_rate: FrameRate::Unlimited,
+        frame_rate: FrameRate::Limited(60),
     };
     let renderer = jeriya::Renderer::<AshBackend>::builder()
         .add_renderer_config(RendererConfig {
@@ -219,7 +219,6 @@ fn main() -> ey::Result<()> {
         .wrap_err("Failed to insert model instance")?;
     drop(model_instances);
 
-    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(60.0);
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_poll();
 
@@ -238,21 +237,11 @@ fn main() -> ey::Result<()> {
                 }
             }
             Event::MainEventsCleared => {
-                loop_helper.loop_start();
-
                 if let Err(err) = immediate_rendering(&renderer) {
                     error!("Failed to do immediate rendering: {}", err);
                     control_flow.set_exit();
                     return;
                 }
-
-                if let Err(err) = renderer.render_frame() {
-                    error!("Failed to render frame: {}", err);
-                    control_flow.set_exit();
-                    return;
-                }
-
-                // loop_helper.loop_sleep();
             }
             _ => (),
         }
