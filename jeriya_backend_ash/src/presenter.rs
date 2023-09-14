@@ -14,7 +14,6 @@ pub struct Presenter {
     _presenter_index: usize,
     thread: PresenterThread,
     presenter_shared: Arc<Mutex<PresenterShared>>,
-    _frames: Arc<Mutex<SwapchainVec<Frame>>>,
 }
 
 #[profile]
@@ -27,9 +26,6 @@ impl Presenter {
         frame_rate: FrameRate,
     ) -> jeriya_backend::Result<Self> {
         let presenter_shared = Arc::new(Mutex::new(PresenterShared::new(window_id, &backend_shared, surface)?));
-        let frames = Arc::new(Mutex::new(SwapchainVec::new(presenter_shared.lock().swapchain(), |_| {
-            Frame::new(presenter_index, window_id, &backend_shared)
-        })?));
 
         // Spawn the presenter thread
         let thread = PresenterThread::spawn(
@@ -37,7 +33,6 @@ impl Presenter {
             window_id.clone(),
             backend_shared,
             presenter_shared.clone(),
-            frames.clone(),
             frame_rate,
         )?;
 
@@ -45,7 +40,6 @@ impl Presenter {
             _presenter_index: presenter_index,
             thread,
             presenter_shared,
-            _frames: frames,
         })
     }
 

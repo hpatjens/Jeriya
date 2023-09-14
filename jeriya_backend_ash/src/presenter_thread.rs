@@ -32,11 +32,10 @@ impl PresenterThread {
         window_id: WindowId,
         backend_shared: Arc<BackendShared>,
         presenter_shared: Arc<Mutex<PresenterShared>>,
-        frames: Arc<Mutex<SwapchainVec<Frame>>>,
         frame_rate: FrameRate,
     ) -> jeriya_backend::Result<Self> {
         let thread = thread::spawn(move || {
-            if let Err(err) = run_presenter_thread(presenter_index, backend_shared, presenter_shared, frames, window_id, frame_rate) {
+            if let Err(err) = run_presenter_thread(presenter_index, backend_shared, presenter_shared, window_id, frame_rate) {
                 panic!("Error on PresenterThread {presenter_index} (Window: {window_id:?}): {err:?}");
             }
         });
@@ -52,7 +51,6 @@ fn run_presenter_thread(
     presenter_index: usize,
     backend_shared: Arc<BackendShared>,
     presenter_shared: Arc<Mutex<PresenterShared>>,
-    frames: Arc<Mutex<SwapchainVec<Frame>>>,
     window_id: WindowId,
     frame_rate: FrameRate,
 ) -> jeriya_backend::Result<()> {
@@ -65,6 +63,10 @@ fn run_presenter_thread(
     let name = PRESENTER_NAMES[presenter_index.min(PRESENTER_NAMES.len() - 1)];
     let client = Client::start();
     client.set_thread_name(name);
+
+    let mut frames = SwapchainVec::new(presenter_shared.lock().swapchain(), |_| {
+        Frame::new(presenter_index, &window_id, &backend_shared)
+    })?;
 
     // Thread-local Queue for the Presenter
     let mut presentation_queue = Queue::new(
@@ -87,7 +89,6 @@ fn run_presenter_thread(
         loop_helper.loop_start();
 
         let mut presenter_shared = presenter_shared.lock();
-        let mut frames = frames.lock();
 
         // Finish command buffer execution
         presentation_queue.poll_completed_fences()?;
@@ -123,7 +124,6 @@ fn run_presenter_thread(
         )?;
 
         drop(presenter_shared);
-        drop(frames);
 
         loop_helper.loop_sleep();
     }
