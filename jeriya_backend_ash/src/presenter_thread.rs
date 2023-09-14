@@ -7,7 +7,7 @@ use jeriya_backend_ash_base::{
 use jeriya_macros::profile;
 use jeriya_shared::{
     self, debug_info,
-    log::info,
+    log::{info, trace},
     parking_lot::Mutex,
     spin_sleep,
     tracy_client::{span, Client},
@@ -34,11 +34,14 @@ impl PresenterThread {
         presenter_shared: Arc<Mutex<PresenterShared>>,
         frame_rate: FrameRate,
     ) -> jeriya_backend::Result<Self> {
-        let thread = thread::spawn(move || {
-            if let Err(err) = run_presenter_thread(presenter_index, backend_shared, presenter_shared, window_id, frame_rate) {
-                panic!("Error on PresenterThread {presenter_index} (Window: {window_id:?}): {err:?}");
-            }
-        });
+        let thread = thread::Builder::new()
+            .name(format!("presenter-thread-{presenter_index}"))
+            .spawn(move || {
+                if let Err(err) = run_presenter_thread(presenter_index, backend_shared, presenter_shared, window_id, frame_rate) {
+                    panic!("Error on PresenterThread {presenter_index} (Window: {window_id:?}): {err:?}");
+                }
+            })
+            .expect("failed to spawn presenter thread");
 
         Ok(Self {
             _presenter_index: presenter_index,
@@ -88,9 +91,11 @@ fn run_presenter_thread(
     loop {
         loop_helper.loop_start();
 
-        println!("presenter {presenter_index} thread loop start (framerate: {frame_rate:?})");
+        trace!("presenter {presenter_index}: thread loop start (framerate: {frame_rate:?})");
 
         let mut presenter_shared = presenter_shared.lock();
+
+        trace!("presenter {presenter_index}: locked presenter_shared");
 
         // Finish command buffer execution
         presentation_queue.poll_completed_fences()?;
@@ -119,11 +124,13 @@ fn run_presenter_thread(
         )?;
 
         // Present
-        presenter_shared.swapchain().present(
-            &presenter_shared.frame_index,
-            frames.get(&frame_index).rendering_complete_semaphores(),
-            &presentation_queue,
-        )?;
+        let rendering_complete_semaphore = frames
+            .get(&frame_index)
+            .rendering_complete_semaphore()
+            .expect("rendering_complete_semaphore not set");
+        presenter_shared
+            .swapchain()
+            .present(&presenter_shared.frame_index, rendering_complete_semaphore, &presentation_queue)?;
 
         drop(presenter_shared);
 

@@ -22,7 +22,7 @@ impl<T: Clone> HostVisibleBuffer<T> {
         assert!(!data.is_empty(), "HostVisibleBuffer must have a non-zero size");
         let buffer = unsafe {
             let size = mem::size_of_val(data);
-            let mut buffer = UnsafeBuffer::new(device, size, usage.into(), vk::SharingMode::EXCLUSIVE, debug_info)?;
+            let mut buffer = UnsafeBuffer::new(device, size, usage.into(), vk::SharingMode::CONCURRENT, debug_info)?;
             buffer.allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE)?;
             buffer.set_memory_unaligned(data)?;
             buffer

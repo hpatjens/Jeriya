@@ -37,7 +37,7 @@ use crate::{
 pub struct Frame {
     presenter_index: usize,
     image_available_semaphore: Option<Arc<Semaphore>>,
-    rendering_complete_semaphores: Vec<Arc<Semaphore>>,
+    rendering_complete_semaphore: Option<Arc<Semaphore>>,
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
     cameras_buffer: HostVisibleBuffer<shader_interface::Camera>,
     inanimate_mesh_instance_buffer: HostVisibleBuffer<shader_interface::InanimateMeshInstance>,
@@ -47,8 +47,6 @@ pub struct Frame {
 #[profile]
 impl Frame {
     pub fn new(presenter_index: usize, window_id: &WindowId, backend_shared: &BackendShared) -> base::Result<Self> {
-        let image_available_semaphore = None;
-        let rendering_complete_semaphores = Vec::new();
         let per_frame_data_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
             &[shader_interface::PerFrameData::default(); 1],
@@ -85,8 +83,8 @@ impl Frame {
 
         Ok(Self {
             presenter_index,
-            image_available_semaphore,
-            rendering_complete_semaphores,
+            image_available_semaphore: None,
+            rendering_complete_semaphore: None,
             per_frame_data_buffer,
             cameras_buffer,
             inanimate_mesh_instance_buffer,
@@ -100,8 +98,8 @@ impl Frame {
     }
 
     /// Returns the rendering complete semaphores for the frame.
-    pub fn rendering_complete_semaphores(&self) -> &[Arc<Semaphore>] {
-        &self.rendering_complete_semaphores
+    pub fn rendering_complete_semaphore(&self) -> Option<&Arc<Semaphore>> {
+        self.rendering_complete_semaphore.as_ref()
     }
 
     pub fn render_frame(
@@ -124,13 +122,7 @@ impl Frame {
             &backend_shared.device,
             debug_info!("main-CommandBuffer-rendering-complete-Semaphore"),
         )?);
-        self.rendering_complete_semaphores.clear();
-        self.rendering_complete_semaphores.push(main_rendering_complete_semaphore.clone());
-        assert_eq!(
-            self.rendering_complete_semaphores.len(),
-            1,
-            "There should only be one rendering complete semaphore"
-        );
+        self.rendering_complete_semaphore = Some(main_rendering_complete_semaphore.clone());
 
         // Prepare InanimateMeshInstances
         let (inanimate_mesh_instance_memory, inanimate_mesh_instance_count) = {

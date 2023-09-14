@@ -29,7 +29,13 @@ impl<T: Clone + 'static> DeviceVisibleBuffer<T> {
         debug_info: DebugInfo,
     ) -> crate::Result<Arc<Self>> {
         let buffer = unsafe {
-            let mut buffer = UnsafeBuffer::new(device, byte_size, buffer_usage_flags.into(), vk::SharingMode::EXCLUSIVE, debug_info)?;
+            let mut buffer = UnsafeBuffer::new(
+                device,
+                byte_size,
+                buffer_usage_flags.into(),
+                vk::SharingMode::CONCURRENT,
+                debug_info,
+            )?;
             buffer.allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE)?;
             buffer
         };

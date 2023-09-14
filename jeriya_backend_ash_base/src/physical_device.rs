@@ -109,6 +109,7 @@ fn get_presentation_graphics_queue_families(
     let physical_device_queue_family_properties = unsafe { instance.get_physical_device_queue_family_properties(*physical_device) };
     let mut queues = Vec::new();
     for (queue_family_index, queue_family_properties) in physical_device_queue_family_properties.iter().enumerate() {
+        info!("Queue Family: {:#?}", queue_family_properties);
         let mut supported = true;
         for surface in surfaces {
             if !surface.supports_presentation(physical_device, queue_family_index)? {

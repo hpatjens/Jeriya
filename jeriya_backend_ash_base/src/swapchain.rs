@@ -176,11 +176,11 @@ impl Swapchain {
     pub fn present(
         &self,
         frame_index: &FrameIndex,
-        rendering_complete_semaphores: &[Arc<Semaphore>],
+        rendering_complete_semaphore: &Arc<Semaphore>,
         present_queue: &Queue,
     ) -> crate::Result<()> {
         let _span = span!("Swapchain::present");
-        let wait_semaphores = rendering_complete_semaphores.iter().map(|s| *s.as_raw_vulkan()).collect::<Vec<_>>();
+        let wait_semaphores = [*rendering_complete_semaphore.as_raw_vulkan()];
         let swapchains = [self.swapchain_khr];
         let image_indices = [frame_index.swapchain_index() as u32];
         let present_info = vk::PresentInfoKHR::builder()

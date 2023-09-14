@@ -237,11 +237,11 @@ fn main() -> ey::Result<()> {
                 }
             }
             Event::MainEventsCleared => {
-                if let Err(err) = immediate_rendering(&renderer) {
-                    error!("Failed to do immediate rendering: {}", err);
-                    control_flow.set_exit();
-                    return;
-                }
+                // if let Err(err) = immediate_rendering(&renderer) {
+                //     error!("Failed to do immediate rendering: {}", err);
+                //     control_flow.set_exit();
+                //     return;
+                // }
             }
             _ => (),
         }
