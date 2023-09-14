@@ -95,7 +95,7 @@ mod tests {
         #[test]
         fn smoke() {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
-            let presentation_queue = Queue::new(&test_fixture_device.device, QueueType::Presentation, 0).unwrap();
+            let presentation_queue = Queue::new(&test_fixture_device.device, QueueType::Presentation, 0, debug_info!("my_queue")).unwrap();
             let _command_pool = CommandPool::new(
                 &test_fixture_device.device,
                 &presentation_queue,
