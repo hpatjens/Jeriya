@@ -149,10 +149,10 @@ impl Backend for AshBackend {
                 info!("Creating presenter for window {window_id:?}");
                 let presenter = Presenter::new(
                     presenter_index,
-                    window_id,
-                    surface,
+                    *window_id,
                     backend_shared.clone(),
                     window_config.frame_rate,
+                    surface,
                 )?;
                 Ok((*window_id, presenter))
             })
