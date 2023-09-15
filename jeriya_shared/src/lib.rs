@@ -35,6 +35,7 @@ pub use rand;
 pub use rayon;
 pub use spin_sleep;
 pub use thiserror;
+pub use thread_id;
 pub use tracy_client;
 pub use walkdir;
 pub use winit;

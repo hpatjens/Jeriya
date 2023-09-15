@@ -3,6 +3,7 @@ use std::{collections::VecDeque, marker::PhantomData, sync::Arc};
 use ash::vk;
 use jeriya_shared::{
     log::{info, trace},
+    thread_id,
     tracy_client::span,
     AsDebugInfo, DebugInfo,
 };
@@ -101,9 +102,10 @@ impl Queue {
     /// Submits the given [`CommandBuffer`] to the `Queue`.
     pub fn submit(&mut self, command_buffer: CommandBuffer) -> crate::Result<()> {
         trace!(
-            "Queue ({:?}) submit on thread: {:?}",
+            "Queue ({:?}) submit on thread: {:?} with id {}",
             self.debug_info.ptr,
-            std::thread::current().name().unwrap_or("unnamed thread")
+            std::thread::current().name().unwrap_or("unnamed thread"),
+            thread_id::get(),
         );
 
         let command_buffers = [*command_buffer.as_raw_vulkan()];
@@ -126,9 +128,10 @@ impl Queue {
         signal_semaphore: &Arc<Semaphore>,
     ) -> crate::Result<()> {
         trace!(
-            "Queue ({:?}) submit on thread: {:?}",
+            "Queue ({:?}) submit on thread: {:?} with id {}",
             self.debug_info.ptr,
-            std::thread::current().name().unwrap_or("unnamed thread")
+            std::thread::current().name().unwrap_or("unnamed thread"),
+            thread_id::get(),
         );
 
         let wait_semaphores = [*wait_semaphore.as_raw_vulkan()];
