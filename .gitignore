@@ -3,4 +3,4 @@ codecov.exe
 lcov.info
 .vscode
 assets
-output.log
+*.log
