@@ -176,6 +176,12 @@ impl Queue {
         }
         Ok(())
     }
+
+    /// Waits for the `Queue` to be idle.
+    pub fn wait_idle(&self) -> crate::Result<()> {
+        unsafe { self.device.as_raw_vulkan().queue_wait_idle(self.queue) }?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

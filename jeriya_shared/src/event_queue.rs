@@ -21,4 +21,10 @@ impl<T> EventQueue<T> {
     pub fn is_empty(&self) -> bool {
         self.events.is_empty()
     }
+
+    pub fn take(&mut self) -> Self {
+        Self {
+            events: std::mem::take(&mut self.events),
+        }
+    }
 }

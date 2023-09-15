@@ -6,22 +6,30 @@ use jeriya_backend_ash_base::{
 };
 use jeriya_macros::profile;
 use jeriya_shared::{
-    self, debug_info,
+    self,
+    crossbeam_channel::Receiver,
+    debug_info,
     log::{info, trace},
     parking_lot::Mutex,
     spin_sleep,
     tracy_client::{span, Client},
     winit::window::WindowId,
-    AsDebugInfo, FrameRate,
+    AsDebugInfo, EventQueue, FrameRate,
 };
 use std::{
     sync::Arc,
     thread::{self, JoinHandle},
 };
 
+#[derive(Debug, Clone)]
+pub enum PresenterEvent {
+    Recreate,
+}
+
 pub struct PresenterThread {
     _presenter_index: usize,
     _thread: JoinHandle<()>,
+    event_queue: Arc<Mutex<EventQueue<PresenterEvent>>>,
 }
 
 #[profile]
@@ -34,10 +42,19 @@ impl PresenterThread {
         presenter_shared: Arc<Mutex<PresenterShared>>,
         frame_rate: FrameRate,
     ) -> jeriya_backend::Result<Self> {
+        let event_queue = Arc::new(Mutex::new(EventQueue::new()));
+        let event_queue2 = event_queue.clone();
         let thread = thread::Builder::new()
             .name(format!("presenter-thread-{presenter_index}"))
             .spawn(move || {
-                if let Err(err) = run_presenter_thread(presenter_index, backend_shared, presenter_shared, window_id, frame_rate) {
+                if let Err(err) = run_presenter_thread(
+                    presenter_index,
+                    backend_shared,
+                    presenter_shared,
+                    window_id,
+                    frame_rate,
+                    event_queue2,
+                ) {
                     panic!("Error on PresenterThread {presenter_index} (Window: {window_id:?}): {err:?}");
                 }
             })
@@ -46,7 +63,13 @@ impl PresenterThread {
         Ok(Self {
             _presenter_index: presenter_index,
             _thread: thread,
+            event_queue,
         })
+    }
+
+    /// Sends a [`PresenterEvent`] to the presenter thread.
+    pub fn send(&self, event: PresenterEvent) {
+        self.event_queue.lock().push(event);
     }
 }
 
@@ -56,6 +79,7 @@ fn run_presenter_thread(
     presenter_shared: Arc<Mutex<PresenterShared>>,
     window_id: WindowId,
     frame_rate: FrameRate,
+    event_queue: Arc<Mutex<EventQueue<PresenterEvent>>>,
 ) -> jeriya_backend::Result<()> {
     // Setup Tracy profiling
     #[rustfmt::skip]
@@ -94,6 +118,15 @@ fn run_presenter_thread(
         trace!("presenter {presenter_index}: thread loop start (framerate: {frame_rate:?})");
 
         let mut presenter_shared = presenter_shared.lock();
+
+        let mut event_queue = event_queue.lock().take();
+        while let Some(new_events) = event_queue.pop() {
+            match new_events {
+                PresenterEvent::Recreate => {
+                    presenter_shared.recreate(&presentation_queue)?;
+                }
+            }
+        }
 
         trace!("presenter {presenter_index}: locked presenter_shared");
 

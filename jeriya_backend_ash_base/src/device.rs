@@ -1,9 +1,10 @@
-use std::sync::Arc;
+use std::{sync::Arc, thread};
 
 use ash::{
     extensions::khr,
     vk::{self, PhysicalDeviceFeatures2, PhysicalDeviceShaderDrawParametersFeatures},
 };
+use jeriya_shared::log::trace;
 
 use crate::{instance::Instance, physical_device::PhysicalDevice, AsRawVulkan, Error, Extensions, PhysicalDeviceFeature};
 
@@ -109,6 +110,11 @@ impl Device {
 
     /// Wait for a device to become idle
     pub fn wait_for_idle(&self) -> crate::Result<()> {
+        trace! {
+            "Calling device_wait_idle on thread: {:?}",
+            thread::current().name().unwrap_or("unnamed thread")
+        }
+
         Ok(unsafe { self.device.device_wait_idle() }?)
     }
 

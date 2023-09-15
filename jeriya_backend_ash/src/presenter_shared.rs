@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use base::queue::Queue;
 use jeriya_backend::CameraContainerGuard;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
@@ -183,8 +184,8 @@ impl PresenterShared {
     }
 
     /// Creates the swapchain and all state that depends on it
-    pub fn recreate(&mut self) -> base::Result<()> {
-        self.device.wait_for_idle()?;
+    pub fn recreate(&mut self, wait_queue: &Queue) -> base::Result<()> {
+        wait_queue.wait_idle()?;
         self.swapchain = Swapchain::new(&self.device, &self.surface, self.desired_swapchain_length, Some(&self.swapchain))?;
         self.swapchain_depth_buffers = SwapchainDepthBuffers::new(&self.device, &self.swapchain)?;
         self.swapchain_render_pass = SwapchainRenderPass::new(&self.device, &self.swapchain)?;

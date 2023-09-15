@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::presenter_thread::PresenterEvent;
 use crate::{
     backend_shared::BackendShared, frame::Frame, presenter_shared::PresenterShared, presenter_thread::PresenterThread,
     ImmediateRenderingRequest,
@@ -58,7 +59,8 @@ impl Presenter {
 
     /// Recreates the [`PresenterShared`] in case of a swapchain resize
     pub fn recreate(&self) -> base::Result<()> {
-        self.presenter_shared.lock().recreate()
+        self.thread.send(PresenterEvent::Recreate);
+        Ok(())
     }
 
     /// Sets the active camera
