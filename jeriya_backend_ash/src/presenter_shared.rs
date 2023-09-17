@@ -22,7 +22,7 @@ use jeriya_shared::{
     Handle,
 };
 
-use crate::{backend_shared::BackendShared, ImmediateRenderingRequest};
+use crate::backend_shared::BackendShared;
 
 pub struct IndirectGraphicsPipelineInterface;
 impl GraphicsPipelineInterface for IndirectGraphicsPipelineInterface {
@@ -55,7 +55,6 @@ pub struct PresenterShared {
     pub swapchain_depth_buffers: SwapchainDepthBuffers,
     pub swapchain_framebuffers: SwapchainFramebuffers,
     pub swapchain_render_pass: SwapchainRenderPass,
-    pub immediate_rendering_requests: Vec<ImmediateRenderingRequest>,
     pub simple_graphics_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
     pub immediate_graphics_pipeline_line_list: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
     pub immediate_graphics_pipeline_line_strip: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
@@ -170,7 +169,6 @@ impl PresenterShared {
             swapchain_depth_buffers,
             swapchain_framebuffers,
             swapchain_render_pass,
-            immediate_rendering_requests: Vec::new(),
             simple_graphics_pipeline,
             immediate_graphics_pipeline_line_list,
             immediate_graphics_pipeline_line_strip,

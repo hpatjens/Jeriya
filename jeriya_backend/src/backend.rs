@@ -3,7 +3,7 @@ use std::sync::Arc;
 use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, DebugInfo, Handle, RendererConfig, WindowConfig};
 
 use crate::{
-    immediate::{CommandBuffer, CommandBufferBuilder, LineList, LineStrip, TriangleList, TriangleStrip},
+    immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
     inanimate_mesh::InanimateMeshGroup,
     model::ModelGroup,
     objects::InanimateMeshInstanceContainerGuard,
@@ -29,7 +29,11 @@ pub trait Backend: Sized {
     fn create_immediate_command_buffer_builder(&self, debug_info: DebugInfo) -> crate::Result<CommandBufferBuilder<Self>>;
 
     /// Renders the given [`CommandBuffer`] in the next frame
-    fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<Self>>) -> crate::Result<()>;
+    fn render_immediate_command_buffer(
+        &self,
+        immediate_rendering_frame: &ImmediateRenderingFrame,
+        command_buffer: Arc<CommandBuffer<Self>>,
+    ) -> crate::Result<()>;
 
     /// Returns a guard to the [`Camera`]s
     fn cameras(&self) -> CameraContainerGuard;

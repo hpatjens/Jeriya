@@ -27,4 +27,8 @@ impl<T> EventQueue<T> {
             events: std::mem::take(&mut self.events),
         }
     }
+
+    pub fn len(&self) -> usize {
+        self.events.len()
+    }
 }

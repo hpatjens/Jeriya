@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use jeriya_shared::{
     nalgebra::{Matrix4, Vector3, Vector4},
@@ -6,6 +9,67 @@ use jeriya_shared::{
 };
 
 use crate::{backend::Backend, ImmediateCommandBufferBuilderHandler};
+
+/// Identifies a frame for immediate rendering.
+///
+/// Create an `ImmediateRenderingFrame` with [`ImmediateRenderingFrame::new`] once per frame
+/// and pass it to [`Renderer::render_immediate_command_buffer`]. The `ImmediateRenderingFrame`
+/// will determine how long the [`ImmediateCommandBuffer`] will be rendered.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ImmediateRenderingFrame(Arc<InnerImmediateRenderingFrame>);
+
+impl ImmediateRenderingFrame {
+    /// Creates a new `ImmediateRenderingFrame` with the given `update_loop_name`, `index` and `timeout`. This method allocates memory and should only be called once per frame.
+    pub fn new(update_loop_name: &'static str, index: u64, timeout: Timeout) -> Self {
+        Self(Arc::new(InnerImmediateRenderingFrame {
+            update_loop_name,
+            index,
+            timeout,
+        }))
+    }
+
+    /// Returns the timeout of the `ImmediateRenderingFrame`.
+    pub fn timeout(&self) -> &Timeout {
+        &self.0.timeout
+    }
+
+    /// Name of the update loop from which the `ImmediateRenderingFrame` was created.
+    pub fn update_loop_name(&self) -> &'static str {
+        &self.0.update_loop_name
+    }
+
+    /// Index of the `ImmediateRenderingFrame`.
+    pub fn index(&self) -> u64 {
+        self.0.index
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InnerImmediateRenderingFrame {
+    update_loop_name: &'static str,
+    index: u64,
+    timeout: Timeout,
+}
+
+/// Timeout for an [`ImmediateRenderingFrame`]
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Timeout {
+    /// The frame will be rendered until a new frame is requested.
+    #[default]
+    Infinite,
+    /// The frame will be rendered no longer than the given [`Duration`].
+    Finite(Duration),
+}
+
+impl Timeout {
+    /// Returns `true` if the given `start_time` is timed out.
+    pub fn is_timed_out(&self, start_time: &Instant) -> bool {
+        match self {
+            Timeout::Infinite => false,
+            Timeout::Finite(duration) => start_time.elapsed() > *duration,
+        }
+    }
+}
 
 /// Configuration for immediate line rendering
 #[derive(Debug, Clone)]

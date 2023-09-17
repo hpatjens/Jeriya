@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::{iter, mem, sync::Arc};
 
 use jeriya_backend::inanimate_mesh::InanimateMeshGpuState;
@@ -27,11 +28,11 @@ use jeriya_shared::{
     winit::window::WindowId,
 };
 
+use crate::ash_immediate::ImmediateRenderingFrameTask;
 use crate::{
     ash_immediate::ImmediateCommand,
     backend_shared::BackendShared,
     presenter_shared::{PresenterShared, PushConstants},
-    ImmediateRenderingRequest,
 };
 
 pub struct Frame {
@@ -108,6 +109,7 @@ impl Frame {
         presentation_queue: &mut Queue,
         backend_shared: &BackendShared,
         presenter_shared: &mut PresenterShared,
+        immediate_rendering_frames: &BTreeMap<&'static str, ImmediateRenderingFrameTask>,
         rendering_complete_command_buffer: &mut Option<Arc<CommandBuffer>>,
     ) -> jeriya_backend::Result<()> {
         // Wait for the previous work for the currently occupied frame to finish
@@ -292,12 +294,7 @@ impl Frame {
         drop(simple_span);
 
         // Render with ImmediateRenderingPipeline
-        self.append_immediate_rendering_commands(
-            backend_shared,
-            presenter_shared,
-            &mut builder,
-            &presenter_shared.immediate_rendering_requests,
-        )?;
+        self.append_immediate_rendering_commands(backend_shared, presenter_shared, &mut builder, &immediate_rendering_frames)?;
 
         builder.end_render_pass()?;
         builder.end_command_buffer()?;
@@ -318,9 +315,6 @@ impl Frame {
         let submit_span = span!("submit command buffer commands");
         presentation_queue.submit_for_rendering_complete(command_buffer, image_available_semaphore, &main_rendering_complete_semaphore)?;
         drop(submit_span);
-
-        // Remove all ImmediateRenderingRequests that don't have to be rendered anymore
-        presenter_shared.immediate_rendering_requests.clear();
 
         Ok(())
     }
@@ -351,22 +345,24 @@ impl Frame {
         backend_shared: &BackendShared,
         presenter_shared: &PresenterShared,
         command_buffer_builder: &mut CommandBufferBuilder,
-        immediate_rendering_requests: &Vec<ImmediateRenderingRequest>,
+        immediate_rendering_frames: &BTreeMap<&'static str, ImmediateRenderingFrameTask>,
     ) -> base::Result<()> {
-        if immediate_rendering_requests.is_empty() {
+        if immediate_rendering_frames.is_empty() {
             return Ok(());
         }
 
         // Collect vertex attributes for all immediate rendering requests
         let mut data = Vec::new();
-        for request in immediate_rendering_requests {
-            for command in &request.immediate_command_buffer.commands {
-                match command {
-                    ImmediateCommand::Matrix(..) => {}
-                    ImmediateCommand::LineList(line_list) => data.extend_from_slice(line_list.positions()),
-                    ImmediateCommand::LineStrip(line_strip) => data.extend_from_slice(line_strip.positions()),
-                    ImmediateCommand::TriangleList(triangle_list) => data.extend_from_slice(triangle_list.positions()),
-                    ImmediateCommand::TriangleStrip(triangle_strip) => data.extend_from_slice(triangle_strip.positions()),
+        for (_update_loop_name, task) in immediate_rendering_frames {
+            for command_buffer in &task.immediate_command_buffer_handlers {
+                for command in &command_buffer.commands {
+                    match command {
+                        ImmediateCommand::Matrix(..) => {}
+                        ImmediateCommand::LineList(line_list) => data.extend_from_slice(line_list.positions()),
+                        ImmediateCommand::LineStrip(line_strip) => data.extend_from_slice(line_strip.positions()),
+                        ImmediateCommand::TriangleList(triangle_list) => data.extend_from_slice(triangle_list.positions()),
+                        ImmediateCommand::TriangleStrip(triangle_strip) => data.extend_from_slice(triangle_strip.positions()),
+                    }
                 }
             }
         }
@@ -379,96 +375,102 @@ impl Frame {
         command_buffer_builder.bind_vertex_buffers(0, &vertex_buffer);
 
         plot_with_index!(
-            "immediate_rendering_requests_on_presenter_",
+            "immediate_rendering_commands_on_presenter_",
             self.presenter_index,
-            immediate_rendering_requests.len() as f64
+            immediate_rendering_frames
+                .values()
+                .flat_map(|task| &task.immediate_command_buffer_handlers)
+                .flat_map(|command_buffer| &command_buffer.commands)
+                .count() as f64
         );
 
         // Append the draw commands
         let mut first_vertex = 0;
         let mut last_matrix = Matrix4::identity();
-        for immediate_rendering_request in immediate_rendering_requests {
-            let mut last_topology = None;
-            for command in &immediate_rendering_request.immediate_command_buffer.commands {
-                match command {
-                    ImmediateCommand::Matrix(matrix) => last_matrix = *matrix,
-                    ImmediateCommand::LineList(line_list) => {
-                        if !matches!(last_topology, Some(PrimitiveTopology::LineList)) {
-                            command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_list);
-                            self.push_descriptors(
-                                PipelineBindPoint::Graphics,
-                                &presenter_shared.immediate_graphics_pipeline_line_list.descriptor_set_layout,
-                                backend_shared,
-                                command_buffer_builder,
-                            )?;
+        for (_update_loop_name, task) in immediate_rendering_frames {
+            for command_buffer in &task.immediate_command_buffer_handlers {
+                let mut last_topology = None;
+                for command in &command_buffer.commands {
+                    match command {
+                        ImmediateCommand::Matrix(matrix) => last_matrix = *matrix,
+                        ImmediateCommand::LineList(line_list) => {
+                            if !matches!(last_topology, Some(PrimitiveTopology::LineList)) {
+                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_list);
+                                self.push_descriptors(
+                                    PipelineBindPoint::Graphics,
+                                    &presenter_shared.immediate_graphics_pipeline_line_list.descriptor_set_layout,
+                                    backend_shared,
+                                    command_buffer_builder,
+                                )?;
+                            }
+                            let push_constants = PushConstants {
+                                color: line_list.config().color,
+                                matrix: last_matrix,
+                            };
+                            command_buffer_builder.push_constants(&[push_constants])?;
+                            command_buffer_builder.set_line_width(line_list.config().line_width);
+                            command_buffer_builder.draw_vertices(line_list.positions().len() as u32, first_vertex as u32);
+                            first_vertex += line_list.positions().len();
+                            last_topology = Some(PrimitiveTopology::LineList);
                         }
-                        let push_constants = PushConstants {
-                            color: line_list.config().color,
-                            matrix: last_matrix,
-                        };
-                        command_buffer_builder.push_constants(&[push_constants])?;
-                        command_buffer_builder.set_line_width(line_list.config().line_width);
-                        command_buffer_builder.draw_vertices(line_list.positions().len() as u32, first_vertex as u32);
-                        first_vertex += line_list.positions().len();
-                        last_topology = Some(PrimitiveTopology::LineList);
-                    }
-                    ImmediateCommand::LineStrip(line_strip) => {
-                        if !matches!(last_topology, Some(PrimitiveTopology::LineStrip)) {
-                            command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_strip);
-                            self.push_descriptors(
-                                PipelineBindPoint::Graphics,
-                                &presenter_shared.immediate_graphics_pipeline_line_strip.descriptor_set_layout,
-                                backend_shared,
-                                command_buffer_builder,
-                            )?;
+                        ImmediateCommand::LineStrip(line_strip) => {
+                            if !matches!(last_topology, Some(PrimitiveTopology::LineStrip)) {
+                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_strip);
+                                self.push_descriptors(
+                                    PipelineBindPoint::Graphics,
+                                    &presenter_shared.immediate_graphics_pipeline_line_strip.descriptor_set_layout,
+                                    backend_shared,
+                                    command_buffer_builder,
+                                )?;
+                            }
+                            let push_constants = PushConstants {
+                                color: line_strip.config().color,
+                                matrix: last_matrix,
+                            };
+                            command_buffer_builder.push_constants(&[push_constants])?;
+                            command_buffer_builder.set_line_width(line_strip.config().line_width);
+                            command_buffer_builder.draw_vertices(line_strip.positions().len() as u32, first_vertex as u32);
+                            first_vertex += line_strip.positions().len();
+                            last_topology = Some(PrimitiveTopology::LineStrip);
                         }
-                        let push_constants = PushConstants {
-                            color: line_strip.config().color,
-                            matrix: last_matrix,
-                        };
-                        command_buffer_builder.push_constants(&[push_constants])?;
-                        command_buffer_builder.set_line_width(line_strip.config().line_width);
-                        command_buffer_builder.draw_vertices(line_strip.positions().len() as u32, first_vertex as u32);
-                        first_vertex += line_strip.positions().len();
-                        last_topology = Some(PrimitiveTopology::LineStrip);
-                    }
-                    ImmediateCommand::TriangleList(triangle_list) => {
-                        if !matches!(last_topology, Some(PrimitiveTopology::TriangleList)) {
-                            command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_list);
-                            self.push_descriptors(
-                                PipelineBindPoint::Graphics,
-                                &presenter_shared.immediate_graphics_pipeline_triangle_list.descriptor_set_layout,
-                                backend_shared,
-                                command_buffer_builder,
-                            )?;
+                        ImmediateCommand::TriangleList(triangle_list) => {
+                            if !matches!(last_topology, Some(PrimitiveTopology::TriangleList)) {
+                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_list);
+                                self.push_descriptors(
+                                    PipelineBindPoint::Graphics,
+                                    &presenter_shared.immediate_graphics_pipeline_triangle_list.descriptor_set_layout,
+                                    backend_shared,
+                                    command_buffer_builder,
+                                )?;
+                            }
+                            let push_constants = PushConstants {
+                                color: triangle_list.config().color,
+                                matrix: last_matrix,
+                            };
+                            command_buffer_builder.push_constants(&[push_constants])?;
+                            command_buffer_builder.draw_vertices(triangle_list.positions().len() as u32, first_vertex as u32);
+                            first_vertex += triangle_list.positions().len();
+                            last_topology = Some(PrimitiveTopology::TriangleList);
                         }
-                        let push_constants = PushConstants {
-                            color: triangle_list.config().color,
-                            matrix: last_matrix,
-                        };
-                        command_buffer_builder.push_constants(&[push_constants])?;
-                        command_buffer_builder.draw_vertices(triangle_list.positions().len() as u32, first_vertex as u32);
-                        first_vertex += triangle_list.positions().len();
-                        last_topology = Some(PrimitiveTopology::TriangleList);
-                    }
-                    ImmediateCommand::TriangleStrip(triangle_strip) => {
-                        if !matches!(last_topology, Some(PrimitiveTopology::TriangleStrip)) {
-                            command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_strip);
-                            self.push_descriptors(
-                                PipelineBindPoint::Graphics,
-                                &presenter_shared.immediate_graphics_pipeline_triangle_strip.descriptor_set_layout,
-                                backend_shared,
-                                command_buffer_builder,
-                            )?;
+                        ImmediateCommand::TriangleStrip(triangle_strip) => {
+                            if !matches!(last_topology, Some(PrimitiveTopology::TriangleStrip)) {
+                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_strip);
+                                self.push_descriptors(
+                                    PipelineBindPoint::Graphics,
+                                    &presenter_shared.immediate_graphics_pipeline_triangle_strip.descriptor_set_layout,
+                                    backend_shared,
+                                    command_buffer_builder,
+                                )?;
+                            }
+                            let push_constants = PushConstants {
+                                color: triangle_strip.config().color,
+                                matrix: last_matrix,
+                            };
+                            command_buffer_builder.push_constants(&[push_constants])?;
+                            command_buffer_builder.draw_vertices(triangle_strip.positions().len() as u32, first_vertex as u32);
+                            first_vertex += triangle_strip.positions().len();
+                            last_topology = Some(PrimitiveTopology::TriangleStrip);
                         }
-                        let push_constants = PushConstants {
-                            color: triangle_strip.config().color,
-                            matrix: last_matrix,
-                        };
-                        command_buffer_builder.push_constants(&[push_constants])?;
-                        command_buffer_builder.draw_vertices(triangle_strip.positions().len() as u32, first_vertex as u32);
-                        first_vertex += triangle_strip.positions().len();
-                        last_topology = Some(PrimitiveTopology::TriangleStrip);
                     }
                 }
             }

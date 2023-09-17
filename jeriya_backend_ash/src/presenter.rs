@@ -1,13 +1,21 @@
 use std::{
+    collections::BTreeMap,
     sync::Arc,
     thread::{self, JoinHandle},
+    time::Instant,
 };
 
-use crate::{backend_shared::BackendShared, frame::Frame, presenter_shared::PresenterShared, ImmediateRenderingRequest};
+use crate::{
+    ash_immediate::{AshImmediateCommandBufferHandler, ImmediateRenderingFrameTask},
+    backend_shared::BackendShared,
+    frame::Frame,
+    presenter_shared::PresenterShared,
+};
 use base::{
     queue::{Queue, QueueType},
     semaphore::Semaphore,
 };
+use jeriya_backend::immediate::ImmediateRenderingFrame;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_macros::profile;
@@ -21,9 +29,13 @@ use jeriya_shared::{
     EventQueue, FrameRate, Handle,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum PresenterEvent {
     Recreate,
+    RenderImmediateCommandBuffer {
+        immediate_command_buffer_handler: AshImmediateCommandBufferHandler,
+        immediate_rendering_frame: ImmediateRenderingFrame,
+    },
 }
 
 pub struct Presenter {
@@ -72,21 +84,13 @@ impl Presenter {
     }
 
     /// Sends a [`PresenterEvent`] to the presenter thread.
-    fn send(&self, event: PresenterEvent) {
+    pub fn send(&self, event: PresenterEvent) {
         self.event_queue.lock().push(event);
     }
 
     /// Returns the index of the presenter
     pub fn presenter_index(&self) -> usize {
         self._presenter_index
-    }
-
-    /// Enqueues an [`ImmediateRenderingRequest`]
-    pub fn render_immediate_command_buffer(&self, immediate_rendering_request: ImmediateRenderingRequest) {
-        self.presenter_shared
-            .lock()
-            .immediate_rendering_requests
-            .push(immediate_rendering_request);
     }
 
     /// Recreates the [`PresenterShared`] in case of a swapchain resize
@@ -136,6 +140,13 @@ fn run_presenter_thread(
         debug_info!(format!("presenter-thread-queue-{}", presenter_index)),
     )?;
 
+    // Immediate rendering frames
+    //
+    // The immediate rendering frames are stored per update loop name. When a newer frame is received, the
+    // current one is replaced. When a command buffer in received that belongs to the current frame, it is
+    // inserted into the `ImmediateRenderingFrameTask`.
+    let mut immediate_rendering_frames = BTreeMap::<&'static str, ImmediateRenderingFrameTask>::new();
+
     // Command Buffer that is checked to determine whether the rendering is complete
     let mut rendering_complete_command_buffer = SwapchainVec::new(&presenter_shared.lock().swapchain(), |_| Ok(None))?;
 
@@ -152,11 +163,51 @@ fn run_presenter_thread(
 
         let mut presenter_shared = presenter_shared.lock();
 
+        // Remove timed out immediate rendering frames.
+        //
+        // The immediate rendering frames are removed one frame after they timed out. This is to make sure that
+        // no flickering accurs when the timeout is set exactly to the frame rate. The flickering seems to occur
+        // due to inconsistencies in the frame rate of the update and render loops. It is not occuring when the
+        // timeout is set to Timeout::Infinite. (When the command buffers are rendered until they are replaced.)
+        immediate_rendering_frames.retain(|_, task| !task.is_timed_out);
+        for task in immediate_rendering_frames.values_mut() {
+            task.is_timed_out = task.immediate_rendering_frame.timeout().is_timed_out(&task.start_time);
+        }
+
+        // Handle the incoming events for the presenter
         let mut event_queue = event_queue.lock().take();
         while let Some(new_events) = event_queue.pop() {
             match new_events {
                 PresenterEvent::Recreate => {
                     presenter_shared.recreate(&presentation_queue)?;
+                }
+                PresenterEvent::RenderImmediateCommandBuffer {
+                    immediate_command_buffer_handler,
+                    immediate_rendering_frame,
+                } => {
+                    // Check if the newly received immediate rendering frame is newer than the one that is already rendering
+                    let mut remove_frame = false;
+                    if let Some(task) = immediate_rendering_frames.get_mut(&immediate_rendering_frame.update_loop_name()) {
+                        if immediate_rendering_frame.index() > task.immediate_rendering_frame.index() {
+                            remove_frame = true;
+                        }
+                    }
+                    if remove_frame {
+                        immediate_rendering_frames.remove(&immediate_rendering_frame.update_loop_name());
+                    }
+
+                    // Insert the newly received command buffer
+                    if let Some(task) = immediate_rendering_frames.get_mut(&immediate_rendering_frame.update_loop_name()) {
+                        task.immediate_command_buffer_handlers.push(immediate_command_buffer_handler);
+                    } else {
+                        let task = ImmediateRenderingFrameTask {
+                            start_time: Instant::now(),
+                            is_timed_out: false,
+                            immediate_rendering_frame: immediate_rendering_frame.clone(),
+                            immediate_command_buffer_handlers: vec![immediate_command_buffer_handler],
+                        };
+                        immediate_rendering_frames.insert(immediate_rendering_frame.update_loop_name(), task);
+                    }
                 }
             }
         }
@@ -186,6 +237,7 @@ fn run_presenter_thread(
             &mut presentation_queue,
             &backend_shared,
             &mut *presenter_shared,
+            &immediate_rendering_frames,
             &mut rendering_complete_command_buffer,
         )?;
 

@@ -10,7 +10,7 @@ use std::{
 use crate::{
     ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler},
     backend_shared::BackendShared,
-    presenter::Presenter,
+    presenter::{Presenter, PresenterEvent},
 };
 use base::{
     command_buffer::CommandBuffer,
@@ -20,7 +20,7 @@ use base::{
     shader_interface,
 };
 use jeriya_backend::{
-    immediate,
+    immediate::{self, ImmediateRenderingFrame},
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
     model::ModelGroup,
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
@@ -41,17 +41,10 @@ use jeriya_shared::{
     debug_info,
     log::{error, info},
     nalgebra::Vector4,
-    parking_lot::Mutex,
     tracy_client::{span, Client},
     winit::window::WindowId,
     AsDebugInfo, DebugInfo, Handle, RendererConfig, WindowConfig,
 };
-
-#[derive(Debug)]
-pub struct ImmediateRenderingRequest {
-    pub immediate_command_buffer: AshImmediateCommandBufferHandler,
-    pub count: usize,
-}
 
 pub struct AshBackend {
     presenters: HashMap<WindowId, Presenter>,
@@ -186,16 +179,19 @@ impl Backend for AshBackend {
         Ok(immediate::CommandBufferBuilder::new(command_buffer_builder))
     }
 
-    fn render_immediate_command_buffer(&self, command_buffer: Arc<immediate::CommandBuffer<Self>>) -> jeriya_backend::Result<()> {
+    fn render_immediate_command_buffer(
+        &self,
+        immediate_rendering_frame: &ImmediateRenderingFrame,
+        command_buffer: Arc<immediate::CommandBuffer<Self>>,
+    ) -> jeriya_backend::Result<()> {
         for presenter in self.presenters.values() {
-            let immediate_rendering_request = ImmediateRenderingRequest {
-                immediate_command_buffer: AshImmediateCommandBufferHandler {
+            presenter.send(PresenterEvent::RenderImmediateCommandBuffer {
+                immediate_command_buffer_handler: AshImmediateCommandBufferHandler {
                     commands: command_buffer.command_buffer().commands.clone(),
                     debug_info: command_buffer.command_buffer().debug_info.clone(),
                 },
-                count: 1,
-            };
-            presenter.render_immediate_command_buffer(immediate_rendering_request);
+                immediate_rendering_frame: immediate_rendering_frame.clone(),
+            });
         }
         Ok(())
     }

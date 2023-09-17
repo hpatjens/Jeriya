@@ -1,11 +1,11 @@
-use std::io;
+use std::{io, time::Duration};
 
 use color_eyre as ey;
 use ey::eyre::{eyre, Context};
 use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend::{
-    immediate::{LineConfig, LineList, LineStrip, TriangleConfig, TriangleList, TriangleStrip},
+    immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
     Backend, InanimateMeshInstance, ModelInstance,
 };
@@ -26,10 +26,16 @@ use jeriya_shared::{
 };
 
 /// Shows how the immediate rendering API can be used.
-fn immediate_rendering<B>(renderer: &Renderer<B>) -> jeriya_backend::Result<()>
+fn immediate_rendering<B>(renderer: &Renderer<B>, update_loop_frame_index: u64, update_framerate: f64) -> jeriya_backend::Result<()>
 where
     B: Backend,
 {
+    let immediate_rendering_frame_config = ImmediateRenderingFrame::new(
+        "main_loop",
+        update_loop_frame_index,
+        Timeout::Finite(Duration::from_secs_f64(1.0 / update_framerate)),
+    );
+
     let immediate_command_buffer_builder = renderer.create_immediate_command_buffer_builder(debug_info!("my_command_buffer"))?;
 
     let line_list = LineList::new(
@@ -84,7 +90,7 @@ where
         .push_triangle_strips(&[triangle_strip])?
         .build()?;
 
-    renderer.render_immediate_command_buffer(immediate_command_buffer)?;
+    renderer.render_immediate_command_buffer(&immediate_rendering_frame_config, immediate_command_buffer)?;
 
     Ok(())
 }
@@ -221,6 +227,7 @@ fn main() -> ey::Result<()> {
     drop(model_instances);
 
     const UPDATE_FRAMERATE: u32 = 60;
+    let mut update_loop_frame_index = 0;
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(UPDATE_FRAMERATE as f64);
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_poll();
@@ -242,11 +249,13 @@ fn main() -> ey::Result<()> {
             Event::MainEventsCleared => {
                 loop_helper.loop_start();
 
-                if let Err(err) = immediate_rendering(&renderer) {
+                if let Err(err) = immediate_rendering(&renderer, update_loop_frame_index, UPDATE_FRAMERATE as f64) {
                     error!("Failed to do immediate rendering: {}", err);
                     control_flow.set_exit();
                     return;
                 }
+
+                update_loop_frame_index += 1;
 
                 loop_helper.loop_sleep();
             }

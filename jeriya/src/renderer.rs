@@ -1,11 +1,7 @@
-use jeriya_shared::{
-    tracy_client::Client,
-    winit::window::{Window, WindowId},
-    DebugInfo, Handle, RendererConfig, WindowConfig,
-};
+use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Handle, RendererConfig, WindowConfig};
 
 use jeriya_backend::{
-    immediate::{CommandBuffer, CommandBufferBuilder},
+    immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
     inanimate_mesh::InanimateMeshGroup,
     model::ModelGroup,
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, Result,
@@ -49,9 +45,25 @@ where
         self.backend.create_immediate_command_buffer_builder(debug_info)
     }
 
-    /// Renders a [`CommandBuffer`] in the next frame
-    pub fn render_immediate_command_buffer(&self, command_buffer: Arc<CommandBuffer<B>>) -> Result<()> {
-        self.backend.render_immediate_command_buffer(command_buffer)
+    /// Renders a [`CommandBuffer`] for the given [`ImmediateRenderingFrame`].
+    ///
+    /// The rendering frequencies for the surfaces might vary and are is not locked to
+    /// the update frequency. This means that one window might be rendered at 60 FPS
+    /// while another window is rendered at 144 FPS. The update frequency might be lower
+    /// than either one of them at e.g. 30 FPS. This means that the renderer must have a
+    /// way to determine for how many frames the [`CommandBuffer`] should be rendered.
+    /// When rendering an [`ImmediateCommandBuffer`] only for the following frame, the
+    /// image might flicker when the update framerate is lower than the rendering framerate.
+    ///
+    /// To solve this problem, the [`ImmediateRenderingFrame`] is used. It determines for
+    /// how many frames the [`CommandBuffer`] should be rendered.
+    pub fn render_immediate_command_buffer(
+        &self,
+        immediate_rendering_frame: &ImmediateRenderingFrame,
+        command_buffer: Arc<CommandBuffer<B>>,
+    ) -> Result<()> {
+        self.backend
+            .render_immediate_command_buffer(immediate_rendering_frame, command_buffer)
     }
 
     /// Returns a guard to the [`Camera`]s.
@@ -143,7 +155,7 @@ where
 #[cfg(test)]
 mod tests {
     use jeriya_backend::{
-        immediate::{CommandBuffer, CommandBufferBuilder},
+        immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
         inanimate_mesh::InanimateMeshGroup,
         model::ModelGroup,
         Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, InanimateMeshInstance,
@@ -156,7 +168,7 @@ mod tests {
     use std::sync::Arc;
 
     mod immediate_command_buffer {
-        use jeriya_backend::immediate::{LineConfig, LineList};
+        use jeriya_backend::immediate::{ImmediateRenderingFrame, LineConfig, LineList};
         use jeriya_backend_ash::AshBackend;
         use jeriya_shared::{debug_info, nalgebra::Vector3, FrameRate, WindowConfig};
         use jeriya_test::create_window;
@@ -175,11 +187,12 @@ mod tests {
                 vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0)],
                 LineConfig::default(),
             );
+            let immediate_rendering_frame = ImmediateRenderingFrame::new("my_main_loop", 0, jeriya_backend::immediate::Timeout::Infinite);
             let immediate_command_buffer = renderer
                 .create_immediate_command_buffer_builder(debug_info!("my_immediate_command_buffer"))?
                 .push_line_lists(&[line_list])?
                 .build()?;
-            renderer.render_immediate_command_buffer(immediate_command_buffer)?;
+            renderer.render_immediate_command_buffer(&immediate_rendering_frame, immediate_command_buffer)?;
             Ok(())
         }
     }
@@ -245,7 +258,11 @@ mod tests {
             ))))
         }
 
-        fn render_immediate_command_buffer(&self, _command_buffer: Arc<CommandBuffer<Self>>) -> jeriya_backend::Result<()> {
+        fn render_immediate_command_buffer(
+            &self,
+            _immediate_rendering_frame: &ImmediateRenderingFrame,
+            _command_buffer: Arc<CommandBuffer<Self>>,
+        ) -> jeriya_backend::Result<()> {
             Ok(())
         }
 
