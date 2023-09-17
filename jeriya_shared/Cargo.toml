@@ -5,6 +5,7 @@ edition = "2021"
 
 [features]
 profile = ["tracy-client/default"]
+deadlock_detection = ["parking_lot/deadlock_detection"]
 
 [dependencies]
 chrono = "0.4.24"

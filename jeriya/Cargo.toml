@@ -3,6 +3,9 @@ name = "jeriya"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+deadlock_detection = ["jeriya_shared/deadlock_detection"]
+
 [dependencies]
 jeriya_shared = { path = "../jeriya_shared" }
 jeriya_backend = { path = "../jeriya_backend" }

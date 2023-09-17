@@ -1,4 +1,4 @@
-use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Handle, RendererConfig, WindowConfig};
+use jeriya_shared::{log::error, tracy_client::Client, winit::window::WindowId, DebugInfo, Handle, RendererConfig, WindowConfig};
 
 use jeriya_backend::{
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
@@ -7,7 +7,7 @@ use jeriya_backend::{
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, Result,
 };
 
-use std::{marker::PhantomData, sync::Arc};
+use std::{marker::PhantomData, sync::Arc, thread, time::Duration};
 
 /// Instance of the renderer
 pub struct Renderer<B>
@@ -145,10 +145,38 @@ where
         // Create a Tracy client before the backend is created because the first thread creating a Client is called "Main thread".
         let _tracy_client = Client::start();
 
+        // Run deadlock detection in a separate thread.
+        #[cfg(feature = "deadlock_detection")]
+        thread::spawn(move || run_deadlock_detection());
+
         let renderer_config = self.renderer_config.unwrap_or(RendererConfig::default());
         let backend_config = self.backend_config.unwrap_or(B::BackendConfig::default());
         let backend = B::new(renderer_config, backend_config, self.window_configs)?;
         Ok(Renderer::new(backend))
+    }
+}
+
+#[cfg(feature = "deadlock_detection")]
+fn run_deadlock_detection() {
+    use jeriya_shared::{log::info, parking_lot::deadlock};
+
+    info!("Deadlock detection thread started");
+
+    loop {
+        thread::sleep(Duration::from_secs(1));
+        let deadlocks = deadlock::check_deadlock();
+        if deadlocks.is_empty() {
+            continue;
+        }
+
+        error!("{} deadlocks detected", deadlocks.len());
+        for (i, threads) in deadlocks.iter().enumerate() {
+            error!("Deadlock #{}", i);
+            for t in threads {
+                error!("Thread Id {:#?}", t.thread_id());
+                error!("{:#?}", t.backtrace());
+            }
+        }
     }
 }
 
