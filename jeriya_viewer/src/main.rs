@@ -188,8 +188,8 @@ fn main() -> ey::Result<()> {
     let _asset_importer = AssetImporter::new(import_source, 4).wrap_err("Failed to create AssetImporter")?;
 
     {
-        let cameras = renderer.cameras();
         let handle = renderer.active_camera(window1.id()).wrap_err("Failed to get active camera")?;
+        let cameras = renderer.cameras();
         let camera = cameras.get(&handle).ok_or(eyre!("Failed to get camera"))?;
         println!("Camera: {:?}", camera.matrix());
     }

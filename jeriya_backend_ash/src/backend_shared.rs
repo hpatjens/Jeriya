@@ -13,12 +13,12 @@ pub struct BackendShared {
     pub device: Arc<Device>,
     pub renderer_config: Arc<RendererConfig>,
 
-    pub cameras: Arc<Mutex<IndexingContainer<Camera>>>,
     pub camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
+    pub cameras: Arc<Mutex<IndexingContainer<Camera>>>,
 
+    pub inanimate_mesh_event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
     pub inanimate_mesh_group: Arc<InanimateMeshGroup>,
     pub inanimate_mesh_gpu_states: Arc<Mutex<HashMap<Handle<Arc<InanimateMesh>>, InanimateMeshGpuState>>>,
-    pub inanimate_mesh_event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
     pub inanimate_mesh_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::InanimateMesh>>,
 
     pub model_group: Arc<ModelGroup>,
@@ -26,11 +26,11 @@ pub struct BackendShared {
     pub static_vertex_position_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_indices_buffer: Mutex<StagedPushOnlyBuffer<u32>>,
 
-    pub inanimate_mesh_instances: Arc<Mutex<IndexingContainer<InanimateMeshInstance>>>,
     pub inanimate_mesh_instance_event_queue: Arc<Mutex<EventQueue<InanimateMeshInstanceEvent>>>,
+    pub inanimate_mesh_instances: Arc<Mutex<IndexingContainer<InanimateMeshInstance>>>,
 
-    pub model_instances: Arc<Mutex<IndexingContainer<ModelInstance>>>,
     pub model_instance_event_queue: Arc<Mutex<EventQueue<ModelInstanceEvent>>>,
+    pub model_instances: Arc<Mutex<IndexingContainer<ModelInstance>>>,
 }
 
 impl BackendShared {
