@@ -1,24 +1,26 @@
-use std::{rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 use ash::vk;
 use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
 
 use crate::{command_pool::CommandPool, device::Device, fence::Fence, AsRawVulkan, DebugInfoAshExtension};
 
-pub trait CommandBufferDependency {}
+pub trait CommandBufferDependency: Send + Sync {}
+
+pub type FinishedOperation = Box<dyn Fn() -> crate::Result<()> + 'static + Send + Sync>;
 
 pub struct CommandBuffer {
     completed_fence: Fence,
     command_buffer: vk::CommandBuffer,
-    command_pool: Rc<CommandPool>,
+    command_pool: Arc<CommandPool>,
     dependencies: Vec<Arc<dyn CommandBufferDependency>>,
-    finished_operations: Vec<Box<dyn Fn() -> crate::Result<()> + 'static>>,
+    finished_operations: Vec<FinishedOperation>,
     device: Arc<Device>,
     debug_info: DebugInfo,
 }
 
 impl CommandBuffer {
-    pub fn new(device: &Arc<Device>, command_pool: &Rc<CommandPool>, debug_info: DebugInfo) -> crate::Result<Self> {
+    pub fn new(device: &Arc<Device>, command_pool: &Arc<CommandPool>, debug_info: DebugInfo) -> crate::Result<Self> {
         let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
             .command_buffer_count(1)
             .command_pool(*command_pool.as_raw_vulkan())
@@ -38,17 +40,17 @@ impl CommandBuffer {
     }
 
     /// Returns the finished operations of the `CommandBuffer`.
-    pub(crate) fn finished_operations(&self) -> &Vec<Box<dyn Fn() -> crate::Result<()> + 'static>> {
+    pub(crate) fn finished_operations(&self) -> &Vec<FinishedOperation> {
         &self.finished_operations
     }
 
     /// Pushes a function that will be called in the `CommandBuffer::finish` method when the `CommandBuffer` has been processed.
-    pub(crate) fn push_finished_operation(&mut self, finished_operation: Box<dyn Fn() -> crate::Result<()> + 'static>) {
+    pub(crate) fn push_finished_operation(&mut self, finished_operation: FinishedOperation) {
         self.finished_operations.push(finished_operation);
     }
 
     /// The [`CommandPool`] from which the `CommandBuffer` is allocating the commands.
-    pub fn command_pool(&self) -> &Rc<CommandPool> {
+    pub fn command_pool(&self) -> &Arc<CommandPool> {
         &self.command_pool
     }
 
@@ -93,7 +95,7 @@ impl AsRawVulkan for CommandBuffer {
 
 #[cfg(test)]
 pub mod tests {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use jeriya_shared::debug_info;
 
@@ -106,7 +108,7 @@ pub mod tests {
 
     pub struct TestFixtureCommandBuffer {
         pub queue: Queue,
-        pub command_pool: Rc<CommandPool>,
+        pub command_pool: Arc<CommandPool>,
         pub command_buffer: CommandBuffer,
     }
 

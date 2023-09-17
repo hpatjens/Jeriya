@@ -182,8 +182,12 @@ impl PresenterShared {
     }
 
     /// Creates the swapchain and all state that depends on it
-    pub fn recreate(&mut self, wait_queue: &Queue) -> base::Result<()> {
-        wait_queue.wait_idle()?;
+    pub fn recreate(&mut self, backend_shared: &BackendShared) -> base::Result<()> {
+        // Locking all the queues at once so that no thread can submit to any
+        // queue while waiting for the device to be idle.
+        let _lock = backend_shared.queue_scheduler.queues();
+
+        self.device.wait_for_idle()?;
         self.swapchain = Swapchain::new(&self.device, &self.surface, self.desired_swapchain_length, Some(&self.swapchain))?;
         self.swapchain_depth_buffers = SwapchainDepthBuffers::new(&self.device, &self.swapchain)?;
         self.swapchain_render_pass = SwapchainRenderPass::new(&self.device, &self.swapchain)?;

@@ -46,7 +46,7 @@ pub enum VertexBuffer<'arc, T> {
     DeviceVisibleBuffer(&'arc Arc<DeviceVisibleBuffer<T>>),
 }
 
-impl<'arc, T: 'static> VertexBuffer<'arc, T> {
+impl<'arc, T: Send + Sync + 'static> VertexBuffer<'arc, T> {
     pub fn as_command_buffer_dependency(&self) -> Arc<dyn CommandBufferDependency> {
         match self {
             Self::HostVisibleBuffer(buffer) => (*buffer).clone(),

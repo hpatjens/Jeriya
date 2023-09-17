@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 use ash::vk;
 use jeriya_shared::{AsDebugInfo, DebugInfo};
@@ -25,7 +25,7 @@ impl CommandPool {
         queue_family_index: u32,
         command_pool_create_flags: CommandPoolCreateFlags,
         debug_info: DebugInfo,
-    ) -> crate::Result<Rc<Self>> {
+    ) -> crate::Result<Arc<Self>> {
         let vk_command_pool_create_flags = match command_pool_create_flags {
             CommandPoolCreateFlags::Transient => vk::CommandPoolCreateFlags::TRANSIENT,
             CommandPoolCreateFlags::ResetCommandBuffer => vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
@@ -36,7 +36,7 @@ impl CommandPool {
             .queue_family_index(queue_family_index);
         let command_pool = device.as_raw_vulkan().create_command_pool(&command_pool_create_info, None)?;
         let debug_info = debug_info.with_vulkan_ptr(command_pool);
-        Ok(Rc::new(Self {
+        Ok(Arc::new(Self {
             command_pool_create_flags,
             device: device.clone(),
             command_pool,
@@ -50,7 +50,7 @@ impl CommandPool {
         queue: &Queue,
         command_pool_create_flags: CommandPoolCreateFlags,
         debug_info: DebugInfo,
-    ) -> crate::Result<Rc<Self>> {
+    ) -> crate::Result<Arc<Self>> {
         unsafe { Self::new_from_family(device, queue.queue_family_index, command_pool_create_flags, debug_info) }
     }
 

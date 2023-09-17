@@ -8,10 +8,14 @@ use jeriya_backend::{
 use jeriya_backend_ash_base::{buffer::BufferUsageFlags, device::Device, shader_interface, staged_push_only_buffer::StagedPushOnlyBuffer};
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, EventQueue, Handle, IndexingContainer, RendererConfig};
 
+use crate::queue_scheduler::QueueScheduler;
+
 /// Elements of the backend that are shared between all [`Presenter`]s.
 pub struct BackendShared {
     pub device: Arc<Device>,
     pub renderer_config: Arc<RendererConfig>,
+
+    pub queue_scheduler: QueueScheduler,
 
     pub camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
     pub cameras: Arc<Mutex<IndexingContainer<Camera>>>,
@@ -81,9 +85,13 @@ impl BackendShared {
             debug_info!("static_indices_buffer"),
         )?);
 
+        info!("Creating the QueueScheduler");
+        let queue_scheduler = QueueScheduler::new(device)?;
+
         Ok(Self {
             device: device.clone(),
             renderer_config: renderer_config.clone(),
+            queue_scheduler,
             cameras,
             camera_event_queue,
             inanimate_mesh_group: inanimate_meshes,

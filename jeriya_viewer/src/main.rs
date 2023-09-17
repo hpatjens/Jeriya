@@ -158,19 +158,19 @@ fn main() -> ey::Result<()> {
         .with_inner_size(LogicalSize::new(640.0, 480.0))
         .build(&event_loop)
         .wrap_err("Failed to create window 1")?;
-    // let window2 = WindowBuilder::new()
-    //     .with_title("Example")
-    //     .with_inner_size(LogicalSize::new(640.0, 480.0))
-    //     .build(&event_loop)
-    //     .wrap_err("Failed to create window 2")?;
+    let window2 = WindowBuilder::new()
+        .with_title("Example")
+        .with_inner_size(LogicalSize::new(640.0, 480.0))
+        .build(&event_loop)
+        .wrap_err("Failed to create window 2")?;
     let window_config1 = WindowConfig {
         window: &window1,
         frame_rate: FrameRate::Unlimited,
     };
-    // let window_config2 = WindowConfig {
-    //     window: &window2,
-    //     frame_rate: FrameRate::Limited(60),
-    // };
+    let window_config2 = WindowConfig {
+        window: &window2,
+        frame_rate: FrameRate::Limited(60),
+    };
     let renderer = jeriya::Renderer::<AshBackend>::builder()
         .add_renderer_config(RendererConfig {
             maximum_number_of_cameras: 2,
@@ -178,7 +178,7 @@ fn main() -> ey::Result<()> {
             maximum_number_of_inanimate_meshes: 10,
             ..Default::default()
         })
-        .add_windows(&[window_config1])
+        .add_windows(&[window_config1, window_config2])
         .build()
         .wrap_err("Failed to create renderer")?;
 

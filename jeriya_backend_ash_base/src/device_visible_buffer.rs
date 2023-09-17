@@ -20,7 +20,7 @@ pub struct DeviceVisibleBuffer<T> {
     device: Arc<Device>,
 }
 
-impl<T: Clone + 'static> DeviceVisibleBuffer<T> {
+impl<T: Clone + 'static + Send + Sync> DeviceVisibleBuffer<T> {
     /// Creates a new `DeviceVisibleBuffer`.
     pub fn new(
         device: &Arc<Device>,
@@ -50,7 +50,7 @@ impl<T: Clone + 'static> DeviceVisibleBuffer<T> {
         device: &Arc<Device>,
         source_buffer: &Arc<HostVisibleBuffer<T>>,
         transfer_queue: &mut Queue,
-        command_pool: &Rc<CommandPool>,
+        command_pool: &Arc<CommandPool>,
         buffer_usage_flags: BufferUsageFlags,
         debug_info: DebugInfo,
     ) -> crate::Result<Arc<Self>> {
@@ -64,7 +64,7 @@ impl<T: Clone + 'static> DeviceVisibleBuffer<T> {
         self: &Arc<Self>,
         source_buffer: &Arc<HostVisibleBuffer<T>>,
         transfer_queue: &mut Queue,
-        command_pool: &Rc<CommandPool>,
+        command_pool: &Arc<CommandPool>,
     ) -> crate::Result<()> {
         let mut command_buffer = CommandBuffer::new(&self.device, command_pool, debug_info!("CommandBuffer-for-DeviceVisibleBuffer"))?;
         CommandBufferBuilder::new(&self.device, &mut command_buffer)?
@@ -96,7 +96,7 @@ impl<T> AsDebugInfo for DeviceVisibleBuffer<T> {
     }
 }
 
-impl<T> CommandBufferDependency for DeviceVisibleBuffer<T> {}
+impl<T: Send + Sync> CommandBufferDependency for DeviceVisibleBuffer<T> {}
 
 #[cfg(test)]
 mod tests {

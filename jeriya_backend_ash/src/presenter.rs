@@ -11,13 +11,10 @@ use crate::{
     frame::Frame,
     presenter_shared::PresenterShared,
 };
-use base::{
-    queue::{Queue, QueueType},
-    semaphore::Semaphore,
-};
+
 use jeriya_backend::immediate::ImmediateRenderingFrame;
 use jeriya_backend_ash_base as base;
-use jeriya_backend_ash_base::{surface::Surface, swapchain_vec::SwapchainVec};
+use jeriya_backend_ash_base::{semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
@@ -132,14 +129,6 @@ fn run_presenter_thread(
         Frame::new(presenter_index, &window_id, &backend_shared)
     })?;
 
-    // Thread-local Queue for the Presenter
-    let mut presentation_queue = Queue::new(
-        &backend_shared.device,
-        QueueType::Presentation,
-        presenter_index as u32 + 1, // +1 because the first queue is used by the backend for transfering resources
-        debug_info!(format!("presenter-thread-queue-{}", presenter_index)),
-    )?;
-
     // Immediate rendering frames
     //
     // The immediate rendering frames are stored per update loop name. When a newer frame is received, the
@@ -179,7 +168,7 @@ fn run_presenter_thread(
         while let Some(new_events) = event_queue.pop() {
             match new_events {
                 PresenterEvent::Recreate => {
-                    presenter_shared.recreate(&presentation_queue)?;
+                    presenter_shared.recreate(&backend_shared)?;
                 }
                 PresenterEvent::RenderImmediateCommandBuffer {
                     immediate_command_buffer_handler,
@@ -215,7 +204,9 @@ fn run_presenter_thread(
         trace!("presenter {presenter_index}: locked presenter_shared");
 
         // Finish command buffer execution
-        presentation_queue.poll_completed_fences()?;
+        let mut queues = backend_shared.queue_scheduler.queues();
+        queues.presentation_queue(window_id).poll_completed_fences()?;
+        drop(queues);
 
         // Acquire the next swapchain image
         let acquire_span = span!("acquire swapchain image");
@@ -234,7 +225,6 @@ fn run_presenter_thread(
         // Render the frames
         frames.get_mut(&presenter_shared.frame_index).render_frame(
             &window_id,
-            &mut presentation_queue,
             &backend_shared,
             &mut *presenter_shared,
             &immediate_rendering_frames,
@@ -246,10 +236,13 @@ fn run_presenter_thread(
             .get(&frame_index)
             .rendering_complete_semaphore()
             .expect("rendering_complete_semaphore not set");
-        presenter_shared
-            .swapchain()
-            .present(&presenter_shared.frame_index, rendering_complete_semaphore, &presentation_queue)?;
-
+        let mut queues = backend_shared.queue_scheduler.queues();
+        presenter_shared.swapchain().present(
+            &presenter_shared.frame_index,
+            rendering_complete_semaphore,
+            queues.presentation_queue(window_id),
+        )?;
+        drop(queues);
         drop(presenter_shared);
 
         loop_helper.loop_sleep();

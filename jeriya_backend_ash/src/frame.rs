@@ -14,7 +14,6 @@ use jeriya_backend_ash_base::{
     graphics_pipeline::PrimitiveTopology,
     host_visible_buffer::HostVisibleBuffer,
     push_descriptors::PushDescriptors,
-    queue::Queue,
     semaphore::Semaphore,
     shader_interface, DrawIndirectCommand,
 };
@@ -105,8 +104,7 @@ impl Frame {
 
     pub fn render_frame(
         &mut self,
-        _window_id: &WindowId,
-        presentation_queue: &mut Queue,
+        window_id: &WindowId,
         backend_shared: &BackendShared,
         presenter_shared: &mut PresenterShared,
         immediate_rendering_frames: &BTreeMap<&'static str, ImmediateRenderingFrameTask>,
@@ -224,12 +222,14 @@ impl Frame {
 
         // Create a CommandPool
         let command_pool_span = span!("create commnad pool");
+        let mut queues = backend_shared.queue_scheduler.queues();
         let command_pool = CommandPool::new(
             &backend_shared.device,
-            presentation_queue,
+            queues.presentation_queue(*window_id),
             CommandPoolCreateFlags::ResetCommandBuffer,
             debug_info!("preliminary-CommandPool"),
         )?;
+        drop(queues);
         drop(command_pool_span);
 
         // Build CommandBuffer
@@ -313,7 +313,13 @@ impl Frame {
 
         // Insert into Queue
         let submit_span = span!("submit command buffer commands");
-        presentation_queue.submit_for_rendering_complete(command_buffer, image_available_semaphore, &main_rendering_complete_semaphore)?;
+        let mut queues = backend_shared.queue_scheduler.queues();
+        queues.presentation_queue(*window_id).submit_for_rendering_complete(
+            command_buffer,
+            image_available_semaphore,
+            &main_rendering_complete_semaphore,
+        )?;
+        drop(queues);
         drop(submit_span);
 
         Ok(())

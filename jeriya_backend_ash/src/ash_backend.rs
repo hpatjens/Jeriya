@@ -16,7 +16,6 @@ use base::{
     command_buffer::CommandBuffer,
     command_buffer_builder::CommandBufferBuilder,
     command_pool::{CommandPool, CommandPoolCreateFlags},
-    queue::{Queue, QueueType},
     shader_interface,
 };
 use jeriya_backend::{
@@ -245,34 +244,32 @@ impl Backend for AshBackend {
 }
 
 fn run_inanimate_mesh_events_thread(frame_start_receiver: Receiver<()>, backend_shared: &BackendShared) -> jeriya_backend::Result<()> {
-    let mut queue = Queue::new(
-        &backend_shared.device,
-        QueueType::Presentation,
-        0,
-        debug_info!("inanimate-mesh-thread-queue"),
-    )?;
-
     loop {
         let Ok(()) = frame_start_receiver.recv() else {
             panic!("failed to receive frame start");
         };
-        queue.poll_completed_fences()?;
-        handle_events(&mut queue, backend_shared)?;
+        let mut queues = backend_shared.queue_scheduler.queues();
+        queues.transfer_queue().poll_completed_fences()?;
+        drop(queues);
+
+        handle_events(backend_shared)?;
     }
 }
 
 #[profile]
-fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_backend::Result<()> {
+fn handle_events(backend_shared: &BackendShared) -> jeriya_backend::Result<()> {
     if !backend_shared.inanimate_mesh_event_queue.lock().is_empty() {
         let _span = span!("Handle inanimate mesh events");
 
         info!("Creating CommandPool");
+        let mut queues = backend_shared.queue_scheduler.queues();
         let command_pool = CommandPool::new(
             &backend_shared.device,
-            queue,
+            queues.transfer_queue(),
             CommandPoolCreateFlags::ResetCommandBuffer,
             debug_info!("preliminary-CommandPool"),
         )?;
+        drop(queues);
 
         // Create a new command buffer for maintaining the meshes
         let mut command_buffer = CommandBuffer::new(
@@ -361,7 +358,9 @@ fn handle_events(queue: &mut Queue, backend_shared: &BackendShared) -> jeriya_ba
             }
         }
         command_buffer_builder.end_command_buffer()?;
-        queue.submit(command_buffer)?;
+
+        let mut queues = backend_shared.queue_scheduler.queues();
+        queues.transfer_queue().submit(command_buffer)?;
     }
 
     Ok(())

@@ -73,8 +73,8 @@ impl<T> AsDebugInfo for HostVisibleBuffer<T> {
     }
 }
 
-impl<T> CommandBufferDependency for HostVisibleBuffer<T> {}
-impl<T> CommandBufferDependency for Mutex<HostVisibleBuffer<T>> {}
+impl<T: Send + Sync> CommandBufferDependency for HostVisibleBuffer<T> {}
+impl<T: Send + Sync> CommandBufferDependency for Mutex<HostVisibleBuffer<T>> {}
 
 #[cfg(test)]
 mod tests {

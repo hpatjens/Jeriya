@@ -6,5 +6,6 @@ mod backend_shared;
 mod frame;
 mod presenter;
 mod presenter_shared;
+mod queue_scheduler;
 
 pub use ash_backend::*;

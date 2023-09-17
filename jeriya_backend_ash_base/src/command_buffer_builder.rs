@@ -5,7 +5,7 @@ use jeriya_shared::parking_lot::Mutex;
 
 use crate::{
     buffer::{Buffer, VertexBuffer},
-    command_buffer::CommandBuffer,
+    command_buffer::{CommandBuffer, FinishedOperation},
     compute_pipeline::ComputePipeline,
     device::Device,
     device_visible_buffer::DeviceVisibleBuffer,
@@ -158,7 +158,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
 
     pub fn bind_vertex_buffers<'arc, T>(&mut self, first_binding: u32, vertex_buffer: impl Into<VertexBuffer<'arc, T>>) -> &mut Self
     where
-        T: Copy + 'static,
+        T: Copy + Send + Sync + 'static,
     {
         let vertex_buffer = vertex_buffer.into();
         let vertex_buffers = [*vertex_buffer.as_raw_vulkan()];
@@ -194,7 +194,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         self
     }
 
-    pub fn copy_buffer_from_host_to_device<T: Clone + 'static>(
+    pub fn copy_buffer_from_host_to_device<T: Clone + 'static + Send + Sync>(
         &mut self,
         src: &Arc<HostVisibleBuffer<T>>,
         dst: &Arc<DeviceVisibleBuffer<T>>,
@@ -219,7 +219,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         }
     }
 
-    pub fn copy_buffer_range_from_device_to_host<T: Clone + 'static>(
+    pub fn copy_buffer_range_from_device_to_host<T: Clone + 'static + Send + Sync>(
         &mut self,
         src: &Arc<DeviceVisibleBuffer<T>>,
         byte_size: usize,
@@ -254,7 +254,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
 
     /// Pushes a closure to the list of operations to be executed when the command buffer has finished executing.
-    pub fn push_finished_operation(&mut self, finished_operation: Box<dyn Fn() -> crate::Result<()> + 'static>) -> &mut Self {
+    pub fn push_finished_operation(&mut self, finished_operation: FinishedOperation) -> &mut Self {
         self.command_buffer.push_finished_operation(finished_operation);
         self
     }

@@ -45,7 +45,6 @@ pub struct Queue {
     queue: vk::Queue,
     device: Arc<Device>,
     debug_info: DebugInfo,
-    phantom_data: PhantomData<*const ()>, // Making this !Send
 }
 
 impl AsRawVulkan for Queue {
@@ -83,7 +82,6 @@ impl Queue {
             queue: vk_queue,
             device: device.clone(),
             debug_info,
-            phantom_data: PhantomData,
         }
     }
 
