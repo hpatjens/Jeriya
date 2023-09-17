@@ -185,11 +185,7 @@ impl PresenterShared {
     pub fn recreate(&mut self, backend_shared: &BackendShared) -> base::Result<()> {
         // Locking all the queues at once so that no thread can submit to any
         // queue while waiting for the device to be idle.
-        let mut lock = backend_shared.queue_scheduler.queues();
-
-        let transfer_queue = &mut lock.transfer_queue();
-        transfer_queue.poll_completed_fences()?;
-        info!("Submitted command buffers: {}", transfer_queue.submitted_command_buffers.len());
+        let _lock = backend_shared.queue_scheduler.queues();
 
         self.device.wait_for_idle()?;
         self.swapchain = Swapchain::new(&self.device, &self.surface, self.desired_swapchain_length, Some(&self.swapchain))?;
