@@ -4,7 +4,7 @@ use ash::vk;
 use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
 
 use crate::{
-    buffer::{Buffer, BufferUsageFlags},
+    buffer::{Buffer, BufferUsageFlags, GeneralBuffer},
     command_buffer::{CommandBuffer, CommandBufferDependency},
     command_buffer_builder::CommandBufferBuilder,
     command_pool::CommandPool,
@@ -81,6 +81,7 @@ impl<T: Clone + 'static + Send + Sync> DeviceVisibleBuffer<T> {
     }
 }
 
+impl<T> GeneralBuffer for DeviceVisibleBuffer<T> {}
 impl<T> Buffer<T> for DeviceVisibleBuffer<T> {}
 
 impl<T> AsRawVulkan for DeviceVisibleBuffer<T> {
@@ -95,8 +96,6 @@ impl<T> AsDebugInfo for DeviceVisibleBuffer<T> {
         self.buffer.as_debug_info()
     }
 }
-
-impl<T: Send + Sync> CommandBufferDependency for DeviceVisibleBuffer<T> {}
 
 #[cfg(test)]
 mod tests {

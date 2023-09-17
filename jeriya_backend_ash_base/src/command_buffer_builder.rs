@@ -139,8 +139,8 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 vk::PipelineBindPoint::GRAPHICS,
                 graphics_pipeline.graphics_pipeline(),
             );
-            self.bound_pipeline_layout = Some(graphics_pipeline.pipeline_layout());
         }
+        self.bound_pipeline_layout = Some(graphics_pipeline.pipeline_layout());
         self
     }
 
@@ -151,8 +151,8 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 vk::PipelineBindPoint::COMPUTE,
                 compute_pipeline.compute_pipeline(),
             );
-            self.bound_pipeline_layout = Some(compute_pipeline.pipeline_layout());
         }
+        self.bound_pipeline_layout = Some(compute_pipeline.pipeline_layout());
         self
     }
 
@@ -170,8 +170,8 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 &vertex_buffers,
                 &offsets,
             );
-            self.command_buffer.push_dependency(vertex_buffer.as_command_buffer_dependency());
         }
+        self.command_buffer.push_dependency(vertex_buffer.as_command_buffer_dependency());
         self
     }
 
@@ -290,7 +290,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
 
     /// Special function for writing into indirect draw commands buffer from compute shader and then reading from it in vertex shader
-    pub fn indirect_draw_commands_buffer_pipeline_barrier<T>(&mut self, buffer: &impl Buffer<T>) -> &mut Self {
+    pub fn indirect_draw_commands_buffer_pipeline_barrier<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>) -> &mut Self {
         let buffer_memory_barrier = vk::BufferMemoryBarrier::builder()
             .buffer(*buffer.as_raw_vulkan())
             .src_access_mask(vk::AccessFlags::SHADER_WRITE)
@@ -312,11 +312,16 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 &[],
             )
         };
+        self.command_buffer.push_dependency(buffer.clone());
         self
     }
 
     /// Draw command for indirect draw commands
-    pub fn draw_indirect(&mut self, buffer: &impl Buffer<DrawIndirectCommand>, draw_count: usize) -> &mut Self {
+    pub fn draw_indirect(
+        &mut self,
+        buffer: &Arc<impl Buffer<DrawIndirectCommand> + Send + Sync + 'static>,
+        draw_count: usize,
+    ) -> &mut Self {
         unsafe {
             self.device.as_raw_vulkan().cmd_draw_indirect(
                 *self.command_buffer.as_raw_vulkan(),
@@ -326,6 +331,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 mem::size_of::<DrawIndirectCommand>() as u32,
             )
         };
+        self.command_buffer.push_dependency(buffer.clone());
         self
     }
 

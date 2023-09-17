@@ -1,5 +1,5 @@
-use ash::vk;
-use jeriya_shared::{AsDebugInfo, DebugInfo};
+use ash::vk::{self, Handle};
+use jeriya_shared::{log::trace, AsDebugInfo, DebugInfo};
 
 use std::{marker::PhantomData, mem, slice, sync::Arc};
 
@@ -119,6 +119,7 @@ impl<T> Drop for UnsafeBuffer<T> {
         unsafe {
             let device = self.device.as_raw_vulkan();
             if let Some(buffer_memory) = self.buffer_memory {
+                trace!("Freeing unsafe buffer memory: {:#x}", buffer_memory.as_raw());
                 device.free_memory(buffer_memory, None);
             }
             device.destroy_buffer(self.buffer, None);

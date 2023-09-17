@@ -4,7 +4,7 @@ use ash::vk;
 use jeriya_shared::{parking_lot::Mutex, AsDebugInfo, DebugInfo};
 
 use crate::{
-    buffer::{Buffer, BufferUsageFlags},
+    buffer::{Buffer, BufferUsageFlags, GeneralBuffer},
     command_buffer::CommandBufferDependency,
     device::Device,
     unsafe_buffer::UnsafeBuffer,
@@ -58,6 +58,7 @@ impl<T: Clone> HostVisibleBuffer<T> {
     }
 }
 
+impl<T> GeneralBuffer for HostVisibleBuffer<T> {}
 impl<T> Buffer<T> for HostVisibleBuffer<T> {}
 
 impl<T> AsRawVulkan for HostVisibleBuffer<T> {
@@ -73,7 +74,6 @@ impl<T> AsDebugInfo for HostVisibleBuffer<T> {
     }
 }
 
-impl<T: Send + Sync> CommandBufferDependency for HostVisibleBuffer<T> {}
 impl<T: Send + Sync> CommandBufferDependency for Mutex<HostVisibleBuffer<T>> {}
 
 #[cfg(test)]

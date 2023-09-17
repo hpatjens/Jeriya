@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    buffer::{Buffer, BufferUsageFlags},
+    buffer::{Buffer, BufferUsageFlags, GeneralBuffer},
     command_buffer_builder::CommandBufferBuilder,
     device::Device,
     device_visible_buffer::DeviceVisibleBuffer,
@@ -142,6 +142,7 @@ impl<T> AsRawVulkan for StagedPushOnlyBuffer<T> {
     }
 }
 
+impl<T> GeneralBuffer for StagedPushOnlyBuffer<T> {}
 impl<T> Buffer<T> for StagedPushOnlyBuffer<T> {}
 
 #[cfg(test)]

@@ -28,8 +28,12 @@ impl From<BufferUsageFlags> for vk::BufferUsageFlags {
     }
 }
 
-pub trait Buffer<T>: AsRawVulkan<Output = vk::Buffer> {}
+pub trait GeneralBuffer: AsRawVulkan<Output = vk::Buffer> {}
+pub trait Buffer<T>: GeneralBuffer {}
 
+impl<G> CommandBufferDependency for G where G: GeneralBuffer + Send + Sync {}
+
+impl<E> GeneralBuffer for Arc<E> where E: GeneralBuffer {}
 impl<E, T> Buffer<T> for Arc<E> where E: Buffer<T> {}
 
 /// A buffer that can be used as a vertex buffer
