@@ -15,6 +15,7 @@ use jeriya_shared::{
     debug_info,
     log::{self, error},
     nalgebra::{self, Matrix4, Translation3, Vector3, Vector4},
+    spin_sleep,
     winit::{
         dpi::LogicalSize,
         event::{Event, WindowEvent},
@@ -151,19 +152,19 @@ fn main() -> ey::Result<()> {
         .with_inner_size(LogicalSize::new(640.0, 480.0))
         .build(&event_loop)
         .wrap_err("Failed to create window 1")?;
-    let window2 = WindowBuilder::new()
-        .with_title("Example")
-        .with_inner_size(LogicalSize::new(640.0, 480.0))
-        .build(&event_loop)
-        .wrap_err("Failed to create window 2")?;
+    // let window2 = WindowBuilder::new()
+    //     .with_title("Example")
+    //     .with_inner_size(LogicalSize::new(640.0, 480.0))
+    //     .build(&event_loop)
+    //     .wrap_err("Failed to create window 2")?;
     let window_config1 = WindowConfig {
         window: &window1,
         frame_rate: FrameRate::Unlimited,
     };
-    let window_config2 = WindowConfig {
-        window: &window2,
-        frame_rate: FrameRate::Limited(60),
-    };
+    // let window_config2 = WindowConfig {
+    //     window: &window2,
+    //     frame_rate: FrameRate::Limited(60),
+    // };
     let renderer = jeriya::Renderer::<AshBackend>::builder()
         .add_renderer_config(RendererConfig {
             maximum_number_of_cameras: 2,
@@ -171,7 +172,7 @@ fn main() -> ey::Result<()> {
             maximum_number_of_inanimate_meshes: 10,
             ..Default::default()
         })
-        .add_windows(&[window_config1, window_config2])
+        .add_windows(&[window_config1])
         .build()
         .wrap_err("Failed to create renderer")?;
 
@@ -219,6 +220,8 @@ fn main() -> ey::Result<()> {
         .wrap_err("Failed to insert model instance")?;
     drop(model_instances);
 
+    const UPDATE_FRAMERATE: u32 = 60;
+    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(UPDATE_FRAMERATE as f64);
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_poll();
 
@@ -237,11 +240,15 @@ fn main() -> ey::Result<()> {
                 }
             }
             Event::MainEventsCleared => {
-                // if let Err(err) = immediate_rendering(&renderer) {
-                //     error!("Failed to do immediate rendering: {}", err);
-                //     control_flow.set_exit();
-                //     return;
-                // }
+                loop_helper.loop_start();
+
+                if let Err(err) = immediate_rendering(&renderer) {
+                    error!("Failed to do immediate rendering: {}", err);
+                    control_flow.set_exit();
+                    return;
+                }
+
+                loop_helper.loop_sleep();
             }
             _ => (),
         }
