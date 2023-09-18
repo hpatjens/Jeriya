@@ -241,10 +241,10 @@ fn main() -> ey::Result<()> {
                 window_id,
                 event: WindowEvent::Resized(..),
             } => {
-                if let Err(err) = renderer.window_resized(window_id) {
-                    error!("Failed to resize window: {}", err);
-                    control_flow.set_exit();
-                }
+                // if let Err(err) = renderer.window_resized(window_id) {
+                //     error!("Failed to resize window: {}", err);
+                //     control_flow.set_exit();
+                // }
             }
             Event::MainEventsCleared => {
                 loop_helper.loop_start();

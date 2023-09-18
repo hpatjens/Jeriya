@@ -99,13 +99,6 @@ impl Queue {
 
     /// Submits the given [`CommandBuffer`] to the `Queue`.
     pub fn submit(&mut self, command_buffer: CommandBuffer) -> crate::Result<()> {
-        trace!(
-            "Queue ({:?}) submit on thread: {:?} with id {}",
-            self.debug_info.ptr,
-            std::thread::current().name().unwrap_or("unnamed thread"),
-            thread_id::get(),
-        );
-
         let command_buffers = [*command_buffer.as_raw_vulkan()];
         let submit_infos = [vk::SubmitInfo::builder().command_buffers(&command_buffers).build()];
         unsafe {
@@ -125,13 +118,6 @@ impl Queue {
         wait_semaphore: &Arc<Semaphore>,
         signal_semaphore: &Arc<Semaphore>,
     ) -> crate::Result<()> {
-        trace!(
-            "Queue ({:?}) submit on thread: {:?} with id {}",
-            self.debug_info.ptr,
-            std::thread::current().name().unwrap_or("unnamed thread"),
-            thread_id::get(),
-        );
-
         let wait_semaphores = [*wait_semaphore.as_raw_vulkan()];
         let signal_semaphores = [*signal_semaphore.as_raw_vulkan()];
         let command_buffers = [*command_buffer.as_raw_vulkan()];

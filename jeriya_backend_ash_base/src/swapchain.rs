@@ -178,7 +178,7 @@ impl Swapchain {
         frame_index: &FrameIndex,
         rendering_complete_semaphore: &Arc<Semaphore>,
         present_queue: &Queue,
-    ) -> crate::Result<()> {
+    ) -> crate::Result<bool> {
         let _span = span!("Swapchain::present");
         let wait_semaphores = [*rendering_complete_semaphore.as_raw_vulkan()];
         let swapchains = [self.swapchain_khr];
@@ -187,10 +187,7 @@ impl Swapchain {
             .wait_semaphores(&wait_semaphores)
             .swapchains(&swapchains)
             .image_indices(&image_indices);
-        unsafe {
-            self.swapchain.queue_present(*present_queue.as_raw_vulkan(), &present_info)?;
-        }
-        Ok(())
+        unsafe { Ok(self.swapchain.queue_present(*present_queue.as_raw_vulkan(), &present_info)?) }
     }
 
     /// Returns a copy of the `ImageView`s for the swapchain images

@@ -14,6 +14,7 @@ use jeriya_backend_ash_base::{
     swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
+use jeriya_shared::RendererConfig;
 use jeriya_shared::{
     debug_info,
     log::info,
@@ -46,15 +47,7 @@ impl GraphicsPipelineInterface for ImmediateGraphicsPipelineInterface {
     type PushConstants = PushConstants;
 }
 
-/// All the state that is required for presenting to the [`Surface`]
-pub struct PresenterShared {
-    pub frame_index: FrameIndex,
-    pub desired_swapchain_length: u32,
-    pub surface: Arc<Surface>,
-    pub swapchain: Swapchain,
-    pub swapchain_depth_buffers: SwapchainDepthBuffers,
-    pub swapchain_framebuffers: SwapchainFramebuffers,
-    pub swapchain_render_pass: SwapchainRenderPass,
+pub struct GraphicsPipelines {
     pub simple_graphics_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
     pub immediate_graphics_pipeline_line_list: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
     pub immediate_graphics_pipeline_line_strip: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
@@ -62,25 +55,21 @@ pub struct PresenterShared {
     pub immediate_graphics_pipeline_triangle_strip: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
     pub cull_compute_pipeline: GenericComputePipeline,
     pub indirect_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
-    pub active_camera: Handle<jeriya_backend::Camera>,
-    pub device: Arc<Device>,
 }
 
-impl PresenterShared {
-    /// Creates a new `Presenter` for the [`Surface`]
-    pub fn new(window_id: &WindowId, backend_shared: &BackendShared, surface: &Arc<Surface>) -> jeriya_backend::Result<Self> {
+impl GraphicsPipelines {
+    fn new(
+        device: &Arc<Device>,
+        window_id: &WindowId,
+        renderer_config: &RendererConfig,
+        swapchain: &Swapchain,
+        swapchain_render_pass: &SwapchainRenderPass,
+    ) -> jeriya_backend::Result<Self> {
         macro_rules! spirv {
             ($shader:literal) => {
                 Arc::new(include_bytes!(concat!("../../jeriya_backend_ash_base/test_data/", $shader)).to_vec())
             };
         }
-
-        let desired_swapchain_length = backend_shared.renderer_config.default_desired_swapchain_length;
-        let swapchain = Swapchain::new(&backend_shared.device, surface, desired_swapchain_length, None)?;
-        let swapchain_depth_buffers = SwapchainDepthBuffers::new(&backend_shared.device, &swapchain)?;
-        let swapchain_render_pass = SwapchainRenderPass::new(&backend_shared.device, &swapchain)?;
-        let swapchain_framebuffers =
-            SwapchainFramebuffers::new(&backend_shared.device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
 
         info!("Create Simple Graphics Pipeline");
         let simple_graphics_pipeline = {
@@ -91,13 +80,7 @@ impl PresenterShared {
                 debug_info: debug_info!(format!("Simple-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(
-                &backend_shared.device,
-                &config,
-                &swapchain_render_pass,
-                &swapchain,
-                &backend_shared.renderer_config,
-            )?
+            GenericGraphicsPipeline::new(&device, &config, &swapchain_render_pass, &swapchain, &renderer_config)?
         };
 
         info!("Create Immediate Graphics Pipelines");
@@ -111,13 +94,7 @@ impl PresenterShared {
                 debug_info: debug_info!(format!("Immediate-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(
-                &backend_shared.device,
-                &config,
-                &swapchain_render_pass,
-                &swapchain,
-                &backend_shared.renderer_config,
-            )
+            GenericGraphicsPipeline::new(&device, &config, &swapchain_render_pass, &swapchain, &renderer_config)
         };
         let immediate_graphics_pipeline_line_list = create_immediate_graphics_pipeline(PrimitiveTopology::LineList)?;
         let immediate_graphics_pipeline_line_strip = create_immediate_graphics_pipeline(PrimitiveTopology::LineStrip)?;
@@ -126,7 +103,7 @@ impl PresenterShared {
 
         info!("Create Compute Pipeline");
         let cull_compute_pipeline = GenericComputePipeline::new(
-            &backend_shared.device,
+            &device,
             &GenericComputePipelineConfig {
                 shader_spirv: spirv!("cull.comp.spv"),
                 debug_info: debug_info!(format!("Cull-ComputePipeline-for-Window{:?}", window_id)),
@@ -142,14 +119,44 @@ impl PresenterShared {
                 debug_info: debug_info!(format!("Indirect-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(
-                &backend_shared.device,
-                &config,
-                &swapchain_render_pass,
-                &swapchain,
-                &backend_shared.renderer_config,
-            )?
+            GenericGraphicsPipeline::new(&device, &config, &swapchain_render_pass, &swapchain, &renderer_config)?
         };
+
+        Ok(Self {
+            simple_graphics_pipeline,
+            immediate_graphics_pipeline_line_list,
+            immediate_graphics_pipeline_line_strip,
+            immediate_graphics_pipeline_triangle_list,
+            immediate_graphics_pipeline_triangle_strip,
+            cull_compute_pipeline,
+            indirect_graphics_pipeline,
+        })
+    }
+}
+
+/// All the state that is required for presenting to the [`Surface`]
+pub struct PresenterShared {
+    pub frame_index: FrameIndex,
+    pub desired_swapchain_length: u32,
+    pub surface: Arc<Surface>,
+    pub swapchain: Swapchain,
+    pub swapchain_depth_buffers: SwapchainDepthBuffers,
+    pub swapchain_framebuffers: SwapchainFramebuffers,
+    pub swapchain_render_pass: SwapchainRenderPass,
+    pub graphics_pipelines: GraphicsPipelines,
+    pub active_camera: Handle<jeriya_backend::Camera>,
+    pub device: Arc<Device>,
+}
+
+impl PresenterShared {
+    /// Creates a new `Presenter` for the [`Surface`]
+    pub fn new(window_id: &WindowId, backend_shared: &BackendShared, surface: &Arc<Surface>) -> jeriya_backend::Result<Self> {
+        let desired_swapchain_length = backend_shared.renderer_config.default_desired_swapchain_length;
+        let swapchain = Swapchain::new(&backend_shared.device, surface, desired_swapchain_length, None)?;
+        let swapchain_depth_buffers = SwapchainDepthBuffers::new(&backend_shared.device, &swapchain)?;
+        let swapchain_render_pass = SwapchainRenderPass::new(&backend_shared.device, &swapchain)?;
+        let swapchain_framebuffers =
+            SwapchainFramebuffers::new(&backend_shared.device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
 
         // Create a camera for this window
         info!("Create Camera");
@@ -161,6 +168,15 @@ impl PresenterShared {
         let active_camera = guard.insert(jeriya_backend::Camera::default())?;
         drop(guard);
 
+        info!("Create Graphics Pipelines");
+        let graphics_pipelines = GraphicsPipelines::new(
+            &backend_shared.device,
+            window_id,
+            &backend_shared.renderer_config,
+            &swapchain,
+            &swapchain_render_pass,
+        )?;
+
         Ok(Self {
             frame_index: FrameIndex::new(),
             desired_swapchain_length,
@@ -169,15 +185,9 @@ impl PresenterShared {
             swapchain_depth_buffers,
             swapchain_framebuffers,
             swapchain_render_pass,
-            simple_graphics_pipeline,
-            immediate_graphics_pipeline_line_list,
-            immediate_graphics_pipeline_line_strip,
-            immediate_graphics_pipeline_triangle_list,
-            immediate_graphics_pipeline_triangle_strip,
+            graphics_pipelines,
             device: backend_shared.device.clone(),
             active_camera,
-            cull_compute_pipeline,
-            indirect_graphics_pipeline,
         })
     }
 

@@ -252,10 +252,10 @@ impl Frame {
 
         // Cull
         let cull_span = span!("record cull commands");
-        builder.bind_compute_pipeline(&presenter_shared.cull_compute_pipeline);
+        builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_compute_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Compute,
-            &presenter_shared.cull_compute_pipeline.descriptor_set_layout,
+            &presenter_shared.graphics_pipelines.cull_compute_pipeline.descriptor_set_layout,
             backend_shared,
             &mut builder,
         )?;
@@ -272,10 +272,10 @@ impl Frame {
 
         // Render with IndirectGraphicsPipeline
         let indirect_span = span!("record indirect commands");
-        builder.bind_graphics_pipeline(&presenter_shared.indirect_graphics_pipeline);
+        builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.indirect_graphics_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Graphics,
-            &presenter_shared.indirect_graphics_pipeline.descriptor_set_layout,
+            &presenter_shared.graphics_pipelines.indirect_graphics_pipeline.descriptor_set_layout,
             backend_shared,
             &mut builder,
         )?;
@@ -284,10 +284,10 @@ impl Frame {
 
         // Render with SimpleGraphicsPipeline
         let simple_span = span!("record simple commands");
-        builder.bind_graphics_pipeline(&presenter_shared.simple_graphics_pipeline);
+        builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.simple_graphics_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Graphics,
-            &presenter_shared.simple_graphics_pipeline.descriptor_set_layout,
+            &presenter_shared.graphics_pipelines.simple_graphics_pipeline.descriptor_set_layout,
             backend_shared,
             &mut builder,
         )?;
@@ -401,10 +401,14 @@ impl Frame {
                         ImmediateCommand::Matrix(matrix) => last_matrix = *matrix,
                         ImmediateCommand::LineList(line_list) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::LineList)) {
-                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_list);
+                                command_buffer_builder
+                                    .bind_graphics_pipeline(&presenter_shared.graphics_pipelines.immediate_graphics_pipeline_line_list);
                                 self.push_descriptors(
                                     PipelineBindPoint::Graphics,
-                                    &presenter_shared.immediate_graphics_pipeline_line_list.descriptor_set_layout,
+                                    &presenter_shared
+                                        .graphics_pipelines
+                                        .immediate_graphics_pipeline_line_list
+                                        .descriptor_set_layout,
                                     backend_shared,
                                     command_buffer_builder,
                                 )?;
@@ -421,10 +425,14 @@ impl Frame {
                         }
                         ImmediateCommand::LineStrip(line_strip) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::LineStrip)) {
-                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_line_strip);
+                                command_buffer_builder
+                                    .bind_graphics_pipeline(&presenter_shared.graphics_pipelines.immediate_graphics_pipeline_line_strip);
                                 self.push_descriptors(
                                     PipelineBindPoint::Graphics,
-                                    &presenter_shared.immediate_graphics_pipeline_line_strip.descriptor_set_layout,
+                                    &presenter_shared
+                                        .graphics_pipelines
+                                        .immediate_graphics_pipeline_line_strip
+                                        .descriptor_set_layout,
                                     backend_shared,
                                     command_buffer_builder,
                                 )?;
@@ -441,10 +449,14 @@ impl Frame {
                         }
                         ImmediateCommand::TriangleList(triangle_list) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::TriangleList)) {
-                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_list);
+                                command_buffer_builder
+                                    .bind_graphics_pipeline(&presenter_shared.graphics_pipelines.immediate_graphics_pipeline_triangle_list);
                                 self.push_descriptors(
                                     PipelineBindPoint::Graphics,
-                                    &presenter_shared.immediate_graphics_pipeline_triangle_list.descriptor_set_layout,
+                                    &presenter_shared
+                                        .graphics_pipelines
+                                        .immediate_graphics_pipeline_triangle_list
+                                        .descriptor_set_layout,
                                     backend_shared,
                                     command_buffer_builder,
                                 )?;
@@ -460,10 +472,15 @@ impl Frame {
                         }
                         ImmediateCommand::TriangleStrip(triangle_strip) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::TriangleStrip)) {
-                                command_buffer_builder.bind_graphics_pipeline(&presenter_shared.immediate_graphics_pipeline_triangle_strip);
+                                command_buffer_builder.bind_graphics_pipeline(
+                                    &presenter_shared.graphics_pipelines.immediate_graphics_pipeline_triangle_strip,
+                                );
                                 self.push_descriptors(
                                     PipelineBindPoint::Graphics,
-                                    &presenter_shared.immediate_graphics_pipeline_triangle_strip.descriptor_set_layout,
+                                    &presenter_shared
+                                        .graphics_pipelines
+                                        .immediate_graphics_pipeline_triangle_strip
+                                        .descriptor_set_layout,
                                     backend_shared,
                                     command_buffer_builder,
                                 )?;

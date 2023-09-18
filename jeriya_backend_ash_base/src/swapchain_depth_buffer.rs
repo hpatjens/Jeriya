@@ -31,7 +31,6 @@ impl Drop for SwapchainDepthBuffer {
         unsafe {
             let device = self.device.as_raw_vulkan();
             device.destroy_image_view(self.depth_image_view, None);
-            trace!("Freeing depth image memory: {:#x}", self.depth_image_memory.as_raw());
             device.free_memory(self.depth_image_memory, None);
             device.destroy_image(self.depth_image, None);
         }

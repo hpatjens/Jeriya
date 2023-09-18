@@ -148,8 +148,6 @@ fn run_presenter_thread(
     loop {
         loop_helper.loop_start();
 
-        trace!("presenter {presenter_index}: thread loop start (framerate: {frame_rate:?})");
-
         let mut presenter_shared = presenter_shared.lock();
 
         // Remove timed out immediate rendering frames.
@@ -201,8 +199,6 @@ fn run_presenter_thread(
             }
         }
 
-        trace!("presenter {presenter_index}: locked presenter_shared");
-
         // Finish command buffer execution
         let mut queues = backend_shared.queue_scheduler.queues();
         queues.presentation_queue(window_id).poll_completed_fences()?;
@@ -211,9 +207,18 @@ fn run_presenter_thread(
         // Acquire the next swapchain image
         let acquire_span = span!("acquire swapchain image");
         let image_available_semaphore = Arc::new(Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?);
-        let frame_index = presenter_shared
-            .swapchain()
-            .acquire_next_image(&presenter_shared.frame_index, &image_available_semaphore)?;
+        let frame_index = loop {
+            match presenter_shared
+                .swapchain()
+                .acquire_next_image(&presenter_shared.frame_index, &image_available_semaphore)
+            {
+                Ok(index) => break index,
+                Err(_) => {
+                    info!("Failed to acquire next swapchain image. Recreating swapchain.");
+                    presenter_shared.recreate(&backend_shared)?;
+                }
+            }
+        };
         presenter_shared.frame_index = frame_index.clone();
         frames
             .get_mut(&presenter_shared.frame_index)
@@ -237,11 +242,22 @@ fn run_presenter_thread(
             .rendering_complete_semaphore()
             .expect("rendering_complete_semaphore not set");
         let mut queues = backend_shared.queue_scheduler.queues();
-        presenter_shared.swapchain().present(
+        match presenter_shared.swapchain().present(
             &presenter_shared.frame_index,
             rendering_complete_semaphore,
             queues.presentation_queue(window_id),
-        )?;
+        ) {
+            Ok(is_suboptimal) => {
+                if is_suboptimal {
+                    info!("Swapchain is suboptimal. Recreating swapchain.");
+                    presenter_shared.recreate(&backend_shared)?;
+                }
+            }
+            Err(_err) => {
+                info!("Failed to present swapchain image. Recreating swapchain.");
+                presenter_shared.recreate(&backend_shared)?;
+            }
+        }
         drop(queues);
         drop(presenter_shared);
 
