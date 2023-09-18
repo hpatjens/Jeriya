@@ -35,11 +35,6 @@ where
         &self.backend
     }
 
-    /// Has to be called when a window is gets resized.
-    pub fn window_resized(&self, window_id: WindowId) -> Result<()> {
-        self.backend.handle_window_resized(window_id)
-    }
-
     /// Creates a new [`CommandBufferBuilder`]
     pub fn create_immediate_command_buffer_builder(&self, debug_info: DebugInfo) -> Result<CommandBufferBuilder<B>> {
         self.backend.create_immediate_command_buffer_builder(debug_info)
@@ -147,7 +142,10 @@ where
 
         // Run deadlock detection in a separate thread.
         #[cfg(feature = "deadlock_detection")]
-        thread::spawn(move || run_deadlock_detection());
+        {
+            use std::thread;
+            thread::spawn(move || run_deadlock_detection());
+        }
 
         let renderer_config = self.renderer_config.unwrap_or(RendererConfig::default());
         let backend_config = self.backend_config.unwrap_or(B::BackendConfig::default());
@@ -158,7 +156,11 @@ where
 
 #[cfg(feature = "deadlock_detection")]
 fn run_deadlock_detection() {
-    use jeriya_shared::{log::info, parking_lot::deadlock};
+    use jeriya_shared::{
+        log::{error, info},
+        parking_lot::deadlock,
+    };
+    use std::{thread, time::Duration};
 
     info!("Deadlock detection thread started");
 
@@ -274,10 +276,6 @@ mod tests {
                 model_instances,
                 model_instance_event_queue,
             })
-        }
-
-        fn handle_window_resized(&self, _window_id: WindowId) -> jeriya_backend::Result<()> {
-            Ok(())
         }
 
         fn create_immediate_command_buffer_builder(&self, _debug_info: DebugInfo) -> jeriya_backend::Result<CommandBufferBuilder<Self>> {

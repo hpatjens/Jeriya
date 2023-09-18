@@ -161,15 +161,6 @@ impl Backend for AshBackend {
         })
     }
 
-    fn handle_window_resized(&self, window_id: WindowId) -> jeriya_backend::Result<()> {
-        let presenter = self
-            .presenters
-            .get(&window_id)
-            .ok_or_else(|| base::Error::UnknownWindowId(window_id))?;
-        presenter.recreate()?;
-        Ok(())
-    }
-
     fn create_immediate_command_buffer_builder(
         &self,
         debug_info: DebugInfo,
