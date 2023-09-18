@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use ash::vk::{self, Handle};
-use jeriya_shared::log::trace;
+use ash::vk;
 
 use crate::{device::Device, swapchain::Swapchain, swapchain_vec::SwapchainVec, AsRawVulkan};
 

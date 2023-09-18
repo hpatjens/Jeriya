@@ -1,4 +1,4 @@
-use jeriya_shared::{log::error, tracy_client::Client, winit::window::WindowId, DebugInfo, Handle, RendererConfig, WindowConfig};
+use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Handle, RendererConfig, WindowConfig};
 
 use jeriya_backend::{
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
@@ -7,7 +7,7 @@ use jeriya_backend::{
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, Result,
 };
 
-use std::{marker::PhantomData, sync::Arc, thread, time::Duration};
+use std::{marker::PhantomData, sync::Arc};
 
 /// Instance of the renderer
 pub struct Renderer<B>

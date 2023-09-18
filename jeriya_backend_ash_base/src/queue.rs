@@ -1,12 +1,7 @@
-use std::{collections::VecDeque, marker::PhantomData, sync::Arc};
+use std::{collections::VecDeque, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::{
-    log::{info, trace},
-    thread_id,
-    tracy_client::span,
-    AsDebugInfo, DebugInfo,
-};
+use jeriya_shared::{log::info, tracy_client::span, AsDebugInfo, DebugInfo};
 
 use crate::{command_buffer::CommandBuffer, device::Device, fence::Fence, semaphore::Semaphore, AsRawVulkan, DebugInfoAshExtension};
 

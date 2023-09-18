@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use base::queue::Queue;
 use jeriya_backend::CameraContainerGuard;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{

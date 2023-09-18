@@ -1,11 +1,11 @@
-use std::{rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 use ash::vk;
 use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
 
 use crate::{
     buffer::{Buffer, BufferUsageFlags, GeneralBuffer},
-    command_buffer::{CommandBuffer, CommandBufferDependency},
+    command_buffer::CommandBuffer,
     command_buffer_builder::CommandBufferBuilder,
     command_pool::CommandPool,
     device::Device,

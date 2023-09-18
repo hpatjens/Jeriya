@@ -1,5 +1,5 @@
-use ash::vk::{self, Handle};
-use jeriya_shared::{log::trace, AsDebugInfo, DebugInfo};
+use ash::vk;
+use jeriya_shared::{AsDebugInfo, DebugInfo};
 
 use std::{marker::PhantomData, mem, slice, sync::Arc};
 
