@@ -64,7 +64,7 @@ impl GraphicsPipelines {
         renderer_config: &RendererConfig,
         swapchain: &Swapchain,
         swapchain_render_pass: &SwapchainRenderPass,
-    ) -> jeriya_backend::Result<Self> {
+    ) -> base::Result<Self> {
         macro_rules! spirv {
             ($shader:literal) => {
                 Arc::new(include_bytes!(concat!("../../jeriya_backend_ash_base/test_data/", $shader)).to_vec())
@@ -192,7 +192,7 @@ impl PresenterShared {
     }
 
     /// Creates the swapchain and all state that depends on it
-    pub fn recreate(&mut self, backend_shared: &BackendShared) -> base::Result<()> {
+    pub fn recreate(&mut self, window_id: &WindowId, backend_shared: &BackendShared) -> base::Result<()> {
         // Locking all the queues at once so that no thread can submit to any
         // queue while waiting for the device to be idle.
         let _lock = backend_shared.queue_scheduler.queues();
@@ -207,6 +207,15 @@ impl PresenterShared {
             &self.swapchain_depth_buffers,
             &self.swapchain_render_pass,
         )?;
+
+        self.graphics_pipelines = GraphicsPipelines::new(
+            &backend_shared.device,
+            window_id,
+            &backend_shared.renderer_config,
+            &self.swapchain,
+            &self.swapchain_render_pass,
+        )?;
+
         Ok(())
     }
 

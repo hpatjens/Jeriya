@@ -166,7 +166,7 @@ fn run_presenter_thread(
         while let Some(new_events) = event_queue.pop() {
             match new_events {
                 PresenterEvent::Recreate => {
-                    presenter_shared.recreate(&backend_shared)?;
+                    presenter_shared.recreate(&window_id, &backend_shared)?;
                 }
                 PresenterEvent::RenderImmediateCommandBuffer {
                     immediate_command_buffer_handler,
@@ -215,7 +215,7 @@ fn run_presenter_thread(
                 Ok(index) => break index,
                 Err(_) => {
                     info!("Failed to acquire next swapchain image. Recreating swapchain.");
-                    presenter_shared.recreate(&backend_shared)?;
+                    presenter_shared.recreate(&window_id, &backend_shared)?;
                 }
             }
         };
@@ -241,24 +241,27 @@ fn run_presenter_thread(
             .get(&frame_index)
             .rendering_complete_semaphore()
             .expect("rendering_complete_semaphore not set");
-        let mut queues = backend_shared.queue_scheduler.queues();
-        match presenter_shared.swapchain().present(
-            &presenter_shared.frame_index,
-            rendering_complete_semaphore,
-            queues.presentation_queue(window_id),
-        ) {
+        let result = {
+            // The queues must be dropped before `recreate` is called to prevent a deadlock.
+            let mut queues = backend_shared.queue_scheduler.queues();
+            presenter_shared.swapchain().present(
+                &presenter_shared.frame_index,
+                rendering_complete_semaphore,
+                queues.presentation_queue(window_id),
+            )
+        };
+        match result {
             Ok(is_suboptimal) => {
                 if is_suboptimal {
                     info!("Swapchain is suboptimal. Recreating swapchain.");
-                    presenter_shared.recreate(&backend_shared)?;
+                    presenter_shared.recreate(&window_id, &backend_shared)?;
                 }
             }
             Err(_err) => {
                 info!("Failed to present swapchain image. Recreating swapchain.");
-                presenter_shared.recreate(&backend_shared)?;
+                presenter_shared.recreate(&window_id, &backend_shared)?;
             }
         }
-        drop(queues);
         drop(presenter_shared);
 
         loop_helper.loop_sleep();
