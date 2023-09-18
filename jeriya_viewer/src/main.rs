@@ -1,4 +1,7 @@
-use std::{io, time::Duration};
+use std::{
+    io,
+    time::{Duration, Instant},
+};
 
 use color_eyre as ey;
 use ey::eyre::{eyre, Context};
@@ -26,7 +29,13 @@ use jeriya_shared::{
 };
 
 /// Shows how the immediate rendering API can be used.
-fn immediate_rendering<B>(renderer: &Renderer<B>, update_loop_frame_index: u64, update_framerate: f64) -> jeriya_backend::Result<()>
+fn immediate_rendering<B>(
+    renderer: &Renderer<B>,
+    update_loop_frame_index: u64,
+    update_framerate: f64,
+    t: Duration,
+    _dt: Duration,
+) -> jeriya_backend::Result<()>
 where
     B: Backend,
 {
@@ -57,6 +66,17 @@ where
             line_width: 5.0,
         },
     );
+    let line_strip_turning = {
+        let x = t.as_secs_f32().sin() * 0.5;
+        let y = t.as_secs_f32().cos() * 0.5;
+        LineStrip::new(
+            vec![Vector3::new(x, y, 0.0), Vector3::new(-x, -y, 0.0)],
+            LineConfig {
+                color: Vector4::new(1.0, 0.0, 0.0, 1.0),
+                line_width: 4.0,
+            },
+        )
+    };
     let triangle_list = TriangleList::new(
         vec![
             Vector3::new(-0.8, -0.8, 0.0),
@@ -84,7 +104,7 @@ where
 
     let immediate_command_buffer = immediate_command_buffer_builder
         .push_line_lists(&[line_list])?
-        .push_line_strips(&[line_strip])?
+        .push_line_strips(&[line_strip, line_strip_turning])?
         .matrix(Matrix4::new_scaling(0.5))?
         .push_triangle_lists(&[triangle_list])?
         .push_triangle_strips(&[triangle_strip])?
@@ -227,6 +247,8 @@ fn main() -> ey::Result<()> {
     drop(model_instances);
 
     const UPDATE_FRAMERATE: u32 = 60;
+    let loop_start_time = Instant::now();
+    let mut last_frame_start_time = Instant::now();
     let mut update_loop_frame_index = 0;
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(UPDATE_FRAMERATE as f64);
     event_loop.run(move |event, _, control_flow| {
@@ -239,15 +261,18 @@ fn main() -> ey::Result<()> {
             } if window_id == window1.id() => control_flow.set_exit(),
             Event::MainEventsCleared => {
                 loop_helper.loop_start();
+                let frame_start_time = Instant::now();
+                let t = frame_start_time - loop_start_time;
+                let dt = frame_start_time - last_frame_start_time;
 
-                if let Err(err) = immediate_rendering(&renderer, update_loop_frame_index, UPDATE_FRAMERATE as f64) {
+                if let Err(err) = immediate_rendering(&renderer, update_loop_frame_index, UPDATE_FRAMERATE as f64, t, dt) {
                     error!("Failed to do immediate rendering: {}", err);
                     control_flow.set_exit();
                     return;
                 }
 
                 update_loop_frame_index += 1;
-
+                last_frame_start_time = frame_start_time;
                 loop_helper.loop_sleep();
             }
             _ => (),
