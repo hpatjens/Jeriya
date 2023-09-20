@@ -882,7 +882,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69b4d4999553e7ba6d1c256a9e289f6313da54ead589c72f678ab98e1a5149db"
 dependencies = [
  "image",
- "itertools",
+ "itertools 0.10.5",
  "rayon",
  "thiserror",
 ]
@@ -990,6 +990,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1083,7 +1092,9 @@ dependencies = [
  "derive-new",
  "derive_more",
  "indoc",
+ "itertools 0.11.0",
  "log",
+ "maplit",
  "nalgebra",
  "nalgebra-glm",
  "parking_lot",
@@ -1252,6 +1263,12 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
 ]
+
+[[package]]
+name = "maplit"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
 name = "matchers"

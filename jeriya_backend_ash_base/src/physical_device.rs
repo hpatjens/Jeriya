@@ -1,24 +1,9 @@
 use std::sync::Arc;
 
 use ash::vk::{self, PhysicalDeviceType};
-use jeriya_shared::{log::info, thiserror};
+use jeriya_shared::log::info;
 
-use crate::{instance::Instance, surface::Surface, AsRawVulkan};
-
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("Failed to find physical devices")]
-    NoPhysicalDevices,
-    #[error("Failed to find suitable queues")]
-    NoSuitableQueues,
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct SuitableQueueFamilyInfo {
-    pub queue_family_index: u32,
-    pub queue_count: u32,
-}
+use crate::{instance::Instance, queue_selection::SuitableQueueFamilyInfo, surface::Surface, AsRawVulkan, Error};
 
 #[derive(Debug)]
 pub struct PhysicalDevice {
@@ -45,31 +30,31 @@ impl PhysicalDevice {
         // Get Physical Devices
         let physical_devices = unsafe { instance.enumerate_physical_devices()? };
         if physical_devices.is_empty() {
-            return Err(crate::Error::PhysicalDeviceError(Error::NoPhysicalDevices));
+            return Err(Error::NoPhysicalDevices);
         }
 
-        // Rate Physical Devices
+        // Rate PhysicalDevices and select the best one
         let rated = rate_physical_devices(instance, physical_devices)?;
+        let physical_device = rated.get(0).expect("no physical devices after rating");
 
-        // Select the Physical Device which has the required queues
-        for physical_device in rated {
-            let physical_device_properties = unsafe { instance.get_physical_device_properties(physical_device) };
-            info!("Available Physical Device: {:#?}", physical_device_properties);
+        let queues = get_presentation_graphics_queue_families(instance, &physical_device, &surfaces)?;
 
-            let queues = get_presentation_graphics_queue_families(instance, &physical_device, &surfaces)?;
-            if !queues.is_empty() {
-                let physical_device_memory_properties = unsafe { instance.get_physical_device_memory_properties(physical_device) };
+        let physical_device_properties = unsafe { instance.get_physical_device_properties(*physical_device) };
+        info!("Selected PhysicalDevice: {:#?}", physical_device_properties);
 
-                return Ok(PhysicalDevice {
-                    suitable_presentation_graphics_queue_family_infos: queues,
-                    physical_device_properties,
-                    physical_device_memory_properties,
-                    physical_device,
-                });
-            }
+        let physical_device_memory_properties = unsafe { instance.get_physical_device_memory_properties(*physical_device) };
+
+        let physical_device_queue_family_properties = unsafe { instance.get_physical_device_queue_family_properties(*physical_device) };
+        for (queue_family_index, queue_family_properties) in physical_device_queue_family_properties.iter().enumerate() {
+            info!("Queue Family: {:#?}", queue_family_properties);
         }
 
-        Err(crate::Error::PhysicalDeviceError(Error::NoSuitableQueues))
+        Ok(PhysicalDevice {
+            physical_device_properties,
+            physical_device_memory_properties,
+            physical_device: *physical_device,
+            suitable_presentation_graphics_queue_family_infos: queues,
+        })
     }
 }
 

@@ -16,6 +16,7 @@ use base::{
     command_buffer::CommandBuffer,
     command_buffer_builder::CommandBufferBuilder,
     command_pool::{CommandPool, CommandPoolCreateFlags},
+    queue_selection::QueuePlan,
     shader_interface,
 };
 use jeriya_backend::{
@@ -115,6 +116,9 @@ impl Backend for AshBackend {
 
         info!("Creating PhysicalDevice");
         let physical_device = PhysicalDevice::new(&instance, surfaces.values())?;
+
+        info!("Creating QueueSelection");
+        let queue_plan = QueuePlan::new(&instance, &physical_device, surfaces.iter())?;
 
         info!("Creating Device");
         let device = Device::new(physical_device, &instance)?;

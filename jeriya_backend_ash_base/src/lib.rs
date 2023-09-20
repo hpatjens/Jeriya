@@ -19,6 +19,7 @@ pub mod instance;
 pub mod physical_device;
 pub mod push_descriptors;
 pub mod queue;
+pub mod queue_selection;
 pub mod semaphore;
 pub mod shader_interface;
 pub mod shader_module;
@@ -124,8 +125,10 @@ pub enum Error {
     StringNulError(#[from] NulError),
     #[error("Error while converting a string to UTF-8: {:?}", .0)]
     StringUtf8Error(#[from] Utf8Error),
-    #[error("Error concerning physical device: {:?}", .0)]
-    PhysicalDeviceError(#[from] physical_device::Error),
+    #[error("Failed to find physical devices")]
+    NoPhysicalDevices,
+    #[error("Failed to find suitable queues")]
+    NoSuitableQueues,
     #[error("Failed to find a suitable swapchain surface format")]
     SwapchainSurfaceFormatError,
     #[error("Failed to find the WindowId: {:?}", .0)]
