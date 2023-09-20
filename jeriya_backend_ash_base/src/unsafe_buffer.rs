@@ -25,17 +25,11 @@ impl<T: Clone> UnsafeBuffer<T> {
         debug_info: DebugInfo,
     ) -> crate::Result<Self> {
         assert!(size > 0, "UnsafeBuffer must have a non-zero size");
-        let queue_families = device
-            .physical_device
-            .suitable_presentation_graphics_queue_family_infos
-            .iter()
-            .map(|info| info.queue_family_index)
-            .collect::<Vec<_>>();
         let buffer_create_info = vk::BufferCreateInfo::builder()
             .size(size as u64)
             .usage(usage)
             .sharing_mode(sharing_mode)
-            .queue_family_indices(&queue_families);
+            .queue_family_indices(&device.queue_plan.queue_family_indices);
         let buffer = device.as_raw_vulkan().create_buffer(&buffer_create_info, None)?;
         let debug_info = debug_info.with_vulkan_ptr(buffer);
         Ok(Self {

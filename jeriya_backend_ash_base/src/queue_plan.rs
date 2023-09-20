@@ -1,19 +1,13 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, iter, sync::Arc};
 
 use ash::vk::{self, QueueFamilyProperties, QueueFlags};
 use jeriya_shared::{
+    itertools::Itertools,
     log::{info, log_enabled, Level},
     winit::window::WindowId,
 };
 
 use crate::{instance::Instance, physical_device::PhysicalDevice, surface::Surface, AsRawVulkan, Error};
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub struct SuitableQueueFamilyInfo {
-    pub queue_family_index: u32,
-    pub queue_count: u32,
-}
 
 /// Identifies a queue that should be created
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,8 +16,30 @@ pub struct QueueSelection {
     queue_index: u32,
 }
 
+impl QueueSelection {
+    /// Creates a new `QueueSelection` for the given queue family index and queue index
+    ///
+    /// The caller is responsible for ensuring that the queue family index and queue index are valid.
+    pub fn new_unchecked(queue_family_index: u32, queue_index: u32) -> Self {
+        Self {
+            queue_family_index,
+            queue_index,
+        }
+    }
+
+    /// Returns the queue family index
+    pub fn queue_family_index(&self) -> u32 {
+        self.queue_family_index
+    }
+
+    /// Returns the queue index
+    pub fn queue_index(&self) -> u32 {
+        self.queue_index
+    }
+}
+
 /// The plan for creating queues
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QueuePlan {
     /// The presentation queues that should be created according to the plan. When possible there is a queue for each surface.
     pub presentation_queues: Vec<QueueSelection>,
@@ -32,6 +48,9 @@ pub struct QueuePlan {
 
     /// The transfer queue that should be created according to the plan
     pub transfer_queue: QueueSelection,
+
+    /// The queue family indices that are used by the queues
+    pub queue_family_indices: Vec<u32>,
 }
 
 impl QueuePlan {
@@ -84,6 +103,11 @@ impl QueuePlan {
         let window_ids = surfaces.iter().map(|(window_id, _)| *window_id);
         plan_queues(window_ids, queue_family_properties, &surface_support)
     }
+
+    /// Returns an iterator over all queues in the `QueuePlan`
+    pub fn iter_queue_selections(&self) -> impl Iterator<Item = &QueueSelection> {
+        self.presentation_queues.iter().chain(iter::once(&self.transfer_queue))
+    }
 }
 
 fn plan_queues<'s>(
@@ -129,10 +153,19 @@ fn plan_queues<'s>(
         }
     }
 
+    // Collect all queue families that are used by the `QueuePlan`
+    let queue_family_indices = presentation_queues
+        .iter()
+        .map(|selection| selection.queue_family_index)
+        .chain(iter::once(transfer_queue.queue_family_index))
+        .unique()
+        .collect();
+
     Ok(QueuePlan {
         presentation_queue_mapping,
         presentation_queues,
         transfer_queue,
+        queue_family_indices,
     })
 }
 

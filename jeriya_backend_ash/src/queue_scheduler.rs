@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
+use base::queue_plan::QueueSelection;
 use jeriya_backend_ash_base as base;
-use jeriya_backend_ash_base::{
-    device::Device,
-    queue::{Queue, QueueType},
-};
+use jeriya_backend_ash_base::{device::Device, queue::Queue};
 use jeriya_shared::parking_lot::MutexGuard;
 use jeriya_shared::{debug_info, parking_lot::Mutex, winit::window::WindowId};
 
@@ -31,7 +29,7 @@ pub struct QueueScheduler {
 impl QueueScheduler {
     pub fn new(device: &Arc<Device>) -> base::Result<Self> {
         let queues = Queues {
-            presentation_queue: Queue::new(&device, QueueType::Presentation, 0, debug_info!("main-queue"))?,
+            presentation_queue: Queue::new(&device, &QueueSelection::new_unchecked(0, 0), debug_info!("main-queue"))?,
         };
         Ok(Self {
             queues: Mutex::new(queues),

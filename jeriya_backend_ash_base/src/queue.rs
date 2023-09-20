@@ -3,7 +3,10 @@ use std::{collections::VecDeque, sync::Arc};
 use ash::vk;
 use jeriya_shared::{log::info, tracy_client::span, AsDebugInfo, DebugInfo};
 
-use crate::{command_buffer::CommandBuffer, device::Device, fence::Fence, semaphore::Semaphore, AsRawVulkan, DebugInfoAshExtension};
+use crate::{
+    command_buffer::CommandBuffer, device::Device, fence::Fence, queue_plan::QueueSelection, semaphore::Semaphore, AsRawVulkan,
+    DebugInfoAshExtension,
+};
 
 pub enum SubmittedCommandBuffer {
     Value(CommandBuffer),
@@ -80,15 +83,15 @@ impl Queue {
         }
     }
 
-    /// Creates a new `Queue` with the given [`QueueType`]
-    pub fn new(device: &Arc<Device>, queue_type: QueueType, queue_index: u32, debug_info: DebugInfo) -> crate::Result<Self> {
-        match queue_type {
-            QueueType::Presentation => {
-                assert!(!device.physical_device.suitable_presentation_graphics_queue_family_infos.is_empty());
-                assert!(device.physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_count > queue_index);
-                let queue_family_index = device.physical_device.suitable_presentation_graphics_queue_family_infos[0].queue_family_index;
-                unsafe { Ok(Queue::get_from_family(device, queue_family_index, queue_index, debug_info)) }
-            }
+    /// Creates a new `Queue`
+    pub fn new(device: &Arc<Device>, queue_selection: &QueueSelection, debug_info: DebugInfo) -> crate::Result<Self> {
+        unsafe {
+            Ok(Queue::get_from_family(
+                device,
+                queue_selection.queue_family_index(),
+                queue_selection.queue_index(),
+                debug_info,
+            ))
         }
     }
 
@@ -180,7 +183,12 @@ mod tests {
         #[test]
         fn smoke() {
             let device_test_fixture = TestFixtureDevice::new().unwrap();
-            let _queue = Queue::new(&device_test_fixture.device, QueueType::Presentation, 0, debug_info!("my_queue")).unwrap();
+            let _queue = Queue::new(
+                &device_test_fixture.device,
+                &QueueSelection::new_unchecked(0, 0),
+                debug_info!("my_queue"),
+            )
+            .unwrap();
         }
     }
 }

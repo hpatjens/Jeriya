@@ -1,18 +1,21 @@
-use std::{sync::Arc, thread};
+use std::{collections::BTreeMap, iter, sync::Arc, thread};
 
 use ash::{
     extensions::khr,
     vk::{self, PhysicalDeviceFeatures2, PhysicalDeviceShaderDrawParametersFeatures},
 };
-use jeriya_shared::log::trace;
+use jeriya_shared::log::{info, trace};
 
-use crate::{instance::Instance, physical_device::PhysicalDevice, AsRawVulkan, Error, Extensions, PhysicalDeviceFeature};
+use crate::{
+    instance::Instance, physical_device::PhysicalDevice, queue_plan::QueuePlan, AsRawVulkan, Error, Extensions, PhysicalDeviceFeature,
+};
 
 pub struct Device {
     device: ash::Device,
     pub physical_device: PhysicalDevice,
     pub extensions: Extensions,
     instance: Arc<Instance>,
+    pub queue_plan: QueuePlan,
 }
 
 impl Drop for Device {
@@ -23,7 +26,7 @@ impl Drop for Device {
 
 impl Device {
     /// Creates a new `Device` based on the given [`PhysicalDevice`].
-    pub fn new(physical_device: PhysicalDevice, instance: &Arc<Instance>) -> crate::Result<Arc<Self>> {
+    pub fn new(physical_device: PhysicalDevice, instance: &Arc<Instance>, queue_plan: QueuePlan) -> crate::Result<Arc<Self>> {
         let features = {
             let available_features = unsafe {
                 instance
@@ -61,26 +64,54 @@ impl Device {
             };
         };
 
-        let queue_priorities = physical_device
-            .suitable_presentation_graphics_queue_family_infos
+        // Create Queues
+        let queue_selections = queue_plan.iter_queue_selections().collect::<Vec<_>>();
+        let queues_per_family = queue_selections
             .iter()
-            .map(|suitable_queue_family_info| {
-                std::iter::repeat(1.0)
-                    .take(suitable_queue_family_info.queue_count as usize)
-                    .collect::<Vec<_>>()
+            .map(|queue_selection| {
+                let required_queue_count = queue_selections
+                    .iter()
+                    .filter(|other| other.queue_family_index() == queue_selection.queue_family_index())
+                    .count() as u32;
+                (queue_selection.queue_family_index(), required_queue_count)
             })
-            .collect::<Vec<_>>();
-        let queue_infos = physical_device
-            .suitable_presentation_graphics_queue_family_infos
+            .collect::<BTreeMap<_, _>>();
+        let queue_priorities = queues_per_family
             .iter()
+            .map(|(_queue_family_index, queue_count)| iter::repeat(1.0).take(*queue_count as usize).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        let queue_infos = queues_per_family
+            .keys()
             .zip(queue_priorities.iter())
-            .map(|(suitable_queue_family_info, priorities)| {
+            .map(|(queue_family_index, priorities)| {
                 vk::DeviceQueueCreateInfo::builder()
-                    .queue_family_index(suitable_queue_family_info.queue_family_index)
+                    .queue_family_index(*queue_family_index)
                     .queue_priorities(priorities)
                     .build()
             })
             .collect::<Vec<_>>();
+        for queue_selection in &queue_selections {
+            let queue_info = queue_infos
+                .iter()
+                .find(|queue_info| queue_info.queue_family_index == queue_selection.queue_family_index());
+            assert! {
+                queue_info.is_some(),
+                "QueueInfo for queue_selection {:?} not found",
+                queue_selection
+            }
+            assert! {
+                queue_info.is_some_and(|queue_info| queue_info.queue_count > queue_selection.queue_index()),
+                "QueueInfo for queue_selection {:?} has not enough queues",
+                queue_selection
+            }
+        }
+        assert_eq! {
+            queue_selections.len(),
+            queue_infos.iter().map(|queue_info| queue_info.queue_count).sum::<u32>() as usize,
+            "The overall queue count does not match the queue plan"
+        }
+        info!("The following queues will be created on the device: {:#?}", queue_infos);
+
         let device_extension_names_raw = [khr::Swapchain::name().as_ptr(), khr::PushDescriptor::name().as_ptr()];
 
         let mut shader_draw_parameters = PhysicalDeviceShaderDrawParametersFeatures::builder()
@@ -105,6 +136,7 @@ impl Device {
             physical_device,
             instance: instance.clone(),
             extensions,
+            queue_plan,
         }))
     }
 

@@ -3,11 +3,10 @@ use std::sync::Arc;
 use ash::vk::{self, PhysicalDeviceType};
 use jeriya_shared::log::info;
 
-use crate::{instance::Instance, queue_plan::SuitableQueueFamilyInfo, surface::Surface, AsRawVulkan, Error};
+use crate::{instance::Instance, surface::Surface, AsRawVulkan, Error};
 
 #[derive(Debug)]
 pub struct PhysicalDevice {
-    pub suitable_presentation_graphics_queue_family_infos: Vec<SuitableQueueFamilyInfo>,
     pub physical_device_properties: vk::PhysicalDeviceProperties,
     pub physical_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     physical_device: vk::PhysicalDevice,
@@ -37,8 +36,6 @@ impl PhysicalDevice {
         let rated = rate_physical_devices(instance, physical_devices)?;
         let physical_device = rated.get(0).expect("no physical devices after rating");
 
-        let queues = get_presentation_graphics_queue_families(instance, &physical_device, &surfaces)?;
-
         let physical_device_properties = unsafe { instance.get_physical_device_properties(*physical_device) };
         info!("Selected PhysicalDevice: {:#?}", physical_device_properties);
 
@@ -53,7 +50,6 @@ impl PhysicalDevice {
             physical_device_properties,
             physical_device_memory_properties,
             physical_device: *physical_device,
-            suitable_presentation_graphics_queue_family_infos: queues,
         })
     }
 }
@@ -83,32 +79,6 @@ fn rate_physical_devices(instance: &ash::Instance, physical_devices: Vec<vk::Phy
         .into_iter()
         .map(|(_, _, physical_device)| physical_device)
         .collect::<Vec<vk::PhysicalDevice>>())
-}
-
-/// Returns the queue families that can be used for presentation
-fn get_presentation_graphics_queue_families(
-    instance: &ash::Instance,
-    physical_device: &vk::PhysicalDevice,
-    surfaces: &[&Arc<Surface>],
-) -> crate::Result<Vec<SuitableQueueFamilyInfo>> {
-    let physical_device_queue_family_properties = unsafe { instance.get_physical_device_queue_family_properties(*physical_device) };
-    let mut queues = Vec::new();
-    for (queue_family_index, queue_family_properties) in physical_device_queue_family_properties.iter().enumerate() {
-        info!("Queue Family: {:#?}", queue_family_properties);
-        let mut supported = true;
-        for surface in surfaces {
-            if !surface.supports_presentation(physical_device, queue_family_index)? {
-                supported = false;
-            }
-        }
-        if supported {
-            queues.push(SuitableQueueFamilyInfo {
-                queue_family_index: queue_family_index as u32,
-                queue_count: queue_family_properties.queue_count,
-            });
-        }
-    }
-    Ok(queues)
 }
 
 #[cfg(test)]
