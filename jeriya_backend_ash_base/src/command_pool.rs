@@ -89,13 +89,19 @@ mod tests {
         use crate::{
             command_pool::{CommandPool, CommandPoolCreateFlags},
             device::tests::TestFixtureDevice,
-            queue::{Queue, QueueType},
+            queue::Queue,
+            queue_plan::QueueSelection,
         };
 
         #[test]
         fn smoke() {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
-            let presentation_queue = Queue::new(&test_fixture_device.device, QueueType::Presentation, 0, debug_info!("my_queue")).unwrap();
+            let presentation_queue = Queue::new(
+                &test_fixture_device.device,
+                &QueueSelection::new_unchecked(0, 0),
+                debug_info!("my_queue"),
+            )
+            .unwrap();
             let _command_pool = CommandPool::new(
                 &test_fixture_device.device,
                 &presentation_queue,

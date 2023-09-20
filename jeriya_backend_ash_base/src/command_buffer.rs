@@ -103,7 +103,8 @@ pub mod tests {
         command_buffer::CommandBuffer,
         command_pool::{CommandPool, CommandPoolCreateFlags},
         device::tests::TestFixtureDevice,
-        queue::{Queue, QueueType},
+        queue::Queue,
+        queue_plan::QueueSelection,
     };
 
     pub struct TestFixtureCommandBuffer {
@@ -114,7 +115,12 @@ pub mod tests {
 
     impl TestFixtureCommandBuffer {
         pub fn new(test_fixture_device: &TestFixtureDevice) -> crate::Result<Self> {
-            let queue = Queue::new(&test_fixture_device.device, QueueType::Presentation, 0, debug_info!("my_queue")).unwrap();
+            let queue = Queue::new(
+                &test_fixture_device.device,
+                &QueueSelection::new_unchecked(0, 0),
+                debug_info!("my_queue"),
+            )
+            .unwrap();
             let command_pool = CommandPool::new(
                 &test_fixture_device.device,
                 &queue,

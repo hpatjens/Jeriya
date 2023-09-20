@@ -90,7 +90,8 @@ mod tests {
     use jeriya_test::create_window;
 
     use crate::{
-        device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface, swapchain::Swapchain,
+        device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, queue_plan::QueuePlan, surface::Surface,
+        swapchain::Swapchain,
     };
 
     use super::SwapchainRenderPass;
@@ -102,7 +103,8 @@ mod tests {
         let instance = Instance::new(&entry, "my_application", false).unwrap();
         let surface = Surface::new(&entry, &instance, &window).unwrap();
         let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
-        let device = Device::new(physical_device, &instance).unwrap();
+        let queue_plan = QueuePlan::new(&instance, &physical_device, iter::once((&window.id(), &surface))).unwrap();
+        let device = Device::new(physical_device, &instance, queue_plan).unwrap();
         let swapchain = Swapchain::new(&device, &surface, 2, None).unwrap();
         let _swapchain_renderpass = SwapchainRenderPass::new(&device, &swapchain).unwrap();
     }

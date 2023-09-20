@@ -384,6 +384,9 @@ fn find_any_transfer_queue(queue_family_properties: &Vec<QueueFamilyProperties>)
 mod tests {
     use ash::vk::QueueFlags;
     use jeriya_shared::maplit::btreemap;
+    use jeriya_test::create_window;
+
+    use crate::{device::Device, entry::Entry};
 
     use super::*;
 
@@ -718,5 +721,16 @@ mod tests {
             assert_queue_selection!(queues_plan.presentation_queues[queues_plan.presentation_queue_mapping[&window_id3]]; family 0, 1);
             assert_queue_selection!(queues_plan.transfer_queue; family 0, 0);
         }
+    }
+
+    #[test]
+    fn smoke() {
+        let window = create_window();
+        let entry = Entry::new().unwrap();
+        let instance = Instance::new(&entry, "my_application", true).unwrap();
+        let surface = Surface::new(&entry, &instance, &window).unwrap();
+        let physical_device = PhysicalDevice::new(&instance, std::iter::once(&surface)).unwrap();
+        let queue_plan = QueuePlan::new(&instance, &physical_device, std::iter::once((&window.id(), &surface))).unwrap();
+        let device = Device::new(physical_device, &instance, queue_plan).unwrap();
     }
 }

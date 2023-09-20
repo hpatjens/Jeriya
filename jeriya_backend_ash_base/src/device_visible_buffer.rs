@@ -110,14 +110,19 @@ mod tests {
             device::tests::TestFixtureDevice,
             device_visible_buffer::DeviceVisibleBuffer,
             host_visible_buffer::HostVisibleBuffer,
-            queue::{Queue, QueueType},
+            queue::Queue,
+            queue_plan::QueueSelection,
         };
 
         #[test]
         fn smoke() {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
-            let mut presentation_queue =
-                Queue::new(&test_fixture_device.device, QueueType::Presentation, 0, debug_info!("my_queue")).unwrap();
+            let mut presentation_queue = Queue::new(
+                &test_fixture_device.device,
+                &QueueSelection::new_unchecked(0, 0),
+                debug_info!("my_queue"),
+            )
+            .unwrap();
             let command_pool = CommandPool::new(
                 &test_fixture_device.device,
                 &presentation_queue,

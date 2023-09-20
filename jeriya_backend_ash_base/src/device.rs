@@ -207,12 +207,14 @@ impl AsRawVulkan for Device {
 
 #[cfg(test)]
 pub mod tests {
-    use std::sync::Arc;
+    use std::{iter, sync::Arc};
 
     use jeriya_shared::winit::window::Window;
     use jeriya_test::create_window;
 
-    use crate::{device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface};
+    use crate::{
+        device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, queue_plan::QueuePlan, surface::Surface,
+    };
 
     /// Test fixture for a [`Device`] and all its dependencies
     pub struct TestFixtureDevice {
@@ -230,7 +232,8 @@ pub mod tests {
             let instance = Instance::new(&entry, "my_application", true)?;
             let surface = Surface::new(&entry, &instance, &window)?;
             let physical_device = PhysicalDevice::new(&instance, std::iter::once(&surface))?;
-            let device = Device::new(physical_device, &instance)?;
+            let queue_plan = QueuePlan::new(&instance, &physical_device, iter::once((&window.id(), &surface))).unwrap();
+            let device = Device::new(physical_device, &instance, queue_plan)?;
             Ok(Self {
                 window,
                 entry,
