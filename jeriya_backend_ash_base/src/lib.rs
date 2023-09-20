@@ -19,7 +19,7 @@ pub mod instance;
 pub mod physical_device;
 pub mod push_descriptors;
 pub mod queue;
-pub mod queue_selection;
+pub mod queue_plan;
 pub mod semaphore;
 pub mod shader_interface;
 pub mod shader_module;

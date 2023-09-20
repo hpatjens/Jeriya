@@ -3,7 +3,7 @@ use std::sync::Arc;
 use ash::vk::{self, PhysicalDeviceType};
 use jeriya_shared::log::info;
 
-use crate::{instance::Instance, queue_selection::SuitableQueueFamilyInfo, surface::Surface, AsRawVulkan, Error};
+use crate::{instance::Instance, queue_plan::SuitableQueueFamilyInfo, surface::Surface, AsRawVulkan, Error};
 
 #[derive(Debug)]
 pub struct PhysicalDevice {
