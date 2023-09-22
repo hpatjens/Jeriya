@@ -208,10 +208,8 @@ fn main() -> ey::Result<()> {
     let import_source = FileSystem::new("assets/unprocessed").wrap_err("Failed to create ImportSource for AssetImporter")?;
     let _asset_importer = AssetImporter::new(import_source, 4).wrap_err("Failed to create AssetImporter")?;
 
-    let handle1 = renderer.active_camera(window1.id()).wrap_err("Failed to get active camera")?;
     let handle2 = renderer.active_camera(window2.id()).wrap_err("Failed to get active camera")?;
     let mut cameras = renderer.cameras();
-    let mut camera1 = cameras.get_mut(&handle1).ok_or(eyre!("Failed to get camera"))?;
     let mut camera2 = cameras.get_mut(&handle2).ok_or(eyre!("Failed to get camera"))?;
     camera2.set_projection(jeriya_backend::CameraProjection::Perspective {
         fov: 90.0,
