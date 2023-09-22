@@ -265,6 +265,16 @@ fn main() -> ey::Result<()> {
                 let t = frame_start_time - loop_start_time;
                 let dt = frame_start_time - last_frame_start_time;
 
+                {
+                    let handle = renderer
+                        .active_camera(window1.id())
+                        .wrap_err("Failed to get active camera")
+                        .unwrap();
+                    let mut cameras = renderer.cameras();
+                    let mut camera = cameras.get_mut(&handle).ok_or(eyre!("Failed to get camera")).unwrap();
+                    camera.set_position(Vector3::new(t.as_secs_f32().sin() * 0.3, t.as_secs_f32().cos() * 0.3, 0.0));
+                }
+
                 if let Err(err) = immediate_rendering(&renderer, update_loop_frame_index, UPDATE_FRAMERATE as f64, t, dt) {
                     error!("Failed to do immediate rendering: {}", err);
                     control_flow.set_exit();
