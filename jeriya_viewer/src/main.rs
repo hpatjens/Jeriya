@@ -223,28 +223,28 @@ fn main() -> ey::Result<()> {
         .build()
         .wrap_err("Failed to create inanimate mesh")?;
 
-    // let cube_model = Model::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import model")?;
-    // let cube_model = renderer
-    //     .models()
-    //     .create(cube_model)
-    //     .with_debug_info(debug_info!("my_model"))
-    //     .build()
-    //     .wrap_err("Failed to create model")?;
+    let cube_model = Model::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import model")?;
+    let cube_model = renderer
+        .models()
+        .create(cube_model)
+        .with_debug_info(debug_info!("my_model"))
+        .build()
+        .wrap_err("Failed to create model")?;
 
     let mut inanimate_mesh_instances = renderer.inanimate_mesh_instances();
     inanimate_mesh_instances
         .insert(InanimateMeshInstance::new(
             inanimate_mesh1.clone(),
-            nalgebra::convert(Translation3::new(0.0, 0.0, 0.0)),
+            nalgebra::convert(Translation3::new(0.5, 0.0, 0.0)),
         ))
         .wrap_err("Failed to insert inanimate mesh instance")?;
     drop(inanimate_mesh_instances);
 
-    // let mut model_instances = renderer.model_instances();
-    // model_instances
-    //     .insert(ModelInstance::new(cube_model.clone()))
-    //     .wrap_err("Failed to insert model instance")?;
-    // drop(model_instances);
+    let mut model_instances = renderer.model_instances();
+    model_instances
+        .insert(ModelInstance::new(cube_model.clone()))
+        .wrap_err("Failed to insert model instance")?;
+    drop(model_instances);
 
     const UPDATE_FRAMERATE: u32 = 60;
     let loop_start_time = Instant::now();
