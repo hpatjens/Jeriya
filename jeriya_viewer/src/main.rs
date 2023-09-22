@@ -69,8 +69,9 @@ where
     let line_strip_turning = {
         let x = t.as_secs_f32().sin() * 0.5;
         let y = t.as_secs_f32().cos() * 0.5;
+        let offset = 1.5;
         LineStrip::new(
-            vec![Vector3::new(x, y, 0.0), Vector3::new(-x, -y, 0.0)],
+            vec![Vector3::new(x, offset + y, 0.0), Vector3::new(-x, offset - y, 0.0)],
             LineConfig {
                 color: Vector4::new(1.0, 0.0, 0.0, 1.0),
                 line_width: 4.0,
@@ -207,12 +208,18 @@ fn main() -> ey::Result<()> {
     let import_source = FileSystem::new("assets/unprocessed").wrap_err("Failed to create ImportSource for AssetImporter")?;
     let _asset_importer = AssetImporter::new(import_source, 4).wrap_err("Failed to create AssetImporter")?;
 
-    {
-        let handle = renderer.active_camera(window1.id()).wrap_err("Failed to get active camera")?;
-        let cameras = renderer.cameras();
-        let camera = cameras.get(&handle).ok_or(eyre!("Failed to get camera"))?;
-        println!("Camera: {:?}", camera.matrix());
-    }
+    let handle1 = renderer.active_camera(window1.id()).wrap_err("Failed to get active camera")?;
+    let handle2 = renderer.active_camera(window2.id()).wrap_err("Failed to get active camera")?;
+    let mut cameras = renderer.cameras();
+    let mut camera1 = cameras.get_mut(&handle1).ok_or(eyre!("Failed to get camera"))?;
+    let mut camera2 = cameras.get_mut(&handle2).ok_or(eyre!("Failed to get camera"))?;
+    camera2.set_projection(jeriya_backend::CameraProjection::Perspective {
+        fov: 90.0,
+        aspect: 1.0,
+        near: 0.1,
+        far: 100.0,
+    });
+    drop(cameras);
 
     let model = load_model().wrap_err("Failed to load model")?;
 
@@ -235,7 +242,7 @@ fn main() -> ey::Result<()> {
     inanimate_mesh_instances
         .insert(InanimateMeshInstance::new(
             inanimate_mesh1.clone(),
-            nalgebra::convert(Translation3::new(0.5, 0.0, 0.0)),
+            nalgebra::convert(Translation3::new(1.5, 0.0, 0.0)),
         ))
         .wrap_err("Failed to insert inanimate mesh instance")?;
     drop(inanimate_mesh_instances);
@@ -273,6 +280,19 @@ fn main() -> ey::Result<()> {
                     let mut cameras = renderer.cameras();
                     let mut camera = cameras.get_mut(&handle).ok_or(eyre!("Failed to get camera")).unwrap();
                     camera.set_position(Vector3::new(t.as_secs_f32().sin() * 0.3, t.as_secs_f32().cos() * 0.3, 0.0));
+                }
+
+                {
+                    let handle = renderer
+                        .active_camera(window2.id())
+                        .wrap_err("Failed to get active camera")
+                        .unwrap();
+                    let mut cameras = renderer.cameras();
+                    let mut camera = cameras.get_mut(&handle).ok_or(eyre!("Failed to get camera")).unwrap();
+                    let distance = 3.0;
+                    let position = Vector3::new(t.as_secs_f32().sin() * distance, 1.0, t.as_secs_f32().cos() * distance);
+                    camera.set_position(position);
+                    camera.set_forward(-position.normalize());
                 }
 
                 if let Err(err) = immediate_rendering(&renderer, update_loop_frame_index, UPDATE_FRAMERATE as f64, t, dt) {
