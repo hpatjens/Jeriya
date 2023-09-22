@@ -242,7 +242,10 @@ impl PresenterShared {
 #[cfg(test)]
 mod tests {
     mod new {
-        use std::{iter, sync::Arc};
+        use std::{
+            iter,
+            sync::{mpsc, Arc},
+        };
 
         use jeriya_backend_ash_base::{
             device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, queue_plan::QueuePlan, surface::Surface,
@@ -261,7 +264,8 @@ mod tests {
             let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
             let queue_plan = QueuePlan::new(&instance, &physical_device, iter::once((&window.id(), &surface))).unwrap();
             let device = Device::new(physical_device, &instance, queue_plan).unwrap();
-            let backend_shared = BackendShared::new(&device, &Arc::new(RendererConfig::default())).unwrap();
+            let (resource_sender, _resource_receiver) = mpsc::channel();
+            let backend_shared = BackendShared::new(&device, &Arc::new(RendererConfig::default()), resource_sender).unwrap();
             let _presenter = PresenterShared::new(&window.id(), &backend_shared, &surface).unwrap();
         }
     }

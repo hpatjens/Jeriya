@@ -1,9 +1,13 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{mpsc::Sender, Arc},
+};
 
 use jeriya_backend::{
-    inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
+    inanimate_mesh::{InanimateMeshGpuState, InanimateMeshGroup},
     model::ModelGroup,
     Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceEvent,
+    ResourceEvent,
 };
 use jeriya_backend_ash_base::{buffer::BufferUsageFlags, device::Device, shader_interface, staged_push_only_buffer::StagedPushOnlyBuffer};
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, EventQueue, Handle, IndexingContainer, RendererConfig};
@@ -17,10 +21,11 @@ pub struct BackendShared {
 
     pub queue_scheduler: QueueScheduler,
 
+    pub resource_sender: Sender<ResourceEvent>,
+
     pub camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
     pub cameras: Arc<Mutex<IndexingContainer<Camera>>>,
 
-    pub inanimate_mesh_event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
     pub inanimate_mesh_group: Arc<InanimateMeshGroup>,
     pub inanimate_mesh_gpu_states: Arc<Mutex<HashMap<Handle<Arc<InanimateMesh>>, InanimateMeshGpuState>>>,
     pub inanimate_mesh_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::InanimateMesh>>,
@@ -38,14 +43,17 @@ pub struct BackendShared {
 }
 
 impl BackendShared {
-    pub fn new(device: &Arc<Device>, renderer_config: &Arc<RendererConfig>) -> jeriya_backend::Result<Self> {
+    pub fn new(
+        device: &Arc<Device>,
+        renderer_config: &Arc<RendererConfig>,
+        resource_sender: Sender<ResourceEvent>,
+    ) -> jeriya_backend::Result<Self> {
         info!("Creating Cameras");
         let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
         let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
 
         info!("Creating InanimateMeshes");
-        let inanimate_mesh_event_queue = Arc::new(Mutex::new(EventQueue::new()));
-        let inanimate_meshes = Arc::new(InanimateMeshGroup::new(inanimate_mesh_event_queue.clone()));
+        let inanimate_meshes = Arc::new(InanimateMeshGroup::new(resource_sender.clone()));
 
         info!("Creating InanimateMeshInstances");
         let inanimate_mesh_instances = Arc::new(Mutex::new(IndexingContainer::new()));
@@ -92,10 +100,10 @@ impl BackendShared {
             device: device.clone(),
             renderer_config: renderer_config.clone(),
             queue_scheduler,
+            resource_sender,
             cameras,
             camera_event_queue,
             inanimate_mesh_group: inanimate_meshes,
-            inanimate_mesh_event_queue,
             inanimate_mesh_buffer,
             model_group,
             static_vertex_position_buffer,

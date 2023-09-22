@@ -1,11 +1,11 @@
-use std::sync::Arc;
+use std::sync::{mpsc::Sender, Arc};
 
 use jeriya_shared::{
     debug_info, derive_new::new, nalgebra::Vector3, parking_lot::Mutex, thiserror, AsDebugInfo, DebugInfo, EventQueue, Handle,
     IndexingContainer,
 };
 
-use crate::Resource;
+use crate::{Resource, ResourceEvent};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -61,7 +61,7 @@ pub struct InanimateMesh {
     allocation_type: ResourceAllocationType,
     vertices_len: usize,
     indices_len: Option<usize>,
-    event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
+    resource_event_sender: Sender<ResourceEvent>,
     gpu_state: InanimateMeshGpuState,
     handle: Mutex<Option<Handle<Arc<InanimateMesh>>>>,
 }
@@ -73,7 +73,7 @@ impl InanimateMesh {
         vertex_positions: Arc<Vec<Vector3<f32>>>,
         indices: Option<Arc<Vec<u32>>>,
         debug_info: DebugInfo,
-        event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
+        resource_event_sender: Sender<ResourceEvent>,
     ) -> crate::Result<Arc<Self>> {
         if let Some(indices) = &indices {
             check_indices(vertex_positions.len(), indices)?;
@@ -82,7 +82,7 @@ impl InanimateMesh {
         }
         let result = Arc::new(Self {
             debug_info,
-            event_queue,
+            resource_event_sender,
             ty,
             allocation_type,
             vertices_len: vertex_positions.len(),
@@ -102,10 +102,12 @@ impl InanimateMesh {
             }
             .into());
         }
-        self.event_queue.lock().push(InanimateMeshEvent::SetVertexPositions {
-            inanimate_mesh: self.clone(),
-            vertex_posisions: Arc::new(vertex_positions),
-        });
+        self.resource_event_sender
+            .send(ResourceEvent::InanimateMesh(vec![InanimateMeshEvent::SetVertexPositions {
+                inanimate_mesh: self.clone(),
+                vertex_posisions: Arc::new(vertex_positions),
+            }]))
+            .expect("resource event cannot be sent");
         Ok(())
     }
 
@@ -199,25 +201,25 @@ pub enum InanimateMeshEvent {
 
 pub struct InanimateMeshGroup {
     pub inanimate_meshes: Arc<Mutex<IndexingContainer<Arc<InanimateMesh>>>>,
-    pub event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
+    pub resource_event_sender: Sender<ResourceEvent>,
 }
 
 impl InanimateMeshGroup {
-    pub fn new(event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>) -> Self {
+    pub fn new(event_queue: Sender<ResourceEvent>) -> Self {
         Self {
-            event_queue,
+            resource_event_sender: event_queue,
             inanimate_meshes: Arc::new(Mutex::new(IndexingContainer::new())),
         }
     }
 
     /// Returns a [`InanimateMeshBuilder`] with the given [`MeshType`] and vertices
     pub fn create(&self, ty: MeshType, vertex_positions: Vec<Vector3<f32>>) -> InanimateMeshBuilder {
-        InanimateMeshBuilder::new(self, ty, vertex_positions, self.event_queue.clone())
+        InanimateMeshBuilder::new(self, ty, vertex_positions, self.resource_event_sender.clone())
     }
 
     /// Inserts a [`InanimateMesh`] into the [`InanimateMeshGroup`]
     fn insert(&self, inanimate_mesh: Arc<InanimateMesh>) {
-        insert_inanimate_mesh(inanimate_mesh, self.inanimate_meshes.clone(), self.event_queue.clone());
+        insert_inanimate_mesh(inanimate_mesh, self.inanimate_meshes.clone(), self.resource_event_sender.clone());
     }
 }
 
@@ -227,15 +229,17 @@ impl InanimateMeshGroup {
 pub(crate) fn insert_inanimate_mesh(
     inanimate_mesh: Arc<InanimateMesh>,
     inanimate_meshes: Arc<Mutex<IndexingContainer<Arc<InanimateMesh>>>>,
-    event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
+    resource_event_sender: Sender<ResourceEvent>,
 ) -> Handle<Arc<InanimateMesh>> {
     match &inanimate_mesh.gpu_state {
         InanimateMeshGpuState::WaitingForUpload { vertex_positions, indices } => {
-            event_queue.lock().push(InanimateMeshEvent::Insert {
-                inanimate_mesh: inanimate_mesh.clone(),
-                vertex_positions: vertex_positions.clone(),
-                indices: indices.clone(),
-            });
+            resource_event_sender
+                .send(ResourceEvent::InanimateMesh(vec![InanimateMeshEvent::Insert {
+                    inanimate_mesh: inanimate_mesh.clone(),
+                    vertex_positions: vertex_positions.clone(),
+                    indices: indices.clone(),
+                }]))
+                .expect("resource event cannot be sent");
         }
         InanimateMeshGpuState::Uploaded { .. } => {
             panic!("InanimateMeshes that are already uploaded are not allowed to be inserted into the InanimateMeshGroup");
@@ -255,7 +259,7 @@ pub struct InanimateMeshBuilder<'a> {
     indices: Option<Vec<u32>>,
     #[new(default)]
     debug_info: Option<DebugInfo>,
-    event_queue: Arc<Mutex<EventQueue<InanimateMeshEvent>>>,
+    resource_event_sender: Sender<ResourceEvent>,
 }
 
 impl<'a> InanimateMeshBuilder<'a> {
@@ -279,7 +283,7 @@ impl<'a> InanimateMeshBuilder<'a> {
             Arc::new(self.vertex_positions),
             self.indices.map(|indices| Arc::new(indices)),
             self.debug_info.unwrap_or_else(|| debug_info!("Anonymous InanimateMesh")),
-            self.event_queue,
+            self.resource_event_sender,
         )?;
         self.inanimate_mesh_group.insert(inanimate_mesh.clone());
         Ok(inanimate_mesh)

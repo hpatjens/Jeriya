@@ -12,7 +12,7 @@ use crate::{
     presenter_shared::PresenterShared,
 };
 
-use jeriya_backend::immediate::ImmediateRenderingFrame;
+use jeriya_backend::{immediate::ImmediateRenderingFrame, ResourceEvent};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_macros::profile;
@@ -149,6 +149,11 @@ fn run_presenter_thread(
         loop_helper.loop_start();
 
         let mut presenter_shared = presenter_shared.lock();
+
+        backend_shared
+            .resource_sender
+            .send(ResourceEvent::FrameStart)
+            .expect("failed to send ResourceEvent::FrameStart");
 
         // Remove timed out immediate rendering frames.
         //

@@ -195,7 +195,7 @@ mod tests {
         debug_info, parking_lot::Mutex, winit::window::WindowId, AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer,
         RendererConfig, WindowConfig,
     };
-    use std::sync::Arc;
+    use std::sync::{mpsc, Arc};
 
     mod immediate_command_buffer {
         use jeriya_backend::immediate::{ImmediateRenderingFrame, LineConfig, LineList};
@@ -262,7 +262,8 @@ mod tests {
             let model_instances = Arc::new(Mutex::new(IndexingContainer::new()));
             let model_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
             let active_camera = cameras.lock().insert(Camera::default());
-            let inanimate_mesh_group = InanimateMeshGroup::new(Arc::new(Mutex::new(EventQueue::new())));
+            let (resource_event_sender, _resource_event_receiver) = mpsc::channel();
+            let inanimate_mesh_group = InanimateMeshGroup::new(resource_event_sender);
             let model_group = ModelGroup::new(&inanimate_mesh_group);
             Ok(Self {
                 cameras,
