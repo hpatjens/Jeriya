@@ -96,11 +96,13 @@ impl<'a> ModelBuilder<'a> {
                 let mut inanimate_meshes = Vec::new();
                 for (mesh_index, mesh) in model.meshes.iter().enumerate() {
                     let vertex_positions = Arc::new(mesh.simple_mesh.vertex_positions.clone());
+                    let vertex_normals = Arc::new(mesh.simple_mesh.vertex_normals.clone());
                     let indices = Some(Arc::new(mesh.simple_mesh.indices.clone()));
                     let inanimate_mesh = InanimateMesh::new(
                         MeshType::TriangleList,
                         ResourceAllocationType::Static,
                         vertex_positions.clone(),
+                        vertex_normals.clone(),
                         indices.clone(),
                         debug_info!(format!("InanimateMesh {} of Model {}", mesh_index, model.name)),
                         self.resource_event_sender.clone(),

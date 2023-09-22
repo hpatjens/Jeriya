@@ -24,6 +24,8 @@ pub enum Error {
     FailedLoading { path: PathBuf, error_message: String },
     #[error("Model has no vertex positions")]
     NoVertexPositions,
+    #[error("Model has no vertex normals")]
+    NoVertexNormals,
 }
 
 impl From<Error> for crate::Error {
@@ -164,6 +166,7 @@ pub struct Mesh {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimpleMesh {
     pub vertex_positions: Vec<Vector3<f32>>,
+    pub vertex_normals: Vec<Vector3<f32>>,
     pub indices: Vec<u32>,
 }
 
@@ -191,6 +194,7 @@ pub fn process_model(asset_builder: &mut AssetBuilder) -> crate::Result<()> {
 
 fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<SimpleMesh> {
     let mut used_vertex_positions = BTreeMap::new();
+    let mut used_vertex_normals = BTreeMap::new();
     let mut old_indices = Vec::new();
 
     for primitive in mesh.primitives() {
@@ -198,6 +202,7 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<Si
         assert_eq!(primitive.mode(), Mode::Triangles, "Currently only triangles are supported");
         let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
         let temp_vertex_positions = reader.read_positions().ok_or(Error::NoVertexPositions)?.collect::<Vec<_>>();
+        let temp_vertex_normals = reader.read_normals().ok_or(Error::NoVertexNormals)?.collect::<Vec<_>>();
         if let Some(indices) = reader.read_indices() {
             match &indices {
                 ReadIndices::U8(iter) => {
@@ -206,6 +211,9 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<Si
                         used_vertex_positions
                             .entry(index as u32)
                             .or_insert(temp_vertex_positions[index as usize]);
+                        used_vertex_normals
+                            .entry(index as u32)
+                            .or_insert(temp_vertex_normals[index as usize]);
                     }
                 }
                 ReadIndices::U16(iter) => {
@@ -214,6 +222,9 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<Si
                         used_vertex_positions
                             .entry(index as u32)
                             .or_insert(temp_vertex_positions[index as usize]);
+                        used_vertex_normals
+                            .entry(index as u32)
+                            .or_insert(temp_vertex_normals[index as usize]);
                     }
                 }
                 ReadIndices::U32(iter) => {
@@ -222,6 +233,9 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<Si
                         used_vertex_positions
                             .entry(index as u32)
                             .or_insert(temp_vertex_positions[index as usize]);
+                        used_vertex_normals
+                            .entry(index as u32)
+                            .or_insert(temp_vertex_normals[index as usize]);
                     }
                 }
             }
@@ -235,13 +249,22 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<Si
         index_mapping.insert(old_index, new_index as u32);
     }
 
+    let mut vertex_normals = Vec::new();
+    for (_, vertex) in used_vertex_normals.into_iter() {
+        vertex_normals.push(Vector3::new(vertex[0], vertex[1], vertex[2]));
+    }
+
     let indices = old_indices
         .into_iter()
         .map(|old_index| index_mapping[&old_index])
         .collect::<Vec<_>>();
     let indices = meshopt::optimize::optimize_vertex_cache(&indices, vertex_positions.len());
 
-    Ok(SimpleMesh { vertex_positions, indices })
+    Ok(SimpleMesh {
+        vertex_positions,
+        vertex_normals,
+        indices,
+    })
 }
 
 fn build_meshlets(simple_mesh: &SimpleMesh) -> crate::Result<Vec<Meshlet>> {
@@ -334,8 +357,11 @@ mod tests {
         setup_logger();
         let model = Model::import("../sample_assets/rotated_cube.glb").unwrap();
         asserting("mesh count").that(&model.meshes.len()).is_equal_to(1);
-        asserting("vertex count")
+        asserting("vertex position count")
             .that(&model.meshes[0].simple_mesh.vertex_positions.len())
+            .is_equal_to(24);
+        asserting("vertex normal count")
+            .that(&model.meshes[0].simple_mesh.vertex_normals.len())
             .is_equal_to(24);
         asserting("index count")
             .that(&model.meshes[0].simple_mesh.indices.len())

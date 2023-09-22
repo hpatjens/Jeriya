@@ -293,6 +293,7 @@ fn handle_inanimate_mesh_event(
             InanimateMeshEvent::Insert {
                 inanimate_mesh,
                 vertex_positions,
+                vertex_normals,
                 indices,
             } => {
                 let _span = span!("Insert inanimate mesh");

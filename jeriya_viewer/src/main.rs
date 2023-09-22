@@ -220,10 +220,10 @@ fn main() -> ey::Result<()> {
     drop(cameras);
 
     let model = load_model().wrap_err("Failed to load model")?;
-
+    let fake_normals = model.iter().map(|_| Vector3::new(0.0, 1.0, 0.0)).collect();
     let inanimate_mesh1 = renderer
         .inanimate_meshes()
-        .create(MeshType::TriangleList, model)
+        .create(MeshType::TriangleList, model, fake_normals)
         .with_debug_info(debug_info!("my_mesh"))
         .build()
         .wrap_err("Failed to create inanimate mesh")?;

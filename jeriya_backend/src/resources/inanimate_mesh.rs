@@ -1,8 +1,7 @@
 use std::sync::{mpsc::Sender, Arc};
 
 use jeriya_shared::{
-    debug_info, derive_new::new, nalgebra::Vector3, parking_lot::Mutex, thiserror, AsDebugInfo, DebugInfo, EventQueue, Handle,
-    IndexingContainer,
+    debug_info, derive_new::new, nalgebra::Vector3, parking_lot::Mutex, thiserror, AsDebugInfo, DebugInfo, Handle, IndexingContainer,
 };
 
 use crate::{Resource, ResourceEvent};
@@ -48,6 +47,7 @@ pub enum MeshType {
 pub enum InanimateMeshGpuState {
     WaitingForUpload {
         vertex_positions: Arc<Vec<Vector3<f32>>>,
+        vertex_normals: Arc<Vec<Vector3<f32>>>,
         indices: Option<Arc<Vec<u32>>>,
     },
     Uploaded {
@@ -71,6 +71,7 @@ impl InanimateMesh {
         ty: MeshType,
         allocation_type: ResourceAllocationType,
         vertex_positions: Arc<Vec<Vector3<f32>>>,
+        vertex_normals: Arc<Vec<Vector3<f32>>>,
         indices: Option<Arc<Vec<u32>>>,
         debug_info: DebugInfo,
         resource_event_sender: Sender<ResourceEvent>,
@@ -87,7 +88,11 @@ impl InanimateMesh {
             allocation_type,
             vertices_len: vertex_positions.len(),
             indices_len: indices.as_ref().map(|indices| indices.len()),
-            gpu_state: InanimateMeshGpuState::WaitingForUpload { vertex_positions, indices },
+            gpu_state: InanimateMeshGpuState::WaitingForUpload {
+                vertex_positions,
+                vertex_normals,
+                indices,
+            },
             handle: Mutex::new(None),
         });
         Ok(result)
@@ -191,6 +196,7 @@ pub enum InanimateMeshEvent {
     Insert {
         inanimate_mesh: Arc<InanimateMesh>,
         vertex_positions: Arc<Vec<Vector3<f32>>>,
+        vertex_normals: Arc<Vec<Vector3<f32>>>,
         indices: Option<Arc<Vec<u32>>>,
     },
     SetVertexPositions {
@@ -212,9 +218,9 @@ impl InanimateMeshGroup {
         }
     }
 
-    /// Returns a [`InanimateMeshBuilder`] with the given [`MeshType`] and vertices
-    pub fn create(&self, ty: MeshType, vertex_positions: Vec<Vector3<f32>>) -> InanimateMeshBuilder {
-        InanimateMeshBuilder::new(self, ty, vertex_positions, self.resource_event_sender.clone())
+    /// Returns a [`InanimateMeshBuilder`] with the given [`MeshType`], vertex positions and vertex normals
+    pub fn create(&self, ty: MeshType, vertex_positions: Vec<Vector3<f32>>, vertex_normals: Vec<Vector3<f32>>) -> InanimateMeshBuilder {
+        InanimateMeshBuilder::new(self, ty, vertex_positions, vertex_normals, self.resource_event_sender.clone())
     }
 
     /// Inserts a [`InanimateMesh`] into the [`InanimateMeshGroup`]
@@ -232,11 +238,16 @@ pub(crate) fn insert_inanimate_mesh(
     resource_event_sender: Sender<ResourceEvent>,
 ) -> Handle<Arc<InanimateMesh>> {
     match &inanimate_mesh.gpu_state {
-        InanimateMeshGpuState::WaitingForUpload { vertex_positions, indices } => {
+        InanimateMeshGpuState::WaitingForUpload {
+            vertex_positions,
+            vertex_normals,
+            indices,
+        } => {
             resource_event_sender
                 .send(ResourceEvent::InanimateMesh(vec![InanimateMeshEvent::Insert {
                     inanimate_mesh: inanimate_mesh.clone(),
                     vertex_positions: vertex_positions.clone(),
+                    vertex_normals: vertex_normals.clone(),
                     indices: indices.clone(),
                 }]))
                 .expect("resource event cannot be sent");
@@ -255,6 +266,7 @@ pub struct InanimateMeshBuilder<'a> {
     inanimate_mesh_group: &'a InanimateMeshGroup,
     ty: MeshType,
     vertex_positions: Vec<Vector3<f32>>,
+    vertex_normals: Vec<Vector3<f32>>,
     #[new(default)]
     indices: Option<Vec<u32>>,
     #[new(default)]
@@ -281,6 +293,7 @@ impl<'a> InanimateMeshBuilder<'a> {
             self.ty,
             ResourceAllocationType::Static,
             Arc::new(self.vertex_positions),
+            Arc::new(self.vertex_normals),
             self.indices.map(|indices| Arc::new(indices)),
             self.debug_info.unwrap_or_else(|| debug_info!("Anonymous InanimateMesh")),
             self.resource_event_sender,
