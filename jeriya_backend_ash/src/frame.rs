@@ -143,7 +143,7 @@ impl Frame {
                     {
                         gpu_instances.push(shader_interface::InanimateMeshInstance {
                             inanimate_mesh_index: *inanimate_mesh_offset,
-                            transform: Matrix4::identity(),
+                            transform: model_instance.transform.matrix().clone(),
                             ..Default::default()
                         });
                     }

@@ -1,18 +1,23 @@
 use std::sync::Arc;
 
-use jeriya_shared::{derive_new::new, parking_lot::MutexGuard, EventQueue, Handle, IndexingContainer};
+use jeriya_shared::{derive_new::new, nalgebra::Affine3, parking_lot::MutexGuard, EventQueue, Handle, IndexingContainer};
 
 use crate::Model;
 
 #[derive(new, Debug, Clone)]
 pub struct ModelInstance {
     pub model: Arc<Model>,
+    pub transform: Affine3<f32>,
 }
 
 pub enum ModelInstanceEvent {
     Insert {
         handle: Handle<ModelInstance>,
         model_instance: ModelInstance,
+    },
+    SetTransform {
+        handle: Handle<ModelInstance>,
+        transform: Affine3<f32>,
     },
     SetModel {
         handle: Handle<ModelInstance>,
@@ -38,6 +43,20 @@ impl<'event, 'cont, 'mutex> ModelInstanceAccessMut<'event, 'cont, 'mutex> {
         self.event_queue.push(ModelInstanceEvent::SetModel {
             handle: self.handle.clone(),
             model: model.clone(),
+        });
+    }
+
+    /// Returns the transform of the [`ModelInstance`]
+    pub fn transform(&self) -> &Affine3<f32> {
+        &self.model_instance.transform
+    }
+
+    /// Sets the transform of the [`ModelInstance`]
+    pub fn set_transform(&mut self, transform: Affine3<f32>) {
+        self.model_instance.transform = transform;
+        self.event_queue.push(ModelInstanceEvent::SetTransform {
+            handle: self.handle.clone(),
+            transform,
         });
     }
 }

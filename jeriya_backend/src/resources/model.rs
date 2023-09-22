@@ -1,9 +1,9 @@
 use std::sync::{mpsc::Sender, Arc};
 
-use jeriya_shared::{debug_info, derive_new::new, parking_lot::Mutex, thiserror, DebugInfo, EventQueue, Handle, IndexingContainer};
+use jeriya_shared::{debug_info, derive_new::new, parking_lot::Mutex, thiserror, DebugInfo, Handle, IndexingContainer};
 
 use crate::{
-    inanimate_mesh::{insert_inanimate_mesh, InanimateMeshEvent, InanimateMeshGroup, MeshType, ResourceAllocationType},
+    inanimate_mesh::{insert_inanimate_mesh, InanimateMeshGroup, MeshType, ResourceAllocationType},
     InanimateMesh, ResourceEvent,
 };
 

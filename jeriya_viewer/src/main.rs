@@ -228,10 +228,10 @@ fn main() -> ey::Result<()> {
         .build()
         .wrap_err("Failed to create inanimate mesh")?;
 
-    let cube_model = Model::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import model")?;
-    let cube_model = renderer
+    let suzanne = Model::import("sample_assets/suzanne.glb").wrap_err("Failed to import model")?;
+    let suzanne = renderer
         .models()
-        .create(cube_model)
+        .create(suzanne)
         .with_debug_info(debug_info!("my_model"))
         .build()
         .wrap_err("Failed to create model")?;
@@ -247,7 +247,10 @@ fn main() -> ey::Result<()> {
 
     let mut model_instances = renderer.model_instances();
     model_instances
-        .insert(ModelInstance::new(cube_model.clone()))
+        .insert(ModelInstance::new(
+            suzanne.clone(),
+            nalgebra::convert(Translation3::new(-1.5, 0.0, 0.0)),
+        ))
         .wrap_err("Failed to insert model instance")?;
     drop(model_instances);
 
