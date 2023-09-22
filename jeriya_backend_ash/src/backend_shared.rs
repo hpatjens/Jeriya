@@ -33,6 +33,7 @@ pub struct BackendShared {
     pub model_group: Arc<ModelGroup>,
 
     pub static_vertex_position_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
+    pub static_vertex_normals_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_indices_buffer: Mutex<StagedPushOnlyBuffer<u32>>,
 
     pub inanimate_mesh_instance_event_queue: Arc<Mutex<EventQueue<InanimateMeshInstanceEvent>>>,
@@ -75,13 +76,22 @@ impl BackendShared {
         info!("Creating ModelGroup");
         let model_group = Arc::new(ModelGroup::new(&inanimate_meshes));
 
-        info!("Creating static vertex buffer");
+        info!("Creating static vertex positions buffer");
         const STATIC_VERTEX_POSITION_BUFFER_CAPACITY: usize = 1_000_000;
         let static_vertex_position_buffer = Mutex::new(StagedPushOnlyBuffer::new(
             device,
             STATIC_VERTEX_POSITION_BUFFER_CAPACITY,
             BufferUsageFlags::VERTEX_BUFFER | BufferUsageFlags::STORAGE_BUFFER,
-            debug_info!("static_vertex_buffer"),
+            debug_info!("static_vertex_positions_buffer"),
+        )?);
+
+        info!("Creating static vertex normals buffer");
+        const STATIC_VERTEX_NORMALS_BUFFER_CAPACITY: usize = 1_000_000;
+        let static_vertex_normals_buffer = Mutex::new(StagedPushOnlyBuffer::new(
+            device,
+            STATIC_VERTEX_NORMALS_BUFFER_CAPACITY,
+            BufferUsageFlags::VERTEX_BUFFER | BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!("static_vertex_normals_buffer"),
         )?);
 
         info!("Creating static indices buffer");
@@ -107,6 +117,7 @@ impl BackendShared {
             inanimate_mesh_buffer,
             model_group,
             static_vertex_position_buffer,
+            static_vertex_normals_buffer,
             static_indices_buffer,
             inanimate_mesh_gpu_states: Arc::new(Mutex::new(HashMap::new())),
             inanimate_mesh_instances,

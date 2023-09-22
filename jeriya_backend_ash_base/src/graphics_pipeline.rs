@@ -214,6 +214,7 @@ where
                 .push_storage_buffer::<InanimateMesh>(4, 1)
                 .push_storage_buffer::<Vector4<f32>>(5, 1)
                 .push_storage_buffer::<u32>(6, 1)
+                .push_storage_buffer::<Vector4<f32>>(7, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];

@@ -25,8 +25,12 @@ struct VkDrawIndirectCommand {
 };
 
 struct InanimateMesh {
-    uint64_t vertices_start_offset;
-    uint64_t vertices_len;
+    uint64_t vertex_positions_start_offset;
+    uint64_t vertex_positions_len;
+
+    uint64_t vertex_normals_start_offset;
+    uint64_t vertex_normals_len;
+
     uint64_t indices_start_offset;
     uint64_t indices_len;
 };
@@ -58,6 +62,10 @@ layout (set = 0, binding = 5) buffer StaticVertexPositionBuffer {
 
 layout (set = 0, binding = 6) buffer StaticIndexBuffer {
     uint indices[];
+};
+
+layout (set = 0, binding = 7) buffer StaticVertexNormalsBuffer {
+    vec4 vertex_normals[];
 };
 
 

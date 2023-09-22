@@ -303,10 +303,17 @@ fn handle_inanimate_mesh_event(
                     .iter()
                     .map(|v| Vector4::new(v.x, v.y, v.z, 1.0))
                     .collect::<Vec<_>>();
-                let vertices_start_offset = backend_shared
+                let vertex_positions_start_offset = backend_shared
                     .static_vertex_position_buffer
                     .lock()
                     .push(&vertex_positions4, &mut command_buffer_builder)?;
+
+                // Upload the vertex normals to the GPU
+                let vertex_normals4 = vertex_normals.iter().map(|v| Vector4::new(v.x, v.y, v.z, 1.0)).collect::<Vec<_>>();
+                let vertex_normals_start_offset = backend_shared
+                    .static_vertex_normals_buffer
+                    .lock()
+                    .push(&vertex_normals4, &mut command_buffer_builder)?;
 
                 // Upload the indices to the GPU
                 let indices_start_offset = if let Some(indices) = &indices {
@@ -319,24 +326,25 @@ fn handle_inanimate_mesh_event(
                 };
 
                 // Upload the InanimateMesh to the GPU
-                let vertices_start_offset = vertices_start_offset as u64;
-                let vertices_len = vertex_positions.len() as u64;
+                let vertex_positions_start_offset = vertex_positions_start_offset as u64;
+                let vertex_positions_len = vertex_positions.len() as u64;
+                let vertex_normals_start_offset = vertex_normals_start_offset as u64;
+                let vertex_normals_len = vertex_normals.len() as u64;
                 let indices_start_offset = indices_start_offset as u64;
                 let indices_len = indices.map(|indices| indices.len() as u64).unwrap_or(0);
                 let inanimate_mesh_gpu = shader_interface::InanimateMesh {
-                    vertices_start_offset,
-                    vertices_len,
+                    vertex_positions_start_offset,
+                    vertex_positions_len,
                     indices_start_offset,
                     indices_len,
+                    vertex_normals_start_offset,
+                    vertex_normals_len,
                 };
+                info!("Inserting a new inanimate mesh: {inanimate_mesh_gpu:#?}",);
                 let inanimate_mesh_start_offset = backend_shared
                     .inanimate_mesh_buffer
                     .lock()
                     .push(&[inanimate_mesh_gpu], &mut command_buffer_builder)?;
-
-                info!(
-                    "Inserting a new inanimate mesh with: vertices_start_offset = {vertices_start_offset}, vertices_len = {vertices_len}, indices_start_offset = {indices_start_offset}, indices_len = {indices_len}",
-                );
 
                 // Insert the GPU state for the InanimateMesh when the upload to the GPU is done
                 let inanimate_mesh2 = inanimate_mesh.clone();

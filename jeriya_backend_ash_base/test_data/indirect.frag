@@ -9,6 +9,8 @@ layout (push_constant) uniform PushConstants {
     uint _non_zero;
 } push_constants;
 
+layout (location = 0) in vec3 in_vertex_normal;
+
 void main() {
-    outputColor = vec4(1.0, 0.0, 0.0, 1.0);
+    outputColor = vec4(0.5 * in_vertex_normal + vec3(0.5), 1.0);
 }
