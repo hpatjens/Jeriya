@@ -52,6 +52,7 @@ mod tests {
     macro_rules! match_one_inanimate_mesh_event {
         ($backend:expr, $p:pat, $($b:tt)*) => {{
             use jeriya_test::spectral::prelude::*;
+            use crate::resources::ResourceEvent;
             const TIMEOUT: std::time::Duration = std::time::Duration::from_millis(50);
             let ResourceEvent::InanimateMesh(inanimate_mesh_events) = $backend.receiver.recv_timeout(TIMEOUT).unwrap() else {
                 panic!("failed to receive event")
