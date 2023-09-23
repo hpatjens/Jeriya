@@ -1,6 +1,7 @@
 pub mod inanimate_mesh;
 pub mod inanimate_mesh_group;
 pub mod model;
+pub mod resource_group;
 mod texture2d;
 
 pub use inanimate_mesh::InanimateMesh;
@@ -9,9 +10,7 @@ pub use texture2d::*;
 
 use jeriya_shared::AsDebugInfo;
 
-use crate::ResourceReceiver;
-
-use self::{inanimate_mesh::InanimateMeshEvent, inanimate_mesh_group::InanimateMeshGroup};
+use self::inanimate_mesh::InanimateMeshEvent;
 
 /// Data on the GPU that doesn't change frequently and is referenced by the instances in the scene
 pub trait Resource: AsDebugInfo {}
@@ -23,33 +22,13 @@ pub enum ResourceEvent {
     InanimateMesh(Vec<InanimateMeshEvent>),
 }
 
-pub struct ResourceGroup {
-    inanimate_mesh_group: InanimateMeshGroup,
-}
-
-impl ResourceGroup {
-    /// Creates a new [`ResourceGroup`]
-    pub fn new(resource_receiver: &impl ResourceReceiver) -> Self {
-        Self {
-            inanimate_mesh_group: InanimateMeshGroup::new(resource_receiver.sender().clone()),
-        }
-    }
-
-    pub fn inanimate_meshes(&self) -> &InanimateMeshGroup {
-        &self.inanimate_mesh_group
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc::{self, Receiver, Sender};
 
-    use jeriya_shared::nalgebra::Vector3;
     use jeriya_test::spectral::{assert_that, asserting, prelude::OptionAssertions};
 
-    use crate::inanimate_mesh::MeshType;
-
-    use super::*;
+    use crate::{ResourceEvent, ResourceReceiver};
 
     pub struct DummyBackend {
         pub(crate) sender: Sender<ResourceEvent>,
@@ -90,24 +69,5 @@ mod tests {
             .that(&backend.receiver.try_iter().next().is_none())
             .is_equal_to(true);
         assert_that!(backend.receiver.try_iter().next()).is_none();
-    }
-
-    #[test]
-    fn smoke() {
-        let backend = DummyBackend::new();
-        let resource_group = ResourceGroup::new(&backend);
-        let inanimate_mesh = resource_group
-            .inanimate_meshes()
-            .create(
-                MeshType::Points,
-                vec![Vector3::new(0.0, 0.0, 0.0)],
-                vec![Vector3::new(0.0, 1.0, 0.0)],
-            )
-            .build()
-            .unwrap();
-        drop(inanimate_mesh);
-        asserting("events are received")
-            .that(&backend.receiver.try_iter().count())
-            .is_equal_to(1);
     }
 }
