@@ -4,10 +4,14 @@ use jeriya_backend::{
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
     inanimate_mesh::InanimateMeshGroup,
     model::ModelGroup,
-    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, Result,
+    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, ResourceEvent,
+    ResourceReceiver, Result,
 };
 
-use std::{marker::PhantomData, sync::Arc};
+use std::{
+    marker::PhantomData,
+    sync::{mpsc::Sender, Arc},
+};
 
 /// Instance of the renderer
 pub struct Renderer<B>
@@ -94,6 +98,12 @@ where
     /// Returns the active camera for the given window.
     pub fn active_camera(&self, window_id: WindowId) -> Result<Handle<Camera>> {
         self.backend.active_camera(window_id)
+    }
+}
+
+impl<B: Backend> ResourceReceiver for Renderer<B> {
+    fn sender(&self) -> Sender<ResourceEvent> {
+        self.backend.sender()
     }
 }
 
@@ -190,12 +200,16 @@ mod tests {
         model::ModelGroup,
         Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, InanimateMeshInstance,
         InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceContainerGuard, ModelInstanceEvent,
+        ResourceEvent, ResourceReceiver,
     };
     use jeriya_shared::{
         debug_info, parking_lot::Mutex, winit::window::WindowId, AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer,
         RendererConfig, WindowConfig,
     };
-    use std::sync::{mpsc, Arc};
+    use std::sync::{
+        mpsc::{self, channel, Sender},
+        Arc,
+    };
 
     mod immediate_command_buffer {
         use jeriya_backend::immediate::{ImmediateRenderingFrame, LineConfig, LineList};
@@ -241,6 +255,11 @@ mod tests {
     }
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
     struct DummyImmediateCommandBufferHandler(DebugInfo);
+    impl ResourceReceiver for DummyBackend {
+        fn sender(&self) -> Sender<ResourceEvent> {
+            channel().0
+        }
+    }
     impl Backend for DummyBackend {
         type BackendConfig = ();
 

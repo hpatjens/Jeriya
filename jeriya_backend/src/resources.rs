@@ -8,7 +8,9 @@ pub use texture2d::*;
 
 use jeriya_shared::AsDebugInfo;
 
-use self::inanimate_mesh::InanimateMeshEvent;
+use crate::ResourceReceiver;
+
+use self::inanimate_mesh::{InanimateMeshEvent, InanimateMeshGroup};
 
 /// Data on the GPU that doesn't change frequently and is referenced by the instances in the scene
 pub trait Resource: AsDebugInfo {}
@@ -17,4 +19,21 @@ pub trait Resource: AsDebugInfo {}
 pub enum ResourceEvent {
     FrameStart,
     InanimateMesh(Vec<InanimateMeshEvent>),
+}
+
+pub struct ResourceGroup {
+    inanimate_mesh_group: InanimateMeshGroup,
+}
+
+impl ResourceGroup {
+    /// Creates a new [`ResourceGroup`]
+    pub fn new(resource_receiver: impl ResourceReceiver) -> Self {
+        Self {
+            inanimate_mesh_group: InanimateMeshGroup::new(resource_receiver.sender()),
+        }
+    }
+
+    pub fn inanimate_meshes(&self) -> &InanimateMeshGroup {
+        &self.inanimate_mesh_group
+    }
 }

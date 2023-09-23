@@ -21,7 +21,7 @@ pub struct BackendShared {
 
     pub queue_scheduler: QueueScheduler,
 
-    pub resource_sender: Sender<ResourceEvent>,
+    pub resource_event_sender: Sender<ResourceEvent>,
 
     pub camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
     pub cameras: Arc<Mutex<IndexingContainer<Camera>>>,
@@ -110,7 +110,7 @@ impl BackendShared {
             device: device.clone(),
             renderer_config: renderer_config.clone(),
             queue_scheduler,
-            resource_sender,
+            resource_event_sender: resource_sender,
             cameras,
             camera_event_queue,
             inanimate_mesh_group: inanimate_meshes,

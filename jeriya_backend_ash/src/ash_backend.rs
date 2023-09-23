@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     sync::{
-        mpsc::{self, Receiver},
+        mpsc::{self, Receiver, Sender},
         Arc,
     },
     thread,
@@ -24,7 +24,7 @@ use jeriya_backend::{
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
     model::ModelGroup,
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
-    ModelInstanceContainerGuard, ResourceEvent,
+    ModelInstanceContainerGuard, ResourceEvent, ResourceReceiver,
 };
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
@@ -39,7 +39,7 @@ use jeriya_backend_ash_base::{
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
-    log::{error, info, trace},
+    log::{error, info},
     nalgebra::Vector4,
     tracy_client::{span, Client},
     winit::window::WindowId,
@@ -54,6 +54,12 @@ pub struct AshBackend {
     _entry: Arc<Entry>,
     backend_shared: Arc<BackendShared>,
     frame_start_sender: mpsc::Sender<()>,
+}
+
+impl ResourceReceiver for AshBackend {
+    fn sender(&self) -> Sender<ResourceEvent> {
+        self.backend_shared.resource_event_sender.clone()
+    }
 }
 
 #[profile]

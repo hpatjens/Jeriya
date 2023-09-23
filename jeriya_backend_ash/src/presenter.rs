@@ -151,7 +151,7 @@ fn run_presenter_thread(
         let mut presenter_shared = presenter_shared.lock();
 
         backend_shared
-            .resource_sender
+            .resource_event_sender
             .send(ResourceEvent::FrameStart)
             .expect("failed to send ResourceEvent::FrameStart");
 
