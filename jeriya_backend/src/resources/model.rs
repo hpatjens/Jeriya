@@ -3,7 +3,8 @@ use std::sync::{mpsc::Sender, Arc};
 use jeriya_shared::{debug_info, derive_new::new, parking_lot::Mutex, thiserror, DebugInfo, Handle, IndexingContainer};
 
 use crate::{
-    inanimate_mesh::{insert_inanimate_mesh, InanimateMeshGroup, MeshType, ResourceAllocationType},
+    inanimate_mesh::{MeshType, ResourceAllocationType},
+    inanimate_mesh_group::{insert_inanimate_mesh, InanimateMeshGroup},
     InanimateMesh, ResourceEvent,
 };
 

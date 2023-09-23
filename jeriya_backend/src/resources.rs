@@ -1,4 +1,5 @@
 pub mod inanimate_mesh;
+pub mod inanimate_mesh_group;
 pub mod model;
 mod texture2d;
 
@@ -10,7 +11,7 @@ use jeriya_shared::AsDebugInfo;
 
 use crate::ResourceReceiver;
 
-use self::inanimate_mesh::{InanimateMeshEvent, InanimateMeshGroup};
+use self::{inanimate_mesh::InanimateMeshEvent, inanimate_mesh_group::InanimateMeshGroup};
 
 /// Data on the GPU that doesn't change frequently and is referenced by the instances in the scene
 pub trait Resource: AsDebugInfo {}

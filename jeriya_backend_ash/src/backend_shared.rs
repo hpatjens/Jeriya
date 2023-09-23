@@ -4,10 +4,8 @@ use std::{
 };
 
 use jeriya_backend::{
-    inanimate_mesh::{InanimateMeshGpuState, InanimateMeshGroup},
-    model::ModelGroup,
-    Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceEvent,
-    ResourceEvent,
+    inanimate_mesh::InanimateMeshGpuState, inanimate_mesh_group::InanimateMeshGroup, model::ModelGroup, Camera, CameraEvent, InanimateMesh,
+    InanimateMeshInstance, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceEvent, ResourceEvent,
 };
 use jeriya_backend_ash_base::{buffer::BufferUsageFlags, device::Device, shader_interface, staged_push_only_buffer::StagedPushOnlyBuffer};
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, EventQueue, Handle, IndexingContainer, RendererConfig};

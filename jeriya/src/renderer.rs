@@ -2,7 +2,7 @@ use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Ha
 
 use jeriya_backend::{
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
-    inanimate_mesh::InanimateMeshGroup,
+    inanimate_mesh_group::InanimateMeshGroup,
     model::ModelGroup,
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, ResourceEvent,
     ResourceReceiver, Result,
@@ -196,7 +196,7 @@ fn run_deadlock_detection() {
 mod tests {
     use jeriya_backend::{
         immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
-        inanimate_mesh::InanimateMeshGroup,
+        inanimate_mesh_group::InanimateMeshGroup,
         model::ModelGroup,
         Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, InanimateMeshInstance,
         InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceContainerGuard, ModelInstanceEvent,

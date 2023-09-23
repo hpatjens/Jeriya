@@ -21,7 +21,8 @@ use base::{
 };
 use jeriya_backend::{
     immediate::{self, ImmediateRenderingFrame},
-    inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState, InanimateMeshGroup},
+    inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState},
+    inanimate_mesh_group::InanimateMeshGroup,
     model::ModelGroup,
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
     ModelInstanceContainerGuard, ResourceEvent, ResourceReceiver,
