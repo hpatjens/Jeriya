@@ -102,7 +102,7 @@ where
 }
 
 impl<B: Backend> ResourceReceiver for Renderer<B> {
-    fn sender(&self) -> Sender<ResourceEvent> {
+    fn sender(&self) -> &Sender<ResourceEvent> {
         self.backend.sender()
     }
 }
@@ -252,12 +252,13 @@ mod tests {
         active_camera: Handle<Camera>,
         inanimate_mesh_group: InanimateMeshGroup,
         model_group: ModelGroup,
+        resource_event_sender: Sender<ResourceEvent>,
     }
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
     struct DummyImmediateCommandBufferHandler(DebugInfo);
     impl ResourceReceiver for DummyBackend {
-        fn sender(&self) -> Sender<ResourceEvent> {
-            channel().0
+        fn sender(&self) -> &Sender<ResourceEvent> {
+            &self.resource_event_sender
         }
     }
     impl Backend for DummyBackend {
@@ -295,6 +296,7 @@ mod tests {
                 model_group,
                 model_instances,
                 model_instance_event_queue,
+                resource_event_sender: channel().0,
             })
         }
 

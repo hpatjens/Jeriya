@@ -1024,6 +1024,7 @@ version = "0.1.0"
 dependencies = [
  "jeriya_content",
  "jeriya_shared",
+ "jeriya_test",
 ]
 
 [[package]]

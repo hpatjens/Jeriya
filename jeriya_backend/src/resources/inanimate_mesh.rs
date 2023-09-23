@@ -110,10 +110,15 @@ impl InanimateMesh {
         self.resource_event_sender
             .send(ResourceEvent::InanimateMesh(vec![InanimateMeshEvent::SetVertexPositions {
                 inanimate_mesh: self.clone(),
-                vertex_posisions: Arc::new(vertex_positions),
+                vertex_positions: Arc::new(vertex_positions),
             }]))
             .expect("resource event cannot be sent");
         Ok(())
+    }
+
+    /// Returns the [`MeshType`] of the [`InanimateMesh`]
+    pub fn mesh_type(&self) -> MeshType {
+        self.ty
     }
 
     /// Returns the state in which the [`InanimateMesh`] is on the GPU
@@ -134,6 +139,11 @@ impl InanimateMesh {
     /// Returns the handle of the [`InanimateMesh`] in its [`IndexingContainer`]
     pub fn handle(&self) -> Handle<Arc<InanimateMesh>> {
         self.handle.lock().clone().expect("handle is not initialized")
+    }
+
+    /// Returns the debug info of the [`InanimateMesh`]
+    pub fn debug_info(&self) -> &DebugInfo {
+        &self.debug_info
     }
 }
 
@@ -192,6 +202,7 @@ impl AsDebugInfo for InanimateMesh {
     }
 }
 
+#[derive(Debug)]
 pub enum InanimateMeshEvent {
     Insert {
         inanimate_mesh: Arc<InanimateMesh>,
@@ -201,7 +212,7 @@ pub enum InanimateMeshEvent {
     },
     SetVertexPositions {
         inanimate_mesh: Arc<InanimateMesh>,
-        vertex_posisions: Arc<Vec<Vector3<f32>>>,
+        vertex_positions: Arc<Vec<Vector3<f32>>>,
     },
 }
 

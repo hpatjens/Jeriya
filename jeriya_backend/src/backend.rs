@@ -12,7 +12,7 @@ use crate::{
 
 /// Trait that provides access to the `Sender` that is used to send [`ResourceEvent`]s to the resource thread
 pub trait ResourceReceiver {
-    fn sender(&self) -> Sender<ResourceEvent>;
+    fn sender(&self) -> &Sender<ResourceEvent>;
 }
 
 /// Rendering backend that is used by the [`Renderer`]

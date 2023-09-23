@@ -57,8 +57,8 @@ pub struct AshBackend {
 }
 
 impl ResourceReceiver for AshBackend {
-    fn sender(&self) -> Sender<ResourceEvent> {
-        self.backend_shared.resource_event_sender.clone()
+    fn sender(&self) -> &Sender<ResourceEvent> {
+        &self.backend_shared.resource_event_sender
     }
 }
 
@@ -373,7 +373,7 @@ fn handle_inanimate_mesh_event(
             }
             InanimateMeshEvent::SetVertexPositions {
                 inanimate_mesh: _,
-                vertex_posisions: _,
+                vertex_positions: _,
             } => {
                 todo!()
             }
