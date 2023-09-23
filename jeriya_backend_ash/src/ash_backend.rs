@@ -22,8 +22,6 @@ use base::{
 use jeriya_backend::{
     immediate::{self, ImmediateRenderingFrame},
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState},
-    inanimate_mesh_group::InanimateMeshGroup,
-    model::ModelGroup,
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
     ModelInstanceContainerGuard, ResourceEvent, ResourceReceiver,
 };
@@ -207,20 +205,12 @@ impl Backend for AshBackend {
         )
     }
 
-    fn inanimate_meshes(&self) -> &InanimateMeshGroup {
-        &self.backend_shared.inanimate_mesh_group
-    }
-
     fn inanimate_mesh_instances(&self) -> InanimateMeshInstanceContainerGuard {
         InanimateMeshInstanceContainerGuard::new(
             self.backend_shared.inanimate_mesh_instance_event_queue.lock(),
             self.backend_shared.inanimate_mesh_instances.lock(),
             self.backend_shared.renderer_config.clone(),
         )
-    }
-
-    fn models(&self) -> &ModelGroup {
-        &self.backend_shared.model_group
     }
 
     fn model_instances(&self) -> ModelInstanceContainerGuard {

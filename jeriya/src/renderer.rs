@@ -70,19 +70,9 @@ where
         self.backend.cameras()
     }
 
-    /// Returns the [`InanimateMeshGroup`] of the `Renderer`
-    pub fn inanimate_meshes(&self) -> &InanimateMeshGroup {
-        &self.backend.inanimate_meshes()
-    }
-
     /// Returns a guard to the [`InanimateMeshInstance`]s
     pub fn inanimate_mesh_instances(&self) -> InanimateMeshInstanceContainerGuard {
         self.backend.inanimate_mesh_instances()
-    }
-
-    /// Returns the [`ModelGroup`] of the `Renderer`
-    pub fn models(&self) -> &ModelGroup {
-        &self.backend.models()
     }
 
     /// Returns a guard to the [`ModelInstance`]s
@@ -318,10 +308,6 @@ mod tests {
             CameraContainerGuard::new(self.camera_event_queue.lock(), self.cameras.lock(), self.renderer_config.clone())
         }
 
-        fn inanimate_meshes(&self) -> &InanimateMeshGroup {
-            &self.inanimate_mesh_group
-        }
-
         fn inanimate_mesh_instances(&self) -> jeriya_backend::InanimateMeshInstanceContainerGuard {
             InanimateMeshInstanceContainerGuard::new(
                 self.inanimate_mesh_instance_event_queue.lock(),
@@ -336,10 +322,6 @@ mod tests {
 
         fn active_camera(&self, _window_id: WindowId) -> jeriya_backend::Result<jeriya_shared::Handle<Camera>> {
             Ok(self.active_camera.clone())
-        }
-
-        fn models(&self) -> &jeriya_backend::model::ModelGroup {
-            &self.model_group
         }
 
         fn model_instances(&self) -> jeriya_backend::ModelInstanceContainerGuard {

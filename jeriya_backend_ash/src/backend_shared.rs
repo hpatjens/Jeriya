@@ -4,8 +4,8 @@ use std::{
 };
 
 use jeriya_backend::{
-    inanimate_mesh::InanimateMeshGpuState, inanimate_mesh_group::InanimateMeshGroup, model::ModelGroup, Camera, CameraEvent, InanimateMesh,
-    InanimateMeshInstance, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceEvent, ResourceEvent,
+    inanimate_mesh::InanimateMeshGpuState, Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent,
+    ModelInstance, ModelInstanceEvent, ResourceEvent,
 };
 use jeriya_backend_ash_base::{buffer::BufferUsageFlags, device::Device, shader_interface, staged_push_only_buffer::StagedPushOnlyBuffer};
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, EventQueue, Handle, IndexingContainer, RendererConfig};
@@ -24,11 +24,8 @@ pub struct BackendShared {
     pub camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
     pub cameras: Arc<Mutex<IndexingContainer<Camera>>>,
 
-    pub inanimate_mesh_group: Arc<InanimateMeshGroup>,
     pub inanimate_mesh_gpu_states: Arc<Mutex<HashMap<Handle<Arc<InanimateMesh>>, InanimateMeshGpuState>>>,
     pub inanimate_mesh_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::InanimateMesh>>,
-
-    pub model_group: Arc<ModelGroup>,
 
     pub static_vertex_position_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_vertex_normals_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
@@ -51,9 +48,6 @@ impl BackendShared {
         let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
         let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
 
-        info!("Creating InanimateMeshes");
-        let inanimate_meshes = Arc::new(InanimateMeshGroup::new(resource_sender.clone()));
-
         info!("Creating InanimateMeshInstances");
         let inanimate_mesh_instances = Arc::new(Mutex::new(IndexingContainer::new()));
         let inanimate_mesh_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
@@ -70,9 +64,6 @@ impl BackendShared {
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!("InanimateMeshBuffer"),
         )?);
-
-        info!("Creating ModelGroup");
-        let model_group = Arc::new(ModelGroup::new(&inanimate_meshes));
 
         info!("Creating static vertex positions buffer");
         const STATIC_VERTEX_POSITION_BUFFER_CAPACITY: usize = 1_000_000;
@@ -111,9 +102,7 @@ impl BackendShared {
             resource_event_sender: resource_sender,
             cameras,
             camera_event_queue,
-            inanimate_mesh_group: inanimate_meshes,
             inanimate_mesh_buffer,
-            model_group,
             static_vertex_position_buffer,
             static_vertex_normals_buffer,
             static_indices_buffer,

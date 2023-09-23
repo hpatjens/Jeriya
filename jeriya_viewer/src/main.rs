@@ -10,6 +10,7 @@ use jeriya::Renderer;
 use jeriya_backend::{
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
+    resource_group::ResourceGroup,
     Backend, InanimateMeshInstance, ModelInstance,
 };
 use jeriya_backend_ash::AshBackend;
@@ -219,9 +220,11 @@ fn main() -> ey::Result<()> {
     });
     drop(cameras);
 
+    let resource_group = ResourceGroup::new(&renderer);
+
     let model = load_model().wrap_err("Failed to load model")?;
     let fake_normals = model.iter().map(|_| Vector3::new(0.0, 1.0, 0.0)).collect();
-    let inanimate_mesh1 = renderer
+    let inanimate_mesh1 = resource_group
         .inanimate_meshes()
         .create(MeshType::TriangleList, model, fake_normals)
         .with_debug_info(debug_info!("my_mesh"))
@@ -229,7 +232,7 @@ fn main() -> ey::Result<()> {
         .wrap_err("Failed to create inanimate mesh")?;
 
     let suzanne = Model::import("sample_assets/suzanne.glb").wrap_err("Failed to import model")?;
-    let suzanne = renderer
+    let suzanne = resource_group
         .models()
         .create(suzanne)
         .with_debug_info(debug_info!("my_model"))

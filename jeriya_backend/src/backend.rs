@@ -4,9 +4,7 @@ use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, Deb
 
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
-    model::ModelGroup,
     objects::InanimateMeshInstanceContainerGuard,
-    resources::inanimate_mesh_group::InanimateMeshGroup,
     Camera, CameraContainerGuard, ModelInstanceContainerGuard, ResourceEvent,
 };
 
@@ -40,14 +38,8 @@ pub trait Backend: Sized + ResourceReceiver {
     /// Returns a guard to the [`Camera`]s
     fn cameras(&self) -> CameraContainerGuard;
 
-    /// Returns the [`InanimateMeshGroup`] of the `Renderer`
-    fn inanimate_meshes(&self) -> &InanimateMeshGroup;
-
     /// Returns a guard to the [`InanimateMeshInstance`]s
     fn inanimate_mesh_instances(&self) -> InanimateMeshInstanceContainerGuard;
-
-    /// Returns the [`ModelGroup`] of the `Renderer`
-    fn models(&self) -> &ModelGroup;
 
     /// Returns a guard to the [`ModelInstance`]s
     fn model_instances(&self) -> ModelInstanceContainerGuard;

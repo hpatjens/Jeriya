@@ -7,6 +7,8 @@ pub struct ResourceGroup {
 
 impl ResourceGroup {
     /// Creates a new [`ResourceGroup`]
+    ///
+    /// Pass the [`Renderer`] as the `resource_receiver` parameter.
     pub fn new(resource_receiver: &impl ResourceReceiver) -> Self {
         let inanimate_mesh_group = InanimateMeshGroup::new(resource_receiver.sender().clone());
         let model_group = ModelGroup::new(&inanimate_mesh_group);
