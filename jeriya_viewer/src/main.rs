@@ -33,18 +33,14 @@ use jeriya_shared::{
 fn immediate_rendering<B>(
     renderer: &Renderer<B>,
     update_loop_frame_index: u64,
-    update_framerate: f64,
+    _update_framerate: f64,
     t: Duration,
     _dt: Duration,
 ) -> jeriya_backend::Result<()>
 where
     B: Backend,
 {
-    let immediate_rendering_frame_config = ImmediateRenderingFrame::new(
-        "main_loop",
-        update_loop_frame_index,
-        Timeout::Finite(Duration::from_secs_f64(1.0 / update_framerate)),
-    );
+    let immediate_rendering_frame_config = ImmediateRenderingFrame::new("main_loop", update_loop_frame_index, Timeout::Infinite);
 
     let immediate_command_buffer_builder = renderer.create_immediate_command_buffer_builder(debug_info!("my_command_buffer"))?;
 
