@@ -185,7 +185,7 @@ mod tests {
             let device_test_fixture = TestFixtureDevice::new().unwrap();
             let _queue = Queue::new(
                 &device_test_fixture.device,
-                &QueueSelection::new_unchecked(0, 0),
+                &device_test_fixture.device.queue_plan.presentation_queues[0],
                 debug_info!("my_queue"),
             )
             .unwrap();
