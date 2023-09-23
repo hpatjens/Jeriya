@@ -107,9 +107,11 @@ impl<'a> InanimateMeshBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use jeriya_test::spectral::{assert_that, asserting, prelude::*};
-
-    use crate::{match_one_inanimate_mesh_event, resources::tests::DummyBackend, ResourceReceiver};
+    use crate::{
+        match_one_inanimate_mesh_event,
+        resources::tests::{assert_events_empty, DummyBackend},
+        ResourceReceiver,
+    };
 
     use super::*;
 
@@ -150,10 +152,7 @@ mod tests {
                 .is_equal_to([0].as_slice());
         );
         drop(inanimate_mesh);
-        asserting("events empty")
-            .that(&backend.receiver.try_iter().next().is_none())
-            .is_equal_to(true);
-        assert_that!(backend.receiver.try_iter().next()).is_none();
+        assert_events_empty(&backend);
     }
 
     #[test]
@@ -185,5 +184,7 @@ mod tests {
                 .that(&vertex_positions.as_slice())
                 .is_equal_to([Vector3::new(1.0, 1.0, 1.0)].as_slice());
         );
+        drop(inanimate_mesh);
+        assert_events_empty(&backend);
     }
 }

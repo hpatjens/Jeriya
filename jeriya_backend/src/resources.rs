@@ -45,7 +45,7 @@ mod tests {
     use std::sync::mpsc::{self, Receiver, Sender};
 
     use jeriya_shared::nalgebra::Vector3;
-    use jeriya_test::spectral::asserting;
+    use jeriya_test::spectral::{assert_that, asserting, prelude::OptionAssertions};
 
     use crate::inanimate_mesh::MeshType;
 
@@ -83,6 +83,13 @@ mod tests {
             };
             $($b)*
         }};
+    }
+
+    pub fn assert_events_empty(backend: &DummyBackend) {
+        asserting("events empty")
+            .that(&backend.receiver.try_iter().next().is_none())
+            .is_equal_to(true);
+        assert_that!(backend.receiver.try_iter().next()).is_none();
     }
 
     #[test]

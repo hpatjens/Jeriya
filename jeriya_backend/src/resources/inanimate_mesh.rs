@@ -101,7 +101,7 @@ impl InanimateMesh {
     }
 
     /// Sets the vertex positions of the [`InanimateMesh`]
-    pub fn set_vertex_positions(self: Arc<Self>, vertex_positions: Vec<Vector3<f32>>) -> crate::Result<()> {
+    pub fn set_vertex_positions(self: &Arc<Self>, vertex_positions: Vec<Vector3<f32>>) -> crate::Result<()> {
         if self.allocation_type == ResourceAllocationType::Static && vertex_positions.len() != self.vertices_len {
             return Err(Error::WrongSize {
                 expected: self.vertices_len,
