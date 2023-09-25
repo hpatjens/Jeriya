@@ -4,7 +4,7 @@ use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, Deb
 
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
-    objects::InanimateMeshInstanceContainerGuard,
+    instances::InanimateMeshInstanceContainerGuard,
     Camera, CameraContainerGuard, ModelInstanceContainerGuard, ResourceEvent,
 };
 

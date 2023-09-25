@@ -1,13 +1,13 @@
 mod backend;
 mod camera;
 pub mod immediate;
-mod objects;
+mod instances;
 mod resources;
 
 pub use backend::*;
 pub use camera::*;
+pub use instances::*;
 use jeriya_shared::{thiserror, winit::window::WindowId};
-pub use objects::*;
 pub use resources::*;
 
 /// Error type for the whole library
