@@ -6,7 +6,7 @@ use jeriya_shared::{debug_info, nalgebra::Vector4, AsDebugInfo, DebugInfo};
 use crate::{
     descriptor_set_layout::DescriptorSetLayout,
     device::Device,
-    shader_interface::{Camera, InanimateMesh, InanimateMeshInstance, PerFrameData},
+    shader_interface::{Camera, InanimateMesh, InanimateMeshInstance, MeshAttributes, PerFrameData},
     shader_module::ShaderModule,
     AsRawVulkan,
 };
@@ -56,6 +56,7 @@ impl GenericComputePipeline {
                 .push_storage_buffer::<Vector4<f32>>(5, 1)
                 .push_storage_buffer::<u32>(6, 1)
                 .push_storage_buffer::<Vector4<f32>>(7, 1)
+                .push_storage_buffer::<MeshAttributes>(8, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];

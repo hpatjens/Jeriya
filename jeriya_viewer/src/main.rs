@@ -10,6 +10,8 @@ use jeriya::Renderer;
 use jeriya_backend::{
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
+    mesh_attributes::MeshAttributes,
+    model,
     resource_group::ResourceGroup,
     Backend, InanimateMeshInstance, ModelInstance,
 };
@@ -216,10 +218,18 @@ fn main() -> ey::Result<()> {
     });
     drop(cameras);
 
-    let resource_group = ResourceGroup::new(&renderer);
+    let mut resource_group = ResourceGroup::new(&renderer, debug_info!("my_resource_group"));
 
     let model = load_model().wrap_err("Failed to load model")?;
-    let fake_normals = model.iter().map(|_| Vector3::new(0.0, 1.0, 0.0)).collect();
+    let fake_normals = model.iter().map(|_| Vector3::new(0.0, 1.0, 0.0)).collect::<Vec<_>>();
+
+    let mesh_attributes = MeshAttributes::builder()
+        .with_vertex_positions(model.clone())
+        .with_vertex_normals(fake_normals.clone())
+        .with_debug_info(debug_info!("my_mesh"))
+        .build()?;
+    let mesh_attributes = resource_group.mesh_attributes().insert(mesh_attributes);
+
     let inanimate_mesh1 = resource_group
         .inanimate_meshes()
         .create(MeshType::TriangleList, model, fake_normals)

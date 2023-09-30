@@ -35,6 +35,17 @@ struct InanimateMesh {
     uint64_t indices_len;
 };
 
+struct MeshAttributes {
+    uint64_t vertex_positions_start_offset;
+    uint64_t vertex_positions_len;
+
+    uint64_t vertex_normals_start_offset;
+    uint64_t vertex_normals_len;
+
+    uint64_t indices_start_offset;
+    uint64_t indices_len;
+};
+
 layout (set = 0, binding = 0) uniform PerFrameData { 
     uint active_camera;
     uint inanimate_mesh_instance_count;
@@ -66,6 +77,10 @@ layout (set = 0, binding = 6) buffer StaticIndexBuffer {
 
 layout (set = 0, binding = 7) buffer StaticVertexNormalsBuffer {
     vec4 vertex_normals[];
+};
+
+layout (set = 0, binding = 8) buffer MeshAttributesBuffer {
+    MeshAttributes mesh_attributes[];
 };
 
 

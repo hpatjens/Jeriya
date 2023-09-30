@@ -10,13 +10,15 @@ use crate::{
 pub struct InanimateMeshGroup {
     pub inanimate_meshes: Arc<Mutex<IndexingContainer<Arc<InanimateMesh>>>>,
     pub resource_event_sender: Sender<ResourceEvent>,
+    debug_info: DebugInfo,
 }
 
 impl InanimateMeshGroup {
-    pub fn new(event_queue: Sender<ResourceEvent>) -> Self {
+    pub fn new(event_queue: Sender<ResourceEvent>, debug_info: DebugInfo) -> Self {
         Self {
             resource_event_sender: event_queue,
             inanimate_meshes: Arc::new(Mutex::new(IndexingContainer::new())),
+            debug_info,
         }
     }
 
@@ -28,6 +30,11 @@ impl InanimateMeshGroup {
     /// Inserts a [`InanimateMesh`] into the [`InanimateMeshGroup`]
     fn insert(&self, inanimate_mesh: Arc<InanimateMesh>) {
         insert_inanimate_mesh(inanimate_mesh, self.inanimate_meshes.clone(), self.resource_event_sender.clone());
+    }
+
+    /// Returns the [`DebugInfo`] of the [`InanimateMeshGroup`].
+    pub fn debug_info(&self) -> &DebugInfo {
+        &self.debug_info
     }
 }
 

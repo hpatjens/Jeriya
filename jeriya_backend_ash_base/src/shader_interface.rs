@@ -17,6 +17,20 @@ pub struct Camera {
 
 #[repr(C)]
 #[derive(Debug, Clone)]
+pub struct MeshAttributes {
+    pub vertex_positions_start_offset: u64,
+    pub vertex_positions_len: u64,
+
+    pub vertex_normals_start_offset: u64,
+    pub vertex_normals_len: u64,
+
+    pub indices_start_offset: u64,
+    // When the mesh doesn't have indices, this is 0.
+    pub indices_len: u64,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
 pub struct InanimateMesh {
     pub vertex_positions_start_offset: u64,
     pub vertex_positions_len: u64,

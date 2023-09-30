@@ -4,8 +4,10 @@ use std::{
 };
 
 use jeriya_backend::{
-    inanimate_mesh::InanimateMeshGpuState, Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent,
-    ModelInstance, ModelInstanceEvent, ResourceEvent,
+    inanimate_mesh::InanimateMeshGpuState,
+    mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
+    Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceEvent,
+    ResourceEvent,
 };
 use jeriya_backend_ash_base::{buffer::BufferUsageFlags, device::Device, shader_interface, staged_push_only_buffer::StagedPushOnlyBuffer};
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, EventQueue, Handle, IndexingContainer, RendererConfig};
@@ -26,6 +28,9 @@ pub struct BackendShared {
 
     pub inanimate_mesh_gpu_states: Arc<Mutex<HashMap<Handle<Arc<InanimateMesh>>, InanimateMeshGpuState>>>,
     pub inanimate_mesh_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::InanimateMesh>>,
+
+    pub mesh_attributes_gpu_states: Arc<Mutex<HashMap<Handle<Arc<MeshAttributes>>, MeshAttributesGpuState>>>,
+    pub mesh_attributes_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::MeshAttributes>>,
 
     pub static_vertex_position_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_vertex_normals_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
@@ -63,6 +68,15 @@ impl BackendShared {
             INANIMATE_MESH_BUFFER_CAPACITY,
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!("InanimateMeshBuffer"),
+        )?);
+
+        info!("Creating StagedPushOnlyBuffer for MeshAttributes");
+        const MESH_ATTRIBUTES_BUFFER_CAPACITY: usize = 100;
+        let mesh_attributes_buffer = Mutex::new(StagedPushOnlyBuffer::new(
+            device,
+            MESH_ATTRIBUTES_BUFFER_CAPACITY,
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!("MeshAttributesBuffer"),
         )?);
 
         info!("Creating static vertex positions buffer");
@@ -103,10 +117,12 @@ impl BackendShared {
             cameras,
             camera_event_queue,
             inanimate_mesh_buffer,
+            inanimate_mesh_gpu_states: Arc::new(Mutex::new(HashMap::new())),
+            mesh_attributes_buffer,
+            mesh_attributes_gpu_states: Arc::new(Mutex::new(HashMap::new())),
             static_vertex_position_buffer,
             static_vertex_normals_buffer,
             static_indices_buffer,
-            inanimate_mesh_gpu_states: Arc::new(Mutex::new(HashMap::new())),
             inanimate_mesh_instances,
             inanimate_mesh_instance_event_queue,
             model_instances,

@@ -49,19 +49,20 @@ pub struct ModelGroup {
     // doesn't support models on the GPU.
     inanimate_meshes: Arc<Mutex<IndexingContainer<Arc<InanimateMesh>>>>,
     resource_event_sender: Sender<ResourceEvent>,
+    debug_info: DebugInfo,
 }
 
 impl ModelGroup {
-    pub fn new(inanimate_mesh_group: &InanimateMeshGroup) -> Self {
+    pub fn new(inanimate_mesh_group: &InanimateMeshGroup, debug_info: DebugInfo) -> Self {
         Self {
             models: Arc::new(Mutex::new(Vec::new())),
             inanimate_meshes: inanimate_mesh_group.inanimate_meshes.clone(),
             resource_event_sender: inanimate_mesh_group.resource_event_sender.clone(),
+            debug_info,
         }
     }
-}
 
-impl ModelGroup {
+    /// Creates a new [`Model`] and returns a [`ModelBuilder`] to build it.
     pub fn create(&self, model_source: impl Into<ModelSource>) -> ModelBuilder {
         ModelBuilder::new(
             self,
@@ -69,6 +70,11 @@ impl ModelGroup {
             self.resource_event_sender.clone(),
             model_source.into(),
         )
+    }
+
+    /// Returns the [`DebugInfo`] of the [`ModelGroup`].
+    pub fn debug_info(&self) -> &DebugInfo {
+        &self.debug_info
     }
 }
 

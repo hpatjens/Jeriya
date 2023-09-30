@@ -22,6 +22,8 @@ use base::{
 use jeriya_backend::{
     immediate::{self, ImmediateRenderingFrame},
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState},
+    mesh_attributes::MeshAttributesGpuState,
+    mesh_attributes_group::MeshAttributesEvent,
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
     ModelInstanceContainerGuard, ResourceEvent, ResourceReceiver,
 };
@@ -254,6 +256,9 @@ fn run_resource_thread(resource_event_receiver: Receiver<ResourceEvent>, backend
             ResourceEvent::InanimateMesh(inanimate_mesh_events) => {
                 handle_inanimate_mesh_event(backend_shared, inanimate_mesh_events)?;
             }
+            ResourceEvent::MeshAttributes(mesh_attributes_events) => {
+                handle_mesh_attributes_events(backend_shared, mesh_attributes_events)?;
+            }
         }
     }
 }
@@ -367,6 +372,118 @@ fn handle_inanimate_mesh_event(
                 vertex_positions: _,
             } => {
                 todo!()
+            }
+        }
+    }
+    command_buffer_builder.end_command_buffer()?;
+
+    let mut queues = backend_shared.queue_scheduler.queues();
+    queues.transfer_queue().submit(command_buffer)?;
+
+    Ok(())
+}
+
+#[profile]
+fn handle_mesh_attributes_events(
+    backend_shared: &BackendShared,
+    mesh_attributes_events: Vec<MeshAttributesEvent>,
+) -> jeriya_backend::Result<()> {
+    let _span = span!("Handle mesh attributes events");
+
+    info!("Creating CommandPool");
+    let mut queues = backend_shared.queue_scheduler.queues();
+    let command_pool = CommandPool::new(
+        &backend_shared.device,
+        queues.transfer_queue(),
+        CommandPoolCreateFlags::ResetCommandBuffer,
+        debug_info!("MeshAttributes-CommandPool"),
+    )?;
+    drop(queues);
+
+    // Create a new command buffer for maintaining the meshes
+    let mut command_buffer = CommandBuffer::new(
+        &backend_shared.device,
+        &command_pool.clone(),
+        debug_info!("MeshAttributes-CommandBuffer"),
+    )?;
+    let mut command_buffer_builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
+    command_buffer_builder.begin_command_buffer_for_one_time_submit()?;
+
+    // Handle mesh attributes events
+    for mesh_attributes_event in mesh_attributes_events {
+        match mesh_attributes_event {
+            MeshAttributesEvent::Insert { handle, mesh_attributes } => {
+                let _span = span!("Insert mesh attributes");
+
+                // Upload the vertex positions to the GPU
+                let vertex_positions4 = mesh_attributes
+                    .vertex_positions()
+                    .iter()
+                    .map(|v| Vector4::new(v.x, v.y, v.z, 1.0))
+                    .collect::<Vec<_>>();
+                let vertex_positions_start_offset = backend_shared
+                    .static_vertex_position_buffer
+                    .lock()
+                    .push(&vertex_positions4, &mut command_buffer_builder)?;
+
+                // Upload the vertex normals to the GPU
+                let vertex_normals4 = mesh_attributes
+                    .vertex_normals()
+                    .iter()
+                    .map(|v| Vector4::new(v.x, v.y, v.z, 1.0))
+                    .collect::<Vec<_>>();
+                let vertex_normals_start_offset = backend_shared
+                    .static_vertex_normals_buffer
+                    .lock()
+                    .push(&vertex_normals4, &mut command_buffer_builder)?;
+
+                // Upload the indices to the GPU
+                let indices_start_offset = if let Some(indices) = &mesh_attributes.indices() {
+                    backend_shared
+                        .static_indices_buffer
+                        .lock()
+                        .push(&indices, &mut command_buffer_builder)?
+                } else {
+                    0
+                };
+
+                // Upload the InanimateMesh to the GPU
+                let vertex_positions_start_offset = vertex_positions_start_offset as u64;
+                let vertex_positions_len = mesh_attributes.vertex_positions().len() as u64;
+                let vertex_normals_start_offset = vertex_normals_start_offset as u64;
+                let vertex_normals_len = mesh_attributes.vertex_normals().len() as u64;
+                let indices_start_offset = indices_start_offset as u64;
+                let indices_len = mesh_attributes.indices().map(|indices| indices.len() as u64).unwrap_or(0);
+                let mesh_attributes_gpu = shader_interface::MeshAttributes {
+                    vertex_positions_start_offset,
+                    vertex_positions_len,
+                    indices_start_offset,
+                    indices_len,
+                    vertex_normals_start_offset,
+                    vertex_normals_len,
+                };
+                info!("Inserting a new MeshAttributes: {mesh_attributes_gpu:#?}",);
+                let mesh_attributes_start_offset = backend_shared
+                    .mesh_attributes_buffer
+                    .lock()
+                    .push(&[mesh_attributes_gpu], &mut command_buffer_builder)?;
+
+                // Insert the GPU state for the InanimateMesh when the upload to the GPU is done
+                let mesh_attributes_gpu_states2 = backend_shared.mesh_attributes_gpu_states.clone();
+                command_buffer_builder.push_finished_operation(Box::new(move || {
+                    mesh_attributes_gpu_states2.lock().insert(
+                        handle.clone(),
+                        MeshAttributesGpuState::Uploaded {
+                            inanimate_mesh_offset: mesh_attributes_start_offset as u64,
+                        },
+                    );
+                    info!(
+                        "Upload of MeshAttributes {} ({:?}) to GPU is done",
+                        mesh_attributes.as_debug_info().format_one_line(),
+                        handle
+                    );
+                    Ok(())
+                }));
             }
         }
     }

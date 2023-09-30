@@ -12,7 +12,7 @@ use std::{ffi::CString, io::Cursor, marker::PhantomData, mem, sync::Arc};
 use crate::{
     descriptor_set_layout::DescriptorSetLayout,
     device::Device,
-    shader_interface::{Camera, InanimateMesh, InanimateMeshInstance, PerFrameData},
+    shader_interface::{Camera, InanimateMesh, InanimateMeshInstance, MeshAttributes, PerFrameData},
     shader_module::ShaderModule,
     swapchain::Swapchain,
     swapchain_render_pass::SwapchainRenderPass,
@@ -215,6 +215,7 @@ where
                 .push_storage_buffer::<Vector4<f32>>(5, 1)
                 .push_storage_buffer::<u32>(6, 1)
                 .push_storage_buffer::<Vector4<f32>>(7, 1)
+                .push_storage_buffer::<MeshAttributes>(8, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];

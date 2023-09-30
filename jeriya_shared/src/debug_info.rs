@@ -6,14 +6,14 @@ pub trait AsDebugInfo {
 }
 
 /// Indicates where the something happened in the code.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CodeLocation {
     pub file: &'static str,
     pub line: u32,
 }
 
 /// A set of information that can be attached to values helping the developer to debug the code.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct DebugInfo {
     pub name: Option<Cow<'static, str>>,
     pub origin_function_name: Option<&'static str>,
