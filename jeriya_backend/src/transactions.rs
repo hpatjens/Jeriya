@@ -5,6 +5,12 @@ pub trait TransactionProcessor {
     fn process(&self, transaction: Transaction);
 }
 
+/// Trait that is implemented by types that store [`Event`]s.
+pub trait PushEvent {
+    fn push_event(&mut self, event: Event);
+}
+
+/// An event that is sent to the renderer to be processed as part of a [`Transaction`].
 #[derive(Debug, Clone)]
 pub enum Event {
     RigidMesh(rigid_mesh::Event),
@@ -14,6 +20,12 @@ pub struct TransactionRecorder<'t, T: TransactionProcessor> {
     // `transaction` is an Option because we want to be able to take it in `drop` instead of cloning it
     transaction: Option<Transaction>,
     transaction_processor: &'t T,
+}
+
+impl<T: TransactionProcessor> PushEvent for TransactionRecorder<'_, T> {
+    fn push_event(&mut self, event: Event) {
+        self.push(event);
+    }
 }
 
 impl<T: TransactionProcessor> TransactionRecorder<'_, T> {
@@ -121,6 +133,12 @@ impl Transaction {
     /// Sets whether the transaction is considered processed
     pub fn set_is_processed(&mut self, is_considered_processed: bool) {
         self.is_considered_processed = is_considered_processed;
+    }
+}
+
+impl PushEvent for Transaction {
+    fn push_event(&mut self, event: Event) {
+        self.push(event);
     }
 }
 

@@ -26,12 +26,16 @@ pub enum ResourceEvent {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::sync::mpsc::{self, Receiver, Sender};
+pub mod tests {
+    use std::sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc,
+    };
 
+    use jeriya_shared::{debug_info, nalgebra::Vector3};
     use jeriya_test::spectral::{assert_that, asserting, prelude::OptionAssertions};
 
-    use crate::{ResourceEvent, ResourceReceiver};
+    use crate::{mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesGroup, ResourceEvent, ResourceReceiver};
 
     pub struct DummyBackend {
         pub(crate) sender: Sender<ResourceEvent>,
@@ -49,6 +53,18 @@ mod tests {
         fn sender(&self) -> &Sender<ResourceEvent> {
             &self.sender
         }
+    }
+
+    /// Creates a new [`MeshAttributes`] with a single vertex
+    pub fn new_dummy_mesh_attributes() -> Arc<MeshAttributes> {
+        let backend = DummyBackend::new();
+        let mut mesh_attributes_group = MeshAttributesGroup::new(backend.sender().clone(), debug_info!("my_mesh_attributes_group"));
+        let mesh_attributes_builder = MeshAttributes::builder()
+            .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
+            .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
+            .with_indices(vec![0])
+            .with_debug_info(debug_info!("my_attributes"));
+        mesh_attributes_group.insert_with(mesh_attributes_builder).unwrap()
     }
 
     #[macro_export]
