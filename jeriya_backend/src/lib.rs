@@ -1,6 +1,7 @@
 mod backend;
 mod camera;
 pub mod elements;
+pub mod gpu_index_allocator;
 pub mod immediate;
 mod instances;
 mod resources;
