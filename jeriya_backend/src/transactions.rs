@@ -46,8 +46,8 @@ impl<T: TransactionProcessor> TransactionRecorder<'_, T> {
     ///     elements::rigid_mesh,
     ///     transactions::{Event, Transaction, TransactionProcessor}
     /// };
-    /// # use jeriya_backend::transactions::MockTransactionRecorder;
-    /// # let renderer = MockTransactionRecorder;
+    /// # use jeriya_backend::transactions::MockRenderer;
+    /// # let renderer = MockRenderer::new();
     /// let mut transaction_recorder = Transaction::record(&renderer);
     /// transaction_recorder.push(Event::RigidMesh(rigid_mesh::Event::Noop));
     /// transaction_recorder.finish();
@@ -68,8 +68,8 @@ impl<T: TransactionProcessor> TransactionRecorder<'_, T> {
     ///     elements::rigid_mesh,
     ///     transactions::{Event, Transaction, TransactionProcessor}
     /// };
-    /// # use jeriya_backend::transactions::MockTransactionRecorder;
-    /// # let renderer = MockTransactionRecorder;
+    /// # use jeriya_backend::transactions::MockRenderer;
+    /// # let renderer = MockRenderer::new();
     /// let mut transaction_recorder = Transaction::record(&renderer);
     /// transaction_recorder.push(Event::RigidMesh(rigid_mesh::Event::Noop));
     /// transaction_recorder.finish();
@@ -110,12 +110,27 @@ impl Transaction {
         }
     }
 
-    /// Starts the recording of a [`Transaction`]. The [`Transaction`] is sent to the [`TransactionProcessor`] when it is dropped.
-    pub fn record<'t, T: IntoTransactionProcessor<'t>>(
-        transaction_processor: &'t Arc<T>,
-    ) -> TransactionRecorder<'t, T::TransactionProcessor> {
+    /// Starts the recording of a [`Transaction`].
+    ///
+    /// The [`Transaction`] is sent to the [`TransactionProcessor`] when the [`TransactionRecorder`]
+    /// is dropped or the [`TransactionRecorder::finish`] method is called.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use jeriya_backend::{
+    ///     elements::rigid_mesh,
+    ///     transactions::{Event, Transaction, TransactionProcessor}
+    /// };
+    /// # use jeriya_backend::transactions::MockRenderer;
+    /// # let renderer = MockRenderer::new();
+    /// let mut transaction_recorder = Transaction::record(&renderer);
+    /// transaction_recorder.push(Event::RigidMesh(rigid_mesh::Event::Noop));
+    /// transaction_recorder.finish();
+    /// ```
+    pub fn record<'t, T: IntoTransactionProcessor<'t>>(renderer: &'t Arc<T>) -> TransactionRecorder<'t, T::TransactionProcessor> {
         TransactionRecorder {
-            transaction_processor: transaction_processor.into_transaction_processor(),
+            transaction_processor: renderer.into_transaction_processor(),
             transaction: Some(Self::new()),
         }
     }
@@ -184,6 +199,23 @@ impl TransactionProcessor for MockTransactionRecorder {
         // Otherwise the transaction will panic when dropped
         transaction.set_is_processed(true);
         drop(transaction);
+    }
+}
+
+/// A mock that acts as the `Renderer` in the context of [`Transaction`]s.
+pub struct MockRenderer(Arc<MockTransactionRecorder>);
+
+impl MockRenderer {
+    /// Creates a new `MockRenderer`
+    pub fn new() -> Arc<MockRenderer> {
+        Arc::new(Self(Arc::new(MockTransactionRecorder)))
+    }
+}
+
+impl<'s> IntoTransactionProcessor<'s> for MockRenderer {
+    type TransactionProcessor = MockTransactionRecorder;
+    fn into_transaction_processor(&self) -> &Arc<Self::TransactionProcessor> {
+        &self.0
     }
 }
 
