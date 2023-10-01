@@ -125,7 +125,7 @@ impl MeshAttributeBuilder {
     }
 
     /// Builds the [`MeshAttributes`]
-    pub fn build(self) -> Result<MeshAttributes> {
+    pub(crate) fn build(self) -> Result<MeshAttributes> {
         let vertex_positions = self
             .vertex_positions
             .ok_or(Error::MandatoryAttributeMissing(AttributeType::Positions))?;

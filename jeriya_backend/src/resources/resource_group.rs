@@ -103,12 +103,10 @@ mod tests {
     fn smoke_test_mesh_attributes() {
         let backend = DummyBackend::new();
         let mut resource_group = ResourceGroup::new(&backend, debug_info!("my_resource_group"));
-        let mesh_attributes = MeshAttributes::builder()
+        let mesh_attributes_builder = MeshAttributes::builder()
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
-            .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
-            .build()
-            .unwrap();
-        let mesh_attributes = resource_group.mesh_attributes().insert(mesh_attributes);
+            .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)]);
+        let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder);
         drop(mesh_attributes);
         asserting("events are received")
             .that(&backend.receiver.try_iter().count())

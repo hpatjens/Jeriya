@@ -224,12 +224,11 @@ fn main() -> ey::Result<()> {
     let model = load_model().wrap_err("Failed to load model")?;
     let fake_normals = model.iter().map(|_| Vector3::new(0.0, 1.0, 0.0)).collect::<Vec<_>>();
 
-    let mesh_attributes = MeshAttributes::builder()
+    let mesh_attributes_builder = MeshAttributes::builder()
         .with_vertex_positions(model.clone())
         .with_vertex_normals(fake_normals.clone())
-        .with_debug_info(debug_info!("my_mesh"))
-        .build()?;
-    let mesh_attributes = resource_group.mesh_attributes().insert(mesh_attributes);
+        .with_debug_info(debug_info!("my_mesh"));
+    let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder);
 
     let mut element_group = ElementGroup::new(debug_info!("my_element_group"));
 

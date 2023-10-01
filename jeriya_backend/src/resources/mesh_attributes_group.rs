@@ -2,7 +2,10 @@ use std::sync::{mpsc::Sender, Arc};
 
 use jeriya_shared::{DebugInfo, Handle, IndexingContainer};
 
-use crate::{mesh_attributes::MeshAttributes, ResourceEvent};
+use crate::{
+    mesh_attributes::{self, MeshAttributeBuilder, MeshAttributes},
+    ResourceEvent,
+};
 
 pub struct MeshAttributesGroup {
     mesh_attributes: IndexingContainer<Arc<MeshAttributes>>,
@@ -21,7 +24,8 @@ impl MeshAttributesGroup {
     }
 
     /// Inserts a [`MeshAttributes`] into the [`MeshAttributesGroup`]
-    pub fn insert(&mut self, mesh_attributes: MeshAttributes) -> Arc<MeshAttributes> {
+    pub fn insert_with(&mut self, mesh_attributes_builder: MeshAttributeBuilder) -> mesh_attributes::Result<Arc<MeshAttributes>> {
+        let mesh_attributes = mesh_attributes_builder.build()?;
         let value = Arc::new(mesh_attributes);
         let handle = self.mesh_attributes.insert(value.clone());
         self.resource_event_sender
@@ -30,7 +34,7 @@ impl MeshAttributesGroup {
                 mesh_attributes: value.clone(),
             }]))
             .expect("resource event cannot be sent");
-        value
+        Ok(value)
     }
 
     /// Returns the [`DebugInfo`] of the [`MeshAttributesGroup`].
@@ -64,14 +68,12 @@ mod tests {
     fn smoke() {
         let backend = DummyBackend::new();
         let mut mesh_attributes_group = MeshAttributesGroup::new(backend.sender().clone(), debug_info!("my_mesh_attributes_group"));
-        let mesh_attributes = MeshAttributes::builder()
+        let mesh_attributes_builder = MeshAttributes::builder()
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
             .with_indices(vec![0])
-            .with_debug_info(debug_info!("my_attributes"))
-            .build()
-            .unwrap();
-        mesh_attributes_group.insert(mesh_attributes);
+            .with_debug_info(debug_info!("my_attributes"));
+        mesh_attributes_group.insert_with(mesh_attributes_builder);
         match_one_mesh_attributes_event!(
             backend,
             MeshAttributesEvent::Insert { handle, mesh_attributes },
