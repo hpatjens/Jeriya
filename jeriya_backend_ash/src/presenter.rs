@@ -202,8 +202,9 @@ fn run_presenter_thread(
                     }
                 }
                 PresenterEvent::ProcessTransaction(mut transaction) => {
-                    transaction.set_is_processed(true);
-                    drop(transaction);
+                    for event in transaction.process() {
+                        info!("Processing transaction event: {:?}", event);
+                    }
                 }
             }
         }
