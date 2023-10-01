@@ -10,7 +10,7 @@ pub struct UnsafeBuffer<T> {
     device: Arc<Device>,
     buffer: vk::Buffer,
     buffer_memory: Option<vk::DeviceMemory>,
-    size: usize,
+    byte_size: usize,
     phantom_data: PhantomData<T>,
     debug_info: DebugInfo,
 }
@@ -19,14 +19,14 @@ impl<T: Clone> UnsafeBuffer<T> {
     /// Creates a new buffer with the given size and usage
     pub unsafe fn new(
         device: &Arc<Device>,
-        size: usize,
+        byte_size: usize,
         usage: vk::BufferUsageFlags,
         sharing_mode: vk::SharingMode,
         debug_info: DebugInfo,
     ) -> crate::Result<Self> {
-        assert!(size > 0, "UnsafeBuffer must have a non-zero size");
+        assert!(byte_size > 0, "UnsafeBuffer must have a non-zero size");
         let buffer_create_info = vk::BufferCreateInfo::builder()
-            .size(size as u64)
+            .size(byte_size as u64)
             .usage(usage)
             .sharing_mode(sharing_mode)
             .queue_family_indices(&device.queue_plan.queue_family_indices);
@@ -36,7 +36,7 @@ impl<T: Clone> UnsafeBuffer<T> {
             device: device.clone(),
             buffer,
             buffer_memory: None,
-            size,
+            byte_size,
             phantom_data: PhantomData,
             debug_info,
         })
@@ -71,8 +71,8 @@ impl<T: Clone> UnsafeBuffer<T> {
         let ptr = self
             .device
             .as_raw_vulkan()
-            .map_memory(buffer_memory, 0, self.size as u64, vk::MemoryMapFlags::empty())?;
-        let slice = slice::from_raw_parts_mut(ptr as *mut T, self.size / mem::size_of::<T>());
+            .map_memory(buffer_memory, 0, self.byte_size as u64, vk::MemoryMapFlags::empty())?;
+        let slice = slice::from_raw_parts_mut(ptr as *mut T, self.byte_size / mem::size_of::<T>());
         Ok((slice, buffer_memory))
     }
 
@@ -82,9 +82,31 @@ impl<T: Clone> UnsafeBuffer<T> {
     ///
     /// Panics if the `data` does not fit into the buffer exactly
     pub unsafe fn set_memory_unaligned(&mut self, data: &[T]) -> crate::Result<()> {
-        assert_eq!(self.size, mem::size_of_val(data), "the data has to fit into the buffer exactly");
+        assert_eq!(
+            self.byte_size,
+            mem::size_of_val(data),
+            "the data has to fit into the buffer exactly"
+        );
         let (slice, buffer_memory) = self.map_buffer_memory()?;
         slice.clone_from_slice(data);
+        self.device.as_raw_vulkan().unmap_memory(buffer_memory);
+        Ok(())
+    }
+
+    /// Copies the given `data` into the buffer at the given `index`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is out of bounds.
+    pub unsafe fn set_memory_unaligned_index(&mut self, index: usize, value: &T) -> crate::Result<()> {
+        let size = mem::size_of_val::<T>(value);
+        let offset = index * mem::size_of::<T>();
+        assert!(
+            self.byte_size > offset + size,
+            "the data doesn't fit into the buffer at the given offset"
+        );
+        let (slice, buffer_memory) = self.map_buffer_memory()?;
+        slice[index..index + 1].clone_from_slice(slice::from_ref(value));
         self.device.as_raw_vulkan().unmap_memory(buffer_memory);
         Ok(())
     }
@@ -95,7 +117,7 @@ impl<T: Clone> UnsafeBuffer<T> {
     ///
     /// Panics if the `data` does not have the same size as the buffer
     pub unsafe fn get_memory_unaligned(&mut self, data: &mut [T]) -> crate::Result<()> {
-        assert_eq!(self.size, mem::size_of_val(data), "data must have the same size as the buffer");
+        assert_eq!(self.byte_size, mem::size_of_val(data), "data must have the same size as the buffer");
         let (slice, buffer_memory) = self.map_buffer_memory()?;
         data.clone_from_slice(slice);
         self.device.as_raw_vulkan().unmap_memory(buffer_memory);
@@ -104,7 +126,7 @@ impl<T: Clone> UnsafeBuffer<T> {
 
     /// Returns the size of the buffer in bytes
     pub fn byte_size(&self) -> usize {
-        self.size
+        self.byte_size
     }
 }
 
@@ -148,7 +170,7 @@ mod tests {
         #[test]
         fn smoke() {
             let device_test_fixture = TestFixtureDevice::new().unwrap();
-            let data = vec![1.0, 2.0, 3.0, 4.0];
+            let data = vec![1.0f32, 2.0, 3.0, 4.0];
             unsafe {
                 let mut buffer = UnsafeBuffer::<f32>::new(
                     &device_test_fixture.device,
@@ -158,11 +180,40 @@ mod tests {
                     debug_info!("my_unsafe_buffer"),
                 )
                 .unwrap();
-                buffer.allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE).unwrap();
+                assert_eq!(buffer.byte_size(), 16);
+                buffer
+                    .allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT)
+                    .unwrap();
                 buffer.set_memory_unaligned(&data).unwrap();
                 let mut data2 = vec![0.0; 4];
                 buffer.get_memory_unaligned(&mut data2).unwrap();
                 assert_eq!(data, data2);
+            }
+        }
+
+        #[test]
+        fn set_memory_unaligned_index() {
+            let device_test_fixture = TestFixtureDevice::new().unwrap();
+            let data = vec![1.0f32, 2.0, 3.0, 4.0];
+            unsafe {
+                let mut buffer = UnsafeBuffer::<f32>::new(
+                    &device_test_fixture.device,
+                    std::mem::size_of_val(data.as_slice()),
+                    vk::BufferUsageFlags::TRANSFER_SRC,
+                    vk::SharingMode::EXCLUSIVE,
+                    debug_info!("my_unsafe_buffer"),
+                )
+                .unwrap();
+                assert_eq!(buffer.byte_size(), 16);
+                buffer
+                    .allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT)
+                    .unwrap();
+                buffer.set_memory_unaligned(&data).unwrap();
+                // Replace the 3 with a 6
+                buffer.set_memory_unaligned_index(2, &6.0).unwrap();
+                let mut data2 = vec![0.0; 4];
+                buffer.get_memory_unaligned(&mut data2).unwrap();
+                assert_eq!(vec![1.0, 2.0, 6.0, 4.0], data2);
             }
         }
     }
