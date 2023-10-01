@@ -8,7 +8,10 @@ use ey::eyre::{eyre, Context};
 use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend::{
-    elements::element_group::ElementGroup,
+    elements::{
+        element_group::ElementGroup,
+        rigid_mesh::{RigidMesh, RigidMeshBuilder},
+    },
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
     mesh_attributes::MeshAttributes,
@@ -234,9 +237,15 @@ fn main() -> ey::Result<()> {
         )
         .unwrap();
 
-    let mut element_group = ElementGroup::new(debug_info!("my_element_group"));
-
     let mut transaction = Transaction::record(&renderer);
+    let mut element_group = ElementGroup::new(debug_info!("my_element_group"));
+    let rigid_mesh_builder = RigidMesh::builder()
+        .with_mesh_attributes(mesh_attributes)
+        .with_debug_info(debug_info!("my_rigid_mesh"));
+    element_group
+        .rigid_meshes()
+        .mutate_via(&mut transaction)
+        .insert_with(rigid_mesh_builder)?;
     transaction.finish();
 
     let inanimate_mesh1 = resource_group

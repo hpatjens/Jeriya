@@ -18,24 +18,42 @@ impl RigidMeshGroup {
         }
     }
 
-    /// Inserts a [`RigidMesh`] into the [`RigidMeshGroup`] by using a [`RigidMeshBuilder`]
-    pub fn insert_with(
-        &mut self,
-        transaction: &mut impl PushEvent,
-        rigid_mesh_builder: RigidMeshBuilder,
-    ) -> rigid_mesh::Result<Handle<RigidMesh>> {
-        self.indexing_container
-            .insert_with(|handle| rigid_mesh_builder.build(handle.clone()))
-            .and_then(|handle| {
-                let rigid_mesh = self.indexing_container.get(&handle).expect("just inserted value not found").clone();
-                transaction.push_event(transactions::Event::RigidMesh(rigid_mesh::Event::Insert(rigid_mesh.clone())));
-                Ok(handle)
-            })
-    }
-
     /// Returns the [`DebugInfo`] of the [`RigidMeshGroup`]
     pub fn debug_info(&self) -> &DebugInfo {
         &self.debug_info
+    }
+
+    /// Returns a [`RigidMeshGroupAccessMut`] that can be used to mutate the [`RigidMeshGroup`] via the given [`Transaction`] or [`TransactionRecorder`].
+    pub fn mutate_via<'g, 't, P: PushEvent>(&'g mut self, transaction: &'t mut P) -> RigidMeshGroupAccessMut<'g, 't, P> {
+        RigidMeshGroupAccessMut {
+            rigid_mesh_group: self,
+            transaction,
+        }
+    }
+}
+
+pub struct RigidMeshGroupAccessMut<'g, 't, P: PushEvent> {
+    rigid_mesh_group: &'g mut RigidMeshGroup,
+    transaction: &'t mut P,
+}
+
+impl<'g, 't, P: PushEvent> RigidMeshGroupAccessMut<'g, 't, P> {
+    /// Inserts a [`RigidMesh`] into the [`RigidMeshGroup`].
+    pub fn insert_with(&mut self, rigid_mesh_builder: RigidMeshBuilder) -> rigid_mesh::Result<Handle<RigidMesh>> {
+        self.rigid_mesh_group
+            .indexing_container
+            .insert_with(|handle| rigid_mesh_builder.build(handle.clone()))
+            .and_then(|handle| {
+                let rigid_mesh = self
+                    .rigid_mesh_group
+                    .indexing_container
+                    .get(&handle)
+                    .expect("just inserted value not found")
+                    .clone();
+                self.transaction
+                    .push_event(transactions::Event::RigidMesh(rigid_mesh::Event::Insert(rigid_mesh.clone())));
+                Ok(handle)
+            })
     }
 }
 
@@ -56,15 +74,16 @@ mod tests {
         let rigid_mesh_builder = RigidMesh::builder()
             .with_mesh_attributes(mesh_attributes)
             .with_debug_info(debug_info!("my_rigid_mesh"));
-        let rigid_mesh_handle = rigid_mesh_group.insert_with(&mut transaction, rigid_mesh_builder).unwrap();
+        let rigid_mesh_handle = rigid_mesh_group
+            .mutate_via(&mut transaction)
+            .insert_with(rigid_mesh_builder)
+            .unwrap();
 
         let rigid_mesh = rigid_mesh_group.indexing_container.get(&rigid_mesh_handle).unwrap();
         assert_eq!(rigid_mesh.debug_info().name(), "my_rigid_mesh");
 
         assert_eq!(transaction.len(), 1);
-        let first = transaction.iter().next().unwrap();
+        let first = transaction.process().into_iter().next().unwrap();
         assert!(matches!(first, transactions::Event::RigidMesh(rigid_mesh::Event::Insert(_))));
-
-        transaction.set_is_processed(true);
     }
 }

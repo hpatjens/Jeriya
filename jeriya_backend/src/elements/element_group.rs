@@ -1,5 +1,7 @@
 use jeriya_shared::{debug_info, DebugInfo};
 
+use crate::transactions::PushEvent;
+
 use super::rigid_mesh_group::RigidMeshGroup;
 
 pub struct ElementGroup {
@@ -18,7 +20,7 @@ impl ElementGroup {
     }
 
     /// Returns the [`RigidMeshGroup`] that manages the rigid meshes.
-    pub fn rigid_meshes(&self) -> &RigidMeshGroup {
-        &self.rigid_mesh_group
+    pub fn rigid_meshes(&mut self) -> &mut RigidMeshGroup {
+        &mut self.rigid_mesh_group
     }
 }

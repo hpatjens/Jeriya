@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::elements::rigid_mesh;
 
 /// Trait that enables sending [`Transaction`]s to the renderer
@@ -120,6 +122,12 @@ impl Transaction {
         self.events.iter()
     }
 
+    /// Returns the [`Event`]s from the `Transaction` for processing.
+    pub fn process(mut self) -> Vec<Event> {
+        self.set_is_processed(true);
+        mem::take(&mut self.events)
+    }
+
     /// Returns the number of events in the transaction
     pub fn len(&self) -> usize {
         self.events.len()
@@ -192,6 +200,15 @@ mod tests {
         let mut transaction_recorder = Transaction::record(&transaction_recorder);
         transaction_recorder.push(Event::RigidMesh(rigid_mesh::Event::Noop));
         drop(transaction_recorder);
+    }
+
+    #[test]
+    fn process() {
+        let mut transaction = Transaction::new();
+        transaction.push(Event::RigidMesh(rigid_mesh::Event::Noop));
+        for event in transaction.process() {
+            assert!(matches!(event, Event::RigidMesh(rigid_mesh::Event::Noop)));
+        }
     }
 
     #[test]
