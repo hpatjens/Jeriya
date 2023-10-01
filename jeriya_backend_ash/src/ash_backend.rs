@@ -20,6 +20,8 @@ use base::{
     shader_interface,
 };
 use jeriya_backend::{
+    elements::rigid_mesh::RigidMesh,
+    gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
     immediate::{self, ImmediateRenderingFrame},
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState},
     mesh_attributes::MeshAttributesGpuState,
@@ -74,6 +76,12 @@ impl TransactionProcessor for AshBackend {
             }
             presenter.send(PresenterEvent::ProcessTransaction(transaction.clone()));
         }
+    }
+}
+
+impl AllocateGpuIndex<RigidMesh> for AshBackend {
+    fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMesh>> {
+        self.backend_shared.rigid_mesh_gpu_index_allocator.lock().allocate_gpu_index()
     }
 }
 

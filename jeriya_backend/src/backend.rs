@@ -3,6 +3,8 @@ use std::sync::{mpsc::Sender, Arc};
 use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, DebugInfo, Handle, RendererConfig, WindowConfig};
 
 use crate::{
+    elements::rigid_mesh::RigidMesh,
+    gpu_index_allocator::AllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
     instances::InanimateMeshInstanceContainerGuard,
     transactions::TransactionProcessor,
@@ -15,7 +17,7 @@ pub trait ResourceReceiver {
 }
 
 /// Rendering backend that is used by the [`Renderer`]
-pub trait Backend: Sized + ResourceReceiver + TransactionProcessor {
+pub trait Backend: Sized + ResourceReceiver + TransactionProcessor + AllocateGpuIndex<RigidMesh> {
     type BackendConfig: Default;
 
     type ImmediateCommandBufferBuilderHandler: ImmediateCommandBufferBuilderHandler<Backend = Self> + AsDebugInfo;

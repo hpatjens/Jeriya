@@ -1,6 +1,8 @@
 use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Handle, RendererConfig, WindowConfig};
 
 use jeriya_backend::{
+    elements::rigid_mesh::RigidMesh,
+    gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
     transactions::{Transaction, TransactionProcessor},
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, ResourceEvent,
@@ -104,6 +106,12 @@ impl<B: Backend> TransactionProcessor for Renderer<B> {
     }
 }
 
+impl<B: Backend> AllocateGpuIndex<RigidMesh> for Renderer<B> {
+    fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMesh>> {
+        <B as AllocateGpuIndex<RigidMesh>>::allocate_gpu_index(&*self.backend)
+    }
+}
+
 /// Builder type to create an instance of the [`Renderer`]
 pub struct RendererBuilder<'a, B>
 where
@@ -192,6 +200,8 @@ fn run_deadlock_detection() {
 #[cfg(test)]
 mod tests {
     use jeriya_backend::{
+        elements::rigid_mesh::RigidMesh,
+        gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
         immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
         inanimate_mesh_group::InanimateMeshGroup,
         model::ModelGroup,
@@ -261,6 +271,11 @@ mod tests {
     }
     impl TransactionProcessor for DummyBackend {
         fn process(&self, _transaction: Transaction) {}
+    }
+    impl AllocateGpuIndex<RigidMesh> for DummyBackend {
+        fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMesh>> {
+            None
+        }
     }
     impl Backend for DummyBackend {
         type BackendConfig = ();

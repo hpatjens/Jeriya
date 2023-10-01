@@ -4,6 +4,8 @@ use std::{
 };
 
 use jeriya_backend::{
+    elements::rigid_mesh::RigidMesh,
+    gpu_index_allocator::GpuIndexAllocator,
     inanimate_mesh::InanimateMeshGpuState,
     mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
     Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceEvent,
@@ -41,6 +43,8 @@ pub struct BackendShared {
 
     pub model_instance_event_queue: Arc<Mutex<EventQueue<ModelInstanceEvent>>>,
     pub model_instances: Arc<Mutex<IndexingContainer<ModelInstance>>>,
+
+    pub rigid_mesh_gpu_index_allocator: Mutex<GpuIndexAllocator<RigidMesh>>,
 }
 
 impl BackendShared {
@@ -127,6 +131,7 @@ impl BackendShared {
             inanimate_mesh_instance_event_queue,
             model_instances,
             model_instance_event_queue,
+            rigid_mesh_gpu_index_allocator: Mutex::new(GpuIndexAllocator::new(renderer_config.maximum_number_of_rigid_meshes)),
         })
     }
 }
