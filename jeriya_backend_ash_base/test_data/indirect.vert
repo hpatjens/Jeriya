@@ -48,6 +48,10 @@ struct MeshAttributes {
     uint64_t indices_len;
 };
 
+struct RigidMesh {
+    int64_t mesh_attributes_index;
+};
+
 layout (set = 0, binding = 0) uniform PerFrameData { 
     uint active_camera;
     uint inanimate_mesh_instance_count;
@@ -83,6 +87,10 @@ layout (set = 0, binding = 7) buffer StaticVertexNormalsBuffer {
 
 layout (set = 0, binding = 8) buffer MeshAttributesBuffer {
     MeshAttributes mesh_attributes[];
+};
+
+layout (set = 0, binding = 9) buffer RigidMeshes {
+    RigidMesh rigid_meshes[];
 };
 
 

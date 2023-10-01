@@ -43,6 +43,7 @@ pub struct Frame {
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
     cameras_buffer: HostVisibleBuffer<shader_interface::Camera>,
     inanimate_mesh_instance_buffer: HostVisibleBuffer<shader_interface::InanimateMeshInstance>,
+    rigid_mesh_buffer: HostVisibleBuffer<shader_interface::RigidMesh>,
     indirect_draw_buffer: Arc<DeviceVisibleBuffer<DrawIndirectCommand>>,
     transactions: VecDeque<Transaction>,
 }
@@ -76,6 +77,14 @@ impl Frame {
             debug_info!(format!("InanimateMeshInstanceBuffer-for-Window{:?}", window_id)),
         )?;
 
+        info!("Create rigid mesh buffer");
+        let rigid_mesh_buffer = HostVisibleBuffer::new(
+            &backend_shared.device,
+            &vec![shader_interface::RigidMesh::default(); backend_shared.renderer_config.maximum_number_of_rigid_meshes],
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!(format!("RigidMeshBuffer-for-Window{:?}", window_id)),
+        )?;
+
         info!("Create indirect draw buffer");
         let indirect_draw_buffer = DeviceVisibleBuffer::new(
             &backend_shared.device,
@@ -91,6 +100,7 @@ impl Frame {
             per_frame_data_buffer,
             cameras_buffer,
             inanimate_mesh_instance_buffer,
+            rigid_mesh_buffer,
             indirect_draw_buffer,
             transactions: VecDeque::new(),
         })
@@ -359,6 +369,7 @@ impl Frame {
             .push_storage_buffer(6, &*backend_shared.static_indices_buffer.lock())
             .push_storage_buffer(7, &*backend_shared.static_vertex_normals_buffer.lock())
             .push_storage_buffer(8, &*backend_shared.mesh_attributes_buffer.lock())
+            .push_storage_buffer(9, &self.rigid_mesh_buffer)
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())

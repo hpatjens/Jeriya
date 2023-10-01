@@ -15,6 +15,16 @@ pub struct Camera {
     pub matrix: Matrix4<f32>,
 }
 
+impl Default for Camera {
+    fn default() -> Self {
+        Self {
+            projection_matrix: Matrix4::identity(),
+            view_matrix: Matrix4::identity(),
+            matrix: Matrix4::identity(),
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct MeshAttributes {
@@ -43,13 +53,16 @@ pub struct InanimateMesh {
     pub indices_len: u64,
 }
 
-impl Default for Camera {
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct RigidMesh {
+    /// Index into the [`MeshAttributes`] array. -1 means that the [`MeshAttributes`] are not available for the frame.
+    pub mesh_attributes_index: i64,
+}
+
+impl Default for RigidMesh {
     fn default() -> Self {
-        Self {
-            projection_matrix: Matrix4::identity(),
-            view_matrix: Matrix4::identity(),
-            matrix: Matrix4::identity(),
-        }
+        Self { mesh_attributes_index: -1 }
     }
 }
 
