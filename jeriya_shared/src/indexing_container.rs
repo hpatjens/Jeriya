@@ -101,17 +101,29 @@ impl<T> IndexingContainer<T> {
         }
     }
 
-    /// Inserts a new element into the container.
-    pub fn insert(&mut self, value: T) -> Handle<T> {
+    /// Inserts a new element into the container by first allocating a slot and then calling the function `insert` with the handle to the slot.
+    pub fn insert_with<F>(&mut self, insert: F) -> Handle<T>
+    where
+        F: FnOnce(&Handle<T>) -> T,
+    {
         if let Some(free_index) = self.free_list.pop_front() {
+            let handle = Handle::new(free_index, self.generations[free_index]);
+            let value = insert(&handle);
             self.data[free_index] = value;
-            Handle::new(free_index, self.generations[free_index])
+            handle
         } else {
             let index = self.data.len();
+            let handle = Handle::new(index, 0);
+            let value = insert(&handle);
             self.data.push(value);
             self.generations.push(0);
-            Handle::new(index, 0)
+            handle
         }
+    }
+
+    /// Inserts a new element into the container.
+    pub fn insert(&mut self, value: T) -> Handle<T> {
+        self.insert_with(|_| value)
     }
 
     /// Returns a reference to the element at the given handle.
@@ -171,6 +183,29 @@ mod tests {
         let handle = container.insert(0);
         assert_eq!(handle.index(), 0);
         assert_eq!(handle.generation(), 0);
+        assert_eq!(container.len(), 1);
+        assert_eq!(container.free_count(), 0);
+    }
+
+    #[test]
+    fn test_insert_with() {
+        struct Thing {
+            // Stores the `Handle` to itself.
+            handle: Handle<Thing>,
+        }
+
+        let mut container = IndexingContainer::<Thing>::new();
+        assert_eq!(container.len(), 0);
+        assert_eq!(container.free_count(), 0);
+
+        let handle = container.insert_with(|handle| Thing { handle: handle.clone() });
+        assert_eq!(handle.index(), 0);
+        assert_eq!(handle.generation(), 0);
+
+        let thing = container.get(&handle).unwrap();
+        assert_eq!(thing.handle.index(), 0);
+        assert_eq!(thing.handle.generation(), 0);
+
         assert_eq!(container.len(), 1);
         assert_eq!(container.free_count(), 0);
     }
