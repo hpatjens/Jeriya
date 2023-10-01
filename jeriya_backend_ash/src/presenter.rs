@@ -12,13 +12,13 @@ use crate::{
     presenter_shared::PresenterShared,
 };
 
-use jeriya_backend::{immediate::ImmediateRenderingFrame, ResourceEvent};
+use jeriya_backend::{immediate::ImmediateRenderingFrame, ResourceEvent, Transaction};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
-    log::{info, trace},
+    log::info,
     parking_lot::Mutex,
     spin_sleep,
     tracy_client::{span, Client},
@@ -26,13 +26,13 @@ use jeriya_shared::{
     EventQueue, FrameRate, Handle,
 };
 
-#[derive(Debug)]
 pub enum PresenterEvent {
     Recreate,
     RenderImmediateCommandBuffer {
         immediate_command_buffer_handler: AshImmediateCommandBufferHandler,
         immediate_rendering_frame: ImmediateRenderingFrame,
     },
+    ProcessTransaction(Transaction),
 }
 
 pub struct Presenter {
@@ -200,6 +200,10 @@ fn run_presenter_thread(
                         };
                         immediate_rendering_frames.insert(immediate_rendering_frame.update_loop_name(), task);
                     }
+                }
+                PresenterEvent::ProcessTransaction(mut transaction) => {
+                    transaction.set_is_considered_processed(true);
+                    drop(transaction);
                 }
             }
         }

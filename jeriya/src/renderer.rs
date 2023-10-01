@@ -2,10 +2,8 @@ use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Ha
 
 use jeriya_backend::{
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
-    inanimate_mesh_group::InanimateMeshGroup,
-    model::ModelGroup,
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, ResourceEvent,
-    ResourceReceiver, Result,
+    ResourceReceiver, Result, Transaction, TransactionProcessor,
 };
 
 use std::{
@@ -18,7 +16,7 @@ pub struct Renderer<B>
 where
     B: Backend,
 {
-    backend: B,
+    backend: Arc<B>,
 }
 
 impl<B> Renderer<B>
@@ -26,7 +24,9 @@ where
     B: Backend,
 {
     fn new(backend: B) -> Self {
-        Self { backend }
+        Self {
+            backend: Arc::new(backend),
+        }
     }
 
     /// Creates a new [`RendererBuilder`] to create an instance of the `Renderer`
@@ -34,8 +34,8 @@ where
         RendererBuilder::new()
     }
 
-    /// Returns the [`Backend`] of the `Renderer`
-    pub fn backend(&self) -> &B {
+    /// Returns the [`Backend`] that is used by the [`Renderer`]
+    pub fn backend(&self) -> &Arc<B> {
         &self.backend
     }
 
@@ -94,6 +94,12 @@ where
 impl<B: Backend> ResourceReceiver for Renderer<B> {
     fn sender(&self) -> &Sender<ResourceEvent> {
         self.backend.sender()
+    }
+}
+
+impl<B: Backend> TransactionProcessor for Renderer<B> {
+    fn process(&self, transaction: Transaction) {
+        self.backend.process(transaction);
     }
 }
 
@@ -190,7 +196,7 @@ mod tests {
         model::ModelGroup,
         Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, InanimateMeshInstance,
         InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceContainerGuard, ModelInstanceEvent,
-        ResourceEvent, ResourceReceiver,
+        ResourceEvent, ResourceReceiver, Transaction, TransactionProcessor,
     };
     use jeriya_shared::{
         debug_info, parking_lot::Mutex, winit::window::WindowId, AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer,
@@ -240,8 +246,8 @@ mod tests {
         model_instance_event_queue: Arc<Mutex<EventQueue<ModelInstanceEvent>>>,
         renderer_config: Arc<RendererConfig>,
         active_camera: Handle<Camera>,
-        inanimate_mesh_group: InanimateMeshGroup,
-        model_group: ModelGroup,
+        _inanimate_mesh_group: InanimateMeshGroup,
+        _model_group: ModelGroup,
         resource_event_sender: Sender<ResourceEvent>,
     }
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
@@ -250,6 +256,9 @@ mod tests {
         fn sender(&self) -> &Sender<ResourceEvent> {
             &self.resource_event_sender
         }
+    }
+    impl TransactionProcessor for DummyBackend {
+        fn process(&self, _transaction: Transaction) {}
     }
     impl Backend for DummyBackend {
         type BackendConfig = ();
@@ -273,17 +282,17 @@ mod tests {
             let model_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
             let active_camera = cameras.lock().insert(Camera::default());
             let (resource_event_sender, _resource_event_receiver) = mpsc::channel();
-            let inanimate_mesh_group = InanimateMeshGroup::new(resource_event_sender);
-            let model_group = ModelGroup::new(&inanimate_mesh_group);
+            let inanimate_mesh_group = InanimateMeshGroup::new(resource_event_sender, debug_info!("my_group"));
+            let model_group = ModelGroup::new(&inanimate_mesh_group, debug_info!("my_group"));
             Ok(Self {
                 cameras,
                 camera_event_queue,
                 renderer_config: Arc::new(RendererConfig::default()),
                 active_camera,
-                inanimate_mesh_group,
+                _inanimate_mesh_group: inanimate_mesh_group,
                 inanimate_mesh_instances,
                 inanimate_mesh_instance_event_queue,
-                model_group,
+                _model_group: model_group,
                 model_instances,
                 model_instance_event_queue,
                 resource_event_sender: channel().0,

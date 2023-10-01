@@ -63,7 +63,7 @@ mod tests {
     #[test]
     fn smoke() {
         let backend = DummyBackend::new();
-        let mut mesh_attributes_group = MeshAttributesGroup::new(backend.sender().clone());
+        let mut mesh_attributes_group = MeshAttributesGroup::new(backend.sender().clone(), debug_info!("my_mesh_attributes_group"));
         let mesh_attributes = MeshAttributes::builder()
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])

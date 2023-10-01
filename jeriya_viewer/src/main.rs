@@ -8,12 +8,13 @@ use ey::eyre::{eyre, Context};
 use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend::{
+    element_group::ElementGroup,
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
     mesh_attributes::MeshAttributes,
     model,
     resource_group::ResourceGroup,
-    Backend, InanimateMeshInstance, ModelInstance,
+    Backend, InanimateMeshInstance, ModelInstance, Transaction,
 };
 use jeriya_backend_ash::AshBackend;
 use jeriya_content::{model::Model, AssetImporter, AssetProcessor, Directories, FileSystem};
@@ -229,6 +230,11 @@ fn main() -> ey::Result<()> {
         .with_debug_info(debug_info!("my_mesh"))
         .build()?;
     let mesh_attributes = resource_group.mesh_attributes().insert(mesh_attributes);
+
+    let mut element_group = ElementGroup::new(debug_info!("my_element_group"));
+
+    let mut transaction = Transaction::record(&renderer);
+    transaction.finish();
 
     let inanimate_mesh1 = resource_group
         .inanimate_meshes()

@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn insert() {
         let backend = DummyBackend::new();
-        let inanimate_mesh_group = InanimateMeshGroup::new(backend.sender().clone());
+        let inanimate_mesh_group = InanimateMeshGroup::new(backend.sender().clone(), debug_info!("my_inanimate_mesh_group"));
         let inanimate_mesh = inanimate_mesh_group
             .create(
                 MeshType::Points,
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn set_vertex_positions() {
         let backend = DummyBackend::new();
-        let inanimate_mesh_group = InanimateMeshGroup::new(backend.sender().clone());
+        let inanimate_mesh_group = InanimateMeshGroup::new(backend.sender().clone(), debug_info!("my_inanimate_mesh_group"));
         let inanimate_mesh = inanimate_mesh_group
             .create(
                 MeshType::Points,

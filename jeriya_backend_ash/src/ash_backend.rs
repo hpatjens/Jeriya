@@ -25,7 +25,7 @@ use jeriya_backend::{
     mesh_attributes::MeshAttributesGpuState,
     mesh_attributes_group::MeshAttributesEvent,
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
-    ModelInstanceContainerGuard, ResourceEvent, ResourceReceiver,
+    ModelInstanceContainerGuard, ResourceEvent, ResourceReceiver, Transaction, TransactionProcessor,
 };
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
@@ -60,6 +60,19 @@ pub struct AshBackend {
 impl ResourceReceiver for AshBackend {
     fn sender(&self) -> &Sender<ResourceEvent> {
         &self.backend_shared.resource_event_sender
+    }
+}
+
+impl TransactionProcessor for AshBackend {
+    fn process(&self, transaction: Transaction) {
+        for (index, presenter) in self.presenters.values().enumerate() {
+            if index == self.presenters.len() - 1 {
+                // Don' clone the last transaction
+                presenter.send(PresenterEvent::ProcessTransaction(transaction));
+                break;
+            }
+            presenter.send(PresenterEvent::ProcessTransaction(transaction.clone()));
+        }
     }
 }
 

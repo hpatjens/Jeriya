@@ -5,7 +5,7 @@ use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, Deb
 use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
     instances::InanimateMeshInstanceContainerGuard,
-    Camera, CameraContainerGuard, ModelInstanceContainerGuard, ResourceEvent,
+    Camera, CameraContainerGuard, ModelInstanceContainerGuard, ResourceEvent, Transaction,
 };
 
 /// Trait that provides access to the `Sender` that is used to send [`ResourceEvent`]s to the resource thread
@@ -13,8 +13,13 @@ pub trait ResourceReceiver {
     fn sender(&self) -> &Sender<ResourceEvent>;
 }
 
+/// Trait that enables sending [`Transaction`]s to the renderer
+pub trait TransactionProcessor {
+    fn process(&self, transaction: Transaction);
+}
+
 /// Rendering backend that is used by the [`Renderer`]
-pub trait Backend: Sized + ResourceReceiver {
+pub trait Backend: Sized + ResourceReceiver + TransactionProcessor {
     type BackendConfig: Default;
 
     type ImmediateCommandBufferBuilderHandler: ImmediateCommandBufferBuilderHandler<Backend = Self> + AsDebugInfo;
