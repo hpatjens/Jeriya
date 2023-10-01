@@ -1,7 +1,8 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::{iter, mem, sync::Arc};
 
 use jeriya_backend::inanimate_mesh::InanimateMeshGpuState;
+use jeriya_backend::transactions::Transaction;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags,
@@ -18,6 +19,7 @@ use jeriya_backend_ash_base::{
     shader_interface, DrawIndirectCommand,
 };
 use jeriya_macros::profile;
+use jeriya_shared::log::trace;
 use jeriya_shared::plot_with_index;
 use jeriya_shared::{
     debug_info,
@@ -42,6 +44,7 @@ pub struct Frame {
     cameras_buffer: HostVisibleBuffer<shader_interface::Camera>,
     inanimate_mesh_instance_buffer: HostVisibleBuffer<shader_interface::InanimateMeshInstance>,
     indirect_draw_buffer: Arc<DeviceVisibleBuffer<DrawIndirectCommand>>,
+    transactions: VecDeque<Transaction>,
 }
 
 #[profile]
@@ -89,7 +92,13 @@ impl Frame {
             cameras_buffer,
             inanimate_mesh_instance_buffer,
             indirect_draw_buffer,
+            transactions: VecDeque::new(),
         })
+    }
+
+    /// Pushes a [`Transaction`] to the frame to be processed when the frame is rendered.
+    pub fn push_transaction(&mut self, transaction: Transaction) {
+        self.transactions.push_back(transaction);
     }
 
     /// Sets the image available semaphore for the frame.
@@ -123,6 +132,13 @@ impl Frame {
             debug_info!("main-CommandBuffer-rendering-complete-Semaphore"),
         )?);
         self.rendering_complete_semaphore = Some(main_rendering_complete_semaphore.clone());
+
+        // Process Transactions
+        for transaction in self.transactions.drain(..) {
+            for _event in transaction.process() {
+                trace!("processing event in frame");
+            }
+        }
 
         // Prepare InanimateMeshInstances
         let (inanimate_mesh_instance_memory, inanimate_mesh_instance_count) = {

@@ -201,9 +201,14 @@ fn run_presenter_thread(
                         immediate_rendering_frames.insert(immediate_rendering_frame.update_loop_name(), task);
                     }
                 }
-                PresenterEvent::ProcessTransaction(mut transaction) => {
-                    for event in transaction.process() {
-                        info!("Processing transaction event: {:?}", event);
+                PresenterEvent::ProcessTransaction(transaction) => {
+                    let len = frames.len();
+                    for (index, frame) in frames.iter_mut().enumerate() {
+                        if index == len - 1 {
+                            frame.push_transaction(transaction);
+                            break;
+                        }
+                        frame.push_transaction(transaction.clone());
                     }
                 }
             }
