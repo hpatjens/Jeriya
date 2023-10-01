@@ -83,6 +83,10 @@ pub enum MeshAttributesGpuState {
     Uploaded { inanimate_mesh_offset: u64 },
 }
 
+/// Builder for [`MeshAttributes`]
+///
+/// This is used to create [`MeshAttributes`] in the [`MeshAttributesGroup`]. Pass the [`MeshAttributeBuilder`]
+/// to [`MeshAttributesGroup::insert_with`] method to create a [`MeshAttributes`].
 pub struct MeshAttributeBuilder {
     vertex_positions: Option<Vec<Vector3<f32>>>,
     vertex_normals: Option<Vec<Vector3<f32>>>,

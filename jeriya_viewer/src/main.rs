@@ -228,7 +228,7 @@ fn main() -> ey::Result<()> {
         .with_vertex_positions(model.clone())
         .with_vertex_normals(fake_normals.clone())
         .with_debug_info(debug_info!("my_mesh"));
-    let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder);
+    let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder).unwrap();
 
     let mut element_group = ElementGroup::new(debug_info!("my_element_group"));
 
