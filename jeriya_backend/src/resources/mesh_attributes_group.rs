@@ -25,9 +25,10 @@ impl MeshAttributesGroup {
 
     /// Inserts a [`MeshAttributes`] into the [`MeshAttributesGroup`]
     pub fn insert_with(&mut self, mesh_attributes_builder: MeshAttributeBuilder) -> mesh_attributes::Result<Arc<MeshAttributes>> {
-        let mesh_attributes = mesh_attributes_builder.build()?;
-        let value = Arc::new(mesh_attributes);
-        let handle = self.mesh_attributes.insert(value.clone());
+        let handle = self
+            .mesh_attributes
+            .insert_with(|handle| mesh_attributes_builder.build(handle.clone()).map(Arc::new))?;
+        let value = self.mesh_attributes.get(&handle).expect("just inserted value not found").clone();
         self.resource_event_sender
             .send(ResourceEvent::MeshAttributes(vec![MeshAttributesEvent::Insert {
                 handle,
@@ -73,7 +74,7 @@ mod tests {
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
             .with_indices(vec![0])
             .with_debug_info(debug_info!("my_attributes"));
-        mesh_attributes_group.insert_with(mesh_attributes_builder);
+        mesh_attributes_group.insert_with(mesh_attributes_builder).unwrap();
         match_one_mesh_attributes_event!(
             backend,
             MeshAttributesEvent::Insert { handle, mesh_attributes },

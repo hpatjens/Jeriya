@@ -43,12 +43,29 @@ impl<T> Clone for Handle<T> {
 }
 
 impl<T> Handle<T> {
-    fn new(index: usize, generation: usize) -> Self {
+    /// Creates a new handle with the given index and generation.
+    ///
+    /// # Notes
+    ///
+    /// There is no way to check that the index and generation are valid. Call this method only
+    /// when you fully understand the consequences or never use the created `Handle` for querying
+    /// an [`IndexingContainer`]. Valid handles are aquired by calling the
+    /// [`IndexingContainer::insert`] method.
+    fn new_unchecked(index: usize, generation: usize) -> Self {
         Self {
             index,
             generation,
             phantom_data: PhantomData,
         }
+    }
+
+    /// Creates a new handle with index and generation set to zero.
+    ///
+    /// # Notes
+    ///
+    /// This method is only intended for testing purposes.
+    pub fn zero() -> Self {
+        Self::new_unchecked(0, 0)
     }
 
     /// Returns the index of the handle.
@@ -101,29 +118,68 @@ impl<T> IndexingContainer<T> {
         }
     }
 
-    /// Inserts a new element into the container by first allocating a slot and then calling the function `insert` with the handle to the slot.
-    pub fn insert_with<F>(&mut self, insert: F) -> Handle<T>
+    /// Inserts a new element into the container.
+    ///
+    /// This method first allocates a slot and then calls the function `insert` with the
+    /// handle to the slot. Having access to the handle before the insert happens allows the
+    /// `Handle` to be stored in the inserted value itself.
+    ///
+    /// # Notes
+    ///
+    /// When the initialization function `insert` fails, the `IndexingContainer` is not altered.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use jeriya_shared::{Handle, IndexingContainer};
+    /// let mut indexing_container = IndexingContainer::<usize>::new();
+    ///
+    /// // Successful insertion.
+    /// let handle = indexing_container
+    ///     .insert_with(|handle| {
+    ///         // Use the handle and insert 74 into the container.
+    ///         Result::<_, ()>::Ok(74)
+    ///     })
+    ///     .unwrap();
+    /// assert_eq!(indexing_container.get(&handle), Some(&74));
+    /// assert_eq!(indexing_container.len(), 1);
+    ///
+    /// // Failed insertion.
+    /// let result = indexing_container.insert_with(|_| Err("fail")).unwrap_err();
+    /// assert_eq!(result, "fail");
+    /// assert_eq!(indexing_container.len(), 1);
+    /// ```
+    pub fn insert_with<F, E>(&mut self, insert: F) -> Result<Handle<T>, E>
     where
-        F: FnOnce(&Handle<T>) -> T,
+        F: FnOnce(&Handle<T>) -> Result<T, E>,
     {
         if let Some(free_index) = self.free_list.pop_front() {
-            let handle = Handle::new(free_index, self.generations[free_index]);
-            let value = insert(&handle);
-            self.data[free_index] = value;
-            handle
+            let handle = Handle::new_unchecked(free_index, self.generations[free_index]);
+            match insert(&handle) {
+                Ok(value) => {
+                    self.data[free_index] = value;
+                    Ok(handle)
+                }
+                Err(err) => {
+                    // When the initialization fails, the handle is pushed back to the free list.
+                    self.free_list.push_front(free_index);
+                    Err(err)
+                }
+            }
         } else {
             let index = self.data.len();
-            let handle = Handle::new(index, 0);
-            let value = insert(&handle);
+            let handle = Handle::new_unchecked(index, 0);
+            // When the initialization fails, the data structure is not altered.
+            let value = insert(&handle)?;
             self.data.push(value);
             self.generations.push(0);
-            handle
+            Ok(handle)
         }
     }
 
     /// Inserts a new element into the container.
     pub fn insert(&mut self, value: T) -> Handle<T> {
-        self.insert_with(|_| value)
+        self.insert_with(|_| Result::<T, ()>::Ok(value)).expect("insertion cannot fail")
     }
 
     /// Returns a reference to the element at the given handle.
@@ -187,27 +243,46 @@ mod tests {
         assert_eq!(container.free_count(), 0);
     }
 
-    #[test]
-    fn test_insert_with() {
+    mod insert_with {
+        use super::*;
+
         struct Thing {
             // Stores the `Handle` to itself.
             handle: Handle<Thing>,
         }
 
-        let mut container = IndexingContainer::<Thing>::new();
-        assert_eq!(container.len(), 0);
-        assert_eq!(container.free_count(), 0);
+        #[test]
+        fn success() {
+            let mut container = IndexingContainer::<Thing>::new();
+            assert_eq!(container.len(), 0);
+            assert_eq!(container.free_count(), 0);
 
-        let handle = container.insert_with(|handle| Thing { handle: handle.clone() });
-        assert_eq!(handle.index(), 0);
-        assert_eq!(handle.generation(), 0);
+            let handle = container
+                .insert_with(|handle| Result::<Thing, ()>::Ok(Thing { handle: handle.clone() }))
+                .unwrap();
+            assert_eq!(handle.index(), 0);
+            assert_eq!(handle.generation(), 0);
 
-        let thing = container.get(&handle).unwrap();
-        assert_eq!(thing.handle.index(), 0);
-        assert_eq!(thing.handle.generation(), 0);
+            let thing = container.get(&handle).unwrap();
+            assert_eq!(thing.handle.index(), 0);
+            assert_eq!(thing.handle.generation(), 0);
 
-        assert_eq!(container.len(), 1);
-        assert_eq!(container.free_count(), 0);
+            assert_eq!(container.len(), 1);
+            assert_eq!(container.free_count(), 0);
+        }
+
+        #[test]
+        fn failure() {
+            let mut container = IndexingContainer::<Thing>::new();
+            assert_eq!(container.len(), 0);
+            assert_eq!(container.free_count(), 0);
+
+            let err = container.insert_with(|_| Result::<Thing, ()>::Err(())).unwrap_err();
+            assert_eq!(err, ());
+
+            assert_eq!(container.len(), 0);
+            assert_eq!(container.free_count(), 0);
+        }
     }
 
     #[test]

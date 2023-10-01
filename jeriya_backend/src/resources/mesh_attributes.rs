@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use jeriya_shared::{debug_info, log::info, nalgebra::Vector3, thiserror, AsDebugInfo, DebugInfo};
+use jeriya_shared::{debug_info, log::info, nalgebra::Vector3, thiserror, AsDebugInfo, DebugInfo, Handle};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AttributeType {
@@ -26,6 +26,7 @@ pub struct MeshAttributes {
     vertex_positions: Vec<Vector3<f32>>,
     vertex_normals: Vec<Vector3<f32>>,
     indices: Option<Vec<u32>>,
+    handle: Handle<Arc<MeshAttributes>>,
     debug_info: DebugInfo,
 }
 
@@ -48,6 +49,13 @@ impl MeshAttributes {
     /// Returns the indices
     pub fn indices(&self) -> Option<&Vec<u32>> {
         self.indices.as_ref()
+    }
+
+    /// Returns the [`Handle`] of the [`MeshAttributes`].
+    ///
+    /// This can be used to query the [`MeshAttributes`] from the [`MeshAttributesGroup`] in which it is stored.
+    pub fn handle(&self) -> &Handle<Arc<MeshAttributes>> {
+        &self.handle
     }
 
     /// Returns the [`DebugInfo`]
@@ -125,7 +133,7 @@ impl MeshAttributeBuilder {
     }
 
     /// Builds the [`MeshAttributes`]
-    pub(crate) fn build(self) -> Result<MeshAttributes> {
+    pub(crate) fn build(self, handle: Handle<Arc<MeshAttributes>>) -> Result<MeshAttributes> {
         let vertex_positions = self
             .vertex_positions
             .ok_or(Error::MandatoryAttributeMissing(AttributeType::Positions))?;
@@ -152,6 +160,7 @@ impl MeshAttributeBuilder {
             vertex_positions,
             vertex_normals,
             indices: self.indices,
+            handle,
             debug_info: self.debug_info.unwrap_or_else(|| debug_info!("Anonymous-MeshAttributes")),
         })
     }
@@ -178,7 +187,7 @@ mod tests {
             ])
             .with_indices(vec![0, 1, 2])
             .with_debug_info(debug_info!("my_mesh"))
-            .build()
+            .build(Handle::zero())
             .unwrap();
         asserting("vertex positions")
             .that(mesh_attributes.vertex_positions())
@@ -202,7 +211,7 @@ mod tests {
 
     #[test]
     fn vertex_positions_missing() {
-        let result = MeshAttributes::builder().build();
+        let result = MeshAttributes::builder().build(Handle::zero());
         asserting("missing vertex positions")
             .that(&result)
             .is_equal_to(Err(Error::MandatoryAttributeMissing(AttributeType::Positions)));
@@ -212,7 +221,7 @@ mod tests {
     fn vertex_normals_missing() {
         let result = MeshAttributes::builder()
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
-            .build();
+            .build(Handle::zero());
         asserting("missing vertex normals")
             .that(&result)
             .is_equal_to(Err(Error::MandatoryAttributeMissing(AttributeType::Normals)));
@@ -227,7 +236,7 @@ mod tests {
                 Vector3::new(2.0, 0.0, 0.0),
             ])
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
-            .build();
+            .build(Handle::zero());
         asserting("wrong size")
             .that(&result)
             .is_equal_to(Err(Error::WrongSize { expected: 3, got: 1 }));
@@ -239,7 +248,7 @@ mod tests {
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
             .with_indices(vec![1])
-            .build();
+            .build(Handle::zero());
         asserting("wrong size").that(&result).is_equal_to(Err(Error::WrongIndex(1)));
     }
 }
