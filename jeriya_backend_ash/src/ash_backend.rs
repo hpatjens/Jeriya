@@ -24,8 +24,9 @@ use jeriya_backend::{
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState},
     mesh_attributes::MeshAttributesGpuState,
     mesh_attributes_group::MeshAttributesEvent,
+    transactions::{Transaction, TransactionProcessor},
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
-    ModelInstanceContainerGuard, ResourceEvent, ResourceReceiver, Transaction, TransactionProcessor,
+    ModelInstanceContainerGuard, ResourceEvent, ResourceReceiver,
 };
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{

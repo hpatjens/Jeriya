@@ -8,13 +8,13 @@ use ey::eyre::{eyre, Context};
 use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend::{
-    element_group::ElementGroup,
+    elements::element_group::ElementGroup,
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
     mesh_attributes::MeshAttributes,
-    model,
     resource_group::ResourceGroup,
-    Backend, InanimateMeshInstance, ModelInstance, Transaction,
+    transactions::Transaction,
+    Backend, InanimateMeshInstance, ModelInstance,
 };
 use jeriya_backend_ash::AshBackend;
 use jeriya_content::{model::Model, AssetImporter, AssetProcessor, Directories, FileSystem};

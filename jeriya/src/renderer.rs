@@ -2,8 +2,9 @@ use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Ha
 
 use jeriya_backend::{
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
+    transactions::{Transaction, TransactionProcessor},
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, ResourceEvent,
-    ResourceReceiver, Result, Transaction, TransactionProcessor,
+    ResourceReceiver, Result,
 };
 
 use std::{
@@ -194,9 +195,10 @@ mod tests {
         immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
         inanimate_mesh_group::InanimateMeshGroup,
         model::ModelGroup,
+        transactions::{Transaction, TransactionProcessor},
         Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, InanimateMeshInstance,
         InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceContainerGuard, ModelInstanceEvent,
-        ResourceEvent, ResourceReceiver, Transaction, TransactionProcessor,
+        ResourceEvent, ResourceReceiver,
     };
     use jeriya_shared::{
         debug_info, parking_lot::Mutex, winit::window::WindowId, AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer,
