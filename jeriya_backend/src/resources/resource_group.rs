@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use jeriya_shared::{debug_info, DebugInfo};
 
 use crate::{inanimate_mesh_group::InanimateMeshGroup, mesh_attributes_group::MeshAttributesGroup, model::ModelGroup, ResourceReceiver};
@@ -13,7 +15,7 @@ impl ResourceGroup {
     /// Creates a new [`ResourceGroup`]
     ///
     /// Pass the [`Renderer`] as the `resource_receiver` parameter.
-    pub fn new(resource_receiver: &impl ResourceReceiver, debug_info: DebugInfo) -> Self {
+    pub fn new(resource_receiver: &Arc<impl ResourceReceiver>, debug_info: DebugInfo) -> Self {
         let inanimate_mesh_group = InanimateMeshGroup::new(
             resource_receiver.sender().clone(),
             debug_info!(format!("{}-inanimate-mesh-group", debug_info.name())),
@@ -54,6 +56,8 @@ impl ResourceGroup {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use jeriya_shared::{debug_info, nalgebra::Vector3};
     use jeriya_test::spectral::asserting;
 
@@ -69,7 +73,7 @@ mod tests {
 
     #[test]
     fn smoke_test_inanimate_meshes() {
-        let backend = DummyBackend::new();
+        let backend = Arc::new(DummyBackend::new());
         let resource_group = ResourceGroup::new(&backend, debug_info!("my_resource_group"));
         let inanimate_mesh = resource_group
             .inanimate_meshes()
@@ -88,7 +92,7 @@ mod tests {
 
     #[test]
     fn smoke_test_models() {
-        let backend = DummyBackend::new();
+        let backend = Arc::new(DummyBackend::new());
         let resource_group = ResourceGroup::new(&backend, debug_info!("my_resource_group"));
         let suzanne = jeriya_content::model::Model::import("../sample_assets/rotated_cube.glb").unwrap();
         let model = resource_group.models().create(ModelSource::Model(suzanne)).build().unwrap();
@@ -101,7 +105,7 @@ mod tests {
 
     #[test]
     fn smoke_test_mesh_attributes() {
-        let backend = DummyBackend::new();
+        let backend = Arc::new(DummyBackend::new());
         let mut resource_group = ResourceGroup::new(&backend, debug_info!("my_resource_group"));
         let mesh_attributes_builder = MeshAttributes::builder()
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])

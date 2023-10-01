@@ -151,7 +151,7 @@ where
         self
     }
 
-    pub fn build(self) -> Result<Renderer<B>> {
+    pub fn build(self) -> Result<Arc<Renderer<B>>> {
         // Create a Tracy client before the backend is created because the first thread creating a Client is called "Main thread".
         let _tracy_client = Client::start();
 
@@ -165,7 +165,7 @@ where
         let renderer_config = self.renderer_config.unwrap_or(RendererConfig::default());
         let backend_config = self.backend_config.unwrap_or(B::BackendConfig::default());
         let backend = B::new(renderer_config, backend_config, self.window_configs)?;
-        Ok(Renderer::new(backend))
+        Ok(Arc::new(Renderer::new(backend)))
     }
 }
 

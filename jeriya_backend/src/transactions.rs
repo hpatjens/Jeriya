@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, sync::Arc};
 
 use crate::elements::rigid_mesh;
 
@@ -105,7 +105,7 @@ impl Transaction {
     }
 
     /// Starts the recording of a [`Transaction`]. The [`Transaction`] is sent to the [`TransactionProcessor`] when it is dropped.
-    pub fn record<'t, T: TransactionProcessor>(transaction_processor: &'t T) -> TransactionRecorder<T> {
+    pub fn record<'t, T: TransactionProcessor>(transaction_processor: &'t Arc<T>) -> TransactionRecorder<T> {
         TransactionRecorder {
             transaction_processor,
             transaction: Some(Self::new()),
@@ -181,6 +181,8 @@ impl TransactionProcessor for MockTransactionRecorder {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
 
     #[test]
@@ -196,7 +198,7 @@ mod tests {
                 assert!(matches!(event, Event::RigidMesh(rigid_mesh::Event::Noop)));
             }
         }
-        let transaction_recorder = TransactionRecorder;
+        let transaction_recorder = Arc::new(TransactionRecorder);
         let mut transaction_recorder = Transaction::record(&transaction_recorder);
         transaction_recorder.push(Event::RigidMesh(rigid_mesh::Event::Noop));
         drop(transaction_recorder);
