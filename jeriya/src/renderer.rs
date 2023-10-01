@@ -4,7 +4,7 @@ use jeriya_backend::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
-    transactions::{Transaction, TransactionProcessor},
+    transactions::{IntoTransactionProcessor, Transaction, TransactionProcessor},
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, ResourceEvent,
     ResourceReceiver, Result,
 };
@@ -100,15 +100,16 @@ impl<B: Backend> ResourceReceiver for Renderer<B> {
     }
 }
 
-impl<B: Backend> TransactionProcessor for Renderer<B> {
-    fn process(&self, transaction: Transaction) {
-        self.backend.process(transaction);
-    }
-}
-
 impl<B: Backend> AllocateGpuIndex<RigidMesh> for Renderer<B> {
     fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMesh>> {
         <B as AllocateGpuIndex<RigidMesh>>::allocate_gpu_index(&*self.backend)
+    }
+}
+
+impl<'s, B: Backend + 's> IntoTransactionProcessor<'s> for Renderer<B> {
+    type TransactionProcessor = B;
+    fn into_transaction_processor(&'s self) -> &'s Arc<Self::TransactionProcessor> {
+        &self.backend
     }
 }
 

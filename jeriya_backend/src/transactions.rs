@@ -7,6 +7,12 @@ pub trait TransactionProcessor {
     fn process(&self, transaction: Transaction);
 }
 
+/// Trait that is implemented by the [`Renderer`] to provide a [`TransactionProcessor`] implementation.
+pub trait IntoTransactionProcessor<'s> {
+    type TransactionProcessor: TransactionProcessor + 's;
+    fn into_transaction_processor(&'s self) -> &'s Arc<Self::TransactionProcessor>;
+}
+
 /// Trait that is implemented by types that store [`Event`]s.
 pub trait PushEvent {
     fn push_event(&mut self, event: Event);
@@ -105,9 +111,11 @@ impl Transaction {
     }
 
     /// Starts the recording of a [`Transaction`]. The [`Transaction`] is sent to the [`TransactionProcessor`] when it is dropped.
-    pub fn record<'t, T: TransactionProcessor>(transaction_processor: &'t Arc<T>) -> TransactionRecorder<T> {
+    pub fn record<'t, T: IntoTransactionProcessor<'t>>(
+        transaction_processor: &'t Arc<T>,
+    ) -> TransactionRecorder<'t, T::TransactionProcessor> {
         TransactionRecorder {
-            transaction_processor,
+            transaction_processor: transaction_processor.into_transaction_processor(),
             transaction: Some(Self::new()),
         }
     }
@@ -198,8 +206,15 @@ mod tests {
                 assert!(matches!(event, Event::RigidMesh(rigid_mesh::Event::Noop)));
             }
         }
-        let transaction_recorder = Arc::new(TransactionRecorder);
-        let mut transaction_recorder = Transaction::record(&transaction_recorder);
+        struct DummyRenderer(Arc<TransactionRecorder>);
+        impl<'s> IntoTransactionProcessor<'s> for DummyRenderer {
+            type TransactionProcessor = TransactionRecorder;
+            fn into_transaction_processor(&'s self) -> &'s Arc<Self::TransactionProcessor> {
+                &self.0
+            }
+        }
+        let renderer = Arc::new(DummyRenderer(Arc::new(TransactionRecorder)));
+        let mut transaction_recorder = Transaction::record(&renderer);
         transaction_recorder.push(Event::RigidMesh(rigid_mesh::Event::Noop));
         drop(transaction_recorder);
     }
