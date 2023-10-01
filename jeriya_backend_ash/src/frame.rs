@@ -1,8 +1,9 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::{iter, mem, sync::Arc};
 
+use jeriya_backend::elements::rigid_mesh;
 use jeriya_backend::inanimate_mesh::InanimateMeshGpuState;
-use jeriya_backend::transactions::Transaction;
+use jeriya_backend::transactions::{self, Transaction};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags,
@@ -145,8 +146,11 @@ impl Frame {
 
         // Process Transactions
         for transaction in self.transactions.drain(..) {
-            for _event in transaction.process() {
-                trace!("processing event in frame");
+            for event in transaction.process() {
+                match event {
+                    transactions::Event::RigidMesh(rigid_mesh::Event::Insert(rigid_mesh)) => {}
+                    transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
+                }
             }
         }
 
