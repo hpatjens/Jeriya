@@ -38,6 +38,14 @@ impl<T: Clone> HostVisibleBuffer<T> {
         Ok(())
     }
 
+    /// Writes the given data to the buffer at the given index
+    pub fn set_memory_unaligned_index(&mut self, index: usize, data: &T) -> crate::Result<()> {
+        unsafe {
+            self.buffer.set_memory_unaligned_index(index, data)?;
+        }
+        Ok(())
+    }
+
     /// Reads the buffer into the given slice
     pub fn get_memory_unaligned(&mut self, data: &mut [T]) -> crate::Result<()> {
         unsafe {
