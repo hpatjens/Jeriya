@@ -204,6 +204,7 @@ mod tests {
         gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
         immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
         inanimate_mesh_group::InanimateMeshGroup,
+        mesh_attributes::MeshAttributes,
         model::ModelGroup,
         transactions::{Transaction, TransactionProcessor},
         Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, InanimateMeshInstance,
@@ -277,6 +278,12 @@ mod tests {
             None
         }
         fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<RigidMesh>) {}
+    }
+    impl AllocateGpuIndex<MeshAttributes> for DummyBackend {
+        fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<MeshAttributes>> {
+            None
+        }
+        fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<MeshAttributes>) {}
     }
     impl Backend for DummyBackend {
         type BackendConfig = ();

@@ -7,12 +7,15 @@ use crate::{
     gpu_index_allocator::AllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
     instances::InanimateMeshInstanceContainerGuard,
+    mesh_attributes::MeshAttributes,
     transactions::TransactionProcessor,
     Camera, CameraContainerGuard, ModelInstanceContainerGuard, ResourceReceiver,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
-pub trait Backend: Sized + ResourceReceiver + TransactionProcessor + AllocateGpuIndex<RigidMesh> + 'static {
+pub trait Backend:
+    Sized + ResourceReceiver + TransactionProcessor + AllocateGpuIndex<MeshAttributes> + AllocateGpuIndex<RigidMesh> + 'static
+{
     type BackendConfig: Default;
 
     type ImmediateCommandBufferBuilderHandler: ImmediateCommandBufferBuilderHandler<Backend = Self> + AsDebugInfo;

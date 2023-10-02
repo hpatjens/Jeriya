@@ -44,6 +44,7 @@ pub struct BackendShared {
     pub model_instance_event_queue: Arc<Mutex<EventQueue<ModelInstanceEvent>>>,
     pub model_instances: Arc<Mutex<IndexingContainer<ModelInstance>>>,
 
+    pub mesh_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<MeshAttributes>>>,
     pub rigid_mesh_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<RigidMesh>>>,
 }
 
@@ -112,8 +113,11 @@ impl BackendShared {
         info!("Creating the QueueScheduler");
         let queue_scheduler = QueueScheduler::new(device)?;
 
-        info!("Creating the GpuIndexAllocator for RigidMeshes");
+        info!("Creating the GpuIndexAllocators");
         let rigid_mesh_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(renderer_config.maximum_number_of_rigid_meshes)));
+        let mesh_attributes_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(
+            renderer_config.maximum_number_of_mesh_attributes,
+        )));
 
         Ok(Self {
             device: device.clone(),
@@ -133,6 +137,7 @@ impl BackendShared {
             inanimate_mesh_instance_event_queue,
             model_instances,
             model_instance_event_queue,
+            mesh_attributes_gpu_index_allocator,
             rigid_mesh_gpu_index_allocator,
         })
     }

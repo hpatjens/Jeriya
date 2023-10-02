@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler},
-    backend_shared::{self, BackendShared},
+    backend_shared::BackendShared,
     presenter::{Presenter, PresenterEvent},
 };
 use base::{
@@ -24,7 +24,7 @@ use jeriya_backend::{
     gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
     immediate::{self, ImmediateRenderingFrame},
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState},
-    mesh_attributes::MeshAttributesGpuState,
+    mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
     mesh_attributes_group::MeshAttributesEvent,
     transactions::{self, PushEvent, Transaction, TransactionProcessor},
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
@@ -86,6 +86,19 @@ impl AllocateGpuIndex<RigidMesh> for AshBackend {
     fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<RigidMesh>) {
         self.backend_shared
             .rigid_mesh_gpu_index_allocator
+            .lock()
+            .free_gpu_index(gpu_index_allocation);
+    }
+}
+
+impl AllocateGpuIndex<MeshAttributes> for AshBackend {
+    fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<MeshAttributes>> {
+        self.backend_shared.mesh_attributes_gpu_index_allocator.lock().allocate_gpu_index()
+    }
+
+    fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<MeshAttributes>) {
+        self.backend_shared
+            .mesh_attributes_gpu_index_allocator
             .lock()
             .free_gpu_index(gpu_index_allocation);
     }
