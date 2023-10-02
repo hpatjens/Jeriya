@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler},
-    backend_shared::BackendShared,
+    backend_shared::{self, BackendShared},
     presenter::{Presenter, PresenterEvent},
 };
 use base::{
@@ -26,7 +26,7 @@ use jeriya_backend::{
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState},
     mesh_attributes::MeshAttributesGpuState,
     mesh_attributes_group::MeshAttributesEvent,
-    transactions::{Transaction, TransactionProcessor},
+    transactions::{self, PushEvent, Transaction, TransactionProcessor},
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
     ModelInstanceContainerGuard, ResourceEvent, ResourceReceiver,
 };
@@ -102,7 +102,7 @@ impl Backend for AshBackend {
         renderer_config: RendererConfig,
         backend_config: Self::BackendConfig,
         window_configs: &[WindowConfig],
-    ) -> jeriya_backend::Result<Self>
+    ) -> jeriya_backend::Result<Arc<Self>>
     where
         Self: Sized,
     {
@@ -162,17 +162,6 @@ impl Backend for AshBackend {
 
         let backend_shared = Arc::new(BackendShared::new(&device, &Arc::new(renderer_config), resource_event_sender)?);
 
-        info!("Creating resource thread");
-        let backend_shared2 = backend_shared.clone();
-        thread::spawn(move || {
-            let client = Client::start();
-            client.set_thread_name("resource_thread");
-
-            if let Err(err) = run_resource_thread(resource_event_receiver, &backend_shared2) {
-                error!("Failed to run resource thread: {err:?}");
-            }
-        });
-
         let presenters = surfaces
             .iter()
             .zip(window_configs)
@@ -190,14 +179,27 @@ impl Backend for AshBackend {
             })
             .collect::<jeriya_backend::Result<HashMap<_, _>>>()?;
 
-        Ok(Self {
+        let backend = Arc::new(Self {
             _entry: entry,
             _instance: instance,
             _surfaces: surfaces,
             _validation_layer_callback: validation_layer_callback,
             presenters,
             backend_shared,
-        })
+        });
+
+        info!("Creating resource thread");
+        let backend2 = backend.clone();
+        thread::spawn(move || {
+            let client = Client::start();
+            client.set_thread_name("resource_thread");
+
+            if let Err(err) = run_resource_thread(resource_event_receiver, &backend2) {
+                error!("Failed to run resource thread: {err:?}");
+            }
+        });
+
+        Ok(backend)
     }
 
     fn create_immediate_command_buffer_builder(
@@ -265,11 +267,13 @@ impl Backend for AshBackend {
     }
 }
 
-fn run_resource_thread(resource_event_receiver: Receiver<ResourceEvent>, backend_shared: &BackendShared) -> jeriya_backend::Result<()> {
+fn run_resource_thread(resource_event_receiver: Receiver<ResourceEvent>, backend: &Arc<AshBackend>) -> jeriya_backend::Result<()> {
     loop {
         let Ok(resource_event) = resource_event_receiver.recv() else {
             panic!("failed to receive frame start");
         };
+
+        let backend_shared = &backend.backend_shared;
 
         let queue_poll_span = span!("Poll queues");
         let mut queues = backend_shared.queue_scheduler.queues();
@@ -283,7 +287,7 @@ fn run_resource_thread(resource_event_receiver: Receiver<ResourceEvent>, backend
                 handle_inanimate_mesh_event(backend_shared, inanimate_mesh_events)?;
             }
             ResourceEvent::MeshAttributes(mesh_attributes_events) => {
-                handle_mesh_attributes_events(backend_shared, mesh_attributes_events)?;
+                handle_mesh_attributes_events(backend, mesh_attributes_events)?;
             }
         }
     }
@@ -411,10 +415,12 @@ fn handle_inanimate_mesh_event(
 
 #[profile]
 fn handle_mesh_attributes_events(
-    backend_shared: &BackendShared,
+    backend: &Arc<AshBackend>,
     mesh_attributes_events: Vec<MeshAttributesEvent>,
 ) -> jeriya_backend::Result<()> {
     let _span = span!("Handle mesh attributes events");
+
+    let backend_shared = &backend.backend_shared;
 
     info!("Creating CommandPool");
     let mut queues = backend_shared.queue_scheduler.queues();
@@ -496,6 +502,7 @@ fn handle_mesh_attributes_events(
 
                 // Insert the GPU state for the InanimateMesh when the upload to the GPU is done
                 let mesh_attributes_gpu_states2 = backend_shared.mesh_attributes_gpu_states.clone();
+                let backend2 = backend.clone();
                 command_buffer_builder.push_finished_operation(Box::new(move || {
                     mesh_attributes_gpu_states2.lock().insert(
                         handle.clone(),
@@ -503,6 +510,15 @@ fn handle_mesh_attributes_events(
                             inanimate_mesh_offset: mesh_attributes_start_offset as u64,
                         },
                     );
+
+                    // Notify the frames that the MeshAttributes are ready
+                    let mut transaction = Transaction::new();
+                    transaction.push_event(transactions::Event::SetMeshAttributeActive {
+                        handle: handle.clone(),
+                        is_active: true,
+                    });
+                    backend2.process(transaction);
+
                     info!(
                         "Upload of MeshAttributes {} ({:?}) to GPU is done",
                         mesh_attributes.as_debug_info().format_one_line(),

@@ -19,7 +19,11 @@ pub trait Backend: Sized + ResourceReceiver + TransactionProcessor + AllocateGpu
     type ImmediateCommandBufferHandler: AsDebugInfo;
 
     /// Creates a new [`Backend`]
-    fn new(renderer_config: RendererConfig, backend_config: Self::BackendConfig, window_configs: &[WindowConfig]) -> crate::Result<Self>
+    fn new(
+        renderer_config: RendererConfig,
+        backend_config: Self::BackendConfig,
+        window_configs: &[WindowConfig],
+    ) -> crate::Result<Arc<Self>>
     where
         Self: Sized;
 

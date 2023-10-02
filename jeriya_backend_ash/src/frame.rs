@@ -22,6 +22,7 @@ use jeriya_backend_ash_base::{
     shader_interface, DrawIndirectCommand,
 };
 use jeriya_macros::profile;
+use jeriya_shared::log::trace;
 use jeriya_shared::{
     debug_info,
     log::info,
@@ -151,6 +152,9 @@ impl Frame {
                 match event {
                     transactions::Event::RigidMesh(rigid_mesh::Event::Insert(rigid_mesh)) => {}
                     transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
+                    transactions::Event::SetMeshAttributeActive { handle, is_active } => {
+                        trace!("mesh attributes set active");
+                    }
                 }
             }
         }

@@ -25,10 +25,8 @@ impl<B> Renderer<B>
 where
     B: Backend,
 {
-    fn new(backend: B) -> Self {
-        Self {
-            backend: Arc::new(backend),
-        }
+    fn new(backend: Arc<B>) -> Self {
+        Self { backend }
     }
 
     /// Creates a new [`RendererBuilder`] to create an instance of the `Renderer`

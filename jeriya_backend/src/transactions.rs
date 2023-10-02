@@ -1,6 +1,8 @@
 use std::{mem, sync::Arc};
 
-use crate::elements::rigid_mesh;
+use jeriya_shared::Handle;
+
+use crate::{elements::rigid_mesh, mesh_attributes::MeshAttributes};
 
 /// Trait that enables sending [`Transaction`]s to the renderer
 pub trait TransactionProcessor {
@@ -22,6 +24,10 @@ pub trait PushEvent {
 #[derive(Debug, Clone)]
 pub enum Event {
     RigidMesh(rigid_mesh::Event),
+    SetMeshAttributeActive {
+        handle: Handle<Arc<MeshAttributes>>,
+        is_active: bool,
+    },
 }
 
 pub struct TransactionRecorder<'t, T: TransactionProcessor> {
