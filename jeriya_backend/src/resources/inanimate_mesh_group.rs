@@ -114,18 +114,14 @@ impl<'a> InanimateMeshBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        match_one_inanimate_mesh_event,
-        resources::tests::{assert_events_empty, DummyBackend},
-        ResourceReceiver,
-    };
+    use crate::{match_one_inanimate_mesh_event, resources::tests::assert_events_empty, MockRenderer};
 
     use super::*;
 
     #[test]
     fn insert() {
-        let backend = DummyBackend::new();
-        let inanimate_mesh_group = InanimateMeshGroup::new(backend.sender().clone(), debug_info!("my_inanimate_mesh_group"));
+        let renderer = MockRenderer::new();
+        let inanimate_mesh_group = InanimateMeshGroup::new(renderer.sender().clone(), debug_info!("my_inanimate_mesh_group"));
         let inanimate_mesh = inanimate_mesh_group
             .create(
                 MeshType::Points,
@@ -137,7 +133,7 @@ mod tests {
             .build()
             .unwrap();
         match_one_inanimate_mesh_event!(
-            backend,
+            renderer,
             InanimateMeshEvent::Insert {
                 inanimate_mesh,
                 vertex_positions,
@@ -159,13 +155,13 @@ mod tests {
                 .is_equal_to([0].as_slice());
         );
         drop(inanimate_mesh);
-        assert_events_empty(&backend);
+        assert_events_empty(&renderer);
     }
 
     #[test]
     fn set_vertex_positions() {
-        let backend = DummyBackend::new();
-        let inanimate_mesh_group = InanimateMeshGroup::new(backend.sender().clone(), debug_info!("my_inanimate_mesh_group"));
+        let renderer = MockRenderer::new();
+        let inanimate_mesh_group = InanimateMeshGroup::new(renderer.sender().clone(), debug_info!("my_inanimate_mesh_group"));
         let inanimate_mesh = inanimate_mesh_group
             .create(
                 MeshType::Points,
@@ -177,9 +173,9 @@ mod tests {
             .build()
             .unwrap();
         inanimate_mesh.set_vertex_positions(vec![Vector3::new(1.0, 1.0, 1.0)]).unwrap();
-        match_one_inanimate_mesh_event!(backend, InanimateMeshEvent::Insert { .. }, {});
+        match_one_inanimate_mesh_event!(renderer, InanimateMeshEvent::Insert { .. }, {});
         match_one_inanimate_mesh_event!(
-            backend,
+            renderer,
             InanimateMeshEvent::SetVertexPositions {
                 inanimate_mesh,
                 vertex_positions,
@@ -192,6 +188,6 @@ mod tests {
                 .is_equal_to([Vector3::new(1.0, 1.0, 1.0)].as_slice());
         );
         drop(inanimate_mesh);
-        assert_events_empty(&backend);
+        assert_events_empty(&renderer);
     }
 }

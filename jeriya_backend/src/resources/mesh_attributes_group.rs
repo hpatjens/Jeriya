@@ -57,18 +57,14 @@ pub enum MeshAttributesEvent {
 mod tests {
     use jeriya_shared::{debug_info, nalgebra::Vector3};
 
-    use crate::{
-        match_one_mesh_attributes_event,
-        resources::tests::{assert_events_empty, DummyBackend},
-        ResourceReceiver,
-    };
+    use crate::{match_one_mesh_attributes_event, resources::tests::assert_events_empty, MockRenderer};
 
     use super::*;
 
     #[test]
     fn smoke() {
-        let backend = DummyBackend::new();
-        let mut mesh_attributes_group = MeshAttributesGroup::new(backend.sender().clone(), debug_info!("my_mesh_attributes_group"));
+        let renderer = MockRenderer::new();
+        let mut mesh_attributes_group = MeshAttributesGroup::new(renderer.sender().clone(), debug_info!("my_mesh_attributes_group"));
         let mesh_attributes_builder = MeshAttributes::builder()
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
@@ -76,11 +72,11 @@ mod tests {
             .with_debug_info(debug_info!("my_attributes"));
         mesh_attributes_group.insert_with(mesh_attributes_builder).unwrap();
         match_one_mesh_attributes_event!(
-            backend,
+            renderer,
             MeshAttributesEvent::Insert { handle, mesh_attributes },
             assert_that(&handle.index()).is_equal_to(0);
             assert_that(&mesh_attributes.debug_info().name()).is_equal_to(&"my_attributes");
         );
-        assert_events_empty(&backend);
+        assert_events_empty(&renderer);
     }
 }

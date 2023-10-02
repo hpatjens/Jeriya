@@ -1,4 +1,4 @@
-use std::sync::{mpsc::Sender, Arc};
+use std::sync::Arc;
 
 use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, DebugInfo, Handle, RendererConfig, WindowConfig};
 
@@ -8,13 +8,8 @@ use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
     instances::InanimateMeshInstanceContainerGuard,
     transactions::TransactionProcessor,
-    Camera, CameraContainerGuard, ModelInstanceContainerGuard, ResourceEvent,
+    Camera, CameraContainerGuard, ModelInstanceContainerGuard, ResourceReceiver,
 };
-
-/// Trait that provides access to the `Sender` that is used to send [`ResourceEvent`]s to the resource thread
-pub trait ResourceReceiver {
-    fn sender(&self) -> &Sender<ResourceEvent>;
-}
 
 /// Rendering backend that is used by the [`Renderer`]
 pub trait Backend: Sized + ResourceReceiver + TransactionProcessor + AllocateGpuIndex<RigidMesh> {

@@ -5,8 +5,8 @@ use jeriya_backend::{
     gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
     transactions::{IntoTransactionProcessor, Transaction, TransactionProcessor},
-    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, ModelInstanceContainerGuard, ResourceEvent,
-    ResourceReceiver, Result,
+    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, IntoResourceReceiver, ModelInstanceContainerGuard,
+    ResourceEvent, ResourceReceiver, Result,
 };
 
 use std::{
@@ -94,9 +94,10 @@ where
     }
 }
 
-impl<B: Backend> ResourceReceiver for Renderer<B> {
-    fn sender(&self) -> &Sender<ResourceEvent> {
-        self.backend.sender()
+impl<B: Backend> IntoResourceReceiver for Renderer<B> {
+    type ResourceReceiver = B;
+    fn into_resource_receiver(&self) -> &Self::ResourceReceiver {
+        &self.backend
     }
 }
 

@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use jeriya_shared::{debug_info, DebugInfo};
 
-use crate::{inanimate_mesh_group::InanimateMeshGroup, mesh_attributes_group::MeshAttributesGroup, model::ModelGroup, ResourceReceiver};
+use crate::{
+    inanimate_mesh_group::InanimateMeshGroup, mesh_attributes_group::MeshAttributesGroup, model::ModelGroup, IntoResourceReceiver,
+    ResourceReceiver,
+};
 
 pub struct ResourceGroup {
     inanimate_mesh_group: InanimateMeshGroup,
@@ -15,7 +18,8 @@ impl ResourceGroup {
     /// Creates a new [`ResourceGroup`]
     ///
     /// Pass the [`Renderer`] as the `resource_receiver` parameter.
-    pub fn new(resource_receiver: &Arc<impl ResourceReceiver>, debug_info: DebugInfo) -> Self {
+    pub fn new(resource_receiver: &Arc<impl IntoResourceReceiver>, debug_info: DebugInfo) -> Self {
+        let resource_receiver = resource_receiver.into_resource_receiver();
         let inanimate_mesh_group = InanimateMeshGroup::new(
             resource_receiver.sender().clone(),
             debug_info!(format!("{}-inanimate-mesh-group", debug_info.name())),
@@ -56,8 +60,6 @@ impl ResourceGroup {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use jeriya_shared::{debug_info, nalgebra::Vector3};
     use jeriya_test::spectral::asserting;
 
@@ -66,15 +68,16 @@ mod tests {
         match_one_inanimate_mesh_event,
         mesh_attributes::MeshAttributes,
         model::ModelSource,
-        resources::tests::{assert_events_empty, DummyBackend},
+        resources::tests::assert_events_empty,
+        MockRenderer,
     };
 
     use super::*;
 
     #[test]
     fn smoke_test_inanimate_meshes() {
-        let backend = Arc::new(DummyBackend::new());
-        let resource_group = ResourceGroup::new(&backend, debug_info!("my_resource_group"));
+        let renderer = MockRenderer::new();
+        let resource_group = ResourceGroup::new(&renderer, debug_info!("my_resource_group"));
         let inanimate_mesh = resource_group
             .inanimate_meshes()
             .create(
@@ -86,34 +89,34 @@ mod tests {
             .unwrap();
         drop(inanimate_mesh);
         asserting("events are received")
-            .that(&backend.receiver.try_iter().count())
+            .that(&renderer.receiver().try_iter().count())
             .is_equal_to(1);
     }
 
     #[test]
     fn smoke_test_models() {
-        let backend = Arc::new(DummyBackend::new());
-        let resource_group = ResourceGroup::new(&backend, debug_info!("my_resource_group"));
+        let renderer = MockRenderer::new();
+        let resource_group = ResourceGroup::new(&renderer, debug_info!("my_resource_group"));
         let suzanne = jeriya_content::model::Model::import("../sample_assets/rotated_cube.glb").unwrap();
         let model = resource_group.models().create(ModelSource::Model(suzanne)).build().unwrap();
         // Currently, the GPU doesn't support models directly but only inanimate meshes. So, the model
         // just inserts the inanimate meshes into the inanimate mesh group.
-        match_one_inanimate_mesh_event!(backend, InanimateMeshEvent::Insert { .. }, {});
+        match_one_inanimate_mesh_event!(renderer, InanimateMeshEvent::Insert { .. }, {});
         drop(model);
-        assert_events_empty(&backend);
+        assert_events_empty(&renderer);
     }
 
     #[test]
     fn smoke_test_mesh_attributes() {
-        let backend = Arc::new(DummyBackend::new());
-        let mut resource_group = ResourceGroup::new(&backend, debug_info!("my_resource_group"));
+        let renderer = MockRenderer::new();
+        let mut resource_group = ResourceGroup::new(&renderer, debug_info!("my_resource_group"));
         let mesh_attributes_builder = MeshAttributes::builder()
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)]);
         let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder);
         drop(mesh_attributes);
         asserting("events are received")
-            .that(&backend.receiver.try_iter().count())
+            .that(&renderer.receiver().try_iter().count())
             .is_equal_to(1);
     }
 }
