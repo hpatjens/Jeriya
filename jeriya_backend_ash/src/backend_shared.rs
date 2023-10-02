@@ -11,7 +11,10 @@ use jeriya_backend::{
     Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceEvent,
     ResourceEvent,
 };
-use jeriya_backend_ash_base::{buffer::BufferUsageFlags, device::Device, shader_interface, staged_push_only_buffer::StagedPushOnlyBuffer};
+use jeriya_backend_ash_base::{
+    buffer::BufferUsageFlags, device::Device, host_visible_buffer::HostVisibleBuffer, shader_interface,
+    staged_push_only_buffer::StagedPushOnlyBuffer,
+};
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, EventQueue, Handle, IndexingContainer, RendererConfig};
 
 use crate::queue_scheduler::QueueScheduler;
@@ -32,7 +35,7 @@ pub struct BackendShared {
     pub inanimate_mesh_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::InanimateMesh>>,
 
     pub mesh_attributes_gpu_states: Arc<Mutex<HashMap<Handle<Arc<MeshAttributes>>, MeshAttributesGpuState>>>,
-    pub mesh_attributes_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::MeshAttributes>>,
+    pub mesh_attributes_buffer: Mutex<HostVisibleBuffer<shader_interface::MeshAttributes>>,
 
     pub static_vertex_position_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_vertex_normals_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
@@ -75,12 +78,12 @@ impl BackendShared {
             debug_info!("InanimateMeshBuffer"),
         )?);
 
-        info!("Creating StagedPushOnlyBuffer for MeshAttributes");
-        let mesh_attributes_buffer = Mutex::new(StagedPushOnlyBuffer::new(
+        info!("Creating HostVisibleBuffer for MeshAttributes");
+        let mesh_attributes_buffer = Mutex::new(HostVisibleBuffer::new(
             device,
-            renderer_config.maximum_number_of_mesh_attributes,
+            &vec![shader_interface::MeshAttributes::default(); renderer_config.maximum_number_of_mesh_attributes],
             BufferUsageFlags::STORAGE_BUFFER,
-            debug_info!("MeshAttributesBuffer"),
+            debug_info!("mesh_attributes_buffer"),
         )?);
 
         info!("Creating static vertex positions buffer");

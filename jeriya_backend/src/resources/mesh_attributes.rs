@@ -90,7 +90,7 @@ pub enum MeshAttributesGpuState {
         indices: Option<Arc<Vec<u32>>>,
     },
     /// The mesh has been uploaded to the GPU
-    Uploaded { inanimate_mesh_offset: u64 },
+    Uploaded,
 }
 
 /// Builder for [`MeshAttributes`]

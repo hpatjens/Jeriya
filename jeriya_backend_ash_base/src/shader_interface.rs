@@ -26,7 +26,7 @@ impl Default for Camera {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MeshAttributes {
     pub vertex_positions_start_offset: u64,
     pub vertex_positions_len: u64,

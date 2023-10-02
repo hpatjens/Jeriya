@@ -22,7 +22,6 @@ use jeriya_backend_ash_base::{
     shader_interface, DrawIndirectCommand,
 };
 use jeriya_macros::profile;
-use jeriya_shared::log::trace;
 use jeriya_shared::{
     debug_info,
     log::info,

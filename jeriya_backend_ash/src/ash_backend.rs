@@ -508,26 +508,23 @@ fn handle_mesh_attributes_events(
                     vertex_normals_len,
                 };
                 info!("Inserting a new MeshAttributes: {mesh_attributes_gpu:#?}",);
-                let mesh_attributes_start_offset = backend_shared
+                backend_shared
                     .mesh_attributes_buffer
                     .lock()
-                    .push(&[mesh_attributes_gpu], &mut command_buffer_builder)?;
+                    .set_memory_unaligned_index(mesh_attributes.gpu_index_allocation().index(), &mesh_attributes_gpu)?;
 
                 // Insert the GPU state for the InanimateMesh when the upload to the GPU is done
                 let mesh_attributes_gpu_states2 = backend_shared.mesh_attributes_gpu_states.clone();
                 let backend2 = backend.clone();
                 command_buffer_builder.push_finished_operation(Box::new(move || {
-                    mesh_attributes_gpu_states2.lock().insert(
-                        handle.clone(),
-                        MeshAttributesGpuState::Uploaded {
-                            inanimate_mesh_offset: mesh_attributes_start_offset as u64,
-                        },
-                    );
+                    mesh_attributes_gpu_states2
+                        .lock()
+                        .insert(handle.clone(), MeshAttributesGpuState::Uploaded);
 
                     // Notify the frames that the MeshAttributes are ready
                     let mut transaction = Transaction::new();
                     transaction.push_event(transactions::Event::SetMeshAttributeActive {
-                        gpu_index_allocation: GpuIndexAllocation::new_unchecked(mesh_attributes_start_offset),
+                        gpu_index_allocation: *mesh_attributes.gpu_index_allocation(),
                         is_active: true,
                     });
                     backend2.process(transaction);
