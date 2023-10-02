@@ -4,6 +4,7 @@ use jeriya_backend::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::IntoAllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
+    mesh_attributes::MeshAttributes,
     transactions::IntoTransactionProcessor,
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, IntoResourceReceiver, ModelInstanceContainerGuard, Result,
 };
@@ -99,6 +100,13 @@ impl<B: Backend> IntoResourceReceiver for Renderer<B> {
 }
 
 impl<B: Backend> IntoAllocateGpuIndex<RigidMesh> for Renderer<B> {
+    type AllocateGpuIndex = B;
+    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+        Arc::downgrade(self.backend())
+    }
+}
+
+impl<B: Backend> IntoAllocateGpuIndex<MeshAttributes> for Renderer<B> {
     type AllocateGpuIndex = B;
     fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
         Arc::downgrade(self.backend())

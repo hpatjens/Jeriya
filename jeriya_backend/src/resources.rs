@@ -8,7 +8,7 @@ mod texture2d;
 
 use std::sync::{
     mpsc::{Receiver, Sender},
-    Arc,
+    Arc, Weak,
 };
 
 pub use inanimate_mesh::InanimateMesh;
@@ -17,7 +17,9 @@ pub use texture2d::*;
 
 use jeriya_shared::AsDebugInfo;
 
-use self::{inanimate_mesh::InanimateMeshEvent, mesh_attributes_group::MeshAttributesEvent};
+use crate::gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, IntoAllocateGpuIndex};
+
+use self::{inanimate_mesh::InanimateMeshEvent, mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesEvent};
 
 /// Trait that provides access to the `Sender` that is used to send [`ResourceEvent`]s to the resource thread
 pub trait ResourceReceiver {
@@ -42,24 +44,31 @@ pub enum ResourceEvent {
 }
 
 /// A [`ResourceReceiver`] that can be used for testing
-pub struct MockResourceReceiver {
+pub struct MockBackend {
     pub sender: Sender<ResourceEvent>,
     pub receiver: Receiver<ResourceEvent>,
 }
 
-impl ResourceReceiver for MockResourceReceiver {
+impl ResourceReceiver for MockBackend {
     fn sender(&self) -> &Sender<ResourceEvent> {
         &self.sender
     }
 }
 
+impl AllocateGpuIndex<MeshAttributes> for MockBackend {
+    fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<MeshAttributes>> {
+        Some(GpuIndexAllocation::new_unchecked(0))
+    }
+    fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<MeshAttributes>) {}
+}
+
 /// A mock that acts as the renderer in the context of resources.
-pub struct MockRenderer(Arc<MockResourceReceiver>);
+pub struct MockRenderer(Arc<MockBackend>);
 
 impl MockRenderer {
     pub fn new() -> Arc<Self> {
         let (sender, receiver) = std::sync::mpsc::channel();
-        Arc::new(Self(Arc::new(MockResourceReceiver { sender, receiver })))
+        Arc::new(Self(Arc::new(MockBackend { sender, receiver })))
     }
 
     pub fn sender(&self) -> &Sender<ResourceEvent> {
@@ -72,9 +81,16 @@ impl MockRenderer {
 }
 
 impl IntoResourceReceiver for MockRenderer {
-    type ResourceReceiver = MockResourceReceiver;
+    type ResourceReceiver = MockBackend;
     fn into_resource_receiver(&self) -> &Self::ResourceReceiver {
         &self.0
+    }
+}
+
+impl IntoAllocateGpuIndex<MeshAttributes> for MockRenderer {
+    type AllocateGpuIndex = MockBackend;
+    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+        Arc::downgrade(&self.0)
     }
 }
 
@@ -89,8 +105,8 @@ pub mod tests {
 
     /// Creates a new [`MeshAttributes`] with a single vertex
     pub fn new_dummy_mesh_attributes() -> Arc<MeshAttributes> {
-        let backend = MockRenderer::new();
-        let mut mesh_attributes_group = MeshAttributesGroup::new(backend.sender().clone(), debug_info!("my_mesh_attributes_group"));
+        let renderer = MockRenderer::new();
+        let mut mesh_attributes_group = MeshAttributesGroup::new(&renderer, debug_info!("my_mesh_attributes_group"));
         let mesh_attributes_builder = MeshAttributes::builder()
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])

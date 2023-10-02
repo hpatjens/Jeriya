@@ -3,8 +3,8 @@ use std::sync::Arc;
 use jeriya_shared::{debug_info, DebugInfo};
 
 use crate::{
-    inanimate_mesh_group::InanimateMeshGroup, mesh_attributes_group::MeshAttributesGroup, model::ModelGroup, IntoResourceReceiver,
-    ResourceReceiver,
+    gpu_index_allocator::IntoAllocateGpuIndex, inanimate_mesh_group::InanimateMeshGroup, mesh_attributes::MeshAttributes,
+    mesh_attributes_group::MeshAttributesGroup, model::ModelGroup, IntoResourceReceiver, ResourceReceiver,
 };
 
 pub struct ResourceGroup {
@@ -18,17 +18,17 @@ impl ResourceGroup {
     /// Creates a new [`ResourceGroup`]
     ///
     /// Pass the [`Renderer`] as the `resource_receiver` parameter.
-    pub fn new(resource_receiver: &Arc<impl IntoResourceReceiver>, debug_info: DebugInfo) -> Self {
-        let resource_receiver = resource_receiver.into_resource_receiver();
+    pub fn new<B>(backend: &Arc<B>, debug_info: DebugInfo) -> Self
+    where
+        B: IntoResourceReceiver + IntoAllocateGpuIndex<MeshAttributes>,
+    {
+        let resource_receiver = backend.into_resource_receiver();
         let inanimate_mesh_group = InanimateMeshGroup::new(
             resource_receiver.sender().clone(),
             debug_info!(format!("{}-inanimate-mesh-group", debug_info.name())),
         );
         let model_group = ModelGroup::new(&inanimate_mesh_group, debug_info!(format!("{}-model-group", debug_info.name())));
-        let mesh_attributes_group = MeshAttributesGroup::new(
-            resource_receiver.sender().clone(),
-            debug_info!(format!("{}-mesh-attributes-group", debug_info.name())),
-        );
+        let mesh_attributes_group = MeshAttributesGroup::new(backend, debug_info!(format!("{}-mesh-attributes-group", debug_info.name())));
         Self {
             inanimate_mesh_group,
             model_group,

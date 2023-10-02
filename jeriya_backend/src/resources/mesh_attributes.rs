@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector3, thiserror, AsDebugInfo, DebugInfo, Handle};
 
+use crate::gpu_index_allocator::GpuIndexAllocation;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AttributeType {
     Positions,
@@ -16,6 +18,8 @@ pub enum Error {
     WrongIndex(usize),
     #[error("The number of attributes doesn't match the number of vertices")]
     WrongSize { expected: usize, got: usize },
+    #[error("Allocation failed")]
+    AllocationFailed,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -27,6 +31,7 @@ pub struct MeshAttributes {
     vertex_normals: Vec<Vector3<f32>>,
     indices: Option<Vec<u32>>,
     handle: Handle<Arc<MeshAttributes>>,
+    gpu_index_allocation: GpuIndexAllocation<MeshAttributes>,
     debug_info: DebugInfo,
 }
 
@@ -56,6 +61,11 @@ impl MeshAttributes {
     /// This can be used to query the [`MeshAttributes`] from the [`MeshAttributesGroup`] in which it is stored.
     pub fn handle(&self) -> &Handle<Arc<MeshAttributes>> {
         &self.handle
+    }
+
+    /// Returns the GPU index allocation
+    pub fn gpu_index_allocation(&self) -> &GpuIndexAllocation<MeshAttributes> {
+        &self.gpu_index_allocation
     }
 
     /// Returns the [`DebugInfo`]
@@ -137,7 +147,11 @@ impl MeshAttributeBuilder {
     }
 
     /// Builds the [`MeshAttributes`]
-    pub(crate) fn build(self, handle: Handle<Arc<MeshAttributes>>) -> Result<MeshAttributes> {
+    pub(crate) fn build(
+        self,
+        handle: Handle<Arc<MeshAttributes>>,
+        gpu_index_allocation: GpuIndexAllocation<MeshAttributes>,
+    ) -> Result<MeshAttributes> {
         let vertex_positions = self
             .vertex_positions
             .ok_or(Error::MandatoryAttributeMissing(AttributeType::Positions))?;
@@ -165,6 +179,7 @@ impl MeshAttributeBuilder {
             vertex_normals,
             indices: self.indices,
             handle,
+            gpu_index_allocation,
             debug_info: self.debug_info.unwrap_or_else(|| debug_info!("Anonymous-MeshAttributes")),
         })
     }
@@ -178,6 +193,7 @@ mod tests {
 
     #[test]
     fn success() {
+        let gpu_index_allocation = GpuIndexAllocation::new_unchecked(0);
         let mesh_attributes = MeshAttributes::builder()
             .with_vertex_positions(vec![
                 Vector3::new(0.0, 0.0, 0.0),
@@ -191,7 +207,7 @@ mod tests {
             ])
             .with_indices(vec![0, 1, 2])
             .with_debug_info(debug_info!("my_mesh"))
-            .build(Handle::zero())
+            .build(Handle::zero(), gpu_index_allocation)
             .unwrap();
         asserting("vertex positions")
             .that(mesh_attributes.vertex_positions())
@@ -215,7 +231,8 @@ mod tests {
 
     #[test]
     fn vertex_positions_missing() {
-        let result = MeshAttributes::builder().build(Handle::zero());
+        let gpu_index_allocation = GpuIndexAllocation::new_unchecked(0);
+        let result = MeshAttributes::builder().build(Handle::zero(), gpu_index_allocation);
         asserting("missing vertex positions")
             .that(&result)
             .is_equal_to(Err(Error::MandatoryAttributeMissing(AttributeType::Positions)));
@@ -223,9 +240,10 @@ mod tests {
 
     #[test]
     fn vertex_normals_missing() {
+        let gpu_index_allocation = GpuIndexAllocation::new_unchecked(0);
         let result = MeshAttributes::builder()
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
-            .build(Handle::zero());
+            .build(Handle::zero(), gpu_index_allocation);
         asserting("missing vertex normals")
             .that(&result)
             .is_equal_to(Err(Error::MandatoryAttributeMissing(AttributeType::Normals)));
@@ -233,6 +251,7 @@ mod tests {
 
     #[test]
     fn wrong_size() {
+        let gpu_index_allocation = GpuIndexAllocation::new_unchecked(0);
         let result = MeshAttributes::builder()
             .with_vertex_positions(vec![
                 Vector3::new(0.0, 0.0, 0.0),
@@ -240,7 +259,7 @@ mod tests {
                 Vector3::new(2.0, 0.0, 0.0),
             ])
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
-            .build(Handle::zero());
+            .build(Handle::zero(), gpu_index_allocation);
         asserting("wrong size")
             .that(&result)
             .is_equal_to(Err(Error::WrongSize { expected: 3, got: 1 }));
@@ -248,11 +267,12 @@ mod tests {
 
     #[test]
     fn wrong_index() {
+        let gpu_index_allocation = GpuIndexAllocation::new_unchecked(0);
         let result = MeshAttributes::builder()
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
             .with_indices(vec![1])
-            .build(Handle::zero());
+            .build(Handle::zero(), gpu_index_allocation);
         asserting("wrong size").that(&result).is_equal_to(Err(Error::WrongIndex(1)));
     }
 }
