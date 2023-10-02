@@ -173,6 +173,11 @@ where
                 .offset(0)
                 .size(std::mem::size_of::<u32>())
                 .build(),
+            vk::SpecializationMapEntry::builder()
+                .constant_id(4)
+                .offset(0)
+                .size(std::mem::size_of::<u32>())
+                .build(),
         ];
         let mut specialization_data = Vec::<u8>::new();
         specialization_data
@@ -186,6 +191,9 @@ where
             .expect("failed to write specialization constant");
         specialization_data
             .write_u32::<LittleEndian>(renderer_config.maximum_number_of_rigid_meshes as u32)
+            .expect("failed to write specialization constant");
+        specialization_data
+            .write_u32::<LittleEndian>(renderer_config.maximum_number_of_mesh_attributes as u32)
             .expect("failed to write specialization constant");
         let specialization_info = vk::SpecializationInfo::builder()
             .map_entries(&specialization_constants)
@@ -225,6 +233,7 @@ where
                 .push_storage_buffer::<Vector4<f32>>(7, 1)
                 .push_storage_buffer::<MeshAttributes>(8, 1)
                 .push_storage_buffer::<RigidMesh>(9, 1)
+                .push_storage_buffer::<bool>(10, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];

@@ -92,6 +92,7 @@ pub struct RendererConfig {
     pub maximum_number_of_inanimate_meshes: usize,
     pub maximum_number_of_inanimate_mesh_instances: usize,
     pub maximum_number_of_rigid_meshes: usize,
+    pub maximum_number_of_mesh_attributes: usize,
 }
 
 impl Default for RendererConfig {
@@ -103,6 +104,7 @@ impl Default for RendererConfig {
             maximum_number_of_inanimate_mesh_instances: 2usize.pow(16),
             maximum_number_of_inanimate_meshes: 2usize.pow(10),
             maximum_number_of_rigid_meshes: 2usize.pow(10),
+            maximum_number_of_mesh_attributes: 2usize.pow(10),
         }
     }
 }

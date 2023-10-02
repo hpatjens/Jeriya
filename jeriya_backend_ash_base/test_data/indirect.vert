@@ -7,6 +7,7 @@ layout (constant_id = 0) const uint MAX_CAMERAS = 8;
 layout (constant_id = 1) const uint MAX_INANIMATE_MESH_INSTANCES = 1024;
 layout (constant_id = 2) const uint MAX_INANIMATE_MESHES = 1024;
 layout (constant_id = 3) const uint MAX_RIGID_MESHES = 1024;
+layout (constant_id = 4) const uint MAX_MESH_ATTRIBUTES = 1024;
 
 struct Camera {
     mat4 projection_matrix;
@@ -87,11 +88,15 @@ layout (set = 0, binding = 7) buffer StaticVertexNormalsBuffer {
 };
 
 layout (set = 0, binding = 8) buffer MeshAttributesBuffer {
-    MeshAttributes mesh_attributes[];
+    MeshAttributes mesh_attributes[MAX_MESH_ATTRIBUTES];
 };
 
 layout (set = 0, binding = 9) buffer RigidMeshes {
     RigidMesh rigid_meshes[MAX_RIGID_MESHES];
+};
+
+layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {
+    bool mesh_attributes_active[MAX_MESH_ATTRIBUTES];
 };
 
 

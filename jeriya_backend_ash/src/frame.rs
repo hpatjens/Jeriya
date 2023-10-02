@@ -46,6 +46,7 @@ pub struct Frame {
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
     cameras_buffer: HostVisibleBuffer<shader_interface::Camera>,
     inanimate_mesh_instance_buffer: HostVisibleBuffer<shader_interface::InanimateMeshInstance>,
+    mesh_attributes_active_buffer: HostVisibleBuffer<bool>,
     rigid_mesh_buffer: HostVisibleBuffer<shader_interface::RigidMesh>,
     indirect_draw_buffer: Arc<DeviceVisibleBuffer<DrawIndirectCommand>>,
     transactions: VecDeque<Transaction>,
@@ -80,6 +81,14 @@ impl Frame {
             debug_info!(format!("InanimateMeshInstanceBuffer-for-Window{:?}", window_id)),
         )?;
 
+        info!("Create mesh attributes active buffer");
+        let mesh_attributes_active_buffer = HostVisibleBuffer::new(
+            &backend_shared.device,
+            &vec![false; backend_shared.renderer_config.maximum_number_of_mesh_attributes],
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!(format!("MeshAttributesActiveBuffer-for-Window{:?}", window_id)),
+        )?;
+
         info!("Create rigid mesh buffer");
         let rigid_mesh_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
@@ -103,6 +112,7 @@ impl Frame {
             per_frame_data_buffer,
             cameras_buffer,
             inanimate_mesh_instance_buffer,
+            mesh_attributes_active_buffer,
             rigid_mesh_buffer,
             indirect_draw_buffer,
             transactions: VecDeque::new(),
@@ -153,7 +163,8 @@ impl Frame {
                     transactions::Event::RigidMesh(rigid_mesh::Event::Insert(rigid_mesh)) => {}
                     transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
                     transactions::Event::SetMeshAttributeActive { handle, is_active } => {
-                        trace!("mesh attributes set active");
+                        self.mesh_attributes_active_buffer
+                            .set_memory_unaligned_index(handle.index(), &is_active)?;
                     }
                 }
             }
@@ -379,6 +390,7 @@ impl Frame {
             .push_storage_buffer(7, &*backend_shared.static_vertex_normals_buffer.lock())
             .push_storage_buffer(8, &*backend_shared.mesh_attributes_buffer.lock())
             .push_storage_buffer(9, &self.rigid_mesh_buffer)
+            .push_storage_buffer(10, &self.mesh_attributes_active_buffer)
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())

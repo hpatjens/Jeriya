@@ -75,10 +75,9 @@ impl BackendShared {
         )?);
 
         info!("Creating StagedPushOnlyBuffer for MeshAttributes");
-        const MESH_ATTRIBUTES_BUFFER_CAPACITY: usize = 100;
         let mesh_attributes_buffer = Mutex::new(StagedPushOnlyBuffer::new(
             device,
-            MESH_ATTRIBUTES_BUFFER_CAPACITY,
+            renderer_config.maximum_number_of_mesh_attributes,
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!("MeshAttributesBuffer"),
         )?);
