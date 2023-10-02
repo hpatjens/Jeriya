@@ -160,7 +160,14 @@ impl Frame {
         for transaction in self.transactions.drain(..) {
             for event in transaction.process() {
                 match event {
-                    transactions::Event::RigidMesh(rigid_mesh::Event::Insert(rigid_mesh)) => {}
+                    transactions::Event::RigidMesh(rigid_mesh::Event::Insert(rigid_mesh)) => {
+                        self.rigid_mesh_buffer.set_memory_unaligned_index(
+                            rigid_mesh.gpu_index_allocation().index(),
+                            &shader_interface::RigidMesh {
+                                mesh_attributes_index: rigid_mesh.mesh_attributes().handle().index() as i64,
+                            },
+                        )?;
+                    }
                     transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
                     transactions::Event::SetMeshAttributeActive { handle, is_active } => {
                         self.mesh_attributes_active_buffer
