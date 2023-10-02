@@ -2,16 +2,15 @@ use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Ha
 
 use jeriya_backend::{
     elements::rigid_mesh::RigidMesh,
-    gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, IntoAllocateGpuIndex},
+    gpu_index_allocator::IntoAllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
-    transactions::{IntoTransactionProcessor, Transaction, TransactionProcessor},
-    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, IntoResourceReceiver, ModelInstanceContainerGuard,
-    ResourceEvent, ResourceReceiver, Result,
+    transactions::IntoTransactionProcessor,
+    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, IntoResourceReceiver, ModelInstanceContainerGuard, Result,
 };
 
 use std::{
     marker::PhantomData,
-    sync::{mpsc::Sender, Arc, Weak},
+    sync::{Arc, Weak},
 };
 
 /// Instance of the renderer

@@ -1,9 +1,9 @@
 use std::sync::{Arc, Weak};
 
-use jeriya_shared::{parking_lot::Mutex, DebugInfo, Handle, IndexingContainer};
+use jeriya_shared::{DebugInfo, Handle, IndexingContainer};
 
 use crate::{
-    gpu_index_allocator::{self, AllocateGpuIndex, IntoAllocateGpuIndex},
+    gpu_index_allocator::{AllocateGpuIndex, IntoAllocateGpuIndex},
     transactions::{self, PushEvent},
 };
 

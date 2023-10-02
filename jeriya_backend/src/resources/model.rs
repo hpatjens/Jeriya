@@ -38,11 +38,16 @@ impl Model {
     pub fn inanimate_meshes(&self) -> &[Handle<Arc<InanimateMesh>>] {
         self.inanimate_meshes.as_ref()
     }
+
+    /// Returns the [`DebugInfo`] of the [`Model`].
+    pub fn debug_info(&self) -> &DebugInfo {
+        &self.debug_info
+    }
 }
 
 /// Manages a group of [`Model`]s.
 pub struct ModelGroup {
-    models: Arc<Mutex<Vec<Arc<Model>>>>,
+    _models: Arc<Mutex<Vec<Arc<Model>>>>,
 
     // These are the inanimate meshes that are managed by the [`InanimateMeshGroup`]. They are
     // used here to create [`InanimateMesh`]es for the models meshes as long as the renderer
@@ -55,7 +60,7 @@ pub struct ModelGroup {
 impl ModelGroup {
     pub fn new(inanimate_mesh_group: &InanimateMeshGroup, debug_info: DebugInfo) -> Self {
         Self {
-            models: Arc::new(Mutex::new(Vec::new())),
+            _models: Arc::new(Mutex::new(Vec::new())),
             inanimate_meshes: inanimate_mesh_group.inanimate_meshes.clone(),
             resource_event_sender: inanimate_mesh_group.resource_event_sender.clone(),
             debug_info,

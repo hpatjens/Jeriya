@@ -1,12 +1,13 @@
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
-use base::queue_plan::QueueSelection;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{device::Device, queue::Queue};
-use jeriya_shared::log::info;
-use jeriya_shared::parking_lot::MutexGuard;
-use jeriya_shared::{debug_info, parking_lot::Mutex, winit::window::WindowId};
+use jeriya_shared::{
+    debug_info,
+    log::info,
+    parking_lot::{Mutex, MutexGuard},
+    winit::window::WindowId,
+};
 
 pub struct Queues {
     presentation_queues: Vec<Queue>,

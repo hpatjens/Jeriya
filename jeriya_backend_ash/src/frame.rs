@@ -1,9 +1,11 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::{iter, mem, sync::Arc};
 
-use jeriya_backend::elements::rigid_mesh;
-use jeriya_backend::inanimate_mesh::InanimateMeshGpuState;
-use jeriya_backend::transactions::{self, Transaction};
+use jeriya_backend::{
+    elements::rigid_mesh,
+    inanimate_mesh::InanimateMeshGpuState,
+    transactions::{self, Transaction},
+};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags,
@@ -20,12 +22,11 @@ use jeriya_backend_ash_base::{
     shader_interface, DrawIndirectCommand,
 };
 use jeriya_macros::profile;
-use jeriya_shared::log::trace;
-use jeriya_shared::plot_with_index;
 use jeriya_shared::{
     debug_info,
     log::info,
     nalgebra::Matrix4,
+    plot_with_index,
     tracy_client::{plot, span},
     winit::window::WindowId,
 };

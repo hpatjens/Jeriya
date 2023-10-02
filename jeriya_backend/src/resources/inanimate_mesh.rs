@@ -4,8 +4,6 @@ use jeriya_shared::{nalgebra::Vector3, parking_lot::Mutex, thiserror, AsDebugInf
 
 use crate::{Resource, ResourceEvent};
 
-use super::inanimate_mesh_group::InanimateMeshGroup;
-
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("The number of vertices doesn't match the allocated size. Expected {expected} but got {got}")]

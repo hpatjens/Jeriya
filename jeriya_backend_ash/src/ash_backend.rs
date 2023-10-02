@@ -57,7 +57,6 @@ pub struct AshBackend {
     _instance: Arc<Instance>,
     _entry: Arc<Entry>,
     backend_shared: Arc<BackendShared>,
-    frame_start_sender: mpsc::Sender<()>,
 }
 
 impl ResourceReceiver for AshBackend {
@@ -164,7 +163,6 @@ impl Backend for AshBackend {
         let backend_shared = Arc::new(BackendShared::new(&device, &Arc::new(renderer_config), resource_event_sender)?);
 
         info!("Creating resource thread");
-        let (frame_start_sender, _receiver) = mpsc::channel();
         let backend_shared2 = backend_shared.clone();
         thread::spawn(move || {
             let client = Client::start();
@@ -199,7 +197,6 @@ impl Backend for AshBackend {
             _validation_layer_callback: validation_layer_callback,
             presenters,
             backend_shared,
-            frame_start_sender,
         })
     }
 
