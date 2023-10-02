@@ -5,6 +5,12 @@ pub trait AllocateGpuIndex<T> {
     fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<T>>;
 }
 
+/// Trait that is implemented by the renderer to provide a [`AllocateGpuIndex`] implementation.
+pub trait IntoAllocateGpuIndex<T> {
+    type GpuIndexAllocator: AllocateGpuIndex<T>;
+    fn into_gpu_index_allocator(&self) -> &Self::GpuIndexAllocator;
+}
+
 /// Allocator for managing unique indices of values in GPU memory
 pub struct GpuIndexAllocator<T> {
     capacity: usize,

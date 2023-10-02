@@ -2,7 +2,7 @@ use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Ha
 
 use jeriya_backend::{
     elements::rigid_mesh::RigidMesh,
-    gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
+    gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, IntoAllocateGpuIndex},
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
     transactions::{IntoTransactionProcessor, Transaction, TransactionProcessor},
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, IntoResourceReceiver, ModelInstanceContainerGuard,
@@ -101,9 +101,10 @@ impl<B: Backend> IntoResourceReceiver for Renderer<B> {
     }
 }
 
-impl<B: Backend> AllocateGpuIndex<RigidMesh> for Renderer<B> {
-    fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMesh>> {
-        <B as AllocateGpuIndex<RigidMesh>>::allocate_gpu_index(&*self.backend)
+impl<B: Backend> IntoAllocateGpuIndex<RigidMesh> for Renderer<B> {
+    type GpuIndexAllocator = B;
+    fn into_gpu_index_allocator(&self) -> &Self::GpuIndexAllocator {
+        &self.backend
     }
 }
 
