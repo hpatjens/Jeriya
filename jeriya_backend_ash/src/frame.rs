@@ -164,14 +164,17 @@ impl Frame {
                         self.rigid_mesh_buffer.set_memory_unaligned_index(
                             rigid_mesh.gpu_index_allocation().index(),
                             &shader_interface::RigidMesh {
-                                mesh_attributes_index: rigid_mesh.mesh_attributes().handle().index() as i64,
+                                mesh_attributes_index: rigid_mesh.mesh_attributes().gpu_index_allocation().index() as i64,
                             },
                         )?;
                     }
                     transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
-                    transactions::Event::SetMeshAttributeActive { handle, is_active } => {
+                    transactions::Event::SetMeshAttributeActive {
+                        gpu_index_allocation,
+                        is_active,
+                    } => {
                         self.mesh_attributes_active_buffer
-                            .set_memory_unaligned_index(handle.index(), &is_active)?;
+                            .set_memory_unaligned_index(gpu_index_allocation.index(), &is_active)?;
                     }
                 }
             }

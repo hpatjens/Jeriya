@@ -1,8 +1,6 @@
 use std::{mem, sync::Arc};
 
-use jeriya_shared::Handle;
-
-use crate::{elements::rigid_mesh, mesh_attributes::MeshAttributes};
+use crate::{elements::rigid_mesh, gpu_index_allocator::GpuIndexAllocation, mesh_attributes::MeshAttributes};
 
 /// Trait that enables sending [`Transaction`]s to the renderer
 pub trait TransactionProcessor {
@@ -25,7 +23,7 @@ pub trait PushEvent {
 pub enum Event {
     RigidMesh(rigid_mesh::Event),
     SetMeshAttributeActive {
-        handle: Handle<Arc<MeshAttributes>>,
+        gpu_index_allocation: GpuIndexAllocation<MeshAttributes>,
         is_active: bool,
     },
 }

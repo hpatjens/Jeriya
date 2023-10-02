@@ -527,7 +527,7 @@ fn handle_mesh_attributes_events(
                     // Notify the frames that the MeshAttributes are ready
                     let mut transaction = Transaction::new();
                     transaction.push_event(transactions::Event::SetMeshAttributeActive {
-                        handle: handle.clone(),
+                        gpu_index_allocation: GpuIndexAllocation::new_unchecked(mesh_attributes_start_offset),
                         is_active: true,
                     });
                     backend2.process(transaction);
