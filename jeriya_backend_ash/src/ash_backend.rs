@@ -83,6 +83,13 @@ impl AllocateGpuIndex<RigidMesh> for AshBackend {
     fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMesh>> {
         self.backend_shared.rigid_mesh_gpu_index_allocator.lock().allocate_gpu_index()
     }
+
+    fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<RigidMesh>) {
+        self.backend_shared
+            .rigid_mesh_gpu_index_allocator
+            .lock()
+            .free_gpu_index(gpu_index_allocation);
+    }
 }
 
 #[profile]

@@ -2,12 +2,14 @@ use std::sync::Arc;
 
 use jeriya_shared::{debug_info, thiserror, DebugInfo, Handle};
 
-use crate::mesh_attributes::MeshAttributes;
+use crate::{gpu_index_allocator::GpuIndexAllocation, mesh_attributes::MeshAttributes};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("The MeshAttributes of the RigidMesh are not set")]
     MeshAttributesNotSet,
+    #[error("The allocation of the RigidMesh failed")]
+    AllocationFailed,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -23,6 +25,7 @@ pub struct RigidMesh {
     debug_info: DebugInfo,
     mesh_attributes: Arc<MeshAttributes>,
     handle: Handle<RigidMesh>,
+    gpu_index_allocation: GpuIndexAllocation<RigidMesh>,
 }
 
 impl RigidMesh {
@@ -39,6 +42,11 @@ impl RigidMesh {
     /// Returns the [`Handle`] of the [`RigidMesh`].
     pub fn handle(&self) -> &Handle<RigidMesh> {
         &self.handle
+    }
+
+    /// Returns the [`GpuIndexAllocation`] of the [`RigidMesh`]
+    pub fn gpu_index_allocation(&self) -> &GpuIndexAllocation<RigidMesh> {
+        &self.gpu_index_allocation
     }
 
     /// Returns the [`DebugInfo`] of the [`RigidMesh`]
@@ -73,12 +81,13 @@ impl RigidMeshBuilder {
     }
 
     /// Creates the [`RigidMesh`]
-    pub(crate) fn build(self, handle: Handle<RigidMesh>) -> Result<RigidMesh> {
+    pub(crate) fn build(self, handle: Handle<RigidMesh>, gpu_index_allocation: GpuIndexAllocation<RigidMesh>) -> Result<RigidMesh> {
         let mesh_attributes = self.mesh_attributes.ok_or(Error::MeshAttributesNotSet)?;
         Ok(RigidMesh {
             debug_info: self.debug_info.unwrap_or_else(|| debug_info!("Anonymous RigidMesh")),
             mesh_attributes,
             handle,
+            gpu_index_allocation,
         })
     }
 }

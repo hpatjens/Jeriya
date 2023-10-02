@@ -1,18 +1,25 @@
-use jeriya_shared::{DebugInfo, Handle, IndexingContainer};
+use std::sync::{Arc, Weak};
 
-use crate::transactions::{self, PushEvent};
+use jeriya_shared::{parking_lot::Mutex, DebugInfo, Handle, IndexingContainer};
 
-use super::rigid_mesh::{self, RigidMesh, RigidMeshBuilder};
+use crate::{
+    gpu_index_allocator::{self, AllocateGpuIndex, IntoAllocateGpuIndex},
+    transactions::{self, PushEvent},
+};
+
+use super::rigid_mesh::{self, Error, RigidMesh, RigidMeshBuilder};
 
 pub struct RigidMeshGroup {
+    gpu_index_allocator: Weak<dyn AllocateGpuIndex<RigidMesh>>,
     indexing_container: IndexingContainer<RigidMesh>,
     debug_info: DebugInfo,
 }
 
 impl RigidMeshGroup {
     /// Creates a new [`RigidMeshGroup`]
-    pub(crate) fn new(debug_info: DebugInfo) -> Self {
+    pub(crate) fn new(gpu_index_allocator: &Arc<impl IntoAllocateGpuIndex<RigidMesh>>, debug_info: DebugInfo) -> Self {
         Self {
+            gpu_index_allocator: gpu_index_allocator.into_gpu_index_allocator(),
             debug_info,
             indexing_container: IndexingContainer::new(),
         }
@@ -42,7 +49,19 @@ impl<'g, 't, P: PushEvent> RigidMeshGroupAccessMut<'g, 't, P> {
     pub fn insert_with(&mut self, rigid_mesh_builder: RigidMeshBuilder) -> rigid_mesh::Result<Handle<RigidMesh>> {
         self.rigid_mesh_group
             .indexing_container
-            .insert_with(|handle| rigid_mesh_builder.build(handle.clone()))
+            .insert_with(|handle| {
+                let gpu_index_allocator = self
+                    .rigid_mesh_group
+                    .gpu_index_allocator
+                    .upgrade()
+                    .expect("the gpu_index_allocator was dropped");
+                let gpu_index_allocation = gpu_index_allocator.allocate_gpu_index().ok_or(Error::AllocationFailed)?;
+                let result = rigid_mesh_builder.build(handle.clone(), gpu_index_allocation);
+                if let Err(_) = &result {
+                    gpu_index_allocator.free_gpu_index(gpu_index_allocation);
+                }
+                result
+            })
             .and_then(|handle| {
                 let rigid_mesh = self
                     .rigid_mesh_group
@@ -61,7 +80,7 @@ impl<'g, 't, P: PushEvent> RigidMeshGroupAccessMut<'g, 't, P> {
 mod tests {
     use jeriya_shared::debug_info;
 
-    use crate::{tests::new_dummy_mesh_attributes, transactions::Transaction};
+    use crate::{elements::MockRenderer, tests::new_dummy_mesh_attributes, transactions::Transaction};
 
     use super::*;
 
@@ -69,7 +88,8 @@ mod tests {
     fn smoke() {
         let mesh_attributes = new_dummy_mesh_attributes();
 
-        let mut rigid_mesh_group = RigidMeshGroup::new(debug_info!("my_rigid_mesh_group"));
+        let renderer = MockRenderer::new();
+        let mut rigid_mesh_group = RigidMeshGroup::new(&renderer, debug_info!("my_rigid_mesh_group"));
         let mut transaction = Transaction::new();
         let rigid_mesh_builder = RigidMesh::builder()
             .with_mesh_attributes(mesh_attributes)
@@ -85,5 +105,7 @@ mod tests {
         assert_eq!(transaction.len(), 1);
         let first = transaction.process().into_iter().next().unwrap();
         assert!(matches!(first, transactions::Event::RigidMesh(rigid_mesh::Event::Insert(_))));
+
+        assert_eq!(renderer.backend.rigid_mesh_gpu_index_allocator.borrow_mut().len(), 1);
     }
 }

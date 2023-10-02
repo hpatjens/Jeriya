@@ -11,7 +11,7 @@ use jeriya_backend::{
 
 use std::{
     marker::PhantomData,
-    sync::{mpsc::Sender, Arc},
+    sync::{mpsc::Sender, Arc, Weak},
 };
 
 /// Instance of the renderer
@@ -102,9 +102,9 @@ impl<B: Backend> IntoResourceReceiver for Renderer<B> {
 }
 
 impl<B: Backend> IntoAllocateGpuIndex<RigidMesh> for Renderer<B> {
-    type GpuIndexAllocator = B;
-    fn into_gpu_index_allocator(&self) -> &Self::GpuIndexAllocator {
-        &self.backend
+    type AllocateGpuIndex = B;
+    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+        Arc::downgrade(self.backend())
     }
 }
 
@@ -279,6 +279,7 @@ mod tests {
         fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMesh>> {
             None
         }
+        fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<RigidMesh>) {}
     }
     impl Backend for DummyBackend {
         type BackendConfig = ();

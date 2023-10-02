@@ -238,7 +238,7 @@ fn main() -> ey::Result<()> {
         .unwrap();
 
     let mut transaction = Transaction::record(&renderer);
-    let mut element_group = ElementGroup::new(debug_info!("my_element_group"));
+    let mut element_group = ElementGroup::new(&renderer, debug_info!("my_element_group"));
     let rigid_mesh_builder = RigidMesh::builder()
         .with_mesh_attributes(mesh_attributes)
         .with_debug_info(debug_info!("my_rigid_mesh"));

@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// Rendering backend that is used by the [`Renderer`]
-pub trait Backend: Sized + ResourceReceiver + TransactionProcessor + AllocateGpuIndex<RigidMesh> {
+pub trait Backend: Sized + ResourceReceiver + TransactionProcessor + AllocateGpuIndex<RigidMesh> + 'static {
     type BackendConfig: Default;
 
     type ImmediateCommandBufferBuilderHandler: ImmediateCommandBufferBuilderHandler<Backend = Self> + AsDebugInfo;

@@ -1,14 +1,15 @@
-use std::{collections::VecDeque, marker::PhantomData};
+use std::{collections::VecDeque, marker::PhantomData, sync::Weak};
 
 /// Trait that enables allocating a new and unique index for a given type
 pub trait AllocateGpuIndex<T> {
     fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<T>>;
+    fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<T>);
 }
 
 /// Trait that is implemented by the renderer to provide a [`AllocateGpuIndex`] implementation.
 pub trait IntoAllocateGpuIndex<T> {
-    type GpuIndexAllocator: AllocateGpuIndex<T>;
-    fn into_gpu_index_allocator(&self) -> &Self::GpuIndexAllocator;
+    type AllocateGpuIndex: AllocateGpuIndex<T> + 'static;
+    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex>;
 }
 
 /// Allocator for managing unique indices of values in GPU memory
@@ -62,7 +63,7 @@ impl<T> GpuIndexAllocator<T> {
 }
 
 /// Allocation of a unique index for a given type
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct GpuIndexAllocation<T> {
     index: usize,
     phantom_data: PhantomData<T>,
@@ -80,6 +81,17 @@ impl<T> GpuIndexAllocation<T> {
         self.index
     }
 }
+
+impl<T> Clone for GpuIndexAllocation<T> {
+    fn clone(&self) -> Self {
+        Self {
+            index: self.index,
+            phantom_data: PhantomData,
+        }
+    }
+}
+
+impl<T> Copy for GpuIndexAllocation<T> {}
 
 #[cfg(test)]
 mod tests {
