@@ -288,7 +288,7 @@ mod tests {
             _renderer_config: jeriya_shared::RendererConfig,
             _backend_config: Self::BackendConfig,
             _window_configs: &[WindowConfig],
-        ) -> jeriya_backend::Result<Self>
+        ) -> jeriya_backend::Result<Arc<Self>>
         where
             Self: Sized,
         {
@@ -302,7 +302,7 @@ mod tests {
             let (resource_event_sender, _resource_event_receiver) = mpsc::channel();
             let inanimate_mesh_group = InanimateMeshGroup::new(resource_event_sender, debug_info!("my_group"));
             let model_group = ModelGroup::new(&inanimate_mesh_group, debug_info!("my_group"));
-            Ok(Self {
+            Ok(Arc::new(Self {
                 cameras,
                 camera_event_queue,
                 renderer_config: Arc::new(RendererConfig::default()),
@@ -314,7 +314,7 @@ mod tests {
                 model_instances,
                 model_instance_event_queue,
                 resource_event_sender: channel().0,
-            })
+            }))
         }
 
         fn create_immediate_command_buffer_builder(&self, _debug_info: DebugInfo) -> jeriya_backend::Result<CommandBufferBuilder<Self>> {
