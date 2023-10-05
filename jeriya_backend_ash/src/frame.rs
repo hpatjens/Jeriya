@@ -48,6 +48,7 @@ pub struct Frame {
     inanimate_mesh_instance_buffer: HostVisibleBuffer<shader_interface::InanimateMeshInstance>,
     mesh_attributes_active_buffer: HostVisibleBuffer<bool>,
     rigid_mesh_buffer: HostVisibleBuffer<shader_interface::RigidMesh>,
+    rigid_mesh_instance_buffer: HostVisibleBuffer<shader_interface::RigidMeshInstance>,
     indirect_draw_buffer: Arc<DeviceVisibleBuffer<DrawIndirectCommand>>,
     transactions: VecDeque<Transaction>,
 }
@@ -97,6 +98,14 @@ impl Frame {
             debug_info!(format!("RigidMeshBuffer-for-Window{:?}", window_id)),
         )?;
 
+        info!("Create rigid mesh instance buffer");
+        let rigid_mesh_instance_buffer = HostVisibleBuffer::new(
+            &backend_shared.device,
+            &vec![shader_interface::RigidMeshInstance::default(); backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances],
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!(format!("RigidMeshInstanceBuffer-for-Window{:?}", window_id)),
+        )?;
+
         info!("Create indirect draw buffer");
         let indirect_draw_buffer = DeviceVisibleBuffer::new(
             &backend_shared.device,
@@ -114,6 +123,7 @@ impl Frame {
             inanimate_mesh_instance_buffer,
             mesh_attributes_active_buffer,
             rigid_mesh_buffer,
+            rigid_mesh_instance_buffer,
             indirect_draw_buffer,
             transactions: VecDeque::new(),
         })
@@ -171,7 +181,14 @@ impl Frame {
                     transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
                     transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Noop) => {}
                     transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Insert(rigid_mesh_instance)) => {
-                        todo!()
+                        self.rigid_mesh_instance_buffer.set_memory_unaligned_index(
+                            rigid_mesh_instance.gpu_index_allocation().index(),
+                            &shader_interface::RigidMeshInstance {
+                                rigid_mesh_index: rigid_mesh_instance.rigid_mesh_gpu_index_allocation().index() as u64,
+                                _padding: 0,
+                                transform: rigid_mesh_instance.transform().clone(),
+                            },
+                        )?;
                     }
                     transactions::Event::SetMeshAttributeActive {
                         gpu_index_allocation,
