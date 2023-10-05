@@ -422,6 +422,7 @@ impl Frame {
             .push_storage_buffer(8, &*backend_shared.mesh_attributes_buffer.lock())
             .push_storage_buffer(9, &self.rigid_mesh_buffer)
             .push_storage_buffer(10, &self.mesh_attributes_active_buffer)
+            .push_storage_buffer(11, &self.rigid_mesh_instance_buffer)
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())
