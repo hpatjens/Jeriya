@@ -7,6 +7,7 @@ layout (constant_id = 1) const uint MAX_INANIMATE_MESH_INSTANCES = 1024;
 layout (constant_id = 2) const uint MAX_INANIMATE_MESHES = 1024;
 layout (constant_id = 3) const uint MAX_RIGID_MESHES = 1024;
 layout (constant_id = 4) const uint MAX_MESH_ATTRIBUTES = 1024;
+layout (constant_id = 5) const uint MAX_RIGID_MESH_INSTANCES = 1024;
 
 struct Camera {
     mat4 projection_matrix;
