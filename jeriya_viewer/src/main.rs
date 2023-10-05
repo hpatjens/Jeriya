@@ -14,6 +14,7 @@ use jeriya_backend::{
     },
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
+    instance_group::InstanceGroup,
     mesh_attributes::MeshAttributes,
     resource_group::ResourceGroup,
     transactions::Transaction,
@@ -237,8 +238,10 @@ fn main() -> ey::Result<()> {
         )
         .unwrap();
 
-    let mut transaction = Transaction::record(&renderer);
     let mut element_group = ElementGroup::new(&renderer, debug_info!("my_element_group"));
+    let mut instance_group = InstanceGroup::new(debug_info!("my_instance_group"));
+
+    let mut transaction = Transaction::record(&renderer);
     let rigid_mesh_builder = RigidMesh::builder()
         .with_mesh_attributes(mesh_attributes)
         .with_debug_info(debug_info!("my_rigid_mesh"));
