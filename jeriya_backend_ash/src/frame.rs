@@ -46,9 +46,16 @@ pub struct Frame {
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
     cameras_buffer: HostVisibleBuffer<shader_interface::Camera>,
     inanimate_mesh_instance_buffer: HostVisibleBuffer<shader_interface::InanimateMeshInstance>,
+
+    mesh_attributes_count: usize,
     mesh_attributes_active_buffer: HostVisibleBuffer<bool>,
+
+    rigid_mesh_count: usize,
     rigid_mesh_buffer: HostVisibleBuffer<shader_interface::RigidMesh>,
+
+    rigid_mesh_instance_count: usize,
     rigid_mesh_instance_buffer: HostVisibleBuffer<shader_interface::RigidMeshInstance>,
+
     indirect_draw_buffer: Arc<DeviceVisibleBuffer<DrawIndirectCommand>>,
     transactions: VecDeque<Transaction>,
 }
@@ -121,8 +128,11 @@ impl Frame {
             per_frame_data_buffer,
             cameras_buffer,
             inanimate_mesh_instance_buffer,
+            mesh_attributes_count: 0,
             mesh_attributes_active_buffer,
+            rigid_mesh_count: 0,
             rigid_mesh_buffer,
+            rigid_mesh_instance_count: 0,
             rigid_mesh_instance_buffer,
             indirect_draw_buffer,
             transactions: VecDeque::new(),
@@ -177,6 +187,7 @@ impl Frame {
                                 mesh_attributes_index: rigid_mesh.mesh_attributes().gpu_index_allocation().index() as i64,
                             },
                         )?;
+                        self.rigid_mesh_count = self.rigid_mesh_count.max(rigid_mesh.gpu_index_allocation().index() + 1);
                     }
                     transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
                     transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Noop) => {}
@@ -189,6 +200,9 @@ impl Frame {
                                 transform: rigid_mesh_instance.transform().clone(),
                             },
                         )?;
+                        self.rigid_mesh_instance_count = self
+                            .rigid_mesh_instance_count
+                            .max(rigid_mesh_instance.gpu_index_allocation().index() + 1);
                     }
                     transactions::Event::SetMeshAttributeActive {
                         gpu_index_allocation,
@@ -266,10 +280,13 @@ impl Frame {
 
         // Update Buffers
         let span = span!("update per frame data buffer");
-        self.per_frame_data_buffer.set_memory_unaligned(&[shader_interface::PerFrameData {
+        let per_frame_data = shader_interface::PerFrameData {
             active_camera: presenter_shared.active_camera.index() as u32,
-            inanimate_mesh_instance_count: inanimate_mesh_instance_count as u32,
-        }])?;
+            mesh_attributes_count: self.mesh_attributes_count as u32,
+            rigid_mesh_count: self.rigid_mesh_count as u32,
+            rigid_mesh_instance_count: self.rigid_mesh_instance_count as u32,
+        };
+        self.per_frame_data_buffer.set_memory_unaligned(&[per_frame_data])?;
         drop(span);
 
         let span = span!("update cameras buffer");
@@ -289,13 +306,8 @@ impl Frame {
         })?;
         drop(span);
 
-        let span = span!("update inanimate_mesh_instances_buffer");
-        self.inanimate_mesh_instance_buffer
-            .set_memory_unaligned(&inanimate_mesh_instance_memory)?;
-        drop(span);
-
         const LOCAL_SIZE_X: u32 = 128;
-        let cull_compute_shader_group_count = (inanimate_mesh_instance_count as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
+        let cull_compute_shader_group_count = (self.rigid_mesh_instance_buffer.len() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
 
         // Create a CommandPool
         let command_pool_span = span!("create commnad pool");
@@ -356,7 +368,7 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
-        builder.draw_indirect(&self.indirect_draw_buffer, inanimate_mesh_instance_count);
+        builder.draw_indirect(&self.indirect_draw_buffer, self.rigid_mesh_instance_count);
         drop(indirect_span);
 
         // Render with SimpleGraphicsPipeline

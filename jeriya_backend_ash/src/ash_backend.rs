@@ -26,6 +26,7 @@ use jeriya_backend::{
     inanimate_mesh::{InanimateMeshEvent, InanimateMeshGpuState},
     mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
     mesh_attributes_group::MeshAttributesEvent,
+    rigid_mesh_instance::RigidMeshInstance,
     transactions::{self, PushEvent, Transaction, TransactionProcessor},
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, InanimateMeshInstanceContainerGuard,
     ModelInstanceContainerGuard, ResourceEvent, ResourceReceiver,
@@ -86,6 +87,22 @@ impl AllocateGpuIndex<RigidMesh> for AshBackend {
     fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<RigidMesh>) {
         self.backend_shared
             .rigid_mesh_gpu_index_allocator
+            .lock()
+            .free_gpu_index(gpu_index_allocation);
+    }
+}
+
+impl AllocateGpuIndex<RigidMeshInstance> for AshBackend {
+    fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMeshInstance>> {
+        self.backend_shared
+            .rigid_mesh_instance_gpu_index_allocator
+            .lock()
+            .allocate_gpu_index()
+    }
+
+    fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<RigidMeshInstance>) {
+        self.backend_shared
+            .rigid_mesh_instance_gpu_index_allocator
             .lock()
             .free_gpu_index(gpu_index_allocation);
     }

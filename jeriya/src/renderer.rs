@@ -5,6 +5,7 @@ use jeriya_backend::{
     gpu_index_allocator::IntoAllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
     mesh_attributes::MeshAttributes,
+    rigid_mesh_instance::RigidMeshInstance,
     transactions::IntoTransactionProcessor,
     Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, IntoResourceReceiver, ModelInstanceContainerGuard, Result,
 };
@@ -100,6 +101,13 @@ impl<B: Backend> IntoResourceReceiver for Renderer<B> {
 }
 
 impl<B: Backend> IntoAllocateGpuIndex<RigidMesh> for Renderer<B> {
+    type AllocateGpuIndex = B;
+    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+        Arc::downgrade(self.backend())
+    }
+}
+
+impl<B: Backend> IntoAllocateGpuIndex<RigidMeshInstance> for Renderer<B> {
     type AllocateGpuIndex = B;
     fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
         Arc::downgrade(self.backend())
@@ -214,6 +222,7 @@ mod tests {
         inanimate_mesh_group::InanimateMeshGroup,
         mesh_attributes::MeshAttributes,
         model::ModelGroup,
+        rigid_mesh_instance::RigidMeshInstance,
         transactions::{Transaction, TransactionProcessor},
         Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, InanimateMeshInstance,
         InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceContainerGuard, ModelInstanceEvent,
@@ -286,6 +295,12 @@ mod tests {
             None
         }
         fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<RigidMesh>) {}
+    }
+    impl AllocateGpuIndex<RigidMeshInstance> for DummyBackend {
+        fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMeshInstance>> {
+            None
+        }
+        fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<RigidMeshInstance>) {}
     }
     impl AllocateGpuIndex<MeshAttributes> for DummyBackend {
         fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<MeshAttributes>> {

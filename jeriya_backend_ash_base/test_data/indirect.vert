@@ -62,7 +62,9 @@ struct RigidMeshInstance {
 
 layout (set = 0, binding = 0) uniform PerFrameData { 
     uint active_camera;
-    uint inanimate_mesh_instance_count;
+    uint mesh_attributes_count;
+    uint rigid_mesh_count;
+    uint rigid_mesh_instance_count;
 } per_frame_data;
 
 layout (set = 0, binding = 1) buffer Cameras { 
@@ -106,7 +108,7 @@ layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {
 };
 
 layout (set = 0, binding = 11) buffer RigidMeshInstancesBuffer {
-    bool rigid_mesh_instances[MAX_RIGID_MESH_INSTANCES];
+    RigidMeshInstance rigid_mesh_instances[MAX_RIGID_MESH_INSTANCES];
 };
 
 
@@ -120,28 +122,28 @@ layout (push_constant) uniform PushConstants {
 layout (location = 0) out vec3 out_vertex_normal;
 
 void main() {
-    InanimateMeshInstance inanimate_mesh_instance = inanimate_mesh_instances[gl_DrawIDARB];
-
-    InanimateMesh inanimate_mesh = inanimate_meshes[uint(inanimate_mesh_instance.inanimate_mesh_id)];
+    RigidMeshInstance rigid_mesh_instance = rigid_mesh_instances[gl_DrawIDARB];
+    RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_instance.rigid_mesh_index)];
+    MeshAttributes mesh_attributes = mesh_attributes[uint(rigid_mesh.mesh_attributes_index)];
 
     mat4 view_projection_matrix = cameras[per_frame_data.active_camera].matrix;
-    mat4 model_matrix = inanimate_mesh_instance.transform;
+    mat4 model_matrix = rigid_mesh_instance.transform;
     mat4 matrix = view_projection_matrix * model_matrix;
 
     vec3 vertex_position;
     vec3 vertex_normal;
-    // When the mesh doesn't contain indices, the `indices_len` is set to 0.
-    if (inanimate_mesh.indices_len > 0) {
+    // When the attributes don't contain indices, the `indices_len` is set to 0.
+    if (mesh_attributes.indices_len > 0) {
         // In this case, the shader invocation runs per index of the mesh and the
         // corresponding vertex attribute has to be looked up via the index buffer.
-        uint index_index = uint(inanimate_mesh.indices_start_offset) + gl_VertexIndex;
+        uint index_index = uint(mesh_attributes.indices_start_offset) + gl_VertexIndex;
         uint attribute_index = indices[index_index];
-        uint offset = uint(inanimate_mesh.vertex_positions_start_offset);
+        uint offset = uint(mesh_attributes.vertex_positions_start_offset);
         vertex_position = vertex_positions[offset + attribute_index].xyz;
         vertex_normal = vertex_normals[offset + attribute_index].xyz;
     } else {
         // In this case, the shader invocation runs per vertex of the mesh directly.
-        uint64_t attribute_index = inanimate_mesh.vertex_positions_start_offset + gl_VertexIndex;
+        uint64_t attribute_index = mesh_attributes.vertex_positions_start_offset + gl_VertexIndex;
         vertex_position = vertex_positions[uint(attribute_index)].xyz;
         vertex_normal = vertex_normals[uint(attribute_index)].xyz;
     }

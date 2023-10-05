@@ -60,7 +60,9 @@ struct RigidMeshInstance {
 
 layout (set = 0, binding = 0) uniform PerFrameData { 
     uint active_camera;
-    uint inanimate_mesh_instance_count;
+    uint mesh_attributes_count;
+    uint rigid_mesh_count;
+    uint rigid_mesh_instance_count;
 } per_frame_data;
 
 layout (set = 0, binding = 1) buffer Cameras { 
@@ -104,7 +106,7 @@ layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {
 };
 
 layout (set = 0, binding = 11) buffer RigidMeshInstancesBuffer {
-    bool rigid_mesh_instances[MAX_RIGID_MESH_INSTANCES];
+    RigidMeshInstance rigid_mesh_instances[MAX_RIGID_MESH_INSTANCES];
 };
 
 

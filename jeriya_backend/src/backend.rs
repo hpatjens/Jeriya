@@ -8,13 +8,20 @@ use crate::{
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
     instances::InanimateMeshInstanceContainerGuard,
     mesh_attributes::MeshAttributes,
+    rigid_mesh_instance::RigidMeshInstance,
     transactions::TransactionProcessor,
     Camera, CameraContainerGuard, ModelInstanceContainerGuard, ResourceReceiver,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
 pub trait Backend:
-    Sized + ResourceReceiver + TransactionProcessor + AllocateGpuIndex<MeshAttributes> + AllocateGpuIndex<RigidMesh> + 'static
+    Sized
+    + ResourceReceiver
+    + TransactionProcessor
+    + AllocateGpuIndex<MeshAttributes>
+    + AllocateGpuIndex<RigidMesh>
+    + AllocateGpuIndex<RigidMeshInstance>
+    + 'static
 {
     type BackendConfig: Default;
 

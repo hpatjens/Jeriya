@@ -8,6 +8,7 @@ use jeriya_backend::{
     gpu_index_allocator::GpuIndexAllocator,
     inanimate_mesh::InanimateMeshGpuState,
     mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
+    rigid_mesh_instance::RigidMeshInstance,
     Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceEvent,
     ResourceEvent,
 };
@@ -49,6 +50,7 @@ pub struct BackendShared {
 
     pub mesh_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<MeshAttributes>>>,
     pub rigid_mesh_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<RigidMesh>>>,
+    pub rigid_mesh_instance_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<RigidMeshInstance>>>,
 }
 
 impl BackendShared {
@@ -121,6 +123,9 @@ impl BackendShared {
         let mesh_attributes_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(
             renderer_config.maximum_number_of_mesh_attributes,
         )));
+        let rigid_mesh_instance_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(
+            renderer_config.maximum_number_of_rigid_mesh_instances,
+        )));
 
         Ok(Self {
             device: device.clone(),
@@ -142,6 +147,7 @@ impl BackendShared {
             model_instance_event_queue,
             mesh_attributes_gpu_index_allocator,
             rigid_mesh_gpu_index_allocator,
+            rigid_mesh_instance_gpu_index_allocator,
         })
     }
 }

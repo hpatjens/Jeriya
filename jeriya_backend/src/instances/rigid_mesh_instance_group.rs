@@ -24,6 +24,11 @@ impl RigidMeshInstanceGroup {
         }
     }
 
+    /// Returns the [`RigidMeshInstance`] with the given [`Handle`]
+    pub fn get(&self, handle: &Handle<RigidMeshInstance>) -> Option<&RigidMeshInstance> {
+        self.indexing_container.get(handle)
+    }
+
     /// Returns the [`DebugInfo`] of the [`RigidMeshInstanceGroup`]
     pub fn debug_info(&self) -> &DebugInfo {
         &self.debug_info

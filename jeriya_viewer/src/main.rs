@@ -17,6 +17,7 @@ use jeriya_backend::{
     instance_group::InstanceGroup,
     mesh_attributes::MeshAttributes,
     resource_group::ResourceGroup,
+    rigid_mesh_instance::RigidMeshInstance,
     transactions::Transaction,
     Backend, InanimateMeshInstance, ModelInstance,
 };
@@ -239,16 +240,26 @@ fn main() -> ey::Result<()> {
         .unwrap();
 
     let mut element_group = ElementGroup::new(&renderer, debug_info!("my_element_group"));
-    let mut instance_group = InstanceGroup::new(debug_info!("my_instance_group"));
+    let mut instance_group = InstanceGroup::new(&renderer, debug_info!("my_instance_group"));
 
     let mut transaction = Transaction::record(&renderer);
     let rigid_mesh_builder = RigidMesh::builder()
         .with_mesh_attributes(mesh_attributes)
         .with_debug_info(debug_info!("my_rigid_mesh"));
-    element_group
+    let rigid_mesh_handle = element_group
         .rigid_meshes()
         .mutate_via(&mut transaction)
         .insert_with(rigid_mesh_builder)?;
+    let rigid_mesh = element_group.rigid_meshes().get(&rigid_mesh_handle).unwrap();
+
+    let rigid_mesh_instance_builder = RigidMeshInstance::builder()
+        .with_rigid_mesh(rigid_mesh)
+        .with_debug_info(debug_info!("my_rigid_mesh_instance"));
+    instance_group
+        .rigid_mesh_instances()
+        .mutate_via(&mut transaction)
+        .insert_with(rigid_mesh_instance_builder)?;
+
     transaction.finish();
 
     let inanimate_mesh1 = resource_group
