@@ -12,12 +12,13 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+#[derive(Debug, Clone)]
 pub enum Event {
     Noop,
     Insert(RigidMeshInstance),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RigidMeshInstance {
     debug_info: DebugInfo,
     rigid_mesh: Handle<RigidMesh>,

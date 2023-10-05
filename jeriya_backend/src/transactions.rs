@@ -1,6 +1,6 @@
 use std::{mem, sync::Arc};
 
-use crate::{elements::rigid_mesh, gpu_index_allocator::GpuIndexAllocation, mesh_attributes::MeshAttributes};
+use crate::{elements::rigid_mesh, gpu_index_allocator::GpuIndexAllocation, mesh_attributes::MeshAttributes, rigid_mesh_instance};
 
 /// Trait that enables sending [`Transaction`]s to the renderer
 pub trait TransactionProcessor {
@@ -22,6 +22,7 @@ pub trait PushEvent {
 #[derive(Debug, Clone)]
 pub enum Event {
     RigidMesh(rigid_mesh::Event),
+    RigidMeshInstance(rigid_mesh_instance::Event),
     SetMeshAttributeActive {
         gpu_index_allocation: GpuIndexAllocation<MeshAttributes>,
         is_active: bool,

@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::{iter, mem, sync::Arc};
 
+use jeriya_backend::rigid_mesh_instance;
 use jeriya_backend::{
     elements::rigid_mesh,
     inanimate_mesh::InanimateMeshGpuState,
@@ -168,6 +169,10 @@ impl Frame {
                         )?;
                     }
                     transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
+                    transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Noop) => {}
+                    transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Insert(rigid_mesh_instance)) => {
+                        todo!()
+                    }
                     transactions::Event::SetMeshAttributeActive {
                         gpu_index_allocation,
                         is_active,
