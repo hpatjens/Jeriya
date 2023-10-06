@@ -178,7 +178,7 @@ impl Backend for AshBackend {
             .collect::<base::Result<HashMap<WindowId, Arc<Surface>>>>()?;
 
         info!("Creating PhysicalDevice");
-        let physical_device = PhysicalDevice::new(&instance, surfaces.values())?;
+        let physical_device = PhysicalDevice::new(&instance)?;
 
         info!("Creating QueueSelection");
         let queue_plan = QueuePlan::new(&instance, &physical_device, surfaces.iter())?;

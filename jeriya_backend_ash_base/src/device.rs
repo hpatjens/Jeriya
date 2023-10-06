@@ -231,7 +231,7 @@ pub mod tests {
             let entry = Entry::new()?;
             let instance = Instance::new(&entry, "my_application", true)?;
             let surface = Surface::new(&entry, &instance, &window)?;
-            let physical_device = PhysicalDevice::new(&instance, std::iter::once(&surface))?;
+            let physical_device = PhysicalDevice::new(&instance)?;
             let queue_plan = QueuePlan::new(&instance, &physical_device, iter::once((&window.id(), &surface))).unwrap();
             let device = Device::new(physical_device, &instance, queue_plan)?;
             Ok(Self {

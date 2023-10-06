@@ -20,7 +20,6 @@ impl ResourceGroup {
     where
         B: IntoResourceReceiver + IntoAllocateGpuIndex<MeshAttributes>,
     {
-        let resource_receiver = backend.into_resource_receiver();
         let mesh_attributes_group = MeshAttributesGroup::new(backend, debug_info!(format!("{}-mesh-attributes-group", debug_info.name())));
         Self {
             mesh_attributes_group,

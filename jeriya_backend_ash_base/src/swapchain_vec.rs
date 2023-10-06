@@ -97,7 +97,7 @@ mod tests {
             let entry = Entry::new().unwrap();
             let instance = Instance::new(&entry, "my_application", false).unwrap();
             let surface = Surface::new(&entry, &instance, &window).unwrap();
-            let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
+            let physical_device = PhysicalDevice::new(&instance).unwrap();
             let queue_plan = QueuePlan::new(&instance, &physical_device, iter::once((&window.id(), &surface))).unwrap();
             let device = Device::new(physical_device, &instance, queue_plan).unwrap();
             let swapchain = Swapchain::new(&device, &surface, 2, None).unwrap();
@@ -110,7 +110,7 @@ mod tests {
             let entry = Entry::new().unwrap();
             let instance = Instance::new(&entry, "my_application", false).unwrap();
             let surface = Surface::new(&entry, &instance, &window).unwrap();
-            let physical_device = PhysicalDevice::new(&instance, iter::once(&surface)).unwrap();
+            let physical_device = PhysicalDevice::new(&instance).unwrap();
             let queue_plan = QueuePlan::new(&instance, &physical_device, iter::once((&window.id(), &surface))).unwrap();
             let device = Device::new(physical_device, &instance, queue_plan).unwrap();
             let swapchain = Swapchain::new(&device, &surface, 2, None).unwrap();

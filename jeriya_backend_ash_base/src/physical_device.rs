@@ -1,9 +1,7 @@
-use std::sync::Arc;
-
 use ash::vk::{self, PhysicalDeviceType};
 use jeriya_shared::log::info;
 
-use crate::{instance::Instance, surface::Surface, AsRawVulkan, Error};
+use crate::{instance::Instance, AsRawVulkan, Error};
 
 #[derive(Debug)]
 pub struct PhysicalDevice {
@@ -21,10 +19,8 @@ impl AsRawVulkan for PhysicalDevice {
 
 impl PhysicalDevice {
     /// Select a physical device that can be used for the device creation
-    pub fn new<'s>(instance: &Instance, surfaces: impl IntoIterator<Item = &'s Arc<Surface>>) -> crate::Result<PhysicalDevice> {
+    pub fn new<'s>(instance: &Instance) -> crate::Result<PhysicalDevice> {
         let instance = instance.as_raw_vulkan();
-
-        let surfaces = surfaces.into_iter().collect::<Vec<_>>();
 
         // Get Physical Devices
         let physical_devices = unsafe { instance.enumerate_physical_devices()? };
@@ -42,7 +38,7 @@ impl PhysicalDevice {
         let physical_device_memory_properties = unsafe { instance.get_physical_device_memory_properties(*physical_device) };
 
         let physical_device_queue_family_properties = unsafe { instance.get_physical_device_queue_family_properties(*physical_device) };
-        for (queue_family_index, queue_family_properties) in physical_device_queue_family_properties.iter().enumerate() {
+        for queue_family_properties in physical_device_queue_family_properties.iter() {
             info!("Queue Family: {:#?}", queue_family_properties);
         }
 
@@ -94,7 +90,7 @@ mod tests {
             let entry = Entry::new().unwrap();
             let instance = Instance::new(&entry, &"my_application", true).unwrap();
             let surface = Surface::new(&entry, &instance, &window).unwrap();
-            let _physical_device = PhysicalDevice::new(&instance, &[surface]).unwrap();
+            let _physical_device = PhysicalDevice::new(&instance).unwrap();
         }
     }
 }
