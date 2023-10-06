@@ -163,43 +163,7 @@ impl Frame {
         self.rendering_complete_semaphore = Some(main_rendering_complete_semaphore.clone());
 
         // Process Transactions
-        for transaction in self.transactions.drain(..) {
-            for event in transaction.process() {
-                match event {
-                    transactions::Event::RigidMesh(rigid_mesh::Event::Insert(rigid_mesh)) => {
-                        self.rigid_mesh_buffer.set_memory_unaligned_index(
-                            rigid_mesh.gpu_index_allocation().index(),
-                            &shader_interface::RigidMesh {
-                                mesh_attributes_index: rigid_mesh.mesh_attributes().gpu_index_allocation().index() as i64,
-                            },
-                        )?;
-                        self.rigid_mesh_count = self.rigid_mesh_count.max(rigid_mesh.gpu_index_allocation().index() + 1);
-                    }
-                    transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
-                    transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Noop) => {}
-                    transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Insert(rigid_mesh_instance)) => {
-                        self.rigid_mesh_instance_buffer.set_memory_unaligned_index(
-                            rigid_mesh_instance.gpu_index_allocation().index(),
-                            &shader_interface::RigidMeshInstance {
-                                rigid_mesh_index: rigid_mesh_instance.rigid_mesh_gpu_index_allocation().index() as u64,
-                                _padding: 0,
-                                transform: rigid_mesh_instance.transform().clone(),
-                            },
-                        )?;
-                        self.rigid_mesh_instance_count = self
-                            .rigid_mesh_instance_count
-                            .max(rigid_mesh_instance.gpu_index_allocation().index() + 1);
-                    }
-                    transactions::Event::SetMeshAttributeActive {
-                        gpu_index_allocation,
-                        is_active,
-                    } => {
-                        self.mesh_attributes_active_buffer
-                            .set_memory_unaligned_index(gpu_index_allocation.index(), &is_active)?;
-                    }
-                }
-            }
-        }
+        self.process_transactions()?;
 
         // Update Buffers
         let span = span!("update per frame data buffer");
@@ -334,6 +298,48 @@ impl Frame {
         drop(queues);
         drop(submit_span);
 
+        Ok(())
+    }
+
+    /// Processes the [`Transaction`]s pushed to the frame.
+    fn process_transactions(&mut self) -> base::Result<()> {
+        for transaction in self.transactions.drain(..) {
+            for event in transaction.process() {
+                match event {
+                    transactions::Event::RigidMesh(rigid_mesh::Event::Insert(rigid_mesh)) => {
+                        self.rigid_mesh_buffer.set_memory_unaligned_index(
+                            rigid_mesh.gpu_index_allocation().index(),
+                            &shader_interface::RigidMesh {
+                                mesh_attributes_index: rigid_mesh.mesh_attributes().gpu_index_allocation().index() as i64,
+                            },
+                        )?;
+                        self.rigid_mesh_count = self.rigid_mesh_count.max(rigid_mesh.gpu_index_allocation().index() + 1);
+                    }
+                    transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
+                    transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Noop) => {}
+                    transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Insert(rigid_mesh_instance)) => {
+                        self.rigid_mesh_instance_buffer.set_memory_unaligned_index(
+                            rigid_mesh_instance.gpu_index_allocation().index(),
+                            &shader_interface::RigidMeshInstance {
+                                rigid_mesh_index: rigid_mesh_instance.rigid_mesh_gpu_index_allocation().index() as u64,
+                                _padding: 0,
+                                transform: rigid_mesh_instance.transform().clone(),
+                            },
+                        )?;
+                        self.rigid_mesh_instance_count = self
+                            .rigid_mesh_instance_count
+                            .max(rigid_mesh_instance.gpu_index_allocation().index() + 1);
+                    }
+                    transactions::Event::SetMeshAttributeActive {
+                        gpu_index_allocation,
+                        is_active,
+                    } => {
+                        self.mesh_attributes_active_buffer
+                            .set_memory_unaligned_index(gpu_index_allocation.index(), &is_active)?;
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
