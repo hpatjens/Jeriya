@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use jeriya_shared::{debug_info, thiserror, DebugInfo, Handle};
 
-use crate::{gpu_index_allocator::GpuIndexAllocation, mesh_attributes::MeshAttributes};
+use crate::{gpu_index_allocator::GpuIndexAllocation, resources::mesh_attributes::MeshAttributes};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

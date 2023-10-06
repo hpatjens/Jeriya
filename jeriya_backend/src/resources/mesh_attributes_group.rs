@@ -4,8 +4,10 @@ use jeriya_shared::{DebugInfo, Handle, IndexingContainer};
 
 use crate::{
     gpu_index_allocator::{AllocateGpuIndex, IntoAllocateGpuIndex},
-    mesh_attributes::{self, MeshAttributeBuilder, MeshAttributes},
-    IntoResourceReceiver, ResourceEvent, ResourceReceiver,
+    resources::{
+        mesh_attributes::{self, MeshAttributeBuilder, MeshAttributes},
+        IntoResourceReceiver, ResourceEvent, ResourceReceiver,
+    },
 };
 
 pub struct MeshAttributesGroup {
@@ -73,7 +75,7 @@ pub enum MeshAttributesEvent {
 mod tests {
     use jeriya_shared::{debug_info, nalgebra::Vector3};
 
-    use crate::{match_one_mesh_attributes_event, resources::tests::assert_events_empty, MockRenderer};
+    use crate::{match_one_mesh_attributes_event, resources::tests::assert_events_empty, resources::MockRenderer};
 
     use super::*;
 

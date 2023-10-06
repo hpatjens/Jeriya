@@ -95,7 +95,7 @@ pub mod tests {
     use jeriya_shared::{debug_info, nalgebra::Vector3};
     use jeriya_test::spectral::{assert_that, asserting, prelude::OptionAssertions};
 
-    use crate::{mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesGroup, MockRenderer};
+    use crate::resources::{mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesGroup, MockRenderer};
 
     /// Creates a new [`MeshAttributes`] with a single vertex
     pub fn new_dummy_mesh_attributes() -> Arc<MeshAttributes> {

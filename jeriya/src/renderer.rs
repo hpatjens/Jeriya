@@ -4,10 +4,10 @@ use jeriya_backend::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::IntoAllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
-    mesh_attributes::MeshAttributes,
+    resources::{mesh_attributes::MeshAttributes, IntoResourceReceiver},
     rigid_mesh_instance::RigidMeshInstance,
     transactions::IntoTransactionProcessor,
-    Backend, Camera, CameraContainerGuard, IntoResourceReceiver, Result,
+    Backend, Camera, CameraContainerGuard, Result,
 };
 
 use std::{
@@ -209,7 +209,7 @@ mod tests {
         elements::rigid_mesh::RigidMesh,
         gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
         immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
-        mesh_attributes::MeshAttributes,
+        resources::mesh_attributes::MeshAttributes,
         rigid_mesh_instance::RigidMeshInstance,
         transactions::{Transaction, TransactionProcessor},
         Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, ResourceEvent, ResourceReceiver,

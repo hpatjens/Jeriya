@@ -7,8 +7,10 @@ use crate::{
         element_group::ElementGroup,
         rigid_mesh::{self, RigidMesh},
     },
-    mesh_attributes::{self, MeshAttributes},
-    resource_group::ResourceGroup,
+    resources::{
+        mesh_attributes::{self, MeshAttributes},
+        resource_group::ResourceGroup,
+    },
     transactions::PushEvent,
 };
 

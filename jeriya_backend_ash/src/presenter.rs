@@ -12,7 +12,7 @@ use crate::{
     presenter_shared::PresenterShared,
 };
 
-use jeriya_backend::{immediate::ImmediateRenderingFrame, transactions::Transaction, ResourceEvent};
+use jeriya_backend::{immediate::ImmediateRenderingFrame, resources::ResourceEvent, transactions::Transaction};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_macros::profile;

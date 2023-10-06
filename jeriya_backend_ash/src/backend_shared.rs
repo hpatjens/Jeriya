@@ -6,9 +6,12 @@ use std::{
 use jeriya_backend::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::GpuIndexAllocator,
-    mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
+    resources::{
+        mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
+        ResourceEvent,
+    },
     rigid_mesh_instance::RigidMeshInstance,
-    Camera, CameraEvent, ResourceEvent,
+    Camera, CameraEvent,
 };
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags, device::Device, host_visible_buffer::HostVisibleBuffer, shader_interface,

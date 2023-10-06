@@ -1,6 +1,8 @@
 use std::{mem, sync::Arc};
 
-use crate::{elements::rigid_mesh, gpu_index_allocator::GpuIndexAllocation, mesh_attributes::MeshAttributes, rigid_mesh_instance};
+use crate::{
+    elements::rigid_mesh, gpu_index_allocator::GpuIndexAllocation, resources::mesh_attributes::MeshAttributes, rigid_mesh_instance,
+};
 
 /// Trait that enables sending [`Transaction`]s to the renderer
 pub trait TransactionProcessor {

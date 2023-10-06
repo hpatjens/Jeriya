@@ -85,7 +85,7 @@ impl<'g, 't, P: PushEvent> RigidMeshGroupAccessMut<'g, 't, P> {
 mod tests {
     use jeriya_shared::debug_info;
 
-    use crate::{elements::MockRenderer, tests::new_dummy_mesh_attributes, transactions::Transaction};
+    use crate::{elements::MockRenderer, resources::tests::new_dummy_mesh_attributes, transactions::Transaction};
 
     use super::*;
 

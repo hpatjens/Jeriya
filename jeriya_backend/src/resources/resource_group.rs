@@ -3,8 +3,8 @@ use std::sync::Arc;
 use jeriya_shared::{debug_info, DebugInfo};
 
 use crate::{
-    gpu_index_allocator::IntoAllocateGpuIndex, mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesGroup,
-    IntoResourceReceiver,
+    gpu_index_allocator::IntoAllocateGpuIndex,
+    resources::{mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesGroup, IntoResourceReceiver},
 };
 
 pub struct ResourceGroup {
@@ -43,7 +43,7 @@ mod tests {
     use jeriya_shared::{debug_info, nalgebra::Vector3};
     use jeriya_test::spectral::asserting;
 
-    use crate::{mesh_attributes::MeshAttributes, MockRenderer};
+    use crate::resources::{mesh_attributes::MeshAttributes, MockRenderer};
 
     use super::*;
 

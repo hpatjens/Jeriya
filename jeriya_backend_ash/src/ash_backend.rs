@@ -23,11 +23,14 @@ use jeriya_backend::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
     immediate::{self, ImmediateRenderingFrame},
-    mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
-    mesh_attributes_group::MeshAttributesEvent,
+    resources::{
+        mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
+        mesh_attributes_group::MeshAttributesEvent,
+    },
+    resources::{ResourceEvent, ResourceReceiver},
     rigid_mesh_instance::RigidMeshInstance,
     transactions::{self, PushEvent, Transaction, TransactionProcessor},
-    Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler, ResourceEvent, ResourceReceiver,
+    Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler,
 };
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{

@@ -4,14 +4,13 @@ pub mod elements;
 pub mod gpu_index_allocator;
 pub mod immediate;
 mod instances;
-mod resources;
+pub mod resources;
 pub mod transactions;
 
 pub use backend::*;
 pub use camera::*;
 pub use instances::*;
 use jeriya_shared::{thiserror, winit::window::WindowId};
-pub use resources::*;
 
 /// Error type for the whole library
 #[derive(Debug, thiserror::Error)]

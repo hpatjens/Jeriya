@@ -6,10 +6,10 @@ use crate::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::AllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
-    mesh_attributes::MeshAttributes,
+    resources::{mesh_attributes::MeshAttributes, ResourceReceiver},
     rigid_mesh_instance::RigidMeshInstance,
     transactions::TransactionProcessor,
-    Camera, CameraContainerGuard, ResourceReceiver,
+    Camera, CameraContainerGuard,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
