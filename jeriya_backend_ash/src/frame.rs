@@ -4,7 +4,6 @@ use std::{iter, mem, sync::Arc};
 use jeriya_backend::rigid_mesh_instance;
 use jeriya_backend::{
     elements::rigid_mesh,
-    inanimate_mesh::InanimateMeshGpuState,
     transactions::{self, Transaction},
 };
 use jeriya_backend_ash_base as base;
@@ -45,7 +44,6 @@ pub struct Frame {
     rendering_complete_semaphore: Option<Arc<Semaphore>>,
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
     cameras_buffer: HostVisibleBuffer<shader_interface::Camera>,
-    inanimate_mesh_instance_buffer: HostVisibleBuffer<shader_interface::InanimateMeshInstance>,
 
     mesh_attributes_count: usize,
     mesh_attributes_active_buffer: HostVisibleBuffer<bool>,
@@ -78,17 +76,6 @@ impl Frame {
             debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),
         )?;
 
-        info!("Create inanimate mesh instance buffer");
-        let inanimate_mesh_instance_buffer = HostVisibleBuffer::new(
-            &backend_shared.device,
-            &vec![
-                shader_interface::InanimateMeshInstance::default();
-                backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances
-            ],
-            BufferUsageFlags::STORAGE_BUFFER,
-            debug_info!(format!("InanimateMeshInstanceBuffer-for-Window{:?}", window_id)),
-        )?;
-
         info!("Create mesh attributes active buffer");
         let mesh_attributes_active_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
@@ -116,7 +103,7 @@ impl Frame {
         info!("Create indirect draw buffer");
         let indirect_draw_buffer = DeviceVisibleBuffer::new(
             &backend_shared.device,
-            backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances * mem::size_of::<DrawIndirectCommand>(),
+            backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances * mem::size_of::<DrawIndirectCommand>(),
             BufferUsageFlags::INDIRECT_BUFFER | BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("IndirectDrawBuffer-for-Window{:?}", window_id)),
         )?;
@@ -127,7 +114,6 @@ impl Frame {
             rendering_complete_semaphore: None,
             per_frame_data_buffer,
             cameras_buffer,
-            inanimate_mesh_instance_buffer,
             mesh_attributes_count: 0,
             mesh_attributes_active_buffer,
             rigid_mesh_count: 0,
@@ -214,69 +200,6 @@ impl Frame {
                 }
             }
         }
-
-        // Prepare InanimateMeshInstances
-        let (inanimate_mesh_instance_memory, inanimate_mesh_instance_count) = {
-            let _span = span!("prepare inanimate mesh instances");
-
-            let inanimate_mesh_instances = backend_shared.inanimate_mesh_instances.lock();
-            let inanimate_mesh_gpu_states = backend_shared.inanimate_mesh_gpu_states.lock();
-            let model_instances = backend_shared.model_instances.lock();
-
-            let mut gpu_instances = Vec::new();
-
-            // Add all inanimate mesh instances that are defined via models
-            for model_instance in model_instances.as_slice() {
-                for inanimate_mesh_handle in model_instance.model.inanimate_meshes() {
-                    // Make sure that the mesh is actually uploaded to the GPU
-                    if let Some(InanimateMeshGpuState::Uploaded { inanimate_mesh_offset }) =
-                        inanimate_mesh_gpu_states.get(inanimate_mesh_handle)
-                    {
-                        gpu_instances.push(shader_interface::InanimateMeshInstance {
-                            inanimate_mesh_index: *inanimate_mesh_offset,
-                            transform: model_instance.transform.matrix().clone(),
-                            ..Default::default()
-                        });
-                    }
-                }
-            }
-
-            // Add all directly defined inanimate mesh instances
-            for inanimate_mesh_instance in inanimate_mesh_instances.as_slice() {
-                // Make sure that the mesh is actually uploaded to the GPU
-                if let Some(InanimateMeshGpuState::Uploaded { inanimate_mesh_offset }) =
-                    inanimate_mesh_gpu_states.get(&inanimate_mesh_instance.inanimate_mesh.handle())
-                {
-                    gpu_instances.push(shader_interface::InanimateMeshInstance {
-                        inanimate_mesh_index: *inanimate_mesh_offset,
-                        transform: inanimate_mesh_instance.transform.matrix().clone(),
-                        ..Default::default()
-                    });
-                }
-            }
-
-            let count = gpu_instances.len();
-
-            if gpu_instances.len() > backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances {
-                return Err(jeriya_backend::Error::MaximumCapacityReached(
-                    backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances,
-                ));
-            }
-
-            let padding = backend_shared.renderer_config.maximum_number_of_inanimate_mesh_instances - gpu_instances.len();
-            let memory = gpu_instances
-                .into_iter()
-                .chain(iter::repeat(shader_interface::InanimateMeshInstance::default()).take(padding))
-                .collect::<Vec<_>>();
-
-            (memory, count)
-        };
-
-        plot_with_index!(
-            "inanimate_mesh_instances_on_presenter_",
-            self.presenter_index,
-            inanimate_mesh_instance_count as f64
-        );
 
         // Update Buffers
         let span = span!("update per frame data buffer");
@@ -425,9 +348,7 @@ impl Frame {
         let push_descriptors = &PushDescriptors::builder(&descriptor_set_layout)
             .push_uniform_buffer(0, &self.per_frame_data_buffer)
             .push_storage_buffer(1, &self.cameras_buffer)
-            .push_storage_buffer(2, &self.inanimate_mesh_instance_buffer)
             .push_storage_buffer(3, &self.indirect_draw_buffer)
-            .push_storage_buffer(4, &*backend_shared.inanimate_mesh_buffer.lock())
             .push_storage_buffer(5, &*backend_shared.static_vertex_position_buffer.lock())
             .push_storage_buffer(6, &*backend_shared.static_indices_buffer.lock())
             .push_storage_buffer(7, &*backend_shared.static_vertex_normals_buffer.lock())

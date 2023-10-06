@@ -43,20 +43,6 @@ pub struct MeshAttributes {
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct InanimateMesh {
-    pub vertex_positions_start_offset: u64,
-    pub vertex_positions_len: u64,
-
-    pub vertex_normals_start_offset: u64,
-    pub vertex_normals_len: u64,
-
-    pub indices_start_offset: u64,
-    // When the mesh doesn't have indices, this is 0.
-    pub indices_len: u64,
-}
-
-#[repr(C)]
-#[derive(Debug, Clone)]
 pub struct RigidMesh {
     /// Index into the [`MeshAttributes`] array. -1 means that the [`MeshAttributes`] are not available for the frame.
     pub mesh_attributes_index: i64,
@@ -80,24 +66,6 @@ impl Default for RigidMeshInstance {
     fn default() -> Self {
         Self {
             rigid_mesh_index: 0,
-            _padding: 0,
-            transform: Matrix4::identity(),
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Debug, Clone)]
-pub struct InanimateMeshInstance {
-    pub inanimate_mesh_index: u64,
-    pub _padding: u64,
-    pub transform: Matrix4<f32>,
-}
-
-impl Default for InanimateMeshInstance {
-    fn default() -> Self {
-        Self {
-            inanimate_mesh_index: 0,
             _padding: 0,
             transform: Matrix4::identity(),
         }

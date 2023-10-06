@@ -6,11 +6,10 @@ use crate::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::AllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
-    instances::InanimateMeshInstanceContainerGuard,
     mesh_attributes::MeshAttributes,
     rigid_mesh_instance::RigidMeshInstance,
     transactions::TransactionProcessor,
-    Camera, CameraContainerGuard, ModelInstanceContainerGuard, ResourceReceiver,
+    Camera, CameraContainerGuard, ResourceReceiver,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
@@ -49,12 +48,6 @@ pub trait Backend:
 
     /// Returns a guard to the [`Camera`]s
     fn cameras(&self) -> CameraContainerGuard;
-
-    /// Returns a guard to the [`InanimateMeshInstance`]s
-    fn inanimate_mesh_instances(&self) -> InanimateMeshInstanceContainerGuard;
-
-    /// Returns a guard to the [`ModelInstance`]s
-    fn model_instances(&self) -> ModelInstanceContainerGuard;
 
     /// Sets the active camera for the given window
     fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> crate::Result<()>;

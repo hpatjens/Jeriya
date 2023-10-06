@@ -14,13 +14,12 @@ use jeriya_backend::{
         rigid_mesh::RigidMesh,
     },
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
-    inanimate_mesh::MeshType,
     instance_group::InstanceGroup,
     mesh_attributes::MeshAttributes,
     resource_group::ResourceGroup,
     rigid_mesh_instance::RigidMeshInstance,
     transactions::Transaction,
-    Backend, InanimateMeshInstance, ModelInstance,
+    Backend,
 };
 use jeriya_backend_ash::AshBackend;
 use jeriya_content::{model::Model, AssetImporter, AssetProcessor, Directories, FileSystem};
@@ -201,8 +200,6 @@ fn main() -> ey::Result<()> {
     let renderer = jeriya::Renderer::<AshBackend>::builder()
         .add_renderer_config(RendererConfig {
             maximum_number_of_cameras: 2,
-            maximum_number_of_inanimate_mesh_instances: 10,
-            maximum_number_of_inanimate_meshes: 10,
             ..Default::default()
         })
         .add_windows(&[window_config1, window_config2])
@@ -268,38 +265,6 @@ fn main() -> ey::Result<()> {
         .mutate_via(&mut transaction)
         .insert_with(rigid_mesh_instance_builder)?;
     transaction.finish();
-
-    let inanimate_mesh1 = resource_group
-        .inanimate_meshes()
-        .create(MeshType::TriangleList, model, fake_normals)
-        .with_debug_info(debug_info!("my_mesh"))
-        .build()
-        .wrap_err("Failed to create inanimate mesh")?;
-
-    let suzanne = resource_group
-        .models()
-        .create(suzanne)
-        .with_debug_info(debug_info!("my_model"))
-        .build()
-        .wrap_err("Failed to create model")?;
-
-    let mut inanimate_mesh_instances = renderer.inanimate_mesh_instances();
-    inanimate_mesh_instances
-        .insert(InanimateMeshInstance::new(
-            inanimate_mesh1.clone(),
-            nalgebra::convert(Translation3::new(1.5, 0.0, 0.0)),
-        ))
-        .wrap_err("Failed to insert inanimate mesh instance")?;
-    drop(inanimate_mesh_instances);
-
-    let mut model_instances = renderer.model_instances();
-    model_instances
-        .insert(ModelInstance::new(
-            suzanne.clone(),
-            nalgebra::convert(Translation3::new(-1.5, 0.0, 0.0)),
-        ))
-        .wrap_err("Failed to insert model instance")?;
-    drop(model_instances);
 
     const UPDATE_FRAMERATE: u32 = 60;
     let loop_start_time = Instant::now();

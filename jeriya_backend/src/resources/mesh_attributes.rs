@@ -114,7 +114,7 @@ impl MeshAttributeBuilder {
         }
     }
 
-    /// Sets the vertex positions of the [`InanimateMesh`]
+    /// Sets the vertex positions of the [`MeshAttributes`]
     ///
     /// This is a required field
     pub fn with_vertex_positions(mut self, vertex_positions: Vec<Vector3<f32>>) -> Self {
@@ -122,7 +122,7 @@ impl MeshAttributeBuilder {
         self
     }
 
-    /// Sets the vertex normals of the [`InanimateMesh`]
+    /// Sets the vertex normals of the [`MeshAttributes`]
     ///
     /// This is a required field
     pub fn with_vertex_normals(mut self, vertex_normals: Vec<Vector3<f32>>) -> Self {
@@ -130,7 +130,7 @@ impl MeshAttributeBuilder {
         self
     }
 
-    /// Sets the indices of the [`InanimateMesh`]
+    /// Sets the indices of the [`MeshAttributes`]
     ///
     /// This is an optional field
     pub fn with_indices(mut self, indices: Vec<u32>) -> Self {
@@ -138,7 +138,7 @@ impl MeshAttributeBuilder {
         self
     }
 
-    /// Sets the debug info of the [`InanimateMesh`]
+    /// Sets the debug info of the [`MeshAttributes`]
     ///
     /// This is an optional field
     pub fn with_debug_info(mut self, debug_info: DebugInfo) -> Self {

@@ -6,11 +6,9 @@ use std::{
 use jeriya_backend::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::GpuIndexAllocator,
-    inanimate_mesh::InanimateMeshGpuState,
     mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
     rigid_mesh_instance::RigidMeshInstance,
-    Camera, CameraEvent, InanimateMesh, InanimateMeshInstance, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceEvent,
-    ResourceEvent,
+    Camera, CameraEvent, ResourceEvent,
 };
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags, device::Device, host_visible_buffer::HostVisibleBuffer, shader_interface,
@@ -32,21 +30,12 @@ pub struct BackendShared {
     pub camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
     pub cameras: Arc<Mutex<IndexingContainer<Camera>>>,
 
-    pub inanimate_mesh_gpu_states: Arc<Mutex<HashMap<Handle<Arc<InanimateMesh>>, InanimateMeshGpuState>>>,
-    pub inanimate_mesh_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::InanimateMesh>>,
-
     pub mesh_attributes_gpu_states: Arc<Mutex<HashMap<Handle<Arc<MeshAttributes>>, MeshAttributesGpuState>>>,
     pub mesh_attributes_buffer: Mutex<HostVisibleBuffer<shader_interface::MeshAttributes>>,
 
     pub static_vertex_position_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_vertex_normals_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_indices_buffer: Mutex<StagedPushOnlyBuffer<u32>>,
-
-    pub inanimate_mesh_instance_event_queue: Arc<Mutex<EventQueue<InanimateMeshInstanceEvent>>>,
-    pub inanimate_mesh_instances: Arc<Mutex<IndexingContainer<InanimateMeshInstance>>>,
-
-    pub model_instance_event_queue: Arc<Mutex<EventQueue<ModelInstanceEvent>>>,
-    pub model_instances: Arc<Mutex<IndexingContainer<ModelInstance>>>,
 
     pub mesh_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<MeshAttributes>>>,
     pub rigid_mesh_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<RigidMesh>>>,
@@ -62,23 +51,6 @@ impl BackendShared {
         info!("Creating Cameras");
         let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
         let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
-
-        info!("Creating InanimateMeshInstances");
-        let inanimate_mesh_instances = Arc::new(Mutex::new(IndexingContainer::new()));
-        let inanimate_mesh_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
-
-        info!("Creating ModelInstances");
-        let model_instances = Arc::new(Mutex::new(IndexingContainer::new()));
-        let model_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
-
-        info!("Creating StagedPushOnlyBuffer for InanimateMeshes");
-        const INANIMATE_MESH_BUFFER_CAPACITY: usize = 100;
-        let inanimate_mesh_buffer = Mutex::new(StagedPushOnlyBuffer::new(
-            device,
-            INANIMATE_MESH_BUFFER_CAPACITY,
-            BufferUsageFlags::STORAGE_BUFFER,
-            debug_info!("InanimateMeshBuffer"),
-        )?);
 
         info!("Creating HostVisibleBuffer for MeshAttributes");
         let mesh_attributes_buffer = Mutex::new(HostVisibleBuffer::new(
@@ -134,17 +106,11 @@ impl BackendShared {
             resource_event_sender: resource_sender,
             cameras,
             camera_event_queue,
-            inanimate_mesh_buffer,
-            inanimate_mesh_gpu_states: Arc::new(Mutex::new(HashMap::new())),
             mesh_attributes_buffer,
             mesh_attributes_gpu_states: Arc::new(Mutex::new(HashMap::new())),
             static_vertex_position_buffer,
             static_vertex_normals_buffer,
             static_indices_buffer,
-            inanimate_mesh_instances,
-            inanimate_mesh_instance_event_queue,
-            model_instances,
-            model_instance_event_queue,
             mesh_attributes_gpu_index_allocator,
             rigid_mesh_gpu_index_allocator,
             rigid_mesh_instance_gpu_index_allocator,

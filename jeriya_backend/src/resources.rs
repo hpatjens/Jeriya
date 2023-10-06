@@ -1,8 +1,5 @@
-pub mod inanimate_mesh;
-pub mod inanimate_mesh_group;
 pub mod mesh_attributes;
 pub mod mesh_attributes_group;
-pub mod model;
 pub mod resource_group;
 mod texture2d;
 
@@ -11,15 +8,13 @@ use std::sync::{
     Arc, Weak,
 };
 
-pub use inanimate_mesh::InanimateMesh;
-pub use model::Model;
 pub use texture2d::*;
 
 use jeriya_shared::AsDebugInfo;
 
 use crate::gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, IntoAllocateGpuIndex};
 
-use self::{inanimate_mesh::InanimateMeshEvent, mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesEvent};
+use self::{mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesEvent};
 
 /// Trait that provides access to the `Sender` that is used to send [`ResourceEvent`]s to the resource thread
 pub trait ResourceReceiver {
@@ -39,7 +34,6 @@ pub trait Resource: AsDebugInfo {}
 #[derive(Debug)]
 pub enum ResourceEvent {
     FrameStart,
-    InanimateMesh(Vec<InanimateMeshEvent>),
     MeshAttributes(Vec<MeshAttributesEvent>),
 }
 
@@ -113,23 +107,6 @@ pub mod tests {
             .with_indices(vec![0])
             .with_debug_info(debug_info!("my_attributes"));
         mesh_attributes_group.insert_with(mesh_attributes_builder).unwrap()
-    }
-
-    #[macro_export]
-    macro_rules! match_one_inanimate_mesh_event {
-        ($backend:expr, $p:pat, $($b:tt)*) => {{
-            use jeriya_test::spectral::prelude::*;
-            use crate::resources::ResourceEvent;
-            const TIMEOUT: std::time::Duration = std::time::Duration::from_millis(50);
-            let ResourceEvent::InanimateMesh(inanimate_mesh_events) = $backend.receiver().recv_timeout(TIMEOUT).unwrap() else {
-                panic!("failed to receive event")
-            };
-            asserting("event count").that(&inanimate_mesh_events).has_length(1);
-            let $p = &inanimate_mesh_events[0] else {
-                panic!("unexpected event")
-            };
-            $($b)*
-        }};
     }
 
     #[macro_export]

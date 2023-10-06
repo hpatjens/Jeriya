@@ -7,7 +7,7 @@ use jeriya_backend::{
     mesh_attributes::MeshAttributes,
     rigid_mesh_instance::RigidMeshInstance,
     transactions::IntoTransactionProcessor,
-    Backend, Camera, CameraContainerGuard, InanimateMeshInstanceContainerGuard, IntoResourceReceiver, ModelInstanceContainerGuard, Result,
+    Backend, Camera, CameraContainerGuard, IntoResourceReceiver, Result,
 };
 
 use std::{
@@ -70,16 +70,6 @@ where
     /// Returns a guard to the [`Camera`]s.
     pub fn cameras(&self) -> CameraContainerGuard {
         self.backend.cameras()
-    }
-
-    /// Returns a guard to the [`InanimateMeshInstance`]s
-    pub fn inanimate_mesh_instances(&self) -> InanimateMeshInstanceContainerGuard {
-        self.backend.inanimate_mesh_instances()
-    }
-
-    /// Returns a guard to the [`ModelInstance`]s
-    pub fn model_instances(&self) -> ModelInstanceContainerGuard {
-        self.backend.model_instances()
     }
 
     /// Sets the active camera for the given window.
@@ -219,14 +209,10 @@ mod tests {
         elements::rigid_mesh::RigidMesh,
         gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
         immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
-        inanimate_mesh_group::InanimateMeshGroup,
         mesh_attributes::MeshAttributes,
-        model::ModelGroup,
         rigid_mesh_instance::RigidMeshInstance,
         transactions::{Transaction, TransactionProcessor},
-        Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, InanimateMeshInstance,
-        InanimateMeshInstanceContainerGuard, InanimateMeshInstanceEvent, ModelInstance, ModelInstanceContainerGuard, ModelInstanceEvent,
-        ResourceEvent, ResourceReceiver,
+        Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, ResourceEvent, ResourceReceiver,
     };
     use jeriya_shared::{
         debug_info, parking_lot::Mutex, winit::window::WindowId, AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer,
@@ -270,14 +256,8 @@ mod tests {
     struct DummyBackend {
         cameras: Arc<Mutex<IndexingContainer<Camera>>>,
         camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
-        inanimate_mesh_instances: Arc<Mutex<IndexingContainer<InanimateMeshInstance>>>,
-        inanimate_mesh_instance_event_queue: Arc<Mutex<EventQueue<InanimateMeshInstanceEvent>>>,
-        model_instances: Arc<Mutex<IndexingContainer<ModelInstance>>>,
-        model_instance_event_queue: Arc<Mutex<EventQueue<ModelInstanceEvent>>>,
         renderer_config: Arc<RendererConfig>,
         active_camera: Handle<Camera>,
-        _inanimate_mesh_group: InanimateMeshGroup,
-        _model_group: ModelGroup,
         resource_event_sender: Sender<ResourceEvent>,
     }
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
@@ -324,25 +304,12 @@ mod tests {
         {
             let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
             let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
-            let inanimate_mesh_instances = Arc::new(Mutex::new(IndexingContainer::new()));
-            let inanimate_mesh_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
-            let model_instances = Arc::new(Mutex::new(IndexingContainer::new()));
-            let model_instance_event_queue = Arc::new(Mutex::new(EventQueue::new()));
             let active_camera = cameras.lock().insert(Camera::default());
-            let (resource_event_sender, _resource_event_receiver) = mpsc::channel();
-            let inanimate_mesh_group = InanimateMeshGroup::new(resource_event_sender, debug_info!("my_group"));
-            let model_group = ModelGroup::new(&inanimate_mesh_group, debug_info!("my_group"));
             Ok(Arc::new(Self {
                 cameras,
                 camera_event_queue,
                 renderer_config: Arc::new(RendererConfig::default()),
                 active_camera,
-                _inanimate_mesh_group: inanimate_mesh_group,
-                inanimate_mesh_instances,
-                inanimate_mesh_instance_event_queue,
-                _model_group: model_group,
-                model_instances,
-                model_instance_event_queue,
                 resource_event_sender: channel().0,
             }))
         }
@@ -365,24 +332,12 @@ mod tests {
             CameraContainerGuard::new(self.camera_event_queue.lock(), self.cameras.lock(), self.renderer_config.clone())
         }
 
-        fn inanimate_mesh_instances(&self) -> jeriya_backend::InanimateMeshInstanceContainerGuard {
-            InanimateMeshInstanceContainerGuard::new(
-                self.inanimate_mesh_instance_event_queue.lock(),
-                self.inanimate_mesh_instances.lock(),
-                self.renderer_config.clone(),
-            )
-        }
-
         fn set_active_camera(&self, _window_id: WindowId, _handle: jeriya_shared::Handle<Camera>) -> jeriya_backend::Result<()> {
             Ok(())
         }
 
         fn active_camera(&self, _window_id: WindowId) -> jeriya_backend::Result<jeriya_shared::Handle<Camera>> {
             Ok(self.active_camera.clone())
-        }
-
-        fn model_instances(&self) -> jeriya_backend::ModelInstanceContainerGuard {
-            ModelInstanceContainerGuard::new(self.model_instance_event_queue.lock(), self.model_instances.lock())
         }
     }
 
