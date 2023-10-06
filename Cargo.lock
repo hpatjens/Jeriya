@@ -492,6 +492,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive-where"
+version = "1.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "146398d62142a0f35248a608f17edf0dde57338354966d6e41d0eb2d16980ccb"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.27",
+]
+
+[[package]]
 name = "derive_more"
 version = "0.99.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1091,6 +1102,7 @@ dependencies = [
  "chrono",
  "crossbeam-channel",
  "derive-new",
+ "derive-where",
  "derive_more",
  "indoc",
  "itertools 0.11.0",

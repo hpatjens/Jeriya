@@ -1,5 +1,7 @@
 use std::{collections::VecDeque, marker::PhantomData, sync::Weak};
 
+use jeriya_shared::derive_where::derive_where;
+
 /// Trait that enables allocating a new and unique index for a given type
 pub trait AllocateGpuIndex<T> {
     fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<T>>;
@@ -63,7 +65,9 @@ impl<T> GpuIndexAllocator<T> {
 }
 
 /// Allocation of a unique index for a given type
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
+#[derive_where(PartialEq, Eq)]
+#[derive_where(crate = jeriya_shared::derive_where)]
 pub struct GpuIndexAllocation<T> {
     index: usize,
     phantom_data: PhantomData<T>,
