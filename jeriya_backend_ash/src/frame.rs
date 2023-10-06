@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::{iter, mem, sync::Arc};
 
-use jeriya_backend::rigid_mesh_instance;
 use jeriya_backend::{
     elements::rigid_mesh,
+    instances::rigid_mesh_instance,
     transactions::{self, Transaction},
 };
 use jeriya_backend_ash_base as base;

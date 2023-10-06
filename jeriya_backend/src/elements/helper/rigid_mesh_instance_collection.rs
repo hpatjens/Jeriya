@@ -2,8 +2,10 @@ use jeriya_shared::{debug_info, nalgebra::Matrix4, Handle};
 
 use crate::{
     elements::rigid_mesh_group::RigidMeshGroup,
-    instance_group::InstanceGroup,
-    rigid_mesh_instance::{self, RigidMeshInstance},
+    instances::{
+        instance_group::InstanceGroup,
+        rigid_mesh_instance::{self, RigidMeshInstance},
+    },
     transactions::PushEvent,
 };
 

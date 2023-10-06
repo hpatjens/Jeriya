@@ -3,13 +3,12 @@ mod camera;
 pub mod elements;
 pub mod gpu_index_allocator;
 pub mod immediate;
-mod instances;
+pub mod instances;
 pub mod resources;
 pub mod transactions;
 
 pub use backend::*;
 pub use camera::*;
-pub use instances::*;
 use jeriya_shared::{thiserror, winit::window::WindowId};
 
 /// Error type for the whole library

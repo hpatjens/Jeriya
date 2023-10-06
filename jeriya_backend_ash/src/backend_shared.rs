@@ -6,11 +6,11 @@ use std::{
 use jeriya_backend::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::GpuIndexAllocator,
+    instances::rigid_mesh_instance::RigidMeshInstance,
     resources::{
         mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
         ResourceEvent,
     },
-    rigid_mesh_instance::RigidMeshInstance,
     Camera, CameraEvent,
 };
 use jeriya_backend_ash_base::{

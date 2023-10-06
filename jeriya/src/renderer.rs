@@ -4,8 +4,8 @@ use jeriya_backend::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::IntoAllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
+    instances::rigid_mesh_instance::RigidMeshInstance,
     resources::{mesh_attributes::MeshAttributes, IntoResourceReceiver},
-    rigid_mesh_instance::RigidMeshInstance,
     transactions::IntoTransactionProcessor,
     Backend, Camera, CameraContainerGuard, Result,
 };
@@ -209,17 +209,17 @@ mod tests {
         elements::rigid_mesh::RigidMesh,
         gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
         immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
-        resources::mesh_attributes::MeshAttributes,
-        rigid_mesh_instance::RigidMeshInstance,
+        instances::rigid_mesh_instance::RigidMeshInstance,
+        resources::{mesh_attributes::MeshAttributes, ResourceEvent, ResourceReceiver},
         transactions::{Transaction, TransactionProcessor},
-        Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler, ResourceEvent, ResourceReceiver,
+        Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler,
     };
     use jeriya_shared::{
         debug_info, parking_lot::Mutex, winit::window::WindowId, AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer,
         RendererConfig, WindowConfig,
     };
     use std::sync::{
-        mpsc::{self, channel, Sender},
+        mpsc::{channel, Sender},
         Arc,
     };
 

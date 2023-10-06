@@ -6,8 +6,8 @@ use crate::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::AllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
+    instances::rigid_mesh_instance::RigidMeshInstance,
     resources::{mesh_attributes::MeshAttributes, ResourceReceiver},
-    rigid_mesh_instance::RigidMeshInstance,
     transactions::TransactionProcessor,
     Camera, CameraContainerGuard,
 };

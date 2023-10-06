@@ -14,9 +14,8 @@ use jeriya_backend::{
         rigid_mesh::RigidMesh,
     },
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
-    instance_group::InstanceGroup,
+    instances::{instance_group::InstanceGroup, rigid_mesh_instance::RigidMeshInstance},
     resources::{mesh_attributes::MeshAttributes, resource_group::ResourceGroup},
-    rigid_mesh_instance::RigidMeshInstance,
     transactions::Transaction,
     Backend,
 };

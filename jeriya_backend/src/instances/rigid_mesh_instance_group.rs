@@ -4,7 +4,7 @@ use jeriya_shared::{DebugInfo, Handle, IndexingContainer};
 
 use crate::{
     gpu_index_allocator::{AllocateGpuIndex, IntoAllocateGpuIndex},
-    rigid_mesh_instance::{self, Error, RigidMeshInstance, RigidMeshInstanceBuilder},
+    instances::rigid_mesh_instance::{self, Error, RigidMeshInstance, RigidMeshInstanceBuilder},
     transactions::{self, PushEvent},
 };
 

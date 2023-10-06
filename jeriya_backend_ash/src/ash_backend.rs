@@ -23,12 +23,12 @@ use jeriya_backend::{
     elements::rigid_mesh::RigidMesh,
     gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
     immediate::{self, ImmediateRenderingFrame},
+    instances::rigid_mesh_instance::RigidMeshInstance,
     resources::{
         mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
         mesh_attributes_group::MeshAttributesEvent,
+        ResourceEvent, ResourceReceiver,
     },
-    resources::{ResourceEvent, ResourceReceiver},
-    rigid_mesh_instance::RigidMeshInstance,
     transactions::{self, PushEvent, Transaction, TransactionProcessor},
     Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler,
 };

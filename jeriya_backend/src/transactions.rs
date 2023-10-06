@@ -1,7 +1,8 @@
 use std::{mem, sync::Arc};
 
 use crate::{
-    elements::rigid_mesh, gpu_index_allocator::GpuIndexAllocation, resources::mesh_attributes::MeshAttributes, rigid_mesh_instance,
+    elements::rigid_mesh, gpu_index_allocator::GpuIndexAllocation, instances::rigid_mesh_instance,
+    resources::mesh_attributes::MeshAttributes,
 };
 
 /// Trait that enables sending [`Transaction`]s to the renderer

@@ -3,7 +3,8 @@ use std::sync::Arc;
 use jeriya_shared::{debug_info, DebugInfo};
 
 use crate::{
-    gpu_index_allocator::IntoAllocateGpuIndex, rigid_mesh_instance::RigidMeshInstance, rigid_mesh_instance_group::RigidMeshInstanceGroup,
+    gpu_index_allocator::IntoAllocateGpuIndex,
+    instances::{rigid_mesh_instance::RigidMeshInstance, rigid_mesh_instance_group::RigidMeshInstanceGroup},
 };
 
 pub struct InstanceGroup {
