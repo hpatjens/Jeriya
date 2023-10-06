@@ -50,7 +50,10 @@ pub struct RigidMeshInstanceGroupAccessMut<'g, 't, P: PushEvent> {
 
 impl<'g, 't, P: PushEvent> RigidMeshInstanceGroupAccessMut<'g, 't, P> {
     /// Inserts a [`RigidMeshInstance`] into the [`RigidMeshInstanceGroup`].
-    pub fn insert_with(&mut self, rigid_mesh_builder: RigidMeshInstanceBuilder) -> rigid_mesh_instance::Result<Handle<RigidMeshInstance>> {
+    pub fn insert_with(
+        &mut self,
+        rigid_mesh_instance_builder: RigidMeshInstanceBuilder,
+    ) -> rigid_mesh_instance::Result<Handle<RigidMeshInstance>> {
         self.rigid_mesh_group
             .indexing_container
             .insert_with(|handle| {
@@ -60,7 +63,7 @@ impl<'g, 't, P: PushEvent> RigidMeshInstanceGroupAccessMut<'g, 't, P> {
                     .upgrade()
                     .expect("the gpu_index_allocator was dropped");
                 let gpu_index_allocation = gpu_index_allocator.allocate_gpu_index().ok_or(Error::AllocationFailed)?;
-                let result = rigid_mesh_builder.build(handle.clone(), gpu_index_allocation);
+                let result = rigid_mesh_instance_builder.build(handle.clone(), gpu_index_allocation);
                 if let Err(_) = &result {
                     gpu_index_allocator.free_gpu_index(gpu_index_allocation);
                 }

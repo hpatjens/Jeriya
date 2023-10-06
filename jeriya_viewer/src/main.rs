@@ -10,7 +10,8 @@ use jeriya::Renderer;
 use jeriya_backend::{
     elements::{
         element_group::ElementGroup,
-        rigid_mesh::{RigidMesh, RigidMeshBuilder},
+        helper::{rigid_mesh_collection::RigidMeshCollection, rigid_mesh_instance_collection::RigidMeshInstanceCollection},
+        rigid_mesh::RigidMesh,
     },
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     inanimate_mesh::MeshType,
@@ -225,24 +226,30 @@ fn main() -> ey::Result<()> {
     drop(cameras);
 
     let mut resource_group = ResourceGroup::new(&renderer, debug_info!("my_resource_group"));
+    let mut element_group = ElementGroup::new(&renderer, debug_info!("my_element_group"));
+    let mut instance_group = InstanceGroup::new(&renderer, debug_info!("my_instance_group"));
 
     let model = load_model().wrap_err("Failed to load model")?;
     let fake_normals = model.iter().map(|_| Vector3::new(0.0, 1.0, 0.0)).collect::<Vec<_>>();
 
-    let mesh_attributes = resource_group
-        .mesh_attributes()
-        .insert_with(
-            MeshAttributes::builder()
-                .with_vertex_positions(model.clone())
-                .with_vertex_normals(fake_normals.clone())
-                .with_debug_info(debug_info!("my_mesh")),
-        )
-        .unwrap();
+    let suzanne = Model::import("sample_assets/suzanne.glb").wrap_err("Failed to import model")?;
 
-    let mut element_group = ElementGroup::new(&renderer, debug_info!("my_element_group"));
-    let mut instance_group = InstanceGroup::new(&renderer, debug_info!("my_instance_group"));
+    let mesh_attributes_builder = MeshAttributes::builder()
+        .with_vertex_positions(model.clone())
+        .with_vertex_normals(fake_normals.clone())
+        .with_debug_info(debug_info!("my_mesh"));
+    let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder).unwrap();
 
     let mut transaction = Transaction::record(&renderer);
+    let rigid_mesh_collection = RigidMeshCollection::from_model(&suzanne, &mut resource_group, &mut element_group, &mut transaction)?;
+    let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
+        &rigid_mesh_collection,
+        element_group.rigid_meshes(),
+        &mut instance_group,
+        &mut transaction,
+        &nalgebra::convert(Translation3::new(-1.5, 0.0, 0.0)),
+    )?;
+
     let rigid_mesh_builder = RigidMesh::builder()
         .with_mesh_attributes(mesh_attributes)
         .with_debug_info(debug_info!("my_rigid_mesh"));
@@ -254,12 +261,12 @@ fn main() -> ey::Result<()> {
 
     let rigid_mesh_instance_builder = RigidMeshInstance::builder()
         .with_rigid_mesh(rigid_mesh)
+        .with_transform(nalgebra::convert(Translation3::new(1.5, 0.0, 0.0)))
         .with_debug_info(debug_info!("my_rigid_mesh_instance"));
     instance_group
         .rigid_mesh_instances()
         .mutate_via(&mut transaction)
         .insert_with(rigid_mesh_instance_builder)?;
-
     transaction.finish();
 
     let inanimate_mesh1 = resource_group
@@ -269,7 +276,6 @@ fn main() -> ey::Result<()> {
         .build()
         .wrap_err("Failed to create inanimate mesh")?;
 
-    let suzanne = Model::import("sample_assets/suzanne.glb").wrap_err("Failed to import model")?;
     let suzanne = resource_group
         .models()
         .create(suzanne)
