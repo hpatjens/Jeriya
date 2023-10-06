@@ -4,6 +4,7 @@ use crate::{
 };
 use jeriya_shared::{
     bus::{Bus, BusReader},
+    derive_where::derive_where,
     log::{error, info, trace, warn},
     parking_lot::{Mutex, RwLock},
     pathdiff,
@@ -164,6 +165,8 @@ pub struct RawAsset {
     value: Mutex<Option<Arc<dyn Any + Send + Sync>>>,
 }
 
+#[derive_where(Clone)]
+#[derive_where(crate = jeriya_shared::derive_where)]
 pub struct Asset<T> {
     raw_asset: Arc<RawAsset>,
     _phantom: PhantomData<T>,
@@ -190,15 +193,6 @@ where
             .lock()
             .as_ref()
             .map(|value| value.clone().downcast::<T>().expect("type mismatch"))
-    }
-}
-
-impl<T> Clone for Asset<T> {
-    fn clone(&self) -> Self {
-        Self {
-            raw_asset: self.raw_asset.clone(),
-            _phantom: self._phantom.clone(),
-        }
     }
 }
 

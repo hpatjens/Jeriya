@@ -65,8 +65,7 @@ impl<T> GpuIndexAllocator<T> {
 }
 
 /// Allocation of a unique index for a given type
-#[derive(Debug)]
-#[derive_where(PartialEq, Eq)]
+#[derive_where(Debug, PartialEq, Eq, Clone, Copy)]
 #[derive_where(crate = jeriya_shared::derive_where)]
 pub struct GpuIndexAllocation<T> {
     index: usize,
@@ -85,17 +84,6 @@ impl<T> GpuIndexAllocation<T> {
         self.index
     }
 }
-
-impl<T> Clone for GpuIndexAllocation<T> {
-    fn clone(&self) -> Self {
-        Self {
-            index: self.index,
-            phantom_data: PhantomData,
-        }
-    }
-}
-
-impl<T> Copy for GpuIndexAllocation<T> {}
 
 #[cfg(test)]
 mod tests {
