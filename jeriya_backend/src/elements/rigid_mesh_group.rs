@@ -84,8 +84,11 @@ impl<'g, 't, P: PushEvent> RigidMeshGroupAccessMut<'g, 't, P> {
 #[cfg(test)]
 mod tests {
     use jeriya_shared::debug_info;
+    use jeriya_test::spectral::assert_that;
 
-    use crate::{elements::MockRenderer, resources::tests::new_dummy_mesh_attributes, transactions::Transaction};
+    use crate::{
+        elements, gpu_index_allocator::GpuIndexAllocation, resources::tests::new_dummy_mesh_attributes, transactions::Transaction,
+    };
 
     use super::*;
 
@@ -93,24 +96,29 @@ mod tests {
     fn smoke() {
         let mesh_attributes = new_dummy_mesh_attributes();
 
-        let renderer = MockRenderer::new();
-        let mut rigid_mesh_group = RigidMeshGroup::new(&renderer, debug_info!("my_rigid_mesh_group"));
+        let renderer_mock = elements::MockRenderer::new();
         let mut transaction = Transaction::new();
+        let mut rigid_mesh_group = RigidMeshGroup::new(&renderer_mock, debug_info!("my_rigid_mesh_group"));
         let rigid_mesh_builder = RigidMesh::builder()
-            .with_mesh_attributes(mesh_attributes)
+            .with_mesh_attributes(mesh_attributes.clone())
             .with_debug_info(debug_info!("my_rigid_mesh"));
         let rigid_mesh_handle = rigid_mesh_group
             .mutate_via(&mut transaction)
             .insert_with(rigid_mesh_builder)
             .unwrap();
 
-        let rigid_mesh = rigid_mesh_group.indexing_container.get(&rigid_mesh_handle).unwrap();
-        assert_eq!(rigid_mesh.debug_info().name(), "my_rigid_mesh");
+        let rigid_mesh = rigid_mesh_group.get(&rigid_mesh_handle).unwrap();
+        assert_that!(rigid_mesh.debug_info().name()).is_equal_to("my_rigid_mesh");
+        assert_that!(rigid_mesh.mesh_attributes()).is_equal_to(&mesh_attributes);
+        assert_that!(rigid_mesh.handle()).is_equal_to(&Handle::zero());
+        assert_that!(rigid_mesh.gpu_index_allocation()).is_equal_to(&GpuIndexAllocation::new_unchecked(0));
 
+        // Assert Transaction
         assert_eq!(transaction.len(), 1);
         let first = transaction.process().into_iter().next().unwrap();
         assert!(matches!(first, transactions::Event::RigidMesh(rigid_mesh::Event::Insert(_))));
 
-        assert_eq!(renderer.backend.rigid_mesh_gpu_index_allocator.borrow_mut().len(), 1);
+        // Assert GpuIndexAllocator
+        assert_eq!(renderer_mock.backend.rigid_mesh_gpu_index_allocator.borrow_mut().len(), 1);
     }
 }
