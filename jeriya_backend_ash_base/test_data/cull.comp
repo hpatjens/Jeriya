@@ -57,6 +57,10 @@ layout (set = 0, binding = 1) buffer Cameras {
     Camera cameras[MAX_CAMERAS];
 } cameras;
 
+layout (set = 0, binding = 2) buffer CameraInstanceBuffer { 
+    CameraInstance camera_instances[MAX_CAMERA_INSTANCES];
+} camera_instances;
+
 layout (set = 0, binding = 3) buffer IndirectDrawRigidMeshInstanceBuffer { 
     VkDrawIndirectCommand indirect_draw_rigid_mesh_instances[MAX_RIGID_MESH_INSTANCES];
 };

@@ -12,7 +12,7 @@ use std::{ffi::CString, io::Cursor, marker::PhantomData, mem, sync::Arc};
 use crate::{
     descriptor_set_layout::DescriptorSetLayout,
     device::Device,
-    shader_interface::{Camera, MeshAttributes, PerFrameData, RigidMesh, RigidMeshInstance},
+    shader_interface::{Camera, CameraInstance, MeshAttributes, PerFrameData, RigidMesh, RigidMeshInstance},
     shader_module::ShaderModule,
     swapchain::Swapchain,
     swapchain_render_pass::SwapchainRenderPass,
@@ -225,6 +225,7 @@ where
             DescriptorSetLayout::builder()
                 .push_uniform_buffer::<PerFrameData>(0, 1)
                 .push_storage_buffer::<Camera>(1, 1)
+                .push_storage_buffer::<CameraInstance>(2, 1)
                 .push_storage_buffer::<crate::DrawIndirectCommand>(3, 1)
                 .push_storage_buffer::<Vector4<f32>>(5, 1)
                 .push_storage_buffer::<u32>(6, 1)

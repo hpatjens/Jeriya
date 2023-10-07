@@ -364,6 +364,7 @@ impl Frame {
                             camera_instance.gpu_index_allocation().index(),
                             &shader_interface::CameraInstance {
                                 camera_index: camera_instance.camera_gpu_index_allocation().index() as u64,
+                                _padding: 0,
                                 view_matrix: camera_instance.transform().view_matrix(),
                             },
                         )?;
@@ -407,6 +408,7 @@ impl Frame {
         let push_descriptors = &PushDescriptors::builder(&descriptor_set_layout)
             .push_uniform_buffer(0, &self.per_frame_data_buffer)
             .push_storage_buffer(1, &self.cameras_buffer)
+            .push_storage_buffer(2, &self.camera_instance_buffer)
             .push_storage_buffer(3, &self.indirect_draw_buffer)
             .push_storage_buffer(5, &*backend_shared.static_vertex_position_buffer.lock())
             .push_storage_buffer(6, &*backend_shared.static_indices_buffer.lock())
