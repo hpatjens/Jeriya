@@ -3,7 +3,8 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
 #extension GL_ARB_shader_draw_parameters : enable
 
-layout (constant_id = 0) const uint MAX_CAMERAS = 8;
+layout (constant_id = 0) const uint MAX_CAMERAS = 16;
+layout (constant_id = 1) const uint MAX_CAMERA_INSTANCES = 64;
 layout (constant_id = 3) const uint MAX_RIGID_MESHES = 1024;
 layout (constant_id = 4) const uint MAX_MESH_ATTRIBUTES = 1024;
 layout (constant_id = 5) const uint MAX_RIGID_MESH_INSTANCES = 1024;
