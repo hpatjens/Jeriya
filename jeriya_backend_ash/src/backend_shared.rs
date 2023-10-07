@@ -6,7 +6,7 @@ use std::{
 use jeriya_backend::{
     elements::{self, rigid_mesh::RigidMesh},
     gpu_index_allocator::GpuIndexAllocator,
-    instances::rigid_mesh_instance::RigidMeshInstance,
+    instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{
         mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
         ResourceEvent,
@@ -42,6 +42,7 @@ pub struct BackendShared {
 
     pub mesh_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<MeshAttributes>>>,
     pub camera_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<elements::camera::Camera>>>,
+    pub camera_instance_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<CameraInstance>>>,
     pub rigid_mesh_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<RigidMesh>>>,
     pub rigid_mesh_instance_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<RigidMeshInstance>>>,
 }
@@ -96,6 +97,9 @@ impl BackendShared {
 
         info!("Creating the GpuIndexAllocators");
         let camera_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(renderer_config.maximum_number_of_cameras)));
+        let camera_instance_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(
+            renderer_config.maximum_number_of_camera_instances,
+        )));
         let rigid_mesh_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(renderer_config.maximum_number_of_rigid_meshes)));
         let mesh_attributes_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(
             renderer_config.maximum_number_of_mesh_attributes,
@@ -118,6 +122,7 @@ impl BackendShared {
             static_indices_buffer,
             mesh_attributes_gpu_index_allocator,
             camera_gpu_index_allocator,
+            camera_instance_gpu_index_allocator,
             rigid_mesh_gpu_index_allocator,
             rigid_mesh_instance_gpu_index_allocator,
         })

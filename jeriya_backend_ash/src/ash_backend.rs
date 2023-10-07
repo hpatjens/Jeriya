@@ -23,7 +23,7 @@ use jeriya_backend::{
     elements::{self, rigid_mesh::RigidMesh},
     gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
     immediate::{self, ImmediateRenderingFrame},
-    instances::rigid_mesh_instance::RigidMeshInstance,
+    instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{
         mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
         mesh_attributes_group::MeshAttributesEvent,
@@ -88,6 +88,19 @@ impl AllocateGpuIndex<elements::camera::Camera> for AshBackend {
     fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<elements::camera::Camera>) {
         self.backend_shared
             .camera_gpu_index_allocator
+            .lock()
+            .free_gpu_index(gpu_index_allocation);
+    }
+}
+
+impl AllocateGpuIndex<CameraInstance> for AshBackend {
+    fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<CameraInstance>> {
+        self.backend_shared.camera_instance_gpu_index_allocator.lock().allocate_gpu_index()
+    }
+
+    fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<CameraInstance>) {
+        self.backend_shared
+            .camera_instance_gpu_index_allocator
             .lock()
             .free_gpu_index(gpu_index_allocation);
     }

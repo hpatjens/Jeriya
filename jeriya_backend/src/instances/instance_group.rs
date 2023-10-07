@@ -7,22 +7,38 @@ use crate::{
     instances::{rigid_mesh_instance::RigidMeshInstance, rigid_mesh_instance_group::RigidMeshInstanceGroup},
 };
 
+use super::{camera_instance::CameraInstance, camera_instance_group::CameraInstanceGroup};
+
 pub struct InstanceGroup {
     debug_info: DebugInfo,
+    camera_instance_group: CameraInstanceGroup,
     rigid_mesh_instance_group: RigidMeshInstanceGroup,
 }
 
 impl InstanceGroup {
     /// Creates a new [`InstanceGroup`]
-    pub fn new(rigid_mesh_instance_allocate_gpu_index: &Arc<impl IntoAllocateGpuIndex<RigidMeshInstance>>, debug_info: DebugInfo) -> Self {
+    pub fn new<A>(allocate_gpu_index: &Arc<A>, debug_info: DebugInfo) -> Self
+    where
+        A: IntoAllocateGpuIndex<RigidMeshInstance> + IntoAllocateGpuIndex<CameraInstance>,
+    {
+        let camera_instance_group = CameraInstanceGroup::new(
+            allocate_gpu_index,
+            debug_info!(format!("{}-camera-instance-group", debug_info.name())),
+        );
         let rigid_mesh_instance_group = RigidMeshInstanceGroup::new(
-            rigid_mesh_instance_allocate_gpu_index,
+            allocate_gpu_index,
             debug_info!(format!("{}-rigid-mesh-instance-group", debug_info.name())),
         );
         Self {
+            camera_instance_group,
             rigid_mesh_instance_group,
             debug_info,
         }
+    }
+
+    /// Returns the [`CameraInstanceGroup`] that manages the camera instances.
+    pub fn camera_instances(&mut self) -> &mut CameraInstanceGroup {
+        &mut self.camera_instance_group
     }
 
     /// Returns the [`RigidMeshInstanceGroup`] that manages the rigid mesh instances.

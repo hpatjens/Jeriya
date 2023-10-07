@@ -4,7 +4,7 @@ use std::{
 };
 
 use color_eyre as ey;
-use ey::eyre::{eyre, Context};
+use ey::eyre::{eyre, Context, ContextCompat};
 use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend::{
@@ -15,7 +15,12 @@ use jeriya_backend::{
         rigid_mesh::RigidMesh,
     },
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
-    instances::{instance_group::InstanceGroup, rigid_mesh_instance::RigidMeshInstance},
+    instances::{
+        self,
+        camera_instance::{self, CameraInstance},
+        instance_group::InstanceGroup,
+        rigid_mesh_instance::RigidMeshInstance,
+    },
     resources::{mesh_attributes::MeshAttributes, resource_group::ResourceGroup},
     transactions::Transaction,
     Backend,
@@ -238,6 +243,7 @@ fn main() -> ey::Result<()> {
 
     let mut transaction = Transaction::record(&renderer);
 
+    // Create Camera
     let camera_builder = Camera::builder()
         .with_projection(CameraProjection::Perspective {
             fov: 90.0,
@@ -245,10 +251,20 @@ fn main() -> ey::Result<()> {
             near: 0.1,
             far: 100.0,
         })
-        .with_transform(CameraTransform::default())
         .with_debug_info(debug_info!("my_camera"));
     let camera_handle = element_group.cameras().mutate_via(&mut transaction).insert_with(camera_builder)?;
 
+    // Create CameraInstance
+    let camera_instance_builder = CameraInstance::builder()
+        .with_camera(element_group.cameras().get(&camera_handle).wrap_err("Failed to find camera")?)
+        .with_transform(instances::camera_instance::CameraTransform::default())
+        .with_debug_info(debug_info!("my_camera_instance"));
+    let _camera_instance_handle = instance_group
+        .camera_instances()
+        .mutate_via(&mut transaction)
+        .insert_with(camera_instance_builder)?;
+
+    // Create RigidMeshes from model
     let rigid_mesh_collection = RigidMeshCollection::from_model(&suzanne, &mut resource_group, &mut element_group, &mut transaction)?;
     let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
         &rigid_mesh_collection,
@@ -258,6 +274,7 @@ fn main() -> ey::Result<()> {
         &nalgebra::convert(Translation3::new(-1.5, 0.0, 0.0)),
     )?;
 
+    // Create RigidMesh
     let rigid_mesh_builder = RigidMesh::builder()
         .with_mesh_attributes(mesh_attributes)
         .with_debug_info(debug_info!("my_rigid_mesh"));
@@ -267,6 +284,7 @@ fn main() -> ey::Result<()> {
         .insert_with(rigid_mesh_builder)?;
     let rigid_mesh = element_group.rigid_meshes().get(&rigid_mesh_handle).unwrap();
 
+    // Create RigidMeshInstance
     let rigid_mesh_instance_builder = RigidMeshInstance::builder()
         .with_rigid_mesh(rigid_mesh)
         .with_transform(nalgebra::convert(Translation3::new(1.5, 0.0, 0.0)))
@@ -275,6 +293,7 @@ fn main() -> ey::Result<()> {
         .rigid_mesh_instances()
         .mutate_via(&mut transaction)
         .insert_with(rigid_mesh_instance_builder)?;
+
     transaction.finish();
 
     const UPDATE_FRAMERATE: u32 = 60;

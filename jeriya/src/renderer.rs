@@ -4,7 +4,7 @@ use jeriya_backend::{
     elements::{self, rigid_mesh::RigidMesh},
     gpu_index_allocator::IntoAllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
-    instances::rigid_mesh_instance::RigidMeshInstance,
+    instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{mesh_attributes::MeshAttributes, IntoResourceReceiver},
     transactions::IntoTransactionProcessor,
     Backend, Camera, CameraContainerGuard, Result,
@@ -91,6 +91,13 @@ impl<B: Backend> IntoResourceReceiver for Renderer<B> {
 }
 
 impl<B: Backend> IntoAllocateGpuIndex<elements::camera::Camera> for Renderer<B> {
+    type AllocateGpuIndex = B;
+    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+        Arc::downgrade(self.backend())
+    }
+}
+
+impl<B: Backend> IntoAllocateGpuIndex<CameraInstance> for Renderer<B> {
     type AllocateGpuIndex = B;
     fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
         Arc::downgrade(self.backend())
@@ -216,7 +223,7 @@ mod tests {
         elements::{self, rigid_mesh::RigidMesh},
         gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
         immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
-        instances::rigid_mesh_instance::RigidMeshInstance,
+        instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
         resources::{mesh_attributes::MeshAttributes, ResourceEvent, ResourceReceiver},
         transactions::{Transaction, TransactionProcessor},
         Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler,
@@ -282,6 +289,12 @@ mod tests {
             None
         }
         fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<elements::camera::Camera>) {}
+    }
+    impl AllocateGpuIndex<CameraInstance> for DummyBackend {
+        fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<CameraInstance>> {
+            None
+        }
+        fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<CameraInstance>) {}
     }
     impl AllocateGpuIndex<RigidMesh> for DummyBackend {
         fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMesh>> {

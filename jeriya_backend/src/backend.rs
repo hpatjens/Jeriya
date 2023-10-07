@@ -6,7 +6,7 @@ use crate::{
     elements::{self, rigid_mesh::RigidMesh},
     gpu_index_allocator::AllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
-    instances::rigid_mesh_instance::RigidMeshInstance,
+    instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{mesh_attributes::MeshAttributes, ResourceReceiver},
     transactions::TransactionProcessor,
     Camera, CameraContainerGuard,
@@ -19,6 +19,7 @@ pub trait Backend:
     + TransactionProcessor
     + AllocateGpuIndex<MeshAttributes>
     + AllocateGpuIndex<elements::camera::Camera>
+    + AllocateGpuIndex<CameraInstance>
     + AllocateGpuIndex<RigidMesh>
     + AllocateGpuIndex<RigidMeshInstance>
     + 'static
