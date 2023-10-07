@@ -101,13 +101,13 @@ impl RigidMeshInstanceBuilder {
     }
 
     /// Builds the [`RigidMeshInstance`]
-    pub fn build(
+    pub(crate) fn build(
         self,
         handle: Handle<RigidMeshInstance>,
         gpu_index_allocation: GpuIndexAllocation<RigidMeshInstance>,
     ) -> Result<RigidMeshInstance> {
         let rigid_mesh_handle = self.rigid_mesh_handle.ok_or(Error::RigidMeshNotSet)?;
-        let rigid_mesh_gpu_index_allocation = self.rigid_mesh_gpu_index_allocation.ok_or(Error::RigidMeshNotSet)?;
+        let rigid_mesh_gpu_index_allocation = self.rigid_mesh_gpu_index_allocation.ok_or(Error::AllocationFailed)?;
         Ok(RigidMeshInstance {
             debug_info: self.debug_info.unwrap_or_else(|| debug_info!("Anonymous RigidMeshInstance")),
             rigid_mesh_handle,
