@@ -3,7 +3,7 @@ use std::sync::Arc;
 use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, DebugInfo, Handle, RendererConfig, WindowConfig};
 
 use crate::{
-    elements::rigid_mesh::RigidMesh,
+    elements::{self, rigid_mesh::RigidMesh},
     gpu_index_allocator::AllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
     instances::rigid_mesh_instance::RigidMeshInstance,
@@ -18,6 +18,7 @@ pub trait Backend:
     + ResourceReceiver
     + TransactionProcessor
     + AllocateGpuIndex<MeshAttributes>
+    + AllocateGpuIndex<elements::camera::Camera>
     + AllocateGpuIndex<RigidMesh>
     + AllocateGpuIndex<RigidMeshInstance>
     + 'static

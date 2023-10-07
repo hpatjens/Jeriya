@@ -20,7 +20,7 @@ use base::{
     shader_interface,
 };
 use jeriya_backend::{
-    elements::rigid_mesh::RigidMesh,
+    elements::{self, rigid_mesh::RigidMesh},
     gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
     immediate::{self, ImmediateRenderingFrame},
     instances::rigid_mesh_instance::RigidMeshInstance,
@@ -77,6 +77,19 @@ impl TransactionProcessor for AshBackend {
             }
             presenter.send(PresenterEvent::ProcessTransaction(transaction.clone()));
         }
+    }
+}
+
+impl AllocateGpuIndex<elements::camera::Camera> for AshBackend {
+    fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<elements::camera::Camera>> {
+        self.backend_shared.camera_gpu_index_allocator.lock().allocate_gpu_index()
+    }
+
+    fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<elements::camera::Camera>) {
+        self.backend_shared
+            .camera_gpu_index_allocator
+            .lock()
+            .free_gpu_index(gpu_index_allocation);
     }
 }
 

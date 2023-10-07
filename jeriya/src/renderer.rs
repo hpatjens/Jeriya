@@ -1,7 +1,7 @@
 use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Handle, RendererConfig, WindowConfig};
 
 use jeriya_backend::{
-    elements::rigid_mesh::RigidMesh,
+    elements::{self, rigid_mesh::RigidMesh},
     gpu_index_allocator::IntoAllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
     instances::rigid_mesh_instance::RigidMeshInstance,
@@ -87,6 +87,13 @@ impl<B: Backend> IntoResourceReceiver for Renderer<B> {
     type ResourceReceiver = B;
     fn into_resource_receiver(&self) -> &Self::ResourceReceiver {
         &self.backend
+    }
+}
+
+impl<B: Backend> IntoAllocateGpuIndex<elements::camera::Camera> for Renderer<B> {
+    type AllocateGpuIndex = B;
+    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+        Arc::downgrade(self.backend())
     }
 }
 
@@ -206,7 +213,7 @@ fn run_deadlock_detection() {
 #[cfg(test)]
 mod tests {
     use jeriya_backend::{
-        elements::rigid_mesh::RigidMesh,
+        elements::{self, rigid_mesh::RigidMesh},
         gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
         immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
         instances::rigid_mesh_instance::RigidMeshInstance,
@@ -269,6 +276,12 @@ mod tests {
     }
     impl TransactionProcessor for DummyBackend {
         fn process(&self, _transaction: Transaction) {}
+    }
+    impl AllocateGpuIndex<elements::camera::Camera> for DummyBackend {
+        fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<elements::camera::Camera>> {
+            None
+        }
+        fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<elements::camera::Camera>) {}
     }
     impl AllocateGpuIndex<RigidMesh> for DummyBackend {
         fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMesh>> {
