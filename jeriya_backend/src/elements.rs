@@ -8,6 +8,7 @@ use crate::gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, GpuIndexA
 use self::rigid_mesh::RigidMesh;
 
 pub mod camera;
+pub mod camera_group;
 pub mod element_group;
 pub mod helper;
 pub mod rigid_mesh;
