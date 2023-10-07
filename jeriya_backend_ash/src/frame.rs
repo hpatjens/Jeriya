@@ -76,50 +76,58 @@ impl Frame {
             debug_info!(format!("PerFrameDataBuffer-for-Window{:?}", window_id)),
         )?;
 
-        info!("Create cameras buffer");
+        // Create cameras buffer
+        let len = backend_shared.renderer_config.maximum_number_of_cameras;
+        info!("Create cameras buffer with length: {len}");
         let cameras_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
-            &vec![shader_interface::Camera::default(); backend_shared.renderer_config.maximum_number_of_cameras],
+            &vec![shader_interface::Camera::default(); len],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),
         )?;
 
-        info!("Create camera buffer");
+        // Create camera buffer
+        let len = backend_shared.renderer_config.maximum_number_of_cameras;
+        info!("Create camera buffer with length: {len}");
         let camera_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
-            &vec![shader_interface::Camera::default(); backend_shared.renderer_config.maximum_number_of_cameras],
+            &vec![shader_interface::Camera::default(); len],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("CameraBuffer-for-Window{:?}", window_id)),
         )?;
 
-        info!("Create camera instance buffer");
+        let len = backend_shared.renderer_config.maximum_number_of_camera_instances;
+        info!("Create camera instance buffer with length: {len}");
         let camera_instance_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
-            &vec![shader_interface::CameraInstance::default(); backend_shared.renderer_config.maximum_number_of_camera_instances],
+            &vec![shader_interface::CameraInstance::default(); len],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("CameraInstanceBuffer-for-Window{:?}", window_id)),
         )?;
 
-        info!("Create mesh attributes active buffer");
+        let len = backend_shared.renderer_config.maximum_number_of_mesh_attributes;
+        info!("Create mesh attributes active buffer with length: {len}");
         let mesh_attributes_active_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
-            &vec![false; backend_shared.renderer_config.maximum_number_of_mesh_attributes],
+            &vec![false; len],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("MeshAttributesActiveBuffer-for-Window{:?}", window_id)),
         )?;
 
-        info!("Create rigid mesh buffer");
+        let len = backend_shared.renderer_config.maximum_number_of_rigid_meshes;
+        info!("Create rigid mesh buffer with length: {len}");
         let rigid_mesh_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
-            &vec![shader_interface::RigidMesh::default(); backend_shared.renderer_config.maximum_number_of_rigid_meshes],
+            &vec![shader_interface::RigidMesh::default(); len],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("RigidMeshBuffer-for-Window{:?}", window_id)),
         )?;
 
-        info!("Create rigid mesh instance buffer");
+        let len = backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances;
+        info!("Create rigid mesh instance buffer with length: {len}");
         let rigid_mesh_instance_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
-            &vec![shader_interface::RigidMeshInstance::default(); backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances],
+            &vec![shader_interface::RigidMeshInstance::default(); len],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("RigidMeshInstanceBuffer-for-Window{:?}", window_id)),
         )?;
@@ -344,6 +352,8 @@ impl Frame {
                     transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
                     transactions::Event::Camera(camera::Event::Noop) => {}
                     transactions::Event::Camera(camera::Event::Insert(camera)) => {
+                        info!("Insert Camera at {:?}", camera.gpu_index_allocation().index());
+                        dbg!(self.camera_buffer.len());
                         self.camera_buffer.set_memory_unaligned_index(
                             camera.gpu_index_allocation().index(),
                             &shader_interface::Camera {
@@ -352,10 +362,11 @@ impl Frame {
                         )?;
                         self.camera_count = self.camera_count.max(camera.gpu_index_allocation().index() + 1);
                     }
-                    transactions::Event::Camera(camera::Event::UpdateProjection(gpu_index_allocation, matrix)) => {}
+                    transactions::Event::Camera(camera::Event::UpdateProjectionMatrix(gpu_index_allocation, matrix)) => {}
                     transactions::Event::Camera(camera::Event::UpdateView(gpu_index_allocation, matrix)) => {}
                     transactions::Event::CameraInstance(camera_instance::Event::Noop) => {}
                     transactions::Event::CameraInstance(camera_instance::Event::Insert(camera_instance)) => {
+                        info!("Insert CameraInstance at {:?}", camera_instance.gpu_index_allocation().index());
                         self.camera_instance_buffer.set_memory_unaligned_index(
                             camera_instance.gpu_index_allocation().index(),
                             &shader_interface::CameraInstance {
@@ -364,7 +375,17 @@ impl Frame {
                                 view_matrix: camera_instance.transform().view_matrix(),
                             },
                         )?;
-                        self.camera_count = self.camera_count.max(camera_instance.gpu_index_allocation().index() + 1);
+                        self.camera_instance_count = self.camera_instance_count.max(camera_instance.gpu_index_allocation().index() + 1);
+                    }
+                    transactions::Event::CameraInstance(camera_instance::Event::UpdateViewMatrix(gpu_index_allocation, matrix)) => {
+                        self.camera_instance_buffer.set_memory_unaligned_index(
+                            gpu_index_allocation.index(),
+                            &shader_interface::CameraInstance {
+                                camera_index: gpu_index_allocation.index() as u64,
+                                _padding: 0,
+                                view_matrix: matrix,
+                            },
+                        )?;
                     }
                     transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Noop) => {}
                     transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Insert(rigid_mesh_instance)) => {

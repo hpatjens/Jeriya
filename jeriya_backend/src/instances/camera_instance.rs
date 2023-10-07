@@ -5,7 +5,11 @@ use jeriya_shared::{
     thiserror, DebugInfo, Handle,
 };
 
-use crate::{elements::camera::Camera, gpu_index_allocator::GpuIndexAllocation};
+use crate::{
+    elements::camera::Camera,
+    gpu_index_allocator::GpuIndexAllocation,
+    transactions::{self, PushEvent},
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -21,13 +25,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Event {
     Noop,
     Insert(CameraInstance),
+    UpdateViewMatrix(GpuIndexAllocation<CameraInstance>, Matrix4<f32>),
 }
 
 #[derive(new, Debug, Clone, PartialEq)]
 pub struct CameraTransform {
-    position: Vector3<f32>,
-    forward: Vector3<f32>,
-    up: Vector3<f32>,
+    pub position: Vector3<f32>,
+    pub forward: Vector3<f32>,
+    pub up: Vector3<f32>,
 }
 
 impl Default for CameraTransform {
@@ -90,6 +95,35 @@ impl CameraInstance {
     /// Returns the [`DebugInfo`] of the [`CameraInstance`]
     pub fn debug_info(&self) -> &DebugInfo {
         &self.debug_info
+    }
+
+    pub fn mutate_via<'g, 't>(&'g mut self, transaction: &'t mut impl PushEvent) -> CameraInstanceAccessMut<'g, 't, impl PushEvent> {
+        CameraInstanceAccessMut::new(self, transaction)
+    }
+}
+
+pub struct CameraInstanceAccessMut<'g, 't, P: PushEvent> {
+    camera_instance: &'g mut CameraInstance,
+    transaction: &'t mut P,
+}
+
+impl<'g, 't, P: PushEvent> CameraInstanceAccessMut<'g, 't, P> {
+    /// Creates a new [`CameraInstanceAccessMut`] for a [`CameraInstance`].
+    pub fn new(camera_instance: &'g mut CameraInstance, transaction: &'t mut P) -> Self {
+        Self {
+            camera_instance,
+            transaction,
+        }
+    }
+
+    /// Sets the [`CameraTransform`] of the [`CameraInstance`].
+    pub fn set_transform(&mut self, transform: CameraTransform) {
+        self.camera_instance.transform = transform;
+        self.transaction
+            .push_event(transactions::Event::CameraInstance(Event::UpdateViewMatrix(
+                self.camera_instance.gpu_index_allocation.clone(),
+                self.camera_instance.transform.view_matrix(),
+            )));
     }
 }
 

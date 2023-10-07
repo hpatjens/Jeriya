@@ -21,7 +21,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Event {
     Noop,
     Insert(Camera),
-    UpdateProjection(GpuIndexAllocation<Camera>, Matrix4<f32>),
+    UpdateProjectionMatrix(GpuIndexAllocation<Camera>, Matrix4<f32>),
     UpdateView(GpuIndexAllocation<Camera>, Matrix4<f32>),
 }
 
@@ -130,10 +130,11 @@ impl<'g, 't, P: PushEvent> CameraAccessMut<'g, 't, P> {
     pub fn set_projection(&mut self, projection: CameraProjection) {
         self.camera.projection = projection;
         self.camera.cached_projection_matrix = self.camera.projection.projection_matrix();
-        self.transaction.push_event(transactions::Event::Camera(Event::UpdateProjection(
-            self.camera.gpu_index_allocation.clone(),
-            self.camera.cached_projection_matrix,
-        )))
+        self.transaction
+            .push_event(transactions::Event::Camera(Event::UpdateProjectionMatrix(
+                self.camera.gpu_index_allocation.clone(),
+                self.camera.cached_projection_matrix,
+            )))
     }
 }
 

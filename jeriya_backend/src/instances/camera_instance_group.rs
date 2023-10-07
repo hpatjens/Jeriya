@@ -30,6 +30,11 @@ impl CameraInstanceGroup {
         self.indexing_container.get(handle)
     }
 
+    /// Returns the [`CameraInstance`] with the given [`Handle`] mutably
+    pub fn get_mut(&mut self, handle: &Handle<CameraInstance>) -> Option<&mut CameraInstance> {
+        self.indexing_container.get_mut(handle)
+    }
+
     /// Returns the [`DebugInfo`] of the [`CameraInstanceGroup`]
     pub fn debug_info(&self) -> &DebugInfo {
         &self.debug_info
@@ -68,16 +73,14 @@ impl<'g, 't, P: PushEvent> CameraInstanceGroupAccessMut<'g, 't, P> {
                 result
             })
             .and_then(|handle| {
-                let rigid_mesh = self
+                let camera = self
                     .camera_group
                     .indexing_container
                     .get(&handle)
                     .expect("just inserted value not found")
                     .clone();
                 self.transaction
-                    .push_event(transactions::Event::CameraInstance(camera_instance::Event::Insert(
-                        rigid_mesh.clone(),
-                    )));
+                    .push_event(transactions::Event::CameraInstance(camera_instance::Event::Insert(camera.clone())));
                 Ok(handle)
             })
     }

@@ -202,10 +202,7 @@ fn main() -> ey::Result<()> {
         frame_rate: FrameRate::Limited(60),
     };
     let renderer = jeriya::Renderer::<AshBackend>::builder()
-        .add_renderer_config(RendererConfig {
-            maximum_number_of_cameras: 2,
-            ..Default::default()
-        })
+        .add_renderer_config(RendererConfig::default())
         .add_windows(&[window_config1, window_config2])
         .build()
         .wrap_err("Failed to create renderer")?;
@@ -232,36 +229,58 @@ fn main() -> ey::Result<()> {
 
     let mut transaction = Transaction::record(&renderer);
 
-    // Create Camera
-    let camera_builder = Camera::builder()
+    // Create Camera for Window 1
+    let camera1_builder = Camera::builder()
         .with_projection(CameraProjection::Perspective {
             fov: 90.0,
             aspect: 1.0,
             near: 0.1,
             far: 100.0,
         })
-        .with_debug_info(debug_info!("my_camera"));
-    let camera_handle = element_group.cameras().mutate_via(&mut transaction).insert_with(camera_builder)?;
+        .with_debug_info(debug_info!("my_camera1"));
+    let camera1_handle = element_group.cameras().mutate_via(&mut transaction).insert_with(camera1_builder)?;
 
-    // Create CameraInstance
-    let camera_instance_builder = CameraInstance::builder()
-        .with_camera(element_group.cameras().get(&camera_handle).wrap_err("Failed to find camera")?)
+    // Create Camera for Window 2
+    let camera2_builder = Camera::builder()
+        .with_projection(CameraProjection::default())
+        .with_debug_info(debug_info!("my_camera2"));
+    let camera2_handle = element_group.cameras().mutate_via(&mut transaction).insert_with(camera2_builder)?;
+
+    // Create CameraInstance for Window1
+    let camera1_instance_builder = CameraInstance::builder()
+        .with_camera(element_group.cameras().get(&camera1_handle).wrap_err("Failed to find camera")?)
         .with_transform(CameraTransform::new(
             Vector3::new(0.0, 0.0, 0.0),
             Vector3::new(0.0, 0.0, 1.0),
             Vector3::new(0.0, -1.0, 0.0),
         ))
         .with_debug_info(debug_info!("my_camera_instance"));
-    let camera_instance_handle = instance_group
+    let camera1_instance_handle = instance_group
         .camera_instances()
         .mutate_via(&mut transaction)
-        .insert_with(camera_instance_builder)?;
-    let camera_instance = instance_group
+        .insert_with(camera1_instance_builder)?;
+    let camera1_instance = instance_group
         .camera_instances()
-        .get(&camera_instance_handle)
+        .get(&camera1_instance_handle)
         .wrap_err("Failed to find camera instance")?;
     renderer
-        .set_active_camera(window1.id(), &camera_instance)
+        .set_active_camera(window1.id(), &camera1_instance)
+        .wrap_err("Failed to set active camera")?;
+
+    // Create CameraInstance for Window2
+    let camera2_instance_builder = CameraInstance::builder()
+        .with_camera(element_group.cameras().get(&camera2_handle).wrap_err("Failed to find camera")?)
+        .with_debug_info(debug_info!("my_camera_instance"));
+    let camera2_instance_handle = instance_group
+        .camera_instances()
+        .mutate_via(&mut transaction)
+        .insert_with(camera2_instance_builder)?;
+    let camera2_instance = instance_group
+        .camera_instances()
+        .get(&camera2_instance_handle)
+        .wrap_err("Failed to find camera instance")?;
+    renderer
+        .set_active_camera(window2.id(), &camera2_instance)
         .wrap_err("Failed to set active camera")?;
 
     // Create RigidMeshes from model
@@ -315,14 +334,35 @@ fn main() -> ey::Result<()> {
                 let t = frame_start_time - loop_start_time;
                 let dt = frame_start_time - last_frame_start_time;
 
+                let mut transaction = Transaction::record(&renderer);
+
                 {
-                    // camera.set_position(Vector3::new(t.as_secs_f32().sin() * 0.3, t.as_secs_f32().cos() * 0.3, 0.0));
+                    let position = Vector3::new(t.as_secs_f32().sin() * 0.3, t.as_secs_f32().cos() * 0.3, 0.0);
+                    instance_group
+                        .camera_instances()
+                        .get_mut(&camera1_instance_handle)
+                        .wrap_err("Failed to find camera instance")
+                        .expect("Failed to find camera instance")
+                        .mutate_via(&mut transaction)
+                        .set_transform(CameraTransform {
+                            position,
+                            ..Default::default()
+                        });
                 }
 
                 {
-                    // camera.set_position(position);
-                    // camera.set_forward(-position.normalize());
+                    let distance = 3.0;
+                    let position = Vector3::new(t.as_secs_f32().sin() * distance, 1.0, t.as_secs_f32().cos() * distance);
+                    instance_group
+                        .camera_instances()
+                        .get_mut(&camera2_instance_handle)
+                        .wrap_err("Failed to find camera instance")
+                        .expect("Failed to find camera instance")
+                        .mutate_via(&mut transaction)
+                        .set_transform(CameraTransform::new(position, -position.normalize(), Vector3::new(0.0, -1.0, 0.0)));
                 }
+
+                transaction.finish();
 
                 if let Err(err) = immediate_rendering(&renderer, update_loop_frame_index, UPDATE_FRAMERATE as f64, t, dt) {
                     error!("Failed to do immediate rendering: {}", err);
