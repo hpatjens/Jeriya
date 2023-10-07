@@ -11,13 +11,11 @@ layout (constant_id = 5) const uint MAX_RIGID_MESH_INSTANCES = 1024;
 
 struct Camera {
     mat4 projection_matrix;
-    mat4 view_matrix;
-    mat4 matrix;
 };
 
 struct CameraInstance {
     uint64_t camera_index;
-    mat4 transform;
+    mat4 view_matrix;
 };
 
 struct VkDrawIndirectCommand {
@@ -48,7 +46,7 @@ struct RigidMeshInstance {
 };
 
 layout (set = 0, binding = 0) uniform PerFrameData { 
-    uint active_camera;
+    int active_camera_instance; // -1 means no active camera
     uint mesh_attributes_count;
     uint rigid_mesh_count;
     uint rigid_mesh_instance_count;
@@ -60,7 +58,7 @@ layout (set = 0, binding = 1) buffer Cameras {
 
 layout (set = 0, binding = 2) buffer CameraInstanceBuffer { 
     CameraInstance camera_instances[MAX_CAMERA_INSTANCES];
-} camera_instances;
+};
 
 layout (set = 0, binding = 3) buffer IndirectDrawRigidMeshInstanceBuffer { 
     VkDrawIndirectCommand indirect_draw_rigid_mesh_instances[MAX_RIGID_MESH_INSTANCES];
@@ -109,9 +107,17 @@ void main() {
     RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_instance.rigid_mesh_index)];
     MeshAttributes mesh_attributes = mesh_attributes[uint(rigid_mesh.mesh_attributes_index)];
 
-    mat4 view_projection_matrix = cameras[per_frame_data.active_camera].matrix;
-    mat4 model_matrix = rigid_mesh_instance.transform;
-    mat4 matrix = view_projection_matrix * model_matrix;
+    mat4 matrix;
+    if (per_frame_data.active_camera_instance >= 0) {
+        CameraInstance camera_instance = camera_instances[per_frame_data.active_camera_instance];
+        Camera camera = cameras[uint(camera_instance.camera_index)];
+        mat4 projection_matrix = camera.projection_matrix;
+        mat4 view_matrix = camera_instance.view_matrix;
+        mat4 model_matrix = rigid_mesh_instance.transform;
+        matrix = projection_matrix * view_matrix * model_matrix;
+    } else {
+        matrix = mat4(1.0);
+    }
 
     vec3 vertex_position;
     vec3 vertex_normal;

@@ -292,20 +292,13 @@ impl Backend for AshBackend {
         )
     }
 
-    fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> jeriya_backend::Result<()> {
+    fn set_active_camera(&self, window_id: WindowId, camera_instance: &CameraInstance) -> jeriya_backend::Result<()> {
         let presenter = self
             .presenters
             .get(&window_id)
             .ok_or(jeriya_backend::Error::UnknownWindowId(window_id))?;
-        presenter.set_active_camera(handle);
+        presenter.set_active_camera(camera_instance);
         Ok(())
-    }
-
-    fn active_camera(&self, window_id: WindowId) -> jeriya_backend::Result<Handle<Camera>> {
-        self.presenters
-            .get(&window_id)
-            .ok_or(jeriya_backend::Error::UnknownWindowId(window_id))
-            .map(|presenter| presenter.active_camera())
     }
 }
 

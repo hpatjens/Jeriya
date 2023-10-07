@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use jeriya_backend::gpu_index_allocator::GpuIndexAllocation;
+use jeriya_backend::instances::camera_instance::CameraInstance;
 use jeriya_backend::CameraContainerGuard;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
@@ -143,7 +145,7 @@ pub struct PresenterShared {
     pub swapchain_framebuffers: SwapchainFramebuffers,
     pub swapchain_render_pass: SwapchainRenderPass,
     pub graphics_pipelines: GraphicsPipelines,
-    pub active_camera: Handle<jeriya_backend::Camera>,
+    pub active_camera_instance: Option<GpuIndexAllocation<CameraInstance>>,
     pub device: Arc<Device>,
 }
 
@@ -156,16 +158,6 @@ impl PresenterShared {
         let swapchain_render_pass = SwapchainRenderPass::new(&backend_shared.device, &swapchain)?;
         let swapchain_framebuffers =
             SwapchainFramebuffers::new(&backend_shared.device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
-
-        // Create a camera for this window
-        info!("Create Camera");
-        let mut guard = CameraContainerGuard::new(
-            backend_shared.camera_event_queue.lock(),
-            backend_shared.cameras.lock(),
-            backend_shared.renderer_config.clone(),
-        );
-        let active_camera = guard.insert(jeriya_backend::Camera::default())?;
-        drop(guard);
 
         info!("Create Graphics Pipelines");
         let graphics_pipelines = GraphicsPipelines::new(
@@ -186,7 +178,7 @@ impl PresenterShared {
             swapchain_render_pass,
             graphics_pipelines,
             device: backend_shared.device.clone(),
-            active_camera,
+            active_camera_instance: None,
         })
     }
 

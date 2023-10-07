@@ -12,7 +12,9 @@ use crate::{
     presenter_shared::PresenterShared,
 };
 
-use jeriya_backend::{immediate::ImmediateRenderingFrame, resources::ResourceEvent, transactions::Transaction};
+use jeriya_backend::{
+    immediate::ImmediateRenderingFrame, instances::camera_instance::CameraInstance, resources::ResourceEvent, transactions::Transaction,
+};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_macros::profile;
@@ -97,13 +99,8 @@ impl Presenter {
     }
 
     /// Sets the active camera
-    pub fn set_active_camera(&self, handle: Handle<jeriya_backend::Camera>) {
-        self.presenter_shared.lock().active_camera = handle;
-    }
-
-    /// Returns the active camera
-    pub fn active_camera(&self) -> Handle<jeriya_backend::Camera> {
-        self.presenter_shared.lock().active_camera.clone()
+    pub fn set_active_camera(&self, camera_instance: &CameraInstance) {
+        self.presenter_shared.lock().active_camera_instance = Some(camera_instance.gpu_index_allocation().clone());
     }
 }
 

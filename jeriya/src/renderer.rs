@@ -73,13 +73,8 @@ where
     }
 
     /// Sets the active camera for the given window.
-    pub fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> Result<()> {
-        self.backend.set_active_camera(window_id, handle)
-    }
-
-    /// Returns the active camera for the given window.
-    pub fn active_camera(&self, window_id: WindowId) -> Result<Handle<Camera>> {
-        self.backend.active_camera(window_id)
+    pub fn set_active_camera(&self, window_id: WindowId, camera_instance: &CameraInstance) -> Result<()> {
+        self.backend.set_active_camera(window_id, camera_instance)
     }
 }
 

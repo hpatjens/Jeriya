@@ -196,7 +196,7 @@ impl Frame {
         // Update Buffers
         let span = span!("update per frame data buffer");
         let per_frame_data = shader_interface::PerFrameData {
-            active_camera: presenter_shared.active_camera.index() as u32,
+            active_camera: presenter_shared.active_camera_instance.map(|c| c.index() as i32).unwrap_or(-1),
             mesh_attributes_count: self.mesh_attributes_count as u32,
             rigid_mesh_count: self.rigid_mesh_count as u32,
             rigid_mesh_instance_count: self.rigid_mesh_instance_count as u32,
@@ -213,8 +213,6 @@ impl Frame {
                 .iter()
                 .map(|camera| shader_interface::Camera {
                     projection_matrix: camera.projection_matrix(),
-                    view_matrix: camera.view_matrix(),
-                    matrix: camera.matrix(),
                 })
                 .chain(iter::repeat(shader_interface::Camera::default()).take(padding))
                 .collect::<Vec<_>>()
@@ -350,8 +348,6 @@ impl Frame {
                             camera.gpu_index_allocation().index(),
                             &shader_interface::Camera {
                                 projection_matrix: camera.projection_matrix(),
-                                view_matrix: camera.view_matrix(),
-                                matrix: camera.matrix(),
                             },
                         )?;
                         self.camera_count = self.camera_count.max(camera.gpu_index_allocation().index() + 1);

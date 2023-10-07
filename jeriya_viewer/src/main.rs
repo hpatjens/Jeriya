@@ -9,7 +9,7 @@ use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend::{
     elements::{
-        camera::{Camera, CameraProjection, CameraTransform},
+        camera::{Camera, CameraProjection},
         element_group::ElementGroup,
         helper::{rigid_mesh_collection::RigidMeshCollection, rigid_mesh_instance_collection::RigidMeshInstanceCollection},
         rigid_mesh::RigidMesh,
@@ -17,7 +17,7 @@ use jeriya_backend::{
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     instances::{
         self,
-        camera_instance::{self, CameraInstance},
+        camera_instance::{self, CameraInstance, CameraTransform},
         instance_group::InstanceGroup,
         rigid_mesh_instance::RigidMeshInstance,
     },
@@ -215,17 +215,6 @@ fn main() -> ey::Result<()> {
     let import_source = FileSystem::new("assets/unprocessed").wrap_err("Failed to create ImportSource for AssetImporter")?;
     let _asset_importer = AssetImporter::new(import_source, 4).wrap_err("Failed to create AssetImporter")?;
 
-    let handle2 = renderer.active_camera(window2.id()).wrap_err("Failed to get active camera")?;
-    let mut cameras = renderer.cameras();
-    let mut camera2 = cameras.get_mut(&handle2).ok_or(eyre!("Failed to get camera"))?;
-    camera2.set_projection(jeriya_backend::CameraProjection::Perspective {
-        fov: 90.0,
-        aspect: 1.0,
-        near: 0.1,
-        far: 100.0,
-    });
-    drop(cameras);
-
     let mut resource_group = ResourceGroup::new(&renderer, debug_info!("my_resource_group"));
     let mut element_group = ElementGroup::new(&renderer, debug_info!("my_element_group"));
     let mut instance_group = InstanceGroup::new(&renderer, debug_info!("my_instance_group"));
@@ -257,12 +246,23 @@ fn main() -> ey::Result<()> {
     // Create CameraInstance
     let camera_instance_builder = CameraInstance::builder()
         .with_camera(element_group.cameras().get(&camera_handle).wrap_err("Failed to find camera")?)
-        .with_transform(instances::camera_instance::CameraTransform::default())
+        .with_transform(CameraTransform::new(
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(0.0, 0.0, 1.0),
+            Vector3::new(0.0, -1.0, 0.0),
+        ))
         .with_debug_info(debug_info!("my_camera_instance"));
-    let _camera_instance_handle = instance_group
+    let camera_instance_handle = instance_group
         .camera_instances()
         .mutate_via(&mut transaction)
         .insert_with(camera_instance_builder)?;
+    let camera_instance = instance_group
+        .camera_instances()
+        .get(&camera_instance_handle)
+        .wrap_err("Failed to find camera instance")?;
+    renderer
+        .set_active_camera(window1.id(), &camera_instance)
+        .wrap_err("Failed to set active camera")?;
 
     // Create RigidMeshes from model
     let rigid_mesh_collection = RigidMeshCollection::from_model(&suzanne, &mut resource_group, &mut element_group, &mut transaction)?;
@@ -316,26 +316,12 @@ fn main() -> ey::Result<()> {
                 let dt = frame_start_time - last_frame_start_time;
 
                 {
-                    let handle = renderer
-                        .active_camera(window1.id())
-                        .wrap_err("Failed to get active camera")
-                        .unwrap();
-                    let mut cameras = renderer.cameras();
-                    let mut camera = cameras.get_mut(&handle).ok_or(eyre!("Failed to get camera")).unwrap();
-                    camera.set_position(Vector3::new(t.as_secs_f32().sin() * 0.3, t.as_secs_f32().cos() * 0.3, 0.0));
+                    // camera.set_position(Vector3::new(t.as_secs_f32().sin() * 0.3, t.as_secs_f32().cos() * 0.3, 0.0));
                 }
 
                 {
-                    let handle = renderer
-                        .active_camera(window2.id())
-                        .wrap_err("Failed to get active camera")
-                        .unwrap();
-                    let mut cameras = renderer.cameras();
-                    let mut camera = cameras.get_mut(&handle).ok_or(eyre!("Failed to get camera")).unwrap();
-                    let distance = 3.0;
-                    let position = Vector3::new(t.as_secs_f32().sin() * distance, 1.0, t.as_secs_f32().cos() * distance);
-                    camera.set_position(position);
-                    camera.set_forward(-position.normalize());
+                    // camera.set_position(position);
+                    // camera.set_forward(-position.normalize());
                 }
 
                 if let Err(err) = immediate_rendering(&renderer, update_loop_frame_index, UPDATE_FRAMERATE as f64, t, dt) {

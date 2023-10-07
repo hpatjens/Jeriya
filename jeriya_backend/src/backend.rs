@@ -52,10 +52,7 @@ pub trait Backend:
     fn cameras(&self) -> CameraContainerGuard;
 
     /// Sets the active camera for the given window
-    fn set_active_camera(&self, window_id: WindowId, handle: Handle<Camera>) -> crate::Result<()>;
-
-    /// Returns the active camera for the given window
-    fn active_camera(&self, window_id: WindowId) -> crate::Result<Handle<Camera>>;
+    fn set_active_camera(&self, window_id: WindowId, camera_instance: &CameraInstance) -> crate::Result<()>;
 }
 
 pub trait ImmediateCommandBufferBuilderHandler: AsDebugInfo {

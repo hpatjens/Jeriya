@@ -1,5 +1,6 @@
 use jeriya_shared::{
     debug_info,
+    derive_new::new,
     nalgebra::{Matrix4, Vector3},
     thiserror, DebugInfo, Handle,
 };
@@ -22,7 +23,7 @@ pub enum Event {
     Insert(CameraInstance),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(new, Debug, Clone, PartialEq)]
 pub struct CameraTransform {
     position: Vector3<f32>,
     forward: Vector3<f32>,

@@ -74,37 +74,10 @@ impl Default for CameraProjection {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct CameraTransform {
-    position: Vector3<f32>,
-    forward: Vector3<f32>,
-    up: Vector3<f32>,
-}
-
-impl Default for CameraTransform {
-    fn default() -> Self {
-        Self {
-            position: Vector3::new(0.0, 0.0, 0.0),
-            forward: Vector3::new(0.0, 0.0, 1.0),
-            up: Vector3::new(0.0, -1.0, 0.0),
-        }
-    }
-}
-
-impl CameraTransform {
-    /// Returns the view matrix for the camera.
-    pub fn view_matrix(&self) -> Matrix4<f32> {
-        Matrix4::look_at_rh(&self.position.into(), &(self.position + self.forward).into(), &self.up)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Camera {
     projection: CameraProjection,
-    transform: CameraTransform,
     cached_projection_matrix: Matrix4<f32>,
-    cached_view_matrix: Matrix4<f32>,
-    cached_matrix: Matrix4<f32>,
     debug_info: DebugInfo,
     handle: Handle<Camera>,
     gpu_index_allocation: GpuIndexAllocation<Camera>,
@@ -121,24 +94,9 @@ impl Camera {
         &self.projection
     }
 
-    /// Returns the [`CameraTransform`] of the camera.
-    pub fn transform(&self) -> &CameraTransform {
-        &self.transform
-    }
-
     /// Returns the projection matrix of the camera.
     pub fn projection_matrix(&self) -> Matrix4<f32> {
         self.cached_projection_matrix
-    }
-
-    /// Returns the view matrix of the camera.
-    pub fn view_matrix(&self) -> Matrix4<f32> {
-        self.cached_view_matrix
-    }
-
-    /// Returns the view-projection matrix of the camera.
-    pub fn matrix(&self) -> Matrix4<f32> {
-        self.cached_matrix
     }
 
     /// Returns the [`DebugInfo`] of the [`Camera`].
@@ -172,21 +130,9 @@ impl<'g, 't, P: PushEvent> CameraAccessMut<'g, 't, P> {
     pub fn set_projection(&mut self, projection: CameraProjection) {
         self.camera.projection = projection;
         self.camera.cached_projection_matrix = self.camera.projection.projection_matrix();
-        self.camera.cached_matrix = self.camera.cached_projection_matrix * self.camera.cached_view_matrix;
         self.transaction.push_event(transactions::Event::Camera(Event::UpdateProjection(
             self.camera.gpu_index_allocation.clone(),
             self.camera.cached_projection_matrix,
-        )))
-    }
-
-    /// Sets the [`CameraTransform`] of the [`Camera`].
-    pub fn set_transform(&mut self, transform: CameraTransform) {
-        self.camera.transform = transform;
-        self.camera.cached_view_matrix = self.camera.transform.view_matrix();
-        self.camera.cached_matrix = self.camera.cached_projection_matrix * self.camera.cached_view_matrix;
-        self.transaction.push_event(transactions::Event::Camera(Event::UpdateView(
-            self.camera.gpu_index_allocation.clone(),
-            self.camera.cached_view_matrix,
         )))
     }
 }
@@ -194,7 +140,6 @@ impl<'g, 't, P: PushEvent> CameraAccessMut<'g, 't, P> {
 #[derive(Default)]
 pub struct CameraBuilder {
     projection: Option<CameraProjection>,
-    transform: Option<CameraTransform>,
     debug_info: Option<DebugInfo>,
 }
 
@@ -202,12 +147,6 @@ impl CameraBuilder {
     /// Sets the [`CameraProjection`] of the [`Camera`].
     pub fn with_projection(mut self, projection: CameraProjection) -> Self {
         self.projection = Some(projection);
-        self
-    }
-
-    /// Sets the [`CameraTransform`] of the [`Camera`].
-    pub fn with_transform(mut self, transform: CameraTransform) -> Self {
-        self.transform = Some(transform);
         self
     }
 
@@ -219,15 +158,10 @@ impl CameraBuilder {
 
     pub(crate) fn build(self, handle: Handle<Camera>, gpu_index_allocation: GpuIndexAllocation<Camera>) -> Result<Camera> {
         let projection = self.projection.unwrap_or_default();
-        let transform = self.transform.unwrap_or_default();
         let cached_projection_matrix = projection.projection_matrix();
-        let cached_view_matrix = transform.view_matrix();
         Ok(Camera {
             projection,
-            transform,
             cached_projection_matrix,
-            cached_view_matrix,
-            cached_matrix: cached_projection_matrix * cached_view_matrix,
             debug_info: self.debug_info.unwrap_or_else(|| debug_info!("Anonymous Camera")),
             handle,
             gpu_index_allocation,
@@ -254,11 +188,6 @@ mod tests {
             near: 0.0,
             far: 1.0,
         });
-        assert_that!(camera.transform()).is_equal_to(&CameraTransform {
-            position: Vector3::new(0.0, 0.0, 0.0),
-            forward: Vector3::new(0.0, 0.0, 1.0),
-            up: Vector3::new(0.0, -1.0, 0.0),
-        });
         let view = nalgebra_glm::ortho_rh_zo(-1.0, 1.0, 1.0, -1.0, 0.0, 1.0);
         let projection = Matrix4::look_at_rh(
             &Vector3::new(0.0, 0.0, 0.0).into(),
@@ -266,8 +195,6 @@ mod tests {
             &Vector3::new(0.0, -1.0, 0.0),
         );
         assert_that!(camera.projection_matrix()).is_equal_to(&projection);
-        assert_that!(camera.view_matrix()).is_equal_to(&view);
-        assert_that!(camera.matrix()).is_equal_to(&view * projection);
     }
 
     #[test]
@@ -280,11 +207,6 @@ mod tests {
                 near: 0.1,
                 far: 100.0,
             })
-            .with_transform(CameraTransform {
-                position: Vector3::new(1.0, 2.0, 3.0),
-                forward: Vector3::new(4.0, 5.0, 6.0),
-                up: Vector3::new(0.0, 1.0, 0.0),
-            })
             .build(Handle::zero(), GpuIndexAllocation::new_unchecked(0))
             .unwrap();
         assert_that!(camera.projection()).is_equal_to(&CameraProjection::Perspective {
@@ -293,11 +215,6 @@ mod tests {
             near: 0.1,
             far: 100.0,
         });
-        assert_that!(camera.transform()).is_equal_to(&CameraTransform {
-            position: Vector3::new(1.0, 2.0, 3.0),
-            forward: Vector3::new(4.0, 5.0, 6.0),
-            up: Vector3::new(0.0, 1.0, 0.0),
-        });
         let view = Matrix4::look_at_rh(
             &Vector3::new(1.0, 2.0, 3.0).into(),
             &Vector3::new(5.0, 7.0, 9.0).into(),
@@ -305,7 +222,5 @@ mod tests {
         );
         let projection = nalgebra_glm::perspective_rh_zo(1.2, 90.0, 0.1, 100.0);
         assert_that!(camera.projection_matrix()).is_equal_to(&projection);
-        assert_that!(camera.view_matrix()).is_equal_to(&view);
-        assert_that!(camera.matrix()).is_equal_to(&projection * view);
     }
 }
