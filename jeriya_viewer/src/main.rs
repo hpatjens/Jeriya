@@ -9,6 +9,7 @@ use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend::{
     elements::{
+        camera::{Camera, CameraProjection, CameraTransform},
         element_group::ElementGroup,
         helper::{rigid_mesh_collection::RigidMeshCollection, rigid_mesh_instance_collection::RigidMeshInstanceCollection},
         rigid_mesh::RigidMesh,
@@ -236,6 +237,18 @@ fn main() -> ey::Result<()> {
     let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder).unwrap();
 
     let mut transaction = Transaction::record(&renderer);
+
+    let camera_builder = Camera::builder()
+        .with_projection(CameraProjection::Perspective {
+            fov: 90.0,
+            aspect: 1.0,
+            near: 0.1,
+            far: 100.0,
+        })
+        .with_transform(CameraTransform::default())
+        .with_debug_info(debug_info!("my_camera"));
+    let camera_handle = element_group.cameras().mutate_via(&mut transaction).insert_with(camera_builder)?;
+
     let rigid_mesh_collection = RigidMeshCollection::from_model(&suzanne, &mut resource_group, &mut element_group, &mut transaction)?;
     let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
         &rigid_mesh_collection,
