@@ -31,6 +31,7 @@ impl Default for Camera {
 #[derive(Debug, Clone)]
 pub struct CameraInstance {
     pub camera_index: u64,
+    pub _padding: u64,
     pub view_matrix: Matrix4<f32>,
 }
 
@@ -38,6 +39,7 @@ impl Default for CameraInstance {
     fn default() -> Self {
         Self {
             camera_index: Default::default(),
+            _padding: Default::default(),
             view_matrix: Matrix4::identity(),
         }
     }

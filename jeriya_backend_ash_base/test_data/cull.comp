@@ -14,6 +14,11 @@ struct Camera {
     mat4 matrix;
 };
 
+struct CameraInstance {
+    uint64_t camera_index;
+    mat4 transform;
+};
+
 struct VkDrawIndirectCommand {
     uint vertex_count;
     uint instance_count;
