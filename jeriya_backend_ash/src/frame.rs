@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::{iter, mem, sync::Arc};
 
+use jeriya_backend::elements::camera;
 use jeriya_backend::{
     elements::rigid_mesh,
     instances::rigid_mesh_instance,
@@ -316,6 +317,10 @@ impl Frame {
                         self.rigid_mesh_count = self.rigid_mesh_count.max(rigid_mesh.gpu_index_allocation().index() + 1);
                     }
                     transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
+                    transactions::Event::Camera(camera::Event::Noop) => {}
+                    transactions::Event::Camera(camera::Event::Insert(camera)) => {}
+                    transactions::Event::Camera(camera::Event::UpdateProjection(gpu_index_allocation, matrix)) => {}
+                    transactions::Event::Camera(camera::Event::UpdateView(gpu_index_allocation, matrix)) => {}
                     transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Noop) => {}
                     transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Insert(rigid_mesh_instance)) => {
                         self.rigid_mesh_instance_buffer.set_memory_unaligned_index(

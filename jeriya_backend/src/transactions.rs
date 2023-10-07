@@ -1,7 +1,9 @@
 use std::{mem, sync::Arc};
 
 use crate::{
-    elements::rigid_mesh, gpu_index_allocator::GpuIndexAllocation, instances::rigid_mesh_instance,
+    elements::{camera, rigid_mesh},
+    gpu_index_allocator::GpuIndexAllocation,
+    instances::rigid_mesh_instance,
     resources::mesh_attributes::MeshAttributes,
 };
 
@@ -25,6 +27,7 @@ pub trait PushEvent {
 #[derive(Debug, Clone)]
 pub enum Event {
     RigidMesh(rigid_mesh::Event),
+    Camera(camera::Event),
     RigidMeshInstance(rigid_mesh_instance::Event),
     SetMeshAttributeActive {
         gpu_index_allocation: GpuIndexAllocation<MeshAttributes>,
