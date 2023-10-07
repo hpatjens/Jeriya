@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::{iter, mem, sync::Arc};
 
 use jeriya_backend::elements::camera;
+use jeriya_backend::instances::camera_instance;
 use jeriya_backend::{
     elements::rigid_mesh,
     instances::rigid_mesh_instance,
@@ -52,6 +53,9 @@ pub struct Frame {
     camera_count: usize,
     camera_buffer: HostVisibleBuffer<shader_interface::Camera>,
 
+    camera_instance_count: usize,
+    camera_instance_buffer: HostVisibleBuffer<shader_interface::CameraInstance>,
+
     rigid_mesh_count: usize,
     rigid_mesh_buffer: HostVisibleBuffer<shader_interface::RigidMesh>,
 
@@ -86,6 +90,14 @@ impl Frame {
             &vec![shader_interface::Camera::default(); backend_shared.renderer_config.maximum_number_of_cameras],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!(format!("CameraBuffer-for-Window{:?}", window_id)),
+        )?;
+
+        info!("Create camera instance buffer");
+        let camera_instance_buffer = HostVisibleBuffer::new(
+            &backend_shared.device,
+            &vec![shader_interface::CameraInstance::default(); backend_shared.renderer_config.maximum_number_of_camera_instances],
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!(format!("CameraInstanceBuffer-for-Window{:?}", window_id)),
         )?;
 
         info!("Create mesh attributes active buffer");
@@ -130,6 +142,8 @@ impl Frame {
             mesh_attributes_active_buffer,
             camera_count: 0,
             camera_buffer,
+            camera_instance_count: 0,
+            camera_instance_buffer,
             rigid_mesh_count: 0,
             rigid_mesh_buffer,
             rigid_mesh_instance_count: 0,
@@ -344,6 +358,17 @@ impl Frame {
                     }
                     transactions::Event::Camera(camera::Event::UpdateProjection(gpu_index_allocation, matrix)) => {}
                     transactions::Event::Camera(camera::Event::UpdateView(gpu_index_allocation, matrix)) => {}
+                    transactions::Event::CameraInstance(camera_instance::Event::Noop) => {}
+                    transactions::Event::CameraInstance(camera_instance::Event::Insert(camera_instance)) => {
+                        self.camera_instance_buffer.set_memory_unaligned_index(
+                            camera_instance.gpu_index_allocation().index(),
+                            &shader_interface::CameraInstance {
+                                camera_index: camera_instance.camera_gpu_index_allocation().index() as u64,
+                                view_matrix: camera_instance.transform().view_matrix(),
+                            },
+                        )?;
+                        self.camera_count = self.camera_count.max(camera_instance.gpu_index_allocation().index() + 1);
+                    }
                     transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Noop) => {}
                     transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Insert(rigid_mesh_instance)) => {
                         self.rigid_mesh_instance_buffer.set_memory_unaligned_index(

@@ -3,7 +3,7 @@ use std::{mem, sync::Arc};
 use crate::{
     elements::{camera, rigid_mesh},
     gpu_index_allocator::GpuIndexAllocation,
-    instances::rigid_mesh_instance,
+    instances::{camera_instance, rigid_mesh_instance},
     resources::mesh_attributes::MeshAttributes,
 };
 
@@ -29,6 +29,7 @@ pub enum Event {
     RigidMesh(rigid_mesh::Event),
     Camera(camera::Event),
     RigidMeshInstance(rigid_mesh_instance::Event),
+    CameraInstance(camera_instance::Event),
     SetMeshAttributeActive {
         gpu_index_allocation: GpuIndexAllocation<MeshAttributes>,
         is_active: bool,

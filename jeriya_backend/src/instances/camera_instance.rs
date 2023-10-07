@@ -16,6 +16,12 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+#[derive(Debug, Clone)]
+pub enum Event {
+    Noop,
+    Insert(CameraInstance),
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct CameraTransform {
     position: Vector3<f32>,
@@ -40,6 +46,7 @@ impl CameraTransform {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct CameraInstance {
     camera_handle: Handle<Camera>,
     camera_gpu_index_allocation: GpuIndexAllocation<Camera>,

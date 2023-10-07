@@ -28,6 +28,22 @@ impl Default for Camera {
 }
 
 #[repr(C)]
+#[derive(Debug, Clone)]
+pub struct CameraInstance {
+    pub camera_index: u64,
+    pub view_matrix: Matrix4<f32>,
+}
+
+impl Default for CameraInstance {
+    fn default() -> Self {
+        Self {
+            camera_index: Default::default(),
+            view_matrix: Matrix4::identity(),
+        }
+    }
+}
+
+#[repr(C)]
 #[derive(Debug, Clone, Default)]
 pub struct MeshAttributes {
     pub vertex_positions_start_offset: u64,
