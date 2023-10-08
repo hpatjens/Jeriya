@@ -353,7 +353,6 @@ impl Frame {
                     transactions::Event::Camera(camera::Event::Noop) => {}
                     transactions::Event::Camera(camera::Event::Insert(camera)) => {
                         info!("Insert Camera at {:?}", camera.gpu_index_allocation().index());
-                        dbg!(self.camera_buffer.len());
                         self.camera_buffer.set_memory_unaligned_index(
                             camera.gpu_index_allocation().index(),
                             &shader_interface::Camera {

@@ -341,7 +341,6 @@ fn main() -> ey::Result<()> {
                     instance_group
                         .camera_instances()
                         .get_mut(&camera1_instance_handle)
-                        .wrap_err("Failed to find camera instance")
                         .expect("Failed to find camera instance")
                         .mutate_via(&mut transaction)
                         .set_transform(CameraTransform {
@@ -356,7 +355,6 @@ fn main() -> ey::Result<()> {
                     instance_group
                         .camera_instances()
                         .get_mut(&camera2_instance_handle)
-                        .wrap_err("Failed to find camera instance")
                         .expect("Failed to find camera instance")
                         .mutate_via(&mut transaction)
                         .set_transform(CameraTransform::new(position, -position.normalize(), Vector3::new(0.0, -1.0, 0.0)));
