@@ -1,13 +1,9 @@
 use jeriya_backend::{elements, instances, resources};
 use jeriya_shared::nalgebra::Matrix4;
 
-pub trait Represents {
-    type CpuType;
-}
+pub trait Represents<T> {}
 
-impl Represents for bool {
-    type CpuType = resources::mesh_attributes::MeshAttributes;
-}
+impl Represents<resources::mesh_attributes::MeshAttributes> for bool {}
 
 #[repr(C)]
 #[derive(Debug, Clone, Default)]
@@ -24,9 +20,7 @@ pub struct Camera {
     pub projection_matrix: Matrix4<f32>,
 }
 
-impl Represents for Camera {
-    type CpuType = elements::camera::Camera;
-}
+impl Represents<elements::camera::Camera> for Camera {}
 
 impl Default for Camera {
     fn default() -> Self {
@@ -44,9 +38,7 @@ pub struct CameraInstance {
     pub view_matrix: Matrix4<f32>,
 }
 
-impl Represents for CameraInstance {
-    type CpuType = instances::camera_instance::CameraInstance;
-}
+impl Represents<instances::camera_instance::CameraInstance> for CameraInstance {}
 
 impl Default for CameraInstance {
     fn default() -> Self {
@@ -72,9 +64,7 @@ pub struct MeshAttributes {
     pub indices_len: u64,
 }
 
-impl Represents for MeshAttributes {
-    type CpuType = resources::mesh_attributes::MeshAttributes;
-}
+impl Represents<resources::mesh_attributes::MeshAttributes> for MeshAttributes {}
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -83,9 +73,7 @@ pub struct RigidMesh {
     pub mesh_attributes_index: i64,
 }
 
-impl Represents for RigidMesh {
-    type CpuType = elements::rigid_mesh::RigidMesh;
-}
+impl Represents<elements::rigid_mesh::RigidMesh> for RigidMesh {}
 
 impl Default for RigidMesh {
     fn default() -> Self {
@@ -101,9 +89,7 @@ pub struct RigidMeshInstance {
     pub transform: Matrix4<f32>,
 }
 
-impl Represents for RigidMeshInstance {
-    type CpuType = instances::rigid_mesh_instance::RigidMeshInstance;
-}
+impl Represents<instances::rigid_mesh_instance::RigidMeshInstance> for RigidMeshInstance {}
 
 impl Default for RigidMeshInstance {
     fn default() -> Self {

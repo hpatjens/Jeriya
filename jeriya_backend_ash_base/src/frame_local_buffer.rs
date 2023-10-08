@@ -41,7 +41,7 @@ where
     /// Sets the value at the given index.
     pub fn set<A>(&mut self, gpu_index_allocation: &GpuIndexAllocation<A>, value: &T) -> crate::Result<()>
     where
-        T: Represents<CpuType = A>,
+        T: Represents<A>,
     {
         self.host_visible_buffer
             .set_memory_unaligned_index(gpu_index_allocation.index(), value)?;
@@ -93,9 +93,7 @@ mod tests {
         #[derive(Default, Clone)]
         struct GpuType(u32);
         struct CpuType(u32);
-        impl Represents for GpuType {
-            type CpuType = CpuType;
-        }
+        impl Represents<CpuType> for GpuType {}
 
         let device_test_fixture = TestFixtureDevice::new().unwrap();
         let mut frame_local_buffer = FrameLocalBuffer::<GpuType>::new(&device_test_fixture.device, 10, debug_info!("my_buffer")).unwrap();
