@@ -36,4 +36,4 @@ maplit = "1.0.2"
 derive-where = "1.2.5"
 
 # see https://crates.io/crates/tracy-client for version support table
-tracy-client = { version = "0.14.2", default-features = false }
+tracy-client = { version = "0.16", default-features = false }
