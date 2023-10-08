@@ -107,17 +107,17 @@ void main() {
     RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_instance.rigid_mesh_index)];
     MeshAttributes mesh_attributes = mesh_attributes[uint(rigid_mesh.mesh_attributes_index)];
 
-    mat4 matrix;
+    mat4 view_projection_matrix;
     if (per_frame_data.active_camera_instance >= 0) {
         CameraInstance camera_instance = camera_instances[per_frame_data.active_camera_instance];
         Camera camera = cameras[uint(camera_instance.camera_index)];
-        mat4 projection_matrix = camera.projection_matrix;
-        mat4 view_matrix = camera_instance.view_matrix;
-        mat4 model_matrix = rigid_mesh_instance.transform;
-        matrix = projection_matrix * view_matrix * model_matrix;
+        view_projection_matrix = camera.projection_matrix * camera_instance.view_matrix;
     } else {
-        matrix = mat4(1.0);
+        view_projection_matrix = mat4(1.0);
     }
+
+    mat4 model_matrix = rigid_mesh_instance.transform;
+    mat4 matrix = view_projection_matrix * model_matrix;
 
     vec3 vertex_position;
     vec3 vertex_normal;
