@@ -1,4 +1,4 @@
-use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Handle, RendererConfig, WindowConfig};
+use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, RendererConfig, WindowConfig};
 
 use jeriya_backend::{
     elements::{self, rigid_mesh::RigidMesh},
@@ -7,7 +7,7 @@ use jeriya_backend::{
     instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{mesh_attributes::MeshAttributes, IntoResourceReceiver},
     transactions::IntoTransactionProcessor,
-    Backend, Camera, CameraContainerGuard, Result,
+    Backend, CameraContainerGuard, Result,
 };
 
 use std::{
@@ -353,12 +353,8 @@ mod tests {
             CameraContainerGuard::new(self.camera_event_queue.lock(), self.cameras.lock(), self.renderer_config.clone())
         }
 
-        fn set_active_camera(&self, _window_id: WindowId, _handle: jeriya_shared::Handle<Camera>) -> jeriya_backend::Result<()> {
+        fn set_active_camera(&self, _window_id: WindowId, _camera_instance: &CameraInstance) -> jeriya_backend::Result<()> {
             Ok(())
-        }
-
-        fn active_camera(&self, _window_id: WindowId) -> jeriya_backend::Result<jeriya_shared::Handle<Camera>> {
-            Ok(self.active_camera.clone())
         }
     }
 
