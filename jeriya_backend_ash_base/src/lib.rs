@@ -13,6 +13,7 @@ pub mod device_visible_buffer;
 pub mod entry;
 pub mod fence;
 pub mod frame_index;
+pub mod frame_local_buffer;
 pub mod graphics_pipeline;
 pub mod host_visible_buffer;
 pub mod instance;
@@ -31,7 +32,6 @@ pub mod swapchain_framebuffers;
 pub mod swapchain_render_pass;
 pub mod swapchain_vec;
 pub mod unsafe_buffer;
-pub mod frame_buffer;
 
 pub use vk::DrawIndirectCommand;
 

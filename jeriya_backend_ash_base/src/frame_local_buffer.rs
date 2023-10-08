@@ -39,6 +39,11 @@ where
 
     /// Sets the value at the given index.
     pub fn set(&mut self, gpu_index_allocation: GpuIndexAllocation<T>, value: &T) -> crate::Result<()> {
+        self.set_with_foreign_index(gpu_index_allocation, value)
+    }
+
+    /// Sets the value at the given index.
+    pub fn set_with_foreign_index<A>(&mut self, gpu_index_allocation: GpuIndexAllocation<A>, value: &T) -> crate::Result<()> {
         self.host_visible_buffer
             .set_memory_unaligned_index(gpu_index_allocation.index(), value)?;
         self.high_water_mark = self.high_water_mark.max(gpu_index_allocation.index() + 1);

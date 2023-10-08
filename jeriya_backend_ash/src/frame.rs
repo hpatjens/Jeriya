@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::{mem, sync::Arc};
 
+use base::frame_local_buffer::FrameLocalBuffer;
 use jeriya_backend::elements::camera;
 use jeriya_backend::instances::camera_instance;
 use jeriya_backend::{
@@ -46,8 +47,7 @@ pub struct Frame {
     rendering_complete_semaphore: Option<Arc<Semaphore>>,
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
 
-    mesh_attributes_count: usize,
-    mesh_attributes_active_buffer: HostVisibleBuffer<bool>,
+    mesh_attributes_active_buffer: FrameLocalBuffer<bool>,
 
     camera_count: usize,
     camera_buffer: HostVisibleBuffer<shader_interface::Camera>,
@@ -96,10 +96,9 @@ impl Frame {
 
         let len = backend_shared.renderer_config.maximum_number_of_mesh_attributes;
         info!("Create mesh attributes active buffer with length: {len}");
-        let mesh_attributes_active_buffer = HostVisibleBuffer::new(
+        let mesh_attributes_active_buffer = FrameLocalBuffer::new(
             &backend_shared.device,
-            &vec![false; len],
-            BufferUsageFlags::STORAGE_BUFFER,
+            len,
             debug_info!(format!("MeshAttributesActiveBuffer-for-Window{:?}", window_id)),
         )?;
 
@@ -134,7 +133,6 @@ impl Frame {
             image_available_semaphore: None,
             rendering_complete_semaphore: None,
             per_frame_data_buffer,
-            mesh_attributes_count: 0,
             mesh_attributes_active_buffer,
             camera_count: 0,
             camera_buffer,
@@ -193,7 +191,7 @@ impl Frame {
         let span = span!("update per frame data buffer");
         let per_frame_data = shader_interface::PerFrameData {
             active_camera: presenter_shared.active_camera_instance.map(|c| c.index() as i32).unwrap_or(-1),
-            mesh_attributes_count: self.mesh_attributes_count as u32,
+            mesh_attributes_count: self.mesh_attributes_active_buffer.high_water_mark() as u32,
             rigid_mesh_count: self.rigid_mesh_count as u32,
             rigid_mesh_instance_count: self.rigid_mesh_instance_count as u32,
         };
@@ -326,7 +324,7 @@ impl Frame {
                         is_active,
                     } => {
                         self.mesh_attributes_active_buffer
-                            .set_memory_unaligned_index(gpu_index_allocation.index(), &is_active)?;
+                            .set_with_foreign_index(gpu_index_allocation, &is_active)?;
                     }
                 }
             }
