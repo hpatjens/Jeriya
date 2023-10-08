@@ -1,4 +1,9 @@
+use jeriya_backend::{elements, instances, resources};
 use jeriya_shared::nalgebra::Matrix4;
+
+pub trait Represents {
+    type CpuType;
+}
 
 #[repr(C)]
 #[derive(Debug, Clone, Default)]
@@ -15,6 +20,10 @@ pub struct Camera {
     pub projection_matrix: Matrix4<f32>,
 }
 
+impl Represents for Camera {
+    type CpuType = elements::camera::Camera;
+}
+
 impl Default for Camera {
     fn default() -> Self {
         Self {
@@ -29,6 +38,10 @@ pub struct CameraInstance {
     pub camera_index: u64,
     pub _padding: u64,
     pub view_matrix: Matrix4<f32>,
+}
+
+impl Represents for CameraInstance {
+    type CpuType = instances::camera_instance::CameraInstance;
 }
 
 impl Default for CameraInstance {
@@ -55,11 +68,19 @@ pub struct MeshAttributes {
     pub indices_len: u64,
 }
 
+impl Represents for MeshAttributes {
+    type CpuType = resources::mesh_attributes::MeshAttributes;
+}
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct RigidMesh {
     /// Index into the [`MeshAttributes`] array. -1 means that the [`MeshAttributes`] are not available for the frame.
     pub mesh_attributes_index: i64,
+}
+
+impl Represents for RigidMesh {
+    type CpuType = elements::rigid_mesh::RigidMesh;
 }
 
 impl Default for RigidMesh {
@@ -74,6 +95,10 @@ pub struct RigidMeshInstance {
     pub rigid_mesh_index: u64,
     pub _padding: u64,
     pub transform: Matrix4<f32>,
+}
+
+impl Represents for RigidMeshInstance {
+    type CpuType = instances::rigid_mesh_instance::RigidMeshInstance;
 }
 
 impl Default for RigidMeshInstance {
