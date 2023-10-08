@@ -31,6 +31,7 @@ pub mod swapchain_framebuffers;
 pub mod swapchain_render_pass;
 pub mod swapchain_vec;
 pub mod unsafe_buffer;
+pub mod frame_buffer;
 
 pub use vk::DrawIndirectCommand;
 
