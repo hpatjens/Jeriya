@@ -320,6 +320,8 @@ fn main() -> ey::Result<()> {
     let loop_start_time = Instant::now();
     let mut last_frame_start_time = Instant::now();
     let mut update_loop_frame_index = 0;
+    let mut mesh_count = 0;
+    let mut last_mesh_insert_t = Duration::from_secs(0);
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(UPDATE_FRAMERATE as f64);
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_poll();
@@ -351,14 +353,34 @@ fn main() -> ey::Result<()> {
                 }
 
                 {
-                    let distance = 3.0;
-                    let position = Vector3::new(t.as_secs_f32().sin() * distance, 1.0, t.as_secs_f32().cos() * distance);
+                    let distance = 4.0;
+                    let position = Vector3::new(t.as_secs_f32().sin() * distance, 3.0, t.as_secs_f32().cos() * distance);
                     instance_group
                         .camera_instances()
                         .get_mut(&camera2_instance_handle)
                         .expect("Failed to find camera instance")
                         .mutate_via(&mut transaction)
                         .set_transform(CameraTransform::new(position, -position.normalize(), Vector3::new(0.0, -1.0, 0.0)));
+                }
+
+                if mesh_count < 10 && (t - last_mesh_insert_t).as_secs() > 1 {
+                    last_mesh_insert_t = t;
+                    let radius = 3.5;
+                    let position = Vector3::new(t.as_secs_f32().sin() * radius, 0.0, t.as_secs_f32().cos() * radius);
+                    let rigid_mesh = element_group
+                        .rigid_meshes()
+                        .get(&rigid_mesh_handle)
+                        .expect("Failed to find rigid mesh");
+                    let rigid_mesh_instance_builder = RigidMeshInstance::builder()
+                        .with_rigid_mesh(rigid_mesh)
+                        .with_transform(nalgebra::convert(Translation3::from(position)))
+                        .with_debug_info(debug_info!("my_rigid_mesh_instance"));
+                    instance_group
+                        .rigid_mesh_instances()
+                        .mutate_via(&mut transaction)
+                        .insert_with(rigid_mesh_instance_builder)
+                        .expect("Failed to insert rigid mesh instance");
+                    mesh_count += 1;
                 }
 
                 transaction.finish();

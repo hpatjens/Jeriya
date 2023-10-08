@@ -106,6 +106,13 @@ void main() {
     RigidMeshInstance rigid_mesh_instance = rigid_mesh_instances[gl_DrawIDARB];
     RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_instance.rigid_mesh_index)];
     MeshAttributes mesh_attributes = mesh_attributes[uint(rigid_mesh.mesh_attributes_index)];
+    bool mesh_attributes_active = mesh_attributes_active[uint(rigid_mesh.mesh_attributes_index)];
+
+    // MeshAttributes become active when the transfer to the GPU is complete. When the transfer is
+    // not yet complete, the RigidMeshInstance cannot be rendered.
+    if (!mesh_attributes_active) {
+        return;
+    }
 
     mat4 view_projection_matrix;
     if (per_frame_data.active_camera_instance >= 0) {
