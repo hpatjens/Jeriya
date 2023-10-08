@@ -7,7 +7,7 @@ use jeriya_backend::{
     instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{mesh_attributes::MeshAttributes, IntoResourceReceiver},
     transactions::IntoTransactionProcessor,
-    Backend, CameraContainerGuard, Result,
+    Backend, Result,
 };
 
 use std::{
@@ -65,11 +65,6 @@ where
     ) -> Result<()> {
         self.backend
             .render_immediate_command_buffer(immediate_rendering_frame, command_buffer)
-    }
-
-    /// Returns a guard to the [`Camera`]s.
-    pub fn cameras(&self) -> CameraContainerGuard {
-        self.backend.cameras()
     }
 
     /// Sets the active camera for the given window.
@@ -221,12 +216,9 @@ mod tests {
         instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
         resources::{mesh_attributes::MeshAttributes, ResourceEvent, ResourceReceiver},
         transactions::{Transaction, TransactionProcessor},
-        Backend, Camera, CameraContainerGuard, CameraEvent, ImmediateCommandBufferBuilderHandler,
+        Backend, ImmediateCommandBufferBuilderHandler,
     };
-    use jeriya_shared::{
-        debug_info, parking_lot::Mutex, winit::window::WindowId, AsDebugInfo, DebugInfo, EventQueue, Handle, IndexingContainer,
-        RendererConfig, WindowConfig,
-    };
+    use jeriya_shared::{debug_info, winit::window::WindowId, AsDebugInfo, DebugInfo, WindowConfig};
     use std::sync::{
         mpsc::{channel, Sender},
         Arc,
@@ -263,10 +255,6 @@ mod tests {
     }
 
     struct DummyBackend {
-        cameras: Arc<Mutex<IndexingContainer<Camera>>>,
-        camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
-        renderer_config: Arc<RendererConfig>,
-        active_camera: Handle<Camera>,
         resource_event_sender: Sender<ResourceEvent>,
     }
     struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
@@ -323,14 +311,7 @@ mod tests {
         where
             Self: Sized,
         {
-            let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
-            let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
-            let active_camera = cameras.lock().insert(Camera::default());
             Ok(Arc::new(Self {
-                cameras,
-                camera_event_queue,
-                renderer_config: Arc::new(RendererConfig::default()),
-                active_camera,
                 resource_event_sender: channel().0,
             }))
         }
@@ -347,10 +328,6 @@ mod tests {
             _command_buffer: Arc<CommandBuffer<Self>>,
         ) -> jeriya_backend::Result<()> {
             Ok(())
-        }
-
-        fn cameras(&self) -> CameraContainerGuard {
-            CameraContainerGuard::new(self.camera_event_queue.lock(), self.cameras.lock(), self.renderer_config.clone())
         }
 
         fn set_active_camera(&self, _window_id: WindowId, _camera_instance: &CameraInstance) -> jeriya_backend::Result<()> {

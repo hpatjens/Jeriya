@@ -11,13 +11,12 @@ use jeriya_backend::{
         mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
         ResourceEvent,
     },
-    Camera, CameraEvent,
 };
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags, device::Device, host_visible_buffer::HostVisibleBuffer, shader_interface,
     staged_push_only_buffer::StagedPushOnlyBuffer,
 };
-use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, EventQueue, Handle, IndexingContainer, RendererConfig};
+use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, Handle, RendererConfig};
 
 use crate::queue_scheduler::QueueScheduler;
 
@@ -29,9 +28,6 @@ pub struct BackendShared {
     pub queue_scheduler: QueueScheduler,
 
     pub resource_event_sender: Sender<ResourceEvent>,
-
-    pub camera_event_queue: Arc<Mutex<EventQueue<CameraEvent>>>,
-    pub cameras: Arc<Mutex<IndexingContainer<Camera>>>,
 
     pub mesh_attributes_gpu_states: Arc<Mutex<HashMap<Handle<Arc<MeshAttributes>>, MeshAttributesGpuState>>>,
     pub mesh_attributes_buffer: Mutex<HostVisibleBuffer<shader_interface::MeshAttributes>>,
@@ -54,9 +50,6 @@ impl BackendShared {
         resource_sender: Sender<ResourceEvent>,
     ) -> jeriya_backend::Result<Self> {
         info!("Creating Cameras");
-        let cameras = Arc::new(Mutex::new(IndexingContainer::new()));
-        let camera_event_queue = Arc::new(Mutex::new(EventQueue::new()));
-
         info!("Creating HostVisibleBuffer for MeshAttributes");
         let mesh_attributes_buffer = Mutex::new(HostVisibleBuffer::new(
             device,
@@ -113,8 +106,6 @@ impl BackendShared {
             renderer_config: renderer_config.clone(),
             queue_scheduler,
             resource_event_sender: resource_sender,
-            cameras,
-            camera_event_queue,
             mesh_attributes_buffer,
             mesh_attributes_gpu_states: Arc::new(Mutex::new(HashMap::new())),
             static_vertex_position_buffer,

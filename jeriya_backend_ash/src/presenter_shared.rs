@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use jeriya_backend::gpu_index_allocator::GpuIndexAllocation;
 use jeriya_backend::instances::camera_instance::CameraInstance;
-use jeriya_backend::CameraContainerGuard;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig},

@@ -30,7 +30,7 @@ use jeriya_backend::{
         ResourceEvent, ResourceReceiver,
     },
     transactions::{self, PushEvent, Transaction, TransactionProcessor},
-    Backend, Camera, CameraContainerGuard, ImmediateCommandBufferBuilderHandler,
+    Backend, ImmediateCommandBufferBuilderHandler,
 };
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
@@ -49,7 +49,7 @@ use jeriya_shared::{
     nalgebra::Vector4,
     tracy_client::{span, Client},
     winit::window::WindowId,
-    AsDebugInfo, DebugInfo, Handle, RendererConfig, WindowConfig,
+    AsDebugInfo, DebugInfo, RendererConfig, WindowConfig,
 };
 
 pub struct AshBackend {
@@ -282,14 +282,6 @@ impl Backend for AshBackend {
             });
         }
         Ok(())
-    }
-
-    fn cameras(&self) -> CameraContainerGuard {
-        CameraContainerGuard::new(
-            self.backend_shared.camera_event_queue.lock(),
-            self.backend_shared.cameras.lock(),
-            self.backend_shared.renderer_config.clone(),
-        )
     }
 
     fn set_active_camera(&self, window_id: WindowId, camera_instance: &CameraInstance) -> jeriya_backend::Result<()> {

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, DebugInfo, Handle, RendererConfig, WindowConfig};
+use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, DebugInfo, RendererConfig, WindowConfig};
 
 use crate::{
     elements::{self, rigid_mesh::RigidMesh},
@@ -9,7 +9,6 @@ use crate::{
     instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{mesh_attributes::MeshAttributes, ResourceReceiver},
     transactions::TransactionProcessor,
-    Camera, CameraContainerGuard,
 };
 
 /// Rendering backend that is used by the [`Renderer`]
@@ -47,9 +46,6 @@ pub trait Backend:
         immediate_rendering_frame: &ImmediateRenderingFrame,
         command_buffer: Arc<CommandBuffer<Self>>,
     ) -> crate::Result<()>;
-
-    /// Returns a guard to the [`Camera`]s
-    fn cameras(&self) -> CameraContainerGuard;
 
     /// Sets the active camera for the given window
     fn set_active_camera(&self, window_id: WindowId, camera_instance: &CameraInstance) -> crate::Result<()>;
