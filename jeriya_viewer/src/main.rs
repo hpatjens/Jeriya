@@ -4,7 +4,7 @@ use std::{
 };
 
 use color_eyre as ey;
-use ey::eyre::{eyre, Context, ContextCompat};
+use ey::eyre::{Context, ContextCompat};
 use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend::{
@@ -16,8 +16,7 @@ use jeriya_backend::{
     },
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     instances::{
-        self,
-        camera_instance::{self, CameraInstance, CameraTransform},
+        camera_instance::{CameraInstance, CameraTransform},
         instance_group::InstanceGroup,
         rigid_mesh_instance::RigidMeshInstance,
     },
@@ -231,29 +230,31 @@ fn main() -> ey::Result<()> {
 
     // Create Camera for Window 1
     let camera1_builder = Camera::builder()
-        .with_projection(CameraProjection::Perspective {
-            fov: 90.0,
-            aspect: 1.0,
-            near: 0.1,
-            far: 100.0,
+        .with_projection(CameraProjection::Orthographic {
+            left: -5.0,
+            right: 5.0,
+            bottom: 5.0,
+            top: -5.0,
+            near: -5.0,
+            far: 5.0,
         })
         .with_debug_info(debug_info!("my_camera1"));
     let camera1_handle = element_group.cameras().mutate_via(&mut transaction).insert_with(camera1_builder)?;
 
     // Create Camera for Window 2
     let camera2_builder = Camera::builder()
-        .with_projection(CameraProjection::default())
+        .with_projection(CameraProjection::Perspective {
+            fov: 90.0,
+            aspect: 1.0,
+            near: 0.1,
+            far: 100.0,
+        })
         .with_debug_info(debug_info!("my_camera2"));
     let camera2_handle = element_group.cameras().mutate_via(&mut transaction).insert_with(camera2_builder)?;
 
     // Create CameraInstance for Window1
     let camera1_instance_builder = CameraInstance::builder()
         .with_camera(element_group.cameras().get(&camera1_handle).wrap_err("Failed to find camera")?)
-        .with_transform(CameraTransform::new(
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(0.0, 0.0, 1.0),
-            Vector3::new(0.0, -1.0, 0.0),
-        ))
         .with_debug_info(debug_info!("my_camera_instance"));
     let camera1_instance_handle = instance_group
         .camera_instances()
@@ -337,7 +338,7 @@ fn main() -> ey::Result<()> {
                 let mut transaction = Transaction::record(&renderer);
 
                 {
-                    let position = Vector3::new(t.as_secs_f32().sin() * 0.3, t.as_secs_f32().cos() * 0.3, 0.0);
+                    let position = Vector3::new(t.as_secs_f32().sin() * 0.3, t.as_secs_f32().cos() * 0.3, 0.5);
                     instance_group
                         .camera_instances()
                         .get_mut(&camera1_instance_handle)

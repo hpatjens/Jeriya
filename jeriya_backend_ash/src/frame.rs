@@ -45,7 +45,6 @@ pub struct Frame {
     image_available_semaphore: Option<Arc<Semaphore>>,
     rendering_complete_semaphore: Option<Arc<Semaphore>>,
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
-    cameras_buffer: HostVisibleBuffer<shader_interface::Camera>,
 
     mesh_attributes_count: usize,
     mesh_attributes_active_buffer: HostVisibleBuffer<bool>,
@@ -74,16 +73,6 @@ impl Frame {
             &[shader_interface::PerFrameData::default(); 1],
             BufferUsageFlags::UNIFORM_BUFFER,
             debug_info!(format!("PerFrameDataBuffer-for-Window{:?}", window_id)),
-        )?;
-
-        // Create cameras buffer
-        let len = backend_shared.renderer_config.maximum_number_of_cameras;
-        info!("Create cameras buffer with length: {len}");
-        let cameras_buffer = HostVisibleBuffer::new(
-            &backend_shared.device,
-            &vec![shader_interface::Camera::default(); len],
-            BufferUsageFlags::STORAGE_BUFFER,
-            debug_info!(format!("CamerasBuffer-for-Window{:?}", window_id)),
         )?;
 
         // Create camera buffer
@@ -145,7 +134,6 @@ impl Frame {
             image_available_semaphore: None,
             rendering_complete_semaphore: None,
             per_frame_data_buffer,
-            cameras_buffer,
             mesh_attributes_count: 0,
             mesh_attributes_active_buffer,
             camera_count: 0,
@@ -210,21 +198,6 @@ impl Frame {
             rigid_mesh_instance_count: self.rigid_mesh_instance_count as u32,
         };
         self.per_frame_data_buffer.set_memory_unaligned(&[per_frame_data])?;
-        drop(span);
-
-        let span = span!("update cameras buffer");
-        self.cameras_buffer.set_memory_unaligned({
-            let cameras = backend_shared.cameras.lock();
-            let padding = backend_shared.renderer_config.maximum_number_of_cameras - cameras.len();
-            &cameras
-                .as_slice()
-                .iter()
-                .map(|camera| shader_interface::Camera {
-                    projection_matrix: camera.projection_matrix(),
-                })
-                .chain(iter::repeat(shader_interface::Camera::default()).take(padding))
-                .collect::<Vec<_>>()
-        })?;
         drop(span);
 
         const LOCAL_SIZE_X: u32 = 128;
@@ -427,7 +400,7 @@ impl Frame {
     ) -> base::Result<()> {
         let push_descriptors = &PushDescriptors::builder(&descriptor_set_layout)
             .push_uniform_buffer(0, &self.per_frame_data_buffer)
-            .push_storage_buffer(1, &self.cameras_buffer)
+            .push_storage_buffer(1, &self.camera_buffer)
             .push_storage_buffer(2, &self.camera_instance_buffer)
             .push_storage_buffer(3, &self.indirect_draw_buffer)
             .push_storage_buffer(5, &*backend_shared.static_vertex_position_buffer.lock())

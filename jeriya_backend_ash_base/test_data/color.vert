@@ -111,5 +111,5 @@ void main() {
         view_projection_matrix = mat4(1.0);
     }
 
-    gl_Position = view_projection_matrix * vec4(inPosition, 1.0);
+    gl_Position = view_projection_matrix * push_constants.matrix * vec4(inPosition, 1.0);
 }
