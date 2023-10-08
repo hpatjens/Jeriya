@@ -38,12 +38,7 @@ where
     }
 
     /// Sets the value at the given index.
-    pub fn set(&mut self, gpu_index_allocation: GpuIndexAllocation<T>, value: &T) -> crate::Result<()> {
-        self.set_with_foreign_index(gpu_index_allocation, value)
-    }
-
-    /// Sets the value at the given index.
-    pub fn set_with_foreign_index<A>(&mut self, gpu_index_allocation: GpuIndexAllocation<A>, value: &T) -> crate::Result<()> {
+    pub fn set<A>(&mut self, gpu_index_allocation: &GpuIndexAllocation<A>, value: &T) -> crate::Result<()> {
         self.host_visible_buffer
             .set_memory_unaligned_index(gpu_index_allocation.index(), value)?;
         self.high_water_mark = self.high_water_mark.max(gpu_index_allocation.index() + 1);
@@ -98,7 +93,7 @@ mod tests {
         assert_eq!(frame_local_buffer.host_visible_buffer().len(), 10);
         assert_eq!(frame_local_buffer.debug_info().name(), "my_buffer");
 
-        let gpu_index_allocation = GpuIndexAllocation::new_unchecked(0);
-        frame_local_buffer.set(gpu_index_allocation, &73).unwrap();
+        let gpu_index_allocation = GpuIndexAllocation::<u32>::new_unchecked(0);
+        frame_local_buffer.set(&gpu_index_allocation, &73).unwrap();
     }
 }

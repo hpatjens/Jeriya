@@ -48,9 +48,7 @@ pub struct Frame {
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
 
     mesh_attributes_active_buffer: FrameLocalBuffer<bool>,
-
-    camera_count: usize,
-    camera_buffer: HostVisibleBuffer<shader_interface::Camera>,
+    camera_buffer: FrameLocalBuffer<shader_interface::Camera>,
 
     camera_instance_count: usize,
     camera_instance_buffer: HostVisibleBuffer<shader_interface::CameraInstance>,
@@ -78,10 +76,9 @@ impl Frame {
         // Create camera buffer
         let len = backend_shared.renderer_config.maximum_number_of_cameras;
         info!("Create camera buffer with length: {len}");
-        let camera_buffer = HostVisibleBuffer::new(
+        let camera_buffer = FrameLocalBuffer::new(
             &backend_shared.device,
-            &vec![shader_interface::Camera::default(); len],
-            BufferUsageFlags::STORAGE_BUFFER,
+            len,
             debug_info!(format!("CameraBuffer-for-Window{:?}", window_id)),
         )?;
 
@@ -134,7 +131,6 @@ impl Frame {
             rendering_complete_semaphore: None,
             per_frame_data_buffer,
             mesh_attributes_active_buffer,
-            camera_count: 0,
             camera_buffer,
             camera_instance_count: 0,
             camera_instance_buffer,
@@ -323,8 +319,7 @@ impl Frame {
                         gpu_index_allocation,
                         is_active,
                     } => {
-                        self.mesh_attributes_active_buffer
-                            .set_with_foreign_index(gpu_index_allocation, &is_active)?;
+                        self.mesh_attributes_active_buffer.set(&gpu_index_allocation, &is_active)?;
                     }
                 }
             }
@@ -379,19 +374,16 @@ impl Frame {
             Event::Noop => {}
             Event::Insert(camera) => {
                 info!("Insert Camera at {:?}", camera.gpu_index_allocation().index());
-                self.camera_buffer.set_memory_unaligned_index(
-                    camera.gpu_index_allocation().index(),
+                self.camera_buffer.set(
+                    camera.gpu_index_allocation(),
                     &shader_interface::Camera {
                         projection_matrix: camera.projection().projection_matrix(),
                     },
                 )?;
-                self.camera_count = self.camera_count.max(camera.gpu_index_allocation().index() + 1);
             }
             Event::UpdateProjectionMatrix(gpu_index_allocation, matrix) => {
-                self.camera_buffer.set_memory_unaligned_index(
-                    gpu_index_allocation.index(),
-                    &shader_interface::Camera { projection_matrix: matrix },
-                )?;
+                self.camera_buffer
+                    .set(&gpu_index_allocation, &shader_interface::Camera { projection_matrix: matrix })?;
             }
         }
         Ok(())
