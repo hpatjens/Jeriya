@@ -8,6 +8,7 @@ use crate::{
     buffer::{Buffer, BufferUsageFlags, GeneralBuffer},
     device::Device,
     host_visible_buffer::HostVisibleBuffer,
+    shader_interface::Represents,
     AsRawVulkan,
 };
 
@@ -38,7 +39,10 @@ where
     }
 
     /// Sets the value at the given index.
-    pub fn set<A>(&mut self, gpu_index_allocation: &GpuIndexAllocation<A>, value: &T) -> crate::Result<()> {
+    pub fn set<A>(&mut self, gpu_index_allocation: &GpuIndexAllocation<A>, value: &T) -> crate::Result<()>
+    where
+        T: Represents<CpuType = A>,
+    {
         self.host_visible_buffer
             .set_memory_unaligned_index(gpu_index_allocation.index(), value)?;
         self.high_water_mark = self.high_water_mark.max(gpu_index_allocation.index() + 1);
@@ -86,14 +90,21 @@ mod tests {
 
     #[test]
     fn smoke() {
+        #[derive(Default, Clone)]
+        struct GpuType(u32);
+        struct CpuType(u32);
+        impl Represents for GpuType {
+            type CpuType = CpuType;
+        }
+
         let device_test_fixture = TestFixtureDevice::new().unwrap();
-        let mut frame_local_buffer = FrameLocalBuffer::<u32>::new(&device_test_fixture.device, 10, debug_info!("my_buffer")).unwrap();
+        let mut frame_local_buffer = FrameLocalBuffer::<GpuType>::new(&device_test_fixture.device, 10, debug_info!("my_buffer")).unwrap();
         assert_eq!(frame_local_buffer.capacity(), 10);
         assert_eq!(frame_local_buffer.high_water_mark(), 0);
         assert_eq!(frame_local_buffer.host_visible_buffer().len(), 10);
         assert_eq!(frame_local_buffer.debug_info().name(), "my_buffer");
 
-        let gpu_index_allocation = GpuIndexAllocation::<u32>::new_unchecked(0);
-        frame_local_buffer.set(&gpu_index_allocation, &73).unwrap();
+        let gpu_index_allocation = GpuIndexAllocation::<CpuType>::new_unchecked(0);
+        frame_local_buffer.set(&gpu_index_allocation, &GpuType(73)).unwrap();
     }
 }
