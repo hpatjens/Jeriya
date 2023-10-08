@@ -10,3 +10,4 @@ members = [
     "jeriya_viewer",
     "jeriya_backend",
 ]
+resolver = "2"
