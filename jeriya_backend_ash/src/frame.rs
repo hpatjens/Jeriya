@@ -50,9 +50,7 @@ pub struct Frame {
     mesh_attributes_active_buffer: FrameLocalBuffer<bool>,
     camera_buffer: FrameLocalBuffer<shader_interface::Camera>,
     camera_instance_buffer: FrameLocalBuffer<shader_interface::CameraInstance>,
-
-    rigid_mesh_count: usize,
-    rigid_mesh_buffer: HostVisibleBuffer<shader_interface::RigidMesh>,
+    rigid_mesh_buffer: FrameLocalBuffer<shader_interface::RigidMesh>,
 
     rigid_mesh_instance_count: usize,
     rigid_mesh_instance_buffer: HostVisibleBuffer<shader_interface::RigidMeshInstance>,
@@ -98,10 +96,9 @@ impl Frame {
 
         let len = backend_shared.renderer_config.maximum_number_of_rigid_meshes;
         info!("Create rigid mesh buffer with length: {len}");
-        let rigid_mesh_buffer = HostVisibleBuffer::new(
+        let rigid_mesh_buffer = FrameLocalBuffer::new(
             &backend_shared.device,
-            &vec![shader_interface::RigidMesh::default(); len],
-            BufferUsageFlags::STORAGE_BUFFER,
+            len,
             debug_info!(format!("RigidMeshBuffer-for-Window{:?}", window_id)),
         )?;
 
@@ -130,7 +127,6 @@ impl Frame {
             mesh_attributes_active_buffer,
             camera_buffer,
             camera_instance_buffer,
-            rigid_mesh_count: 0,
             rigid_mesh_buffer,
             rigid_mesh_instance_count: 0,
             rigid_mesh_instance_buffer,
@@ -184,7 +180,7 @@ impl Frame {
         let per_frame_data = shader_interface::PerFrameData {
             active_camera: presenter_shared.active_camera_instance.map(|c| c.index() as i32).unwrap_or(-1),
             mesh_attributes_count: self.mesh_attributes_active_buffer.high_water_mark() as u32,
-            rigid_mesh_count: self.rigid_mesh_count as u32,
+            rigid_mesh_count: self.rigid_mesh_buffer.high_water_mark() as u32,
             rigid_mesh_instance_count: self.rigid_mesh_instance_count as u32,
         };
         self.per_frame_data_buffer.set_memory_unaligned(&[per_frame_data])?;
@@ -328,13 +324,12 @@ impl Frame {
         use rigid_mesh::Event;
         match event {
             Event::Insert(rigid_mesh) => {
-                self.rigid_mesh_buffer.set_memory_unaligned_index(
-                    rigid_mesh.gpu_index_allocation().index(),
+                self.rigid_mesh_buffer.set(
+                    rigid_mesh.gpu_index_allocation(),
                     &shader_interface::RigidMesh {
                         mesh_attributes_index: rigid_mesh.mesh_attributes().gpu_index_allocation().index() as i64,
                     },
                 )?;
-                self.rigid_mesh_count = self.rigid_mesh_count.max(rigid_mesh.gpu_index_allocation().index() + 1);
             }
             Event::Noop => {}
         }
