@@ -310,74 +310,18 @@ impl Frame {
 
     /// Processes the [`Transaction`]s pushed to the frame.
     fn process_transactions(&mut self) -> base::Result<()> {
-        for transaction in self.transactions.drain(..) {
+        use transactions::Event;
+        let drain = self.transactions.drain(..).collect::<Vec<_>>();
+        for transaction in drain {
             for event in transaction.process() {
                 match event {
-                    transactions::Event::RigidMesh(rigid_mesh::Event::Insert(rigid_mesh)) => {
-                        self.rigid_mesh_buffer.set_memory_unaligned_index(
-                            rigid_mesh.gpu_index_allocation().index(),
-                            &shader_interface::RigidMesh {
-                                mesh_attributes_index: rigid_mesh.mesh_attributes().gpu_index_allocation().index() as i64,
-                            },
-                        )?;
-                        self.rigid_mesh_count = self.rigid_mesh_count.max(rigid_mesh.gpu_index_allocation().index() + 1);
+                    Event::RigidMesh(rigid_mesh) => self.process_rigid_mesh_event(rigid_mesh)?,
+                    Event::Camera(camera_event) => self.process_camera_event(camera_event)?,
+                    Event::CameraInstance(camera_instance_event) => self.process_camera_instance_event(camera_instance_event)?,
+                    Event::RigidMeshInstance(rigid_mesh_instance_event) => {
+                        self.process_rigid_mesh_instance_event(rigid_mesh_instance_event)?
                     }
-                    transactions::Event::RigidMesh(rigid_mesh::Event::Noop) => {}
-                    transactions::Event::Camera(camera::Event::Noop) => {}
-                    transactions::Event::Camera(camera::Event::Insert(camera)) => {
-                        info!("Insert Camera at {:?}", camera.gpu_index_allocation().index());
-                        self.camera_buffer.set_memory_unaligned_index(
-                            camera.gpu_index_allocation().index(),
-                            &shader_interface::Camera {
-                                projection_matrix: camera.projection().projection_matrix(),
-                            },
-                        )?;
-                        self.camera_count = self.camera_count.max(camera.gpu_index_allocation().index() + 1);
-                    }
-                    transactions::Event::Camera(camera::Event::UpdateProjectionMatrix(gpu_index_allocation, matrix)) => {
-                        self.camera_buffer.set_memory_unaligned_index(
-                            gpu_index_allocation.index(),
-                            &shader_interface::Camera { projection_matrix: matrix },
-                        )?;
-                    }
-                    transactions::Event::CameraInstance(camera_instance::Event::Noop) => {}
-                    transactions::Event::CameraInstance(camera_instance::Event::Insert(camera_instance)) => {
-                        info!("Insert CameraInstance at {:?}", camera_instance.gpu_index_allocation().index());
-                        self.camera_instance_buffer.set_memory_unaligned_index(
-                            camera_instance.gpu_index_allocation().index(),
-                            &shader_interface::CameraInstance {
-                                camera_index: camera_instance.camera_gpu_index_allocation().index() as u64,
-                                _padding: 0,
-                                view_matrix: camera_instance.transform().view_matrix(),
-                            },
-                        )?;
-                        self.camera_instance_count = self.camera_instance_count.max(camera_instance.gpu_index_allocation().index() + 1);
-                    }
-                    transactions::Event::CameraInstance(camera_instance::Event::UpdateViewMatrix(gpu_index_allocation, matrix)) => {
-                        self.camera_instance_buffer.set_memory_unaligned_index(
-                            gpu_index_allocation.index(),
-                            &shader_interface::CameraInstance {
-                                camera_index: gpu_index_allocation.index() as u64,
-                                _padding: 0,
-                                view_matrix: matrix,
-                            },
-                        )?;
-                    }
-                    transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Noop) => {}
-                    transactions::Event::RigidMeshInstance(rigid_mesh_instance::Event::Insert(rigid_mesh_instance)) => {
-                        self.rigid_mesh_instance_buffer.set_memory_unaligned_index(
-                            rigid_mesh_instance.gpu_index_allocation().index(),
-                            &shader_interface::RigidMeshInstance {
-                                rigid_mesh_index: rigid_mesh_instance.rigid_mesh_gpu_index_allocation().index() as u64,
-                                _padding: 0,
-                                transform: rigid_mesh_instance.transform().clone(),
-                            },
-                        )?;
-                        self.rigid_mesh_instance_count = self
-                            .rigid_mesh_instance_count
-                            .max(rigid_mesh_instance.gpu_index_allocation().index() + 1);
-                    }
-                    transactions::Event::SetMeshAttributeActive {
+                    Event::SetMeshAttributeActive {
                         gpu_index_allocation,
                         is_active,
                     } => {
@@ -385,6 +329,102 @@ impl Frame {
                             .set_memory_unaligned_index(gpu_index_allocation.index(), &is_active)?;
                     }
                 }
+            }
+        }
+        Ok(())
+    }
+
+    /// Processes a [`rigid_mesh::Event`].
+    fn process_rigid_mesh_event(&mut self, event: rigid_mesh::Event) -> base::Result<()> {
+        use rigid_mesh::Event;
+        match event {
+            Event::Insert(rigid_mesh) => {
+                self.rigid_mesh_buffer.set_memory_unaligned_index(
+                    rigid_mesh.gpu_index_allocation().index(),
+                    &shader_interface::RigidMesh {
+                        mesh_attributes_index: rigid_mesh.mesh_attributes().gpu_index_allocation().index() as i64,
+                    },
+                )?;
+                self.rigid_mesh_count = self.rigid_mesh_count.max(rigid_mesh.gpu_index_allocation().index() + 1);
+            }
+            Event::Noop => {}
+        }
+        Ok(())
+    }
+
+    /// Processes a [`rigid_mesh_instance::Event`].
+    fn process_rigid_mesh_instance_event(&mut self, event: rigid_mesh_instance::Event) -> base::Result<()> {
+        use rigid_mesh_instance::Event;
+        match event {
+            Event::Noop => {}
+            Event::Insert(rigid_mesh_instance) => {
+                self.rigid_mesh_instance_buffer.set_memory_unaligned_index(
+                    rigid_mesh_instance.gpu_index_allocation().index(),
+                    &shader_interface::RigidMeshInstance {
+                        rigid_mesh_index: rigid_mesh_instance.rigid_mesh_gpu_index_allocation().index() as u64,
+                        _padding: 0,
+                        transform: rigid_mesh_instance.transform().clone(),
+                    },
+                )?;
+                self.rigid_mesh_instance_count = self
+                    .rigid_mesh_instance_count
+                    .max(rigid_mesh_instance.gpu_index_allocation().index() + 1);
+            }
+        }
+        Ok(())
+    }
+
+    /// Processes a [`camera::Event`].
+    fn process_camera_event(&mut self, event: camera::Event) -> base::Result<()> {
+        use camera::Event;
+        match event {
+            Event::Noop => {}
+            Event::Insert(camera) => {
+                info!("Insert Camera at {:?}", camera.gpu_index_allocation().index());
+                self.camera_buffer.set_memory_unaligned_index(
+                    camera.gpu_index_allocation().index(),
+                    &shader_interface::Camera {
+                        projection_matrix: camera.projection().projection_matrix(),
+                    },
+                )?;
+                self.camera_count = self.camera_count.max(camera.gpu_index_allocation().index() + 1);
+            }
+            Event::UpdateProjectionMatrix(gpu_index_allocation, matrix) => {
+                self.camera_buffer.set_memory_unaligned_index(
+                    gpu_index_allocation.index(),
+                    &shader_interface::Camera { projection_matrix: matrix },
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Processes a [`camera_instance::Event`].
+    fn process_camera_instance_event(&mut self, event: camera_instance::Event) -> base::Result<()> {
+        use camera_instance::Event;
+        match event {
+            Event::Noop => {}
+            Event::Insert(camera_instance) => {
+                info!("Insert CameraInstance at {:?}", camera_instance.gpu_index_allocation().index());
+                self.camera_instance_buffer.set_memory_unaligned_index(
+                    camera_instance.gpu_index_allocation().index(),
+                    &shader_interface::CameraInstance {
+                        camera_index: camera_instance.camera_gpu_index_allocation().index() as u64,
+                        _padding: 0,
+                        view_matrix: camera_instance.transform().view_matrix(),
+                    },
+                )?;
+                self.camera_instance_count = self.camera_instance_count.max(camera_instance.gpu_index_allocation().index() + 1);
+            }
+            Event::UpdateViewMatrix(gpu_index_allocation, matrix) => {
+                self.camera_instance_buffer.set_memory_unaligned_index(
+                    gpu_index_allocation.index(),
+                    &shader_interface::CameraInstance {
+                        camera_index: gpu_index_allocation.index() as u64,
+                        _padding: 0,
+                        view_matrix: matrix,
+                    },
+                )?;
             }
         }
         Ok(())
