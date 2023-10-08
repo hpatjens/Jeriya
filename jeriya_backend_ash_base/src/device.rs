@@ -48,20 +48,18 @@ impl Device {
                 .multi_draw_indirect(true)
         };
 
-        let features2 = {
-            let available_features = unsafe {
-                let mut shader_draw_parameters = PhysicalDeviceShaderDrawParametersFeatures::builder()
-                    .shader_draw_parameters(true)
-                    .build();
-
-                let mut features = PhysicalDeviceFeatures2::builder().push_next(&mut shader_draw_parameters).build();
-                instance
-                    .as_raw_vulkan()
-                    .get_physical_device_features2(*physical_device.as_raw_vulkan(), &mut features);
-
-                // dbg!(shader_draw_parameters.shader_draw_parameters);
-                // panic!();
-            };
+        // Check for shader draw parameters
+        let mut shader_draw_parameters = PhysicalDeviceShaderDrawParametersFeatures::builder()
+            .shader_draw_parameters(true)
+            .build();
+        let mut features2 = PhysicalDeviceFeatures2::builder().push_next(&mut shader_draw_parameters).build();
+        unsafe {
+            instance
+                .as_raw_vulkan()
+                .get_physical_device_features2(*physical_device.as_raw_vulkan(), &mut features2);
+        }
+        if shader_draw_parameters.shader_draw_parameters != vk::TRUE {
+            return Err(Error::PhysicalDeviceFeatureMissing(PhysicalDeviceFeature::ShaderDrawParameters));
         };
 
         // Create Queues

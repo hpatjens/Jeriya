@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use jeriya_backend::gpu_index_allocator::GpuIndexAllocation;
-use jeriya_backend::instances::camera_instance::CameraInstance;
+use jeriya_backend::{gpu_index_allocator::GpuIndexAllocation, instances::camera_instance::CameraInstance};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig},
@@ -20,7 +19,6 @@ use jeriya_shared::{
     log::info,
     nalgebra::{Matrix4, Vector4},
     winit::window::WindowId,
-    Handle,
 };
 
 use crate::backend_shared::BackendShared;

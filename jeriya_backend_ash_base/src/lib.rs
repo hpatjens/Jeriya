@@ -110,6 +110,7 @@ pub enum PhysicalDeviceFeature {
     WideLines,
     ShaderInt64,
     MultiDrawIndirect,
+    ShaderDrawParameters,
 }
 
 /// Errors in the ash backend

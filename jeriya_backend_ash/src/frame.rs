@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, VecDeque};
-use std::{iter, mem, sync::Arc};
+use std::{mem, sync::Arc};
 
 use jeriya_backend::elements::camera;
 use jeriya_backend::instances::camera_instance;

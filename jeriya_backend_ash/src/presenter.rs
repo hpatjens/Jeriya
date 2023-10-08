@@ -15,7 +15,6 @@ use crate::{
 use jeriya_backend::{
     immediate::ImmediateRenderingFrame, instances::camera_instance::CameraInstance, resources::ResourceEvent, transactions::Transaction,
 };
-use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_macros::profile;
 use jeriya_shared::{
@@ -25,11 +24,10 @@ use jeriya_shared::{
     spin_sleep,
     tracy_client::{span, Client},
     winit::window::WindowId,
-    EventQueue, FrameRate, Handle,
+    EventQueue, FrameRate,
 };
 
 pub enum PresenterEvent {
-    Recreate,
     RenderImmediateCommandBuffer {
         immediate_command_buffer_handler: AshImmediateCommandBufferHandler,
         immediate_rendering_frame: ImmediateRenderingFrame,
@@ -90,12 +88,6 @@ impl Presenter {
     /// Returns the index of the presenter
     pub fn presenter_index(&self) -> usize {
         self._presenter_index
-    }
-
-    /// Recreates the [`PresenterShared`] in case of a swapchain resize
-    pub fn recreate(&self) -> base::Result<()> {
-        self.send(PresenterEvent::Recreate);
-        Ok(())
     }
 
     /// Sets the active camera
@@ -167,9 +159,6 @@ fn run_presenter_thread(
         let mut event_queue = event_queue.lock().take();
         while let Some(new_events) = event_queue.pop() {
             match new_events {
-                PresenterEvent::Recreate => {
-                    presenter_shared.recreate(&window_id, &backend_shared)?;
-                }
                 PresenterEvent::RenderImmediateCommandBuffer {
                     immediate_command_buffer_handler,
                     immediate_rendering_frame,

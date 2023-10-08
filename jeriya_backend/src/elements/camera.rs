@@ -1,8 +1,4 @@
-use jeriya_shared::{
-    debug_info,
-    nalgebra::{Matrix4, Vector3},
-    nalgebra_glm, thiserror, DebugInfo, Handle,
-};
+use jeriya_shared::{debug_info, nalgebra::Matrix4, nalgebra_glm, thiserror, DebugInfo, Handle};
 
 use crate::{
     gpu_index_allocator::GpuIndexAllocation,
@@ -161,6 +157,7 @@ impl CameraBuilder {
 
 #[cfg(test)]
 mod tests {
+    use jeriya_shared::nalgebra::Vector3;
     use jeriya_test::spectral::assert_that;
 
     use super::*;
@@ -178,7 +175,6 @@ mod tests {
             near: 0.0,
             far: 1.0,
         });
-        let view = nalgebra_glm::ortho_rh_zo(-1.0, 1.0, 1.0, -1.0, 0.0, 1.0);
         let projection = Matrix4::look_at_rh(
             &Vector3::new(0.0, 0.0, 0.0).into(),
             &Vector3::new(0.0, 0.0, 1.0).into(),
@@ -205,11 +201,6 @@ mod tests {
             near: 0.1,
             far: 100.0,
         });
-        let view = Matrix4::look_at_rh(
-            &Vector3::new(1.0, 2.0, 3.0).into(),
-            &Vector3::new(5.0, 7.0, 9.0).into(),
-            &Vector3::new(0.0, 1.0, 0.0),
-        );
         let projection = nalgebra_glm::perspective_rh_zo(1.2, 90.0, 0.1, 100.0);
         assert_that!(camera.projection().projection_matrix()).is_equal_to(&projection);
     }
