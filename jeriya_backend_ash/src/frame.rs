@@ -356,7 +356,7 @@ impl Frame {
                         self.camera_buffer.set_memory_unaligned_index(
                             camera.gpu_index_allocation().index(),
                             &shader_interface::Camera {
-                                projection_matrix: camera.projection_matrix(),
+                                projection_matrix: camera.projection().projection_matrix(),
                             },
                         )?;
                         self.camera_count = self.camera_count.max(camera.gpu_index_allocation().index() + 1);

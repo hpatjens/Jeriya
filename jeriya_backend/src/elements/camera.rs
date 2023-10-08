@@ -77,7 +77,6 @@ impl Default for CameraProjection {
 #[derive(Debug, Clone)]
 pub struct Camera {
     projection: CameraProjection,
-    cached_projection_matrix: Matrix4<f32>,
     debug_info: DebugInfo,
     handle: Handle<Camera>,
     gpu_index_allocation: GpuIndexAllocation<Camera>,
@@ -92,11 +91,6 @@ impl Camera {
     /// Returns the [`CameraProjection`] of the camera.
     pub fn projection(&self) -> &CameraProjection {
         &self.projection
-    }
-
-    /// Returns the projection matrix of the camera.
-    pub fn projection_matrix(&self) -> Matrix4<f32> {
-        self.cached_projection_matrix
     }
 
     /// Returns the [`DebugInfo`] of the [`Camera`].
@@ -129,11 +123,10 @@ impl<'g, 't, P: PushEvent> CameraAccessMut<'g, 't, P> {
     /// Sets the [`CameraProjection`] of the [`Camera`].
     pub fn set_projection(&mut self, projection: CameraProjection) {
         self.camera.projection = projection;
-        self.camera.cached_projection_matrix = self.camera.projection.projection_matrix();
         self.transaction
             .push_event(transactions::Event::Camera(Event::UpdateProjectionMatrix(
                 self.camera.gpu_index_allocation.clone(),
-                self.camera.cached_projection_matrix,
+                self.camera.projection().projection_matrix(),
             )))
     }
 }
@@ -158,11 +151,8 @@ impl CameraBuilder {
     }
 
     pub(crate) fn build(self, handle: Handle<Camera>, gpu_index_allocation: GpuIndexAllocation<Camera>) -> Result<Camera> {
-        let projection = self.projection.unwrap_or_default();
-        let cached_projection_matrix = projection.projection_matrix();
         Ok(Camera {
-            projection,
-            cached_projection_matrix,
+            projection: self.projection.unwrap_or_default(),
             debug_info: self.debug_info.unwrap_or_else(|| debug_info!("Anonymous Camera")),
             handle,
             gpu_index_allocation,
@@ -195,7 +185,7 @@ mod tests {
             &Vector3::new(0.0, 0.0, 1.0).into(),
             &Vector3::new(0.0, -1.0, 0.0),
         );
-        assert_that!(camera.projection_matrix()).is_equal_to(&projection);
+        assert_that!(camera.projection().projection_matrix()).is_equal_to(&projection);
     }
 
     #[test]
@@ -222,6 +212,6 @@ mod tests {
             &Vector3::new(0.0, 1.0, 0.0),
         );
         let projection = nalgebra_glm::perspective_rh_zo(1.2, 90.0, 0.1, 100.0);
-        assert_that!(camera.projection_matrix()).is_equal_to(&projection);
+        assert_that!(camera.projection().projection_matrix()).is_equal_to(&projection);
     }
 }
