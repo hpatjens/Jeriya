@@ -361,8 +361,12 @@ impl Frame {
                         )?;
                         self.camera_count = self.camera_count.max(camera.gpu_index_allocation().index() + 1);
                     }
-                    transactions::Event::Camera(camera::Event::UpdateProjectionMatrix(gpu_index_allocation, matrix)) => {}
-                    transactions::Event::Camera(camera::Event::UpdateView(gpu_index_allocation, matrix)) => {}
+                    transactions::Event::Camera(camera::Event::UpdateProjectionMatrix(gpu_index_allocation, matrix)) => {
+                        self.camera_buffer.set_memory_unaligned_index(
+                            gpu_index_allocation.index(),
+                            &shader_interface::Camera { projection_matrix: matrix },
+                        )?;
+                    }
                     transactions::Event::CameraInstance(camera_instance::Event::Noop) => {}
                     transactions::Event::CameraInstance(camera_instance::Event::Insert(camera_instance)) => {
                         info!("Insert CameraInstance at {:?}", camera_instance.gpu_index_allocation().index());

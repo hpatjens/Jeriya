@@ -22,7 +22,6 @@ pub enum Event {
     Noop,
     Insert(Camera),
     UpdateProjectionMatrix(GpuIndexAllocation<Camera>, Matrix4<f32>),
-    UpdateView(GpuIndexAllocation<Camera>, Matrix4<f32>),
 }
 
 /// Type of projection for a camera.
