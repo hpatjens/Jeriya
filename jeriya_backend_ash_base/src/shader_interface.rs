@@ -5,6 +5,10 @@ pub trait Represents {
     type CpuType;
 }
 
+impl Represents for bool {
+    type CpuType = resources::mesh_attributes::MeshAttributes;
+}
+
 #[repr(C)]
 #[derive(Debug, Clone, Default)]
 pub struct PerFrameData {
