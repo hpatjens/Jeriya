@@ -51,9 +51,7 @@ pub struct Frame {
     camera_buffer: FrameLocalBuffer<shader_interface::Camera>,
     camera_instance_buffer: FrameLocalBuffer<shader_interface::CameraInstance>,
     rigid_mesh_buffer: FrameLocalBuffer<shader_interface::RigidMesh>,
-
-    rigid_mesh_instance_count: usize,
-    rigid_mesh_instance_buffer: HostVisibleBuffer<shader_interface::RigidMeshInstance>,
+    rigid_mesh_instance_buffer: FrameLocalBuffer<shader_interface::RigidMeshInstance>,
 
     indirect_draw_buffer: Arc<DeviceVisibleBuffer<DrawIndirectCommand>>,
     transactions: VecDeque<Transaction>,
@@ -104,10 +102,9 @@ impl Frame {
 
         let len = backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances;
         info!("Create rigid mesh instance buffer with length: {len}");
-        let rigid_mesh_instance_buffer = HostVisibleBuffer::new(
+        let rigid_mesh_instance_buffer = FrameLocalBuffer::new(
             &backend_shared.device,
-            &vec![shader_interface::RigidMeshInstance::default(); len],
-            BufferUsageFlags::STORAGE_BUFFER,
+            len,
             debug_info!(format!("RigidMeshInstanceBuffer-for-Window{:?}", window_id)),
         )?;
 
@@ -128,7 +125,6 @@ impl Frame {
             camera_buffer,
             camera_instance_buffer,
             rigid_mesh_buffer,
-            rigid_mesh_instance_count: 0,
             rigid_mesh_instance_buffer,
             indirect_draw_buffer,
             transactions: VecDeque::new(),
@@ -181,13 +177,13 @@ impl Frame {
             active_camera: presenter_shared.active_camera_instance.map(|c| c.index() as i32).unwrap_or(-1),
             mesh_attributes_count: self.mesh_attributes_active_buffer.high_water_mark() as u32,
             rigid_mesh_count: self.rigid_mesh_buffer.high_water_mark() as u32,
-            rigid_mesh_instance_count: self.rigid_mesh_instance_count as u32,
+            rigid_mesh_instance_count: self.rigid_mesh_instance_buffer.high_water_mark() as u32,
         };
         self.per_frame_data_buffer.set_memory_unaligned(&[per_frame_data])?;
         drop(span);
 
         const LOCAL_SIZE_X: u32 = 128;
-        let cull_compute_shader_group_count = (self.rigid_mesh_instance_buffer.len() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
+        let cull_compute_shader_group_count = (self.rigid_mesh_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
 
         // Create a CommandPool
         let command_pool_span = span!("create commnad pool");
@@ -248,7 +244,7 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
-        builder.draw_indirect(&self.indirect_draw_buffer, self.rigid_mesh_instance_count);
+        builder.draw_indirect(&self.indirect_draw_buffer, self.rigid_mesh_buffer.high_water_mark());
         drop(indirect_span);
 
         // Render with SimpleGraphicsPipeline
@@ -342,17 +338,14 @@ impl Frame {
         match event {
             Event::Noop => {}
             Event::Insert(rigid_mesh_instance) => {
-                self.rigid_mesh_instance_buffer.set_memory_unaligned_index(
-                    rigid_mesh_instance.gpu_index_allocation().index(),
+                self.rigid_mesh_instance_buffer.set(
+                    rigid_mesh_instance.gpu_index_allocation(),
                     &shader_interface::RigidMeshInstance {
                         rigid_mesh_index: rigid_mesh_instance.rigid_mesh_gpu_index_allocation().index() as u64,
                         _padding: 0,
                         transform: rigid_mesh_instance.transform().clone(),
                     },
                 )?;
-                self.rigid_mesh_instance_count = self
-                    .rigid_mesh_instance_count
-                    .max(rigid_mesh_instance.gpu_index_allocation().index() + 1);
             }
         }
         Ok(())
