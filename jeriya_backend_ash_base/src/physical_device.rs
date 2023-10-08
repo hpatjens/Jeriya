@@ -80,16 +80,12 @@ fn rate_physical_devices(instance: &ash::Instance, physical_devices: Vec<vk::Phy
 #[cfg(test)]
 mod tests {
     mod new {
-        use jeriya_test::create_window;
-
-        use crate::{entry::Entry, instance::Instance, physical_device::PhysicalDevice, surface::Surface};
+        use crate::{entry::Entry, instance::Instance, physical_device::PhysicalDevice};
 
         #[test]
         fn smoke() {
-            let window = create_window();
             let entry = Entry::new().unwrap();
             let instance = Instance::new(&entry, &"my_application", true).unwrap();
-            let surface = Surface::new(&entry, &instance, &window).unwrap();
             let _physical_device = PhysicalDevice::new(&instance).unwrap();
         }
     }

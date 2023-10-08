@@ -731,6 +731,6 @@ mod tests {
         let surface = Surface::new(&entry, &instance, &window).unwrap();
         let physical_device = PhysicalDevice::new(&instance).unwrap();
         let queue_plan = QueuePlan::new(&instance, &physical_device, std::iter::once((&window.id(), &surface))).unwrap();
-        let device = Device::new(physical_device, &instance, queue_plan).unwrap();
+        let _device = Device::new(physical_device, &instance, queue_plan).unwrap();
     }
 }
