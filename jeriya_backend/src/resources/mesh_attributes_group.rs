@@ -3,10 +3,10 @@ use std::sync::{mpsc::Sender, Arc, Weak};
 use jeriya_shared::{DebugInfo, Handle, IndexingContainer};
 
 use crate::{
-    gpu_index_allocator::{AllocateGpuIndex, IntoAllocateGpuIndex},
+    gpu_index_allocator::{AllocateGpuIndex, ProvideAllocateGpuIndex},
     resources::{
         mesh_attributes::{self, MeshAttributeBuilder, MeshAttributes},
-        IntoResourceReceiver, ResourceEvent, ResourceReceiver,
+        ProvideResourceReceiver, ResourceEvent, ResourceReceiver,
     },
 };
 
@@ -21,10 +21,10 @@ impl MeshAttributesGroup {
     /// Creates a new [`MeshAttributesGroup`]
     pub(crate) fn new<B>(backend: &Arc<B>, debug_info: DebugInfo) -> Self
     where
-        B: IntoResourceReceiver + IntoAllocateGpuIndex<MeshAttributes>,
+        B: ProvideResourceReceiver + ProvideAllocateGpuIndex<MeshAttributes>,
     {
-        let resource_event_sender = backend.into_resource_receiver().sender().clone();
-        let gpu_index_allocator = backend.into_gpu_index_allocator();
+        let resource_event_sender = backend.provide_resource_receiver().sender().clone();
+        let gpu_index_allocator = backend.provide_gpu_index_allocator();
         Self {
             mesh_attributes: IndexingContainer::new(),
             resource_event_sender,

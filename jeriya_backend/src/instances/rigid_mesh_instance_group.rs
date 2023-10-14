@@ -3,7 +3,7 @@ use std::sync::{Arc, Weak};
 use jeriya_shared::{DebugInfo, Handle, IndexingContainer};
 
 use crate::{
-    gpu_index_allocator::{AllocateGpuIndex, IntoAllocateGpuIndex},
+    gpu_index_allocator::{AllocateGpuIndex, ProvideAllocateGpuIndex},
     instances::rigid_mesh_instance::{self, Error, RigidMeshInstance, RigidMeshInstanceBuilder},
     transactions::{self, PushEvent},
 };
@@ -16,9 +16,9 @@ pub struct RigidMeshInstanceGroup {
 
 impl RigidMeshInstanceGroup {
     /// Creates a new [`RigidMeshInstanceGroup`]
-    pub fn new(gpu_index_allocator: &Arc<impl IntoAllocateGpuIndex<RigidMeshInstance>>, debug_info: DebugInfo) -> Self {
+    pub fn new(gpu_index_allocator: &Arc<impl ProvideAllocateGpuIndex<RigidMeshInstance>>, debug_info: DebugInfo) -> Self {
         Self {
-            gpu_index_allocator: gpu_index_allocator.into_gpu_index_allocator(),
+            gpu_index_allocator: gpu_index_allocator.provide_gpu_index_allocator(),
             indexing_container: IndexingContainer::new(),
             debug_info,
         }

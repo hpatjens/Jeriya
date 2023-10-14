@@ -3,7 +3,7 @@ use std::sync::Arc;
 use jeriya_shared::{debug_info, DebugInfo};
 
 use crate::{
-    gpu_index_allocator::IntoAllocateGpuIndex,
+    gpu_index_allocator::ProvideAllocateGpuIndex,
     instances::{rigid_mesh_instance::RigidMeshInstance, rigid_mesh_instance_group::RigidMeshInstanceGroup},
 };
 
@@ -19,7 +19,7 @@ impl InstanceGroup {
     /// Creates a new [`InstanceGroup`]
     pub fn new<A>(allocate_gpu_index: &Arc<A>, debug_info: DebugInfo) -> Self
     where
-        A: IntoAllocateGpuIndex<RigidMeshInstance> + IntoAllocateGpuIndex<CameraInstance>,
+        A: ProvideAllocateGpuIndex<RigidMeshInstance> + ProvideAllocateGpuIndex<CameraInstance>,
     {
         let camera_instance_group = CameraInstanceGroup::new(
             allocate_gpu_index,

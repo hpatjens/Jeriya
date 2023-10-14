@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use jeriya_shared::{debug_info, DebugInfo};
 
-use crate::gpu_index_allocator::IntoAllocateGpuIndex;
+use crate::gpu_index_allocator::ProvideAllocateGpuIndex;
 
 use super::{camera::Camera, camera_group::CameraGroup, rigid_mesh::RigidMesh, rigid_mesh_group::RigidMeshGroup};
 
@@ -16,7 +16,7 @@ impl ElementGroup {
     /// Creates a new [`ElementGroup`]
     pub fn new<A>(allocate_gpu_index: &Arc<A>, debug_info: DebugInfo) -> Self
     where
-        A: IntoAllocateGpuIndex<RigidMesh> + IntoAllocateGpuIndex<Camera>,
+        A: ProvideAllocateGpuIndex<RigidMesh> + ProvideAllocateGpuIndex<Camera>,
     {
         let camera_group = CameraGroup::new(allocate_gpu_index, debug_info!(format!("{}-camera-group", debug_info.name())));
         let rigid_mesh_group = RigidMeshGroup::new(allocate_gpu_index, debug_info!(format!("{}-rigid-mesh-group", debug_info.name())));

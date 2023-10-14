@@ -9,9 +9,9 @@ pub trait AllocateGpuIndex<T> {
 }
 
 /// Trait that is implemented by the renderer to provide a [`AllocateGpuIndex`] implementation.
-pub trait IntoAllocateGpuIndex<T> {
+pub trait ProvideAllocateGpuIndex<T> {
     type AllocateGpuIndex: AllocateGpuIndex<T> + 'static;
-    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex>;
+    fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex>;
 }
 
 /// Allocator for managing unique indices of values in GPU memory

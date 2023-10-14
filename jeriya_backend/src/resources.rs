@@ -12,7 +12,7 @@ pub use texture2d::*;
 
 use jeriya_shared::AsDebugInfo;
 
-use crate::gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, IntoAllocateGpuIndex};
+use crate::gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, ProvideAllocateGpuIndex};
 
 use self::{mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesEvent};
 
@@ -22,9 +22,9 @@ pub trait ResourceReceiver {
 }
 
 /// Trait that is implemented by the renderer to provide a [`ResourceReceiver`] implementation.
-pub trait IntoResourceReceiver {
+pub trait ProvideResourceReceiver {
     type ResourceReceiver: ResourceReceiver;
-    fn into_resource_receiver(&self) -> &Self::ResourceReceiver;
+    fn provide_resource_receiver(&self) -> &Self::ResourceReceiver;
 }
 
 /// Data on the GPU that doesn't change frequently and is referenced by the instances in the scene
@@ -74,16 +74,16 @@ impl MockRenderer {
     }
 }
 
-impl IntoResourceReceiver for MockRenderer {
+impl ProvideResourceReceiver for MockRenderer {
     type ResourceReceiver = MockBackend;
-    fn into_resource_receiver(&self) -> &Self::ResourceReceiver {
+    fn provide_resource_receiver(&self) -> &Self::ResourceReceiver {
         &self.0
     }
 }
 
-impl IntoAllocateGpuIndex<MeshAttributes> for MockRenderer {
+impl ProvideAllocateGpuIndex<MeshAttributes> for MockRenderer {
     type AllocateGpuIndex = MockBackend;
-    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+    fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
         Arc::downgrade(&self.0)
     }
 }

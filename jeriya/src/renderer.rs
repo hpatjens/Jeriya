@@ -2,11 +2,11 @@ use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, Re
 
 use jeriya_backend::{
     elements::{self, rigid_mesh::RigidMesh},
-    gpu_index_allocator::IntoAllocateGpuIndex,
+    gpu_index_allocator::ProvideAllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
     instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
-    resources::{mesh_attributes::MeshAttributes, IntoResourceReceiver},
-    transactions::IntoTransactionProcessor,
+    resources::{mesh_attributes::MeshAttributes, ProvideResourceReceiver},
+    transactions::ProvideTransactionProcessor,
     Backend, Result,
 };
 
@@ -107,51 +107,51 @@ where
     }
 }
 
-impl<B: Backend> IntoResourceReceiver for Renderer<B> {
+impl<B: Backend> ProvideResourceReceiver for Renderer<B> {
     type ResourceReceiver = B;
-    fn into_resource_receiver(&self) -> &Self::ResourceReceiver {
+    fn provide_resource_receiver(&self) -> &Self::ResourceReceiver {
         &self.backend
     }
 }
 
-impl<B: Backend> IntoAllocateGpuIndex<elements::camera::Camera> for Renderer<B> {
+impl<B: Backend> ProvideAllocateGpuIndex<elements::camera::Camera> for Renderer<B> {
     type AllocateGpuIndex = B;
-    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+    fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
         Arc::downgrade(self.backend())
     }
 }
 
-impl<B: Backend> IntoAllocateGpuIndex<CameraInstance> for Renderer<B> {
+impl<B: Backend> ProvideAllocateGpuIndex<CameraInstance> for Renderer<B> {
     type AllocateGpuIndex = B;
-    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+    fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
         Arc::downgrade(self.backend())
     }
 }
 
-impl<B: Backend> IntoAllocateGpuIndex<RigidMesh> for Renderer<B> {
+impl<B: Backend> ProvideAllocateGpuIndex<RigidMesh> for Renderer<B> {
     type AllocateGpuIndex = B;
-    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+    fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
         Arc::downgrade(self.backend())
     }
 }
 
-impl<B: Backend> IntoAllocateGpuIndex<RigidMeshInstance> for Renderer<B> {
+impl<B: Backend> ProvideAllocateGpuIndex<RigidMeshInstance> for Renderer<B> {
     type AllocateGpuIndex = B;
-    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+    fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
         Arc::downgrade(self.backend())
     }
 }
 
-impl<B: Backend> IntoAllocateGpuIndex<MeshAttributes> for Renderer<B> {
+impl<B: Backend> ProvideAllocateGpuIndex<MeshAttributes> for Renderer<B> {
     type AllocateGpuIndex = B;
-    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+    fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
         Arc::downgrade(self.backend())
     }
 }
 
-impl<'s, B: Backend + 's> IntoTransactionProcessor<'s> for Renderer<B> {
+impl<'s, B: Backend + 's> ProvideTransactionProcessor<'s> for Renderer<B> {
     type TransactionProcessor = B;
-    fn into_transaction_processor(&'s self) -> &'s Arc<Self::TransactionProcessor> {
+    fn provide_transaction_processor(&'s self) -> &'s Arc<Self::TransactionProcessor> {
         &self.backend
     }
 }

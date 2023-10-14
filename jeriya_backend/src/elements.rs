@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use crate::gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, GpuIndexAllocator, IntoAllocateGpuIndex};
+use crate::gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, GpuIndexAllocator, ProvideAllocateGpuIndex};
 
 use self::rigid_mesh::RigidMesh;
 
@@ -28,9 +28,9 @@ impl MockRenderer {
     }
 }
 
-impl IntoAllocateGpuIndex<RigidMesh> for MockRenderer {
+impl ProvideAllocateGpuIndex<RigidMesh> for MockRenderer {
     type AllocateGpuIndex = MockBackend;
-    fn into_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+    fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
         Arc::downgrade(&self.backend)
     }
 }

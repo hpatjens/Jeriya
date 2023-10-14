@@ -3,8 +3,8 @@ use std::sync::Arc;
 use jeriya_shared::{debug_info, DebugInfo};
 
 use crate::{
-    gpu_index_allocator::IntoAllocateGpuIndex,
-    resources::{mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesGroup, IntoResourceReceiver},
+    gpu_index_allocator::ProvideAllocateGpuIndex,
+    resources::{mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesGroup, ProvideResourceReceiver},
 };
 
 pub struct ResourceGroup {
@@ -18,7 +18,7 @@ impl ResourceGroup {
     /// Pass the [`Renderer`] as the `resource_receiver` parameter.
     pub fn new<B>(backend: &Arc<B>, debug_info: DebugInfo) -> Self
     where
-        B: IntoResourceReceiver + IntoAllocateGpuIndex<MeshAttributes>,
+        B: ProvideResourceReceiver + ProvideAllocateGpuIndex<MeshAttributes>,
     {
         let mesh_attributes_group = MeshAttributesGroup::new(backend, debug_info!(format!("{}-mesh-attributes-group", debug_info.name())));
         Self {

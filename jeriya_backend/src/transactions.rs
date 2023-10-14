@@ -13,9 +13,9 @@ pub trait TransactionProcessor {
 }
 
 /// Trait that is implemented by the [`Renderer`] to provide a [`TransactionProcessor`] implementation.
-pub trait IntoTransactionProcessor<'s> {
+pub trait ProvideTransactionProcessor<'s> {
     type TransactionProcessor: TransactionProcessor + 's;
-    fn into_transaction_processor(&'s self) -> &'s Arc<Self::TransactionProcessor>;
+    fn provide_transaction_processor(&'s self) -> &'s Arc<Self::TransactionProcessor>;
 }
 
 /// Trait that is implemented by types that store [`Event`]s.
@@ -137,9 +137,9 @@ impl Transaction {
     /// transaction_recorder.push(Event::RigidMesh(rigid_mesh::Event::Noop));
     /// transaction_recorder.finish();
     /// ```
-    pub fn record<'t, T: IntoTransactionProcessor<'t>>(renderer: &'t Arc<T>) -> TransactionRecorder<'t, T::TransactionProcessor> {
+    pub fn record<'t, T: ProvideTransactionProcessor<'t>>(renderer: &'t Arc<T>) -> TransactionRecorder<'t, T::TransactionProcessor> {
         TransactionRecorder {
-            transaction_processor: renderer.into_transaction_processor(),
+            transaction_processor: renderer.provide_transaction_processor(),
             transaction: Some(Self::new()),
         }
     }
@@ -226,9 +226,9 @@ impl MockRenderer {
     }
 }
 
-impl<'s> IntoTransactionProcessor<'s> for MockRenderer {
+impl<'s> ProvideTransactionProcessor<'s> for MockRenderer {
     type TransactionProcessor = MockTransactionRecorder;
-    fn into_transaction_processor(&self) -> &Arc<Self::TransactionProcessor> {
+    fn provide_transaction_processor(&self) -> &Arc<Self::TransactionProcessor> {
         &self.0
     }
 }
@@ -253,9 +253,9 @@ mod tests {
             }
         }
         struct DummyRenderer(Arc<TransactionRecorder>);
-        impl<'s> IntoTransactionProcessor<'s> for DummyRenderer {
+        impl<'s> ProvideTransactionProcessor<'s> for DummyRenderer {
             type TransactionProcessor = TransactionRecorder;
-            fn into_transaction_processor(&'s self) -> &'s Arc<Self::TransactionProcessor> {
+            fn provide_transaction_processor(&'s self) -> &'s Arc<Self::TransactionProcessor> {
                 &self.0
             }
         }
