@@ -124,7 +124,8 @@ where
     Ok(())
 }
 
-fn load_model() -> ey::Result<Vec<Vector3<f32>>> {
+/// Imports a glTF model and returns the vertex positions.
+fn load_vertices() -> ey::Result<Vec<Vector3<f32>>> {
     let (document, buffers, _images) = gltf::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import glTF model")?;
     let mut vertex_positions = Vec::new();
     for mesh in document.meshes() {
@@ -166,6 +167,7 @@ fn setup_asset_processor() -> ey::Result<AssetProcessor> {
 }
 
 fn main() -> ey::Result<()> {
+    // Setup logging
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -181,6 +183,7 @@ fn main() -> ey::Result<()> {
         .apply()
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
 
+    // Create Windows
     let event_loop = EventLoop::new();
     let window1 = WindowBuilder::new()
         .with_title("Example")
@@ -192,43 +195,66 @@ fn main() -> ey::Result<()> {
         .with_inner_size(LogicalSize::new(640.0, 480.0))
         .build(&event_loop)
         .wrap_err("Failed to create window 2")?;
-    let window_config1 = WindowConfig {
-        window: &window1,
-        frame_rate: FrameRate::Unlimited,
-    };
-    let window_config2 = WindowConfig {
-        window: &window2,
-        frame_rate: FrameRate::Limited(60),
-    };
+
+    // Create Renderer
     let renderer = jeriya::Renderer::<AshBackend>::builder()
         .add_renderer_config(RendererConfig::default())
-        .add_windows(&[window_config1, window_config2])
+        .add_windows(&[
+            WindowConfig {
+                window: &window1,
+                frame_rate: FrameRate::Unlimited,
+            },
+            WindowConfig {
+                window: &window2,
+                frame_rate: FrameRate::Limited(60),
+            },
+        ])
         .build()
         .wrap_err("Failed to create renderer")?;
 
+    // Setup Content Pipeline
     let _asset_processor = setup_asset_processor()?;
-
     let import_source = FileSystem::new("assets/unprocessed").wrap_err("Failed to create ImportSource for AssetImporter")?;
     let _asset_importer = AssetImporter::new(import_source, 4).wrap_err("Failed to create AssetImporter")?;
 
+    // Containers in which manage the GPU resources
     let mut resource_group = ResourceGroup::new(&renderer, debug_info!("my_resource_group"));
     let mut element_group = ElementGroup::new(&renderer, debug_info!("my_element_group"));
     let mut instance_group = InstanceGroup::new(&renderer, debug_info!("my_instance_group"));
 
-    let model = load_model().wrap_err("Failed to load model")?;
+    // Load models
+    let model = load_vertices().wrap_err("Failed to load model")?;
     let fake_normals = model.iter().map(|_| Vector3::new(0.0, 1.0, 0.0)).collect::<Vec<_>>();
-
     let suzanne = Model::import("sample_assets/suzanne.glb").wrap_err("Failed to import model")?;
 
-    let mesh_attributes_builder = MeshAttributes::builder()
-        .with_vertex_positions(model.clone())
-        .with_vertex_normals(fake_normals.clone())
-        .with_debug_info(debug_info!("my_mesh"));
-    let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder).unwrap();
+    // Create MeshAttributes for the model
+    //
+    // This will upload the vertex positions and normals to the GPU asynchronously. When the upload
+    // is done a MeshAttributes value will be uploaded to the GPU so that RigidMeshes can reference
+    // the vertex data.
+    let mesh_attributes = resource_group
+        .mesh_attributes()
+        .insert_with(
+            MeshAttributes::builder()
+                .with_vertex_positions(model.clone())
+                .with_vertex_normals(fake_normals.clone())
+                .with_debug_info(debug_info!("my_mesh")),
+        )
+        .unwrap();
 
+    // Create a Transaction to record changes to the ElementGroup and InstanceGroup.
+    //
+    // Transactions are a sequence of state changes that will be applied on the GPU as one operation.
+    // This is useful for batching changes together to reduce the number of GPU operations and making
+    // sure that the GPU is not in an inconsistent state. All changes to the ElementGroup and
+    // InstanceGroup must be done via a Transaction.
     let mut transaction = Transaction::record(&renderer);
 
     // Create Camera for Window 1
+    //
+    // The camera itself cannot be used to create a view onto the scene. Instead it only defines the
+    // properties of the camera. To create a view onto the scene a CameraInstance must be created that
+    // references a Camera.
     let camera1_builder = Camera::builder()
         .with_projection(CameraProjection::Orthographic {
             left: -5.0,
@@ -284,17 +310,12 @@ fn main() -> ey::Result<()> {
         .set_active_camera(window2.id(), &camera2_instance)
         .wrap_err("Failed to set active camera")?;
 
-    // Create RigidMeshes from model
-    let rigid_mesh_collection = RigidMeshCollection::from_model(&suzanne, &mut resource_group, &mut element_group, &mut transaction)?;
-    let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
-        &rigid_mesh_collection,
-        element_group.rigid_meshes(),
-        &mut instance_group,
-        &mut transaction,
-        &nalgebra::convert(Translation3::new(-1.5, 0.0, 0.0)),
-    )?;
-
     // Create RigidMesh
+    //
+    // A RigidMesh is a mesh that is not animated. It can be instanced multiple times in the scene. To
+    // define the appearance of the RigidMesh, a MeshAttributes value must be referenced. The RigidMesh
+    // itself is not displayed in the scene. Instead RigidMeshInstances must be created that reference
+    // a RigidMesh.
     let rigid_mesh_builder = RigidMesh::builder()
         .with_mesh_attributes(mesh_attributes)
         .with_debug_info(debug_info!("my_rigid_mesh"));
@@ -314,6 +335,21 @@ fn main() -> ey::Result<()> {
         .mutate_via(&mut transaction)
         .insert_with(rigid_mesh_instance_builder)?;
 
+    // Create a RigidMesh from model
+    //
+    // A RigidMeshCollection can be used to create multiple RigidMeshes from a single Model. To display
+    // the RigidMeshes in the scene, RigidMeshInstances must be created that reference the RigidMeshes.
+    // A RigidMeshInstanceCollection can be used for that.
+    let rigid_mesh_collection = RigidMeshCollection::from_model(&suzanne, &mut resource_group, &mut element_group, &mut transaction)?;
+    let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
+        &rigid_mesh_collection,
+        element_group.rigid_meshes(),
+        &mut instance_group,
+        &mut transaction,
+        &nalgebra::convert(Translation3::new(-1.5, 0.0, 0.0)),
+    )?;
+
+    // Finishing the Transaction will queue all changes to be applied in the next frame.
     transaction.finish();
 
     const UPDATE_FRAMERATE: u32 = 60;
