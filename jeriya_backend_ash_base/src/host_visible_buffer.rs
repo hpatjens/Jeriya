@@ -99,7 +99,7 @@ mod tests {
         fn smoke() {
             let device_test_fixture = TestFixtureDevice::new().unwrap();
             let data = [1.0, 2.0, 3.0];
-            let mut buffer = HostVisibleBuffer::<f32>::new(
+            let buffer = HostVisibleBuffer::<f32>::new(
                 &device_test_fixture.device,
                 &data,
                 BufferUsageFlags::VERTEX_BUFFER,
