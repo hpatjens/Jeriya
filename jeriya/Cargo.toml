@@ -9,6 +9,7 @@ deadlock_detection = ["jeriya_shared/deadlock_detection"]
 [dependencies]
 jeriya_shared = { path = "../jeriya_shared" }
 jeriya_backend = { path = "../jeriya_backend" }
+doc-comment = "0.3.3"
 
 [dev-dependencies]
 jeriya_test = { path = "../jeriya_test" }

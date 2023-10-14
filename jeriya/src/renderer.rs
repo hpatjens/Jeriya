@@ -59,7 +59,7 @@ where
     ///     .add_renderer_config(RendererConfig::default())
     ///     .add_windows(&[
     ///         WindowConfig {
-    ///             window: &window1,
+    ///             window: &window,
     ///             frame_rate: FrameRate::Unlimited,
     ///         },
     ///     ])
