@@ -301,10 +301,7 @@ fn build_mesh(model_name: &str, mesh: &gltf::Mesh, buffers: &[Data]) -> crate::R
 mod tests {
     use std::{fs, io::BufWriter};
 
-    use jeriya_test::{
-        setup_logger,
-        spectral::{assert_that, asserting, prelude::OrderedAssertions},
-    };
+    use jeriya_test::setup_logger;
 
     use super::*;
 
@@ -344,36 +341,28 @@ mod tests {
     fn assert_obj_model(contents: &Contents, expected_model_path: impl AsRef<Path>) {
         let expected_obj = fs::read_to_string(&expected_model_path).unwrap();
         let expected_mtl = fs::read_to_string(&expected_model_path.as_ref().with_extension("mtl")).unwrap();
-        asserting("obj file").that(&contents.obj).is_equal_to(expected_obj);
-        asserting("mtl file").that(&contents.mtl).is_equal_to(expected_mtl);
+        assert_eq!(contents.obj, expected_obj);
+        assert_eq!(contents.mtl, expected_mtl);
     }
 
     #[test]
     fn smoke() {
         setup_logger();
         let model = Model::import("../sample_assets/rotated_cube.glb").unwrap();
-        asserting("mesh count").that(&model.meshes.len()).is_equal_to(1);
-        asserting("vertex position count")
-            .that(&model.meshes[0].simple_mesh.vertex_positions.len())
-            .is_equal_to(24);
-        asserting("vertex normal count")
-            .that(&model.meshes[0].simple_mesh.vertex_normals.len())
-            .is_equal_to(24);
-        asserting("index count")
-            .that(&model.meshes[0].simple_mesh.indices.len())
-            .is_equal_to(36);
-        asserting("meshlet count").that(&model.meshes[0].meshlets.len()).is_equal_to(1);
+        assert_eq!(model.meshes.len(), 1);
+        assert_eq!(model.meshes[0].simple_mesh.vertex_positions.len(), 24);
+        assert_eq!(model.meshes[0].simple_mesh.vertex_normals.len(), 24);
+        assert_eq!(model.meshes[0].simple_mesh.indices.len(), 36);
+        assert_eq!(model.meshes[0].meshlets.len(), 1);
 
         for meshlet in &model.meshes[0].meshlets {
-            asserting("meshlet vertex count")
-                .that(&meshlet.global_indices.len())
-                .is_equal_to(24);
-            asserting("meshlet index count").that(&meshlet.local_indices.len()).is_equal_to(36);
+            assert_eq!(meshlet.global_indices.len(), 24);
+            assert_eq!(meshlet.local_indices.len(), 36);
             for index in &meshlet.local_indices {
-                assert_that(&(*index as usize)).is_less_than(meshlet.global_indices.len() as usize);
+                assert!((*index as usize) < meshlet.global_indices.len());
             }
             for vertex in &meshlet.global_indices {
-                assert_that(&(*vertex as usize)).is_less_than(model.meshes[0].simple_mesh.vertex_positions.len() as usize);
+                assert!((*vertex as usize) < model.meshes[0].simple_mesh.vertex_positions.len() as usize);
             }
         }
     }

@@ -41,7 +41,6 @@ impl ResourceGroup {
 #[cfg(test)]
 mod tests {
     use jeriya_shared::{debug_info, nalgebra::Vector3};
-    use jeriya_test::spectral::asserting;
 
     use crate::resources::{mesh_attributes::MeshAttributes, MockRenderer};
 
@@ -56,8 +55,6 @@ mod tests {
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)]);
         let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder);
         drop(mesh_attributes);
-        asserting("events are received")
-            .that(&renderer.receiver().try_iter().count())
-            .is_equal_to(1);
+        assert_eq!(renderer.receiver().try_iter().count(), 1);
     }
 }

@@ -159,7 +159,6 @@ impl CameraBuilder {
 #[cfg(test)]
 mod tests {
     use jeriya_shared::nalgebra::Vector3;
-    use jeriya_test::spectral::assert_that;
 
     use super::*;
 
@@ -168,20 +167,23 @@ mod tests {
         let camera = Camera::builder()
             .build(Handle::zero(), GpuIndexAllocation::new_unchecked(0))
             .unwrap();
-        assert_that!(camera.projection()).is_equal_to(&CameraProjection::Orthographic {
-            left: -1.0,
-            right: 1.0,
-            bottom: 1.0,
-            top: -1.0,
-            near: 0.0,
-            far: 1.0,
-        });
+        assert_eq!(
+            camera.projection(),
+            &CameraProjection::Orthographic {
+                left: -1.0,
+                right: 1.0,
+                bottom: 1.0,
+                top: -1.0,
+                near: 0.0,
+                far: 1.0,
+            }
+        );
         let projection = Matrix4::look_at_rh(
             &Vector3::new(0.0, 0.0, 0.0).into(),
             &Vector3::new(0.0, 0.0, 1.0).into(),
             &Vector3::new(0.0, -1.0, 0.0),
         );
-        assert_that!(camera.projection().projection_matrix()).is_equal_to(&projection);
+        assert_eq!(camera.projection().projection_matrix(), projection);
     }
 
     #[test]
@@ -196,13 +198,16 @@ mod tests {
             })
             .build(Handle::zero(), GpuIndexAllocation::new_unchecked(0))
             .unwrap();
-        assert_that!(camera.projection()).is_equal_to(&CameraProjection::Perspective {
-            fov: 90.0,
-            aspect: 1.2,
-            near: 0.1,
-            far: 100.0,
-        });
+        assert_eq!(
+            camera.projection(),
+            &CameraProjection::Perspective {
+                fov: 90.0,
+                aspect: 1.2,
+                near: 0.1,
+                far: 100.0,
+            }
+        );
         let projection = nalgebra_glm::perspective_rh_zo(1.2, 90.0, 0.1, 100.0);
-        assert_that!(camera.projection().projection_matrix()).is_equal_to(&projection);
+        assert_eq!(camera.projection().projection_matrix(), projection);
     }
 }

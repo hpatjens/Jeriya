@@ -94,7 +94,6 @@ pub mod tests {
     use std::sync::Arc;
 
     use jeriya_shared::{debug_info, nalgebra::Vector3};
-    use jeriya_test::spectral::{assert_that, asserting, prelude::OptionAssertions};
 
     use crate::resources::{mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesGroup, MockRenderer};
 
@@ -113,13 +112,12 @@ pub mod tests {
     #[macro_export]
     macro_rules! match_one_mesh_attributes_event {
         ($backend:expr, $p:pat, $($b:tt)*) => {{
-            use jeriya_test::spectral::prelude::*;
             use crate::resources::ResourceEvent;
             const TIMEOUT: std::time::Duration = std::time::Duration::from_millis(50);
             let ResourceEvent::MeshAttributes(mesh_attributes_events) = $backend.receiver().recv_timeout(TIMEOUT).unwrap() else {
                 panic!("failed to receive event")
             };
-            asserting("event count").that(&mesh_attributes_events).has_length(1);
+            assert_eq!(mesh_attributes_events.len(), 1);
             // At the time of writing, the MeshAttributesEvent has only the Insert variant
             #[allow(irrefutable_let_patterns)]
             let $p = &mesh_attributes_events[0] else {
@@ -130,9 +128,7 @@ pub mod tests {
     }
 
     pub fn assert_events_empty(backend: &MockRenderer) {
-        asserting("events empty")
-            .that(&backend.receiver().try_iter().next().is_none())
-            .is_equal_to(true);
-        assert_that!(backend.receiver().try_iter().next()).is_none();
+        assert!(&backend.receiver().try_iter().next().is_none());
+        assert!(backend.receiver().try_iter().next().is_none());
     }
 }

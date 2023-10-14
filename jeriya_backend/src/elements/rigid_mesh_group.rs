@@ -84,7 +84,6 @@ impl<'g, 't, P: PushEvent> RigidMeshGroupAccessMut<'g, 't, P> {
 #[cfg(test)]
 mod tests {
     use jeriya_shared::debug_info;
-    use jeriya_test::spectral::assert_that;
 
     use crate::{
         elements, gpu_index_allocator::GpuIndexAllocation, resources::tests::new_dummy_mesh_attributes, transactions::Transaction,
@@ -108,10 +107,10 @@ mod tests {
             .unwrap();
 
         let rigid_mesh = rigid_mesh_group.get(&rigid_mesh_handle).unwrap();
-        assert_that!(rigid_mesh.debug_info().name()).is_equal_to("my_rigid_mesh");
-        assert_that!(rigid_mesh.mesh_attributes()).is_equal_to(&mesh_attributes);
-        assert_that!(rigid_mesh.handle()).is_equal_to(&Handle::zero());
-        assert_that!(rigid_mesh.gpu_index_allocation()).is_equal_to(&GpuIndexAllocation::new_unchecked(0));
+        assert_eq!(rigid_mesh.debug_info().name(), "my_rigid_mesh");
+        assert_eq!(rigid_mesh.mesh_attributes(), &mesh_attributes);
+        assert_eq!(rigid_mesh.handle(), &Handle::zero());
+        assert_eq!(rigid_mesh.gpu_index_allocation(), &GpuIndexAllocation::new_unchecked(0));
 
         // Assert Transaction
         assert_eq!(transaction.len(), 1);

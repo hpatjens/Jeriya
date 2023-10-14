@@ -187,8 +187,6 @@ impl MeshAttributeBuilder {
 
 #[cfg(test)]
 mod tests {
-    use jeriya_test::spectral::asserting;
-
     use super::*;
 
     #[test]
@@ -209,33 +207,31 @@ mod tests {
             .with_debug_info(debug_info!("my_mesh"))
             .build(Handle::zero(), gpu_index_allocation)
             .unwrap();
-        asserting("vertex positions")
-            .that(mesh_attributes.vertex_positions())
-            .is_equal_to(vec![
+        assert_eq!(
+            mesh_attributes.vertex_positions(),
+            &vec![
                 Vector3::new(0.0, 0.0, 0.0),
                 Vector3::new(1.0, 0.0, 0.0),
                 Vector3::new(2.0, 0.0, 0.0),
-            ]);
-        asserting("vertex normals").that(mesh_attributes.vertex_normals()).is_equal_to(vec![
-            Vector3::new(0.0, 1.0, 0.0),
-            Vector3::new(0.0, 1.0, 0.0),
-            Vector3::new(0.0, 1.0, 0.0),
-        ]);
-        asserting("indices")
-            .that(&mesh_attributes.indices())
-            .is_equal_to(Some(&vec![0, 1, 2]));
-        asserting("debug info")
-            .that(&mesh_attributes.debug_info.name())
-            .is_equal_to(&"my_mesh");
+            ]
+        );
+        assert_eq!(
+            mesh_attributes.vertex_normals(),
+            &vec![
+                Vector3::new(0.0, 1.0, 0.0),
+                Vector3::new(0.0, 1.0, 0.0),
+                Vector3::new(0.0, 1.0, 0.0),
+            ]
+        );
+        assert_eq!(mesh_attributes.indices(), Some(&vec![0, 1, 2]));
+        assert_eq!(mesh_attributes.debug_info.name(), "my_mesh");
     }
 
     #[test]
     fn vertex_positions_missing() {
         let gpu_index_allocation = GpuIndexAllocation::new_unchecked(0);
         let result = MeshAttributes::builder().build(Handle::zero(), gpu_index_allocation);
-        asserting("missing vertex positions")
-            .that(&result)
-            .is_equal_to(Err(Error::MandatoryAttributeMissing(AttributeType::Positions)));
+        assert_eq!(result, Err(Error::MandatoryAttributeMissing(AttributeType::Positions)));
     }
 
     #[test]
@@ -244,9 +240,7 @@ mod tests {
         let result = MeshAttributes::builder()
             .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
             .build(Handle::zero(), gpu_index_allocation);
-        asserting("missing vertex normals")
-            .that(&result)
-            .is_equal_to(Err(Error::MandatoryAttributeMissing(AttributeType::Normals)));
+        assert_eq!(result, Err(Error::MandatoryAttributeMissing(AttributeType::Normals)));
     }
 
     #[test]
@@ -260,9 +254,7 @@ mod tests {
             ])
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
             .build(Handle::zero(), gpu_index_allocation);
-        asserting("wrong size")
-            .that(&result)
-            .is_equal_to(Err(Error::WrongSize { expected: 3, got: 1 }));
+        assert_eq!(result, Err(Error::WrongSize { expected: 3, got: 1 }));
     }
 
     #[test]
@@ -273,6 +265,6 @@ mod tests {
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
             .with_indices(vec![1])
             .build(Handle::zero(), gpu_index_allocation);
-        asserting("wrong size").that(&result).is_equal_to(Err(Error::WrongIndex(1)));
+        assert_eq!(result, Err(Error::WrongIndex(1)));
     }
 }

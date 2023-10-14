@@ -92,8 +92,8 @@ mod tests {
         match_one_mesh_attributes_event!(
             renderer,
             MeshAttributesEvent::Insert { handle, mesh_attributes },
-            assert_that(&handle.index()).is_equal_to(0);
-            assert_that(&mesh_attributes.debug_info().name()).is_equal_to(&"my_attributes");
+            assert_eq!(handle.index(), 0);
+            assert_eq!(mesh_attributes.debug_info().name(), "my_attributes");
         );
         assert_events_empty(&renderer);
     }
