@@ -115,7 +115,7 @@ impl ImportSource for FileSystem {
                 // Only changes in the meta file are relevant because there might be more than
                 // one file per asset and we only want to react to the change once. It is expected
                 // that the meta file is always changed or created last.
-                if !is_meta_file(&absolute_path) {
+                if !is_meta_file(absolute_path) {
                     return;
                 }
 
@@ -134,15 +134,9 @@ impl ImportSource for FileSystem {
                 // The asset path is the parent of the meta file.
                 let asset_path = path.parent().expect("path has no parent");
 
-                match &event.kind {
-                    EventKind::Modify(_modify_event) => {
-                        info!("Emitting modify event for asset '{}'", path.display());
-                        observer_fn(FileSystemEvent::Modify(asset_path.to_owned()))
-                    }
-                    // We don't care about other events like Create because we would handle multiple
-                    // events per processing operation of an asset: one when the file is created and
-                    // one when the contents of the file are written.
-                    _ => {}
+                if let EventKind::Modify(_modify_event) = &event.kind {
+                    info!("Emitting modify event for asset '{}'", path.display());
+                    observer_fn(FileSystemEvent::Modify(asset_path.to_owned()))
                 }
             }
             Err(_) => todo!(),
@@ -178,7 +172,7 @@ where
 {
     /// Returns the path of the asset.
     pub fn as_path(&self) -> &Path {
-        &self.raw_asset.asset_key.as_path()
+        self.raw_asset.asset_key.as_path()
     }
 
     /// Drops the data of the asset but keeps it as a tracked asset.
@@ -400,7 +394,7 @@ fn is_meta_file(path: &Path) -> bool {
     if !path.is_file() {
         return false;
     }
-    let Ok(file_name) = extract_file_name_from_path(&path) else {
+    let Ok(file_name) = extract_file_name_from_path(path) else {
         error!("Failed to extract file name from '{path}'", path = path.display());
         return false;
     };
@@ -411,7 +405,7 @@ fn import(asset_key: &AssetKey, thread_pool: &ThreadPool, importers: &Arc<Mutex<
     let importers = importers.clone();
 
     trace!("Extracting extension from '{asset_key}'");
-    let extension = extract_extension_from_path(&asset_key.as_path())?;
+    let extension = extract_extension_from_path(asset_key.as_path())?;
 
     trace!("Checking if the extension '{extension}' is registered");
     if !importers.lock().contains_key(&extension) {

@@ -60,6 +60,7 @@ impl AllocateGpuIndex<MeshAttributes> for MockBackend {
 pub struct MockRenderer(Arc<MockBackend>);
 
 impl MockRenderer {
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn new() -> Arc<Self> {
         let (sender, receiver) = std::sync::mpsc::channel();
         Arc::new(Self(Arc::new(MockBackend { sender, receiver })))

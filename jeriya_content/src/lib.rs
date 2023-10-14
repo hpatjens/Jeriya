@@ -49,12 +49,12 @@
 //! from the source directory to the target directory. The [`AssetImporter`] is
 //! used to import assets from the target directory into the renderer.
 
-mod assert_importer;
-mod assert_processor;
+mod asset_importer;
+mod asset_processor;
 mod common;
 
 pub mod model;
 
-pub use assert_importer::*;
-pub use assert_processor::*;
+pub use asset_importer::*;
+pub use asset_processor::*;
 pub use common::{AssetKey, Directories, Error, Result};

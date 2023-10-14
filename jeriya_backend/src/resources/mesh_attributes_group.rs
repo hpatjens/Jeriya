@@ -40,8 +40,8 @@ impl MeshAttributesGroup {
             let gpu_index_allocation = gpu_index_allocator
                 .allocate_gpu_index()
                 .ok_or(mesh_attributes::Error::AllocationFailed)?;
-            let result = mesh_attributes_builder.build(handle.clone(), gpu_index_allocation).map(Arc::new);
-            if let Err(_) = &result {
+            let result = mesh_attributes_builder.build(*handle, gpu_index_allocation).map(Arc::new);
+            if result.is_err() {
                 gpu_index_allocator.free_gpu_index(gpu_index_allocation);
             }
             result

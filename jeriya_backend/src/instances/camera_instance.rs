@@ -121,7 +121,7 @@ impl<'g, 't, P: PushEvent> CameraInstanceAccessMut<'g, 't, P> {
         self.camera_instance.transform = transform;
         self.transaction
             .push_event(transactions::Event::CameraInstance(Event::UpdateViewMatrix(
-                self.camera_instance.gpu_index_allocation.clone(),
+                self.camera_instance.gpu_index_allocation,
                 self.camera_instance.transform.view_matrix(),
             )));
     }
@@ -138,8 +138,8 @@ pub struct CameraInstanceBuilder {
 impl CameraInstanceBuilder {
     /// Creates a new [`CameraInstanceBuilder`].
     pub fn with_camera(mut self, camera: &Camera) -> Self {
-        self.camera_handle = Some(camera.handle().clone());
-        self.camera_gpu_index_allocation = Some(camera.gpu_index_allocation().clone());
+        self.camera_handle = Some(*camera.handle());
+        self.camera_gpu_index_allocation = Some(*camera.gpu_index_allocation());
         self
     }
 

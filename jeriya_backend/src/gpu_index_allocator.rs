@@ -37,14 +37,12 @@ impl<T> GpuIndexAllocator<T> {
     pub fn allocate_gpu_index(&mut self) -> Option<GpuIndexAllocation<T>> {
         if let Some(index) = self.free_list.pop_front() {
             Some(GpuIndexAllocation::new_unchecked(index))
+        } else if self.next_index >= self.capacity {
+            None
         } else {
-            if self.next_index >= self.capacity {
-                None
-            } else {
-                let index = self.next_index;
-                self.next_index += 1;
-                Some(GpuIndexAllocation::new_unchecked(index))
-            }
+            let index = self.next_index;
+            self.next_index += 1;
+            Some(GpuIndexAllocation::new_unchecked(index))
         }
     }
 

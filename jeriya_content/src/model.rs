@@ -57,7 +57,7 @@ impl Model {
         let model_name = path.as_ref().to_str().unwrap_or("unknown");
         let meshes = document
             .meshes()
-            .map(|mesh| build_mesh(&model_name, &mesh, &buffers))
+            .map(|mesh| build_mesh(model_name, &mesh, &buffers))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Model {
@@ -132,9 +132,9 @@ impl Model {
                 writeln!(obj_writer, "usemtl mesh_{mesh_index}_meshlet_{meshlet_index}")?;
                 for chunk in meshlet.local_indices.rchunks(3) {
                     let base = written_vertices + 1;
-                    let i0 = base + meshlet.global_indices[chunk[0] as usize] as u32;
-                    let i1 = base + meshlet.global_indices[chunk[1] as usize] as u32;
-                    let i2 = base + meshlet.global_indices[chunk[2] as usize] as u32;
+                    let i0 = base + meshlet.global_indices[chunk[0] as usize];
+                    let i1 = base + meshlet.global_indices[chunk[1] as usize];
+                    let i2 = base + meshlet.global_indices[chunk[2] as usize];
                     writeln!(obj_writer, "f {i0} {i1} {i2}")?;
                 }
             }
@@ -184,7 +184,7 @@ pub struct Meshlet {
 /// Function for the [`AssetProcessor`]
 pub fn process_model(asset_builder: &mut AssetBuilder) -> crate::Result<()> {
     let path = asset_builder.unprocessed_asset_path().to_owned();
-    let model = Model::import(&path)?;
+    let model = Model::import(path)?;
     let file_name = "model.bin";
     let file = File::create(asset_builder.processed_asset_path().join(file_name))?;
     bincode::serialize_into(file, &model).map_err(|err| crate::Error::FailedSerialization(err))?;
@@ -192,7 +192,7 @@ pub fn process_model(asset_builder: &mut AssetBuilder) -> crate::Result<()> {
     Ok(())
 }
 
-fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<SimpleMesh> {
+fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<SimpleMesh> {
     let mut used_vertex_positions = BTreeMap::new();
     let mut used_vertex_normals = BTreeMap::new();
     let mut old_indices = Vec::new();
@@ -229,13 +229,9 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<Si
                 }
                 ReadIndices::U32(iter) => {
                     for index in iter.clone() {
-                        old_indices.push(index as u32);
-                        used_vertex_positions
-                            .entry(index as u32)
-                            .or_insert(temp_vertex_positions[index as usize]);
-                        used_vertex_normals
-                            .entry(index as u32)
-                            .or_insert(temp_vertex_normals[index as usize]);
+                        old_indices.push(index);
+                        used_vertex_positions.entry(index).or_insert(temp_vertex_positions[index as usize]);
+                        used_vertex_normals.entry(index).or_insert(temp_vertex_normals[index as usize]);
                     }
                 }
             }
@@ -289,7 +285,7 @@ fn build_meshlets(simple_mesh: &SimpleMesh) -> crate::Result<Vec<Meshlet>> {
     Ok(meshlets)
 }
 
-fn build_mesh(model_name: &str, mesh: &gltf::Mesh, buffers: &Vec<Data>) -> crate::Result<Mesh> {
+fn build_mesh(model_name: &str, mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<Mesh> {
     let name = mesh.name().unwrap_or("unknown");
     trace!("Processing mesh '{name}' in model '{model_name}'");
 

@@ -26,7 +26,7 @@ fn profile_method(impl_item_fn: ImplItemFn, ty: Option<&Ident>) -> TokenStream {
 
     let fn_name = impl_item_fn.sig.ident.to_string();
     let ident = match ty {
-        Some(ty) => format!("{ty_name}::{fn_name}", ty_name = ty.to_string()),
+        Some(ty) => format!("{ty}::{fn_name}"),
         None => fn_name,
     };
 

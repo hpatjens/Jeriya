@@ -1,4 +1,4 @@
-use jeriya_shared::{debug_info, derive_new::new, nalgebra::Matrix4, nalgebra_glm, thiserror, DebugInfo, Handle};
+use jeriya_shared::{debug_info, nalgebra::Matrix4, nalgebra_glm, thiserror, DebugInfo, Handle};
 
 use crate::{
     gpu_index_allocator::GpuIndexAllocation,
@@ -121,7 +121,7 @@ impl<'g, 't, P: PushEvent> CameraAccessMut<'g, 't, P> {
         self.camera.projection = projection;
         self.transaction
             .push_event(transactions::Event::Camera(Event::UpdateProjectionMatrix(
-                self.camera.gpu_index_allocation.clone(),
+                self.camera.gpu_index_allocation,
                 self.camera.projection().projection_matrix(),
             )))
     }

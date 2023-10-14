@@ -115,7 +115,7 @@ impl AssetProcessor {
 
                     // The file watcher returns absolute paths but he whole asset handling is based on
                     // relative paths because it's irrelavant where on the system they are located.
-                    let Some(path) = pathdiff::diff_paths(&absolute_path, &directories2.unprocessed_assets_path()) else {
+                    let Some(path) = pathdiff::diff_paths(absolute_path, directories2.unprocessed_assets_path()) else {
                         warn! {
                             "Failed to get relative path of '{absolute_path}' relative to '{unprocessed_assets_path}'",
                             absolute_path = absolute_path.display(),
@@ -141,7 +141,10 @@ impl AssetProcessor {
                     }
                 }
             }
-            Err(_) => {}
+            Err(err) => {
+                let errs = err.into_iter().map(|err| err.to_string()).collect::<Vec<_>>().join(", ");
+                error!("Failed to receive events from file watcher: {errs}",);
+            }
         };
 
         // Start the directory watcher.
@@ -367,7 +370,7 @@ fn run_inventory(
     let path = directories.unprocessed_assets_path();
     info!("Running inventory in path: {path:?}");
 
-    for entry in WalkDir::new(&path) {
+    for entry in WalkDir::new(path) {
         let Ok(entry) = entry else {
             warn!(
                 "Failed to read directory entry in WalkDir {:?}: {}",
@@ -381,7 +384,7 @@ fn run_inventory(
             continue;
         }
 
-        let Some(relative_path) = pathdiff::diff_paths(entry.path(), &path) else {
+        let Some(relative_path) = pathdiff::diff_paths(entry.path(), path) else {
             warn!("Failed to get relative path of '{}' relative to '{path:?}'", entry.path().display());
             continue;
         };
@@ -431,7 +434,7 @@ fn run_inventory(
     trace!("Found {} assets to process", inventory.len());
     for (_, asset_paths) in inventory {
         for asset_path in asset_paths {
-            process(&AssetKey::new(asset_path), directories, &sender, &processors)?;
+            process(&AssetKey::new(asset_path), directories, sender, processors)?;
         }
     }
 
@@ -505,7 +508,7 @@ mod tests {
     use jeriya_test::setup_logger;
     use tempdir::TempDir;
 
-    use crate::{assert_processor::Event, common::Directories, AssetProcessor};
+    use crate::{asset_processor::Event, common::Directories, AssetProcessor};
 
     /// Creates an unprocessed asset with the given content.
     fn create_unprocessed_asset(root: &Path, content: &str) -> PathBuf {

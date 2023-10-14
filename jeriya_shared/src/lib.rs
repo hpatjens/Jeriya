@@ -161,7 +161,7 @@ pub fn pseudo_random_color(index: usize) -> Vector4<f32> {
     let hash = calculate_hash(&index);
 
     const RESOLUTION: u64 = 36;
-    let r = (hash % (RESOLUTION / 1)) as f32 / RESOLUTION as f32;
+    let r = (hash % (RESOLUTION)) as f32 / RESOLUTION as f32;
     let g = (hash % (RESOLUTION / 3)) as f32 / RESOLUTION as f32;
     let b = (hash % (RESOLUTION / 9)) as f32 / RESOLUTION as f32;
 

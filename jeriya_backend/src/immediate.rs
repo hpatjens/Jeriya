@@ -35,7 +35,7 @@ impl ImmediateRenderingFrame {
 
     /// Name of the update loop from which the `ImmediateRenderingFrame` was created.
     pub fn update_loop_name(&self) -> &'static str {
-        &self.0.update_loop_name
+        self.0.update_loop_name
     }
 
     /// Index of the `ImmediateRenderingFrame`.

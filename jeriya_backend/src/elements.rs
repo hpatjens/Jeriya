@@ -19,6 +19,7 @@ pub struct MockRenderer {
 }
 
 impl MockRenderer {
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             backend: Arc::new(MockBackend {

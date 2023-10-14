@@ -36,7 +36,7 @@ impl RigidMeshInstanceCollection {
                         rigid_mesh_index
                     )))
                     .with_rigid_mesh(rigid_mesh)
-                    .with_transform(transform.clone());
+                    .with_transform(*transform);
                 instance_group
                     .rigid_mesh_instances()
                     .mutate_via(transaction)

@@ -13,6 +13,7 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum Event {
     Noop,
     Insert(RigidMeshInstance),
@@ -83,8 +84,8 @@ impl RigidMeshInstanceBuilder {
 
     /// Sets the [`Handle`] of the [`RigidMesh`] that this [`RigidMeshInstance`] is an instance of.
     pub fn with_rigid_mesh(mut self, rigid_mesh: &RigidMesh) -> Self {
-        self.rigid_mesh_handle = Some(rigid_mesh.handle().clone());
-        self.rigid_mesh_gpu_index_allocation = Some(rigid_mesh.gpu_index_allocation().clone());
+        self.rigid_mesh_handle = Some(*rigid_mesh.handle());
+        self.rigid_mesh_gpu_index_allocation = Some(*rigid_mesh.gpu_index_allocation());
         self
     }
 

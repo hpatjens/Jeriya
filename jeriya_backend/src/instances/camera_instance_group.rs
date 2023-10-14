@@ -66,13 +66,13 @@ impl<'g, 't, P: PushEvent> CameraInstanceGroupAccessMut<'g, 't, P> {
                     .upgrade()
                     .expect("the gpu_index_allocator was dropped");
                 let gpu_index_allocation = gpu_index_allocator.allocate_gpu_index().ok_or(Error::AllocationFailed)?;
-                let result = camera_instance_builder.build(handle.clone(), gpu_index_allocation);
-                if let Err(_) = &result {
+                let result = camera_instance_builder.build(*handle, gpu_index_allocation);
+                if result.is_err() {
                     gpu_index_allocator.free_gpu_index(gpu_index_allocation);
                 }
                 result
             })
-            .and_then(|handle| {
+            .map(|handle| {
                 let camera = self
                     .camera_group
                     .indexing_container
@@ -81,7 +81,7 @@ impl<'g, 't, P: PushEvent> CameraInstanceGroupAccessMut<'g, 't, P> {
                     .clone();
                 self.transaction
                     .push_event(transactions::Event::CameraInstance(camera_instance::Event::Insert(camera.clone())));
-                Ok(handle)
+                handle
             })
     }
 }
