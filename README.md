@@ -66,7 +66,7 @@ let renderer = jeriya::Renderer::<AshBackend>::builder()
     .build()
     .unwrap();
 
-// Containers in which manage the GPU resources
+// Containers in which GPU resources are managed
 let mut resource_group = ResourceGroup::new(&renderer, debug_info!("my_resource_group"));
 let mut element_group = ElementGroup::new(&renderer, debug_info!("my_element_group"));
 let mut instance_group = InstanceGroup::new(&renderer, debug_info!("my_instance_group"));
