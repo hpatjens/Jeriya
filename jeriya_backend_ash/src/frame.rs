@@ -259,7 +259,7 @@ impl Frame {
         drop(simple_span);
 
         // Render with ImmediateRenderingPipeline
-        self.append_immediate_rendering_commands(backend_shared, presenter_shared, &mut builder, &immediate_rendering_frames)?;
+        self.append_immediate_rendering_commands(backend_shared, presenter_shared, &mut builder, immediate_rendering_frames)?;
 
         builder.end_render_pass()?;
         builder.end_command_buffer()?;
@@ -343,7 +343,7 @@ impl Frame {
                     &shader_interface::RigidMeshInstance {
                         rigid_mesh_index: rigid_mesh_instance.rigid_mesh_gpu_index_allocation().index() as u64,
                         _padding: 0,
-                        transform: rigid_mesh_instance.transform().clone(),
+                        transform: *rigid_mesh_instance.transform(),
                     },
                 )?;
             }
@@ -411,7 +411,7 @@ impl Frame {
         backend_shared: &BackendShared,
         command_buffer_builder: &mut CommandBufferBuilder,
     ) -> base::Result<()> {
-        let push_descriptors = &PushDescriptors::builder(&descriptor_set_layout)
+        let push_descriptors = &PushDescriptors::builder(descriptor_set_layout)
             .push_uniform_buffer(0, &self.per_frame_data_buffer)
             .push_storage_buffer(1, &self.camera_buffer)
             .push_storage_buffer(2, &self.camera_instance_buffer)
@@ -441,7 +441,7 @@ impl Frame {
 
         // Collect vertex attributes for all immediate rendering requests
         let mut data = Vec::new();
-        for (_update_loop_name, task) in immediate_rendering_frames {
+        for task in immediate_rendering_frames.values() {
             for command_buffer in &task.immediate_command_buffer_handlers {
                 for command in &command_buffer.commands {
                     match command {
@@ -475,7 +475,7 @@ impl Frame {
         // Append the draw commands
         let mut first_vertex = 0;
         let mut last_matrix = Matrix4::identity();
-        for (_update_loop_name, task) in immediate_rendering_frames {
+        for task in immediate_rendering_frames.values() {
             for command_buffer in &task.immediate_command_buffer_handlers {
                 let mut last_topology = None;
                 for command in &command_buffer.commands {

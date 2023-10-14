@@ -32,6 +32,40 @@ where
     }
 
     /// Creates a new [`RendererBuilder`] to create an instance of the `Renderer`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use jeriya_shared::{
+    /// #     FrameRate, RendererConfig, WindowConfig,
+    /// #     winit::{
+    /// #         dpi::LogicalSize,
+    /// #         event::{Event, WindowEvent},
+    /// #         event_loop::EventLoop,
+    /// #         window::WindowBuilder,
+    /// #     }
+    /// # };
+    /// # use jeriya_backend_ash::AshBackend;
+    /// let event_loop = EventLoop::new();
+    /// let window = WindowBuilder::new()
+    ///     # .with_visible(false)
+    ///     .with_title("Example")
+    ///     .with_inner_size(LogicalSize::new(640.0, 480.0))
+    ///     .build(&event_loop)
+    ///     .unwrap();
+    ///
+    /// // Create Renderer
+    /// let renderer = jeriya::Renderer::<AshBackend>::builder()
+    ///     .add_renderer_config(RendererConfig::default())
+    ///     .add_windows(&[
+    ///         WindowConfig {
+    ///             window: &window1,
+    ///             frame_rate: FrameRate::Unlimited,
+    ///         },
+    ///     ])
+    ///     .build()
+    ///     .unwrap();
+    /// ```
     pub fn builder<'a>() -> RendererBuilder<'a, B> {
         RendererBuilder::new()
     }

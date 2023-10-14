@@ -378,7 +378,7 @@ fn handle_mesh_attributes_events(
                     backend_shared
                         .static_indices_buffer
                         .lock()
-                        .push(&indices, &mut command_buffer_builder)?
+                        .push(indices, &mut command_buffer_builder)?
                 } else {
                     0
                 };
@@ -408,9 +408,7 @@ fn handle_mesh_attributes_events(
                 let mesh_attributes_gpu_states2 = backend_shared.mesh_attributes_gpu_states.clone();
                 let backend2 = backend.clone();
                 command_buffer_builder.push_finished_operation(Box::new(move || {
-                    mesh_attributes_gpu_states2
-                        .lock()
-                        .insert(handle.clone(), MeshAttributesGpuState::Uploaded);
+                    mesh_attributes_gpu_states2.lock().insert(handle, MeshAttributesGpuState::Uploaded);
 
                     // Notify the frames that the MeshAttributes are ready
                     let mut transaction = Transaction::new();

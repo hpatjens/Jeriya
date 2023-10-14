@@ -92,7 +92,7 @@ impl Presenter {
 
     /// Sets the active camera
     pub fn set_active_camera(&self, camera_instance: &CameraInstance) {
-        self.presenter_shared.lock().active_camera_instance = Some(camera_instance.gpu_index_allocation().clone());
+        self.presenter_shared.lock().active_camera_instance = Some(*camera_instance.gpu_index_allocation());
     }
 }
 
@@ -106,7 +106,7 @@ fn run_presenter_thread(
 ) -> jeriya_backend::Result<()> {
     // Setup Tracy profiling
     #[rustfmt::skip]
-    const PRESENTER_NAMES: [&'static str; 8] = [
+    const PRESENTER_NAMES: [&str; 8] = [
         "presenter_thread_0", "presenter_thread_1", "presenter_thread_2", "presenter_thread_3",
         "presenter_thread_4", "presenter_thread_5", "presenter_thread_6", "presenter_thread_unknown",
     ];
@@ -126,7 +126,7 @@ fn run_presenter_thread(
     let mut immediate_rendering_frames = BTreeMap::<&'static str, ImmediateRenderingFrameTask>::new();
 
     // Command Buffer that is checked to determine whether the rendering is complete
-    let mut rendering_complete_command_buffer = SwapchainVec::new(&presenter_shared.lock().swapchain(), |_| Ok(None))?;
+    let mut rendering_complete_command_buffer = SwapchainVec::new(presenter_shared.lock().swapchain(), |_| Ok(None))?;
 
     let mut loop_helper = match frame_rate {
         FrameRate::Unlimited => spin_sleep::LoopHelper::builder().build_without_target_rate(),
@@ -226,15 +226,15 @@ fn run_presenter_thread(
             .set_image_available_semaphore(image_available_semaphore);
         drop(acquire_span);
 
-        let mut rendering_complete_command_buffer = rendering_complete_command_buffer.get_mut(&frame_index);
+        let rendering_complete_command_buffer = rendering_complete_command_buffer.get_mut(&frame_index);
 
         // Render the frames
         frames.get_mut(&presenter_shared.frame_index).render_frame(
             &window_id,
             &backend_shared,
-            &mut *presenter_shared,
+            &mut presenter_shared,
             &immediate_rendering_frames,
-            &mut rendering_complete_command_buffer,
+            rendering_complete_command_buffer,
         )?;
 
         // Present

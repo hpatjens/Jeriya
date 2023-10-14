@@ -78,7 +78,7 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Simple-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(&device, &config, &swapchain_render_pass, &swapchain, &renderer_config)?
+            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, renderer_config)?
         };
 
         info!("Create Immediate Graphics Pipelines");
@@ -92,7 +92,7 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Immediate-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(&device, &config, &swapchain_render_pass, &swapchain, &renderer_config)
+            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, renderer_config)
         };
         let immediate_graphics_pipeline_line_list = create_immediate_graphics_pipeline(PrimitiveTopology::LineList)?;
         let immediate_graphics_pipeline_line_strip = create_immediate_graphics_pipeline(PrimitiveTopology::LineStrip)?;
@@ -101,7 +101,7 @@ impl GraphicsPipelines {
 
         info!("Create Compute Pipeline");
         let cull_compute_pipeline = GenericComputePipeline::new(
-            &device,
+            device,
             &GenericComputePipelineConfig {
                 shader_spirv: spirv!("cull.comp.spv"),
                 debug_info: debug_info!(format!("Cull-ComputePipeline-for-Window{:?}", window_id)),
@@ -117,7 +117,7 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Indirect-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(&device, &config, &swapchain_render_pass, &swapchain, &renderer_config)?
+            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, renderer_config)?
         };
 
         Ok(Self {

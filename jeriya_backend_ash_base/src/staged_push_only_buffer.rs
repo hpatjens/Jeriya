@@ -59,7 +59,7 @@ impl<T: Clone + 'static + Send + Sync> StagedPushOnlyBuffer<T> {
         )?);
 
         // Copy the data from the host visible buffer to the device visible buffer
-        let data_byte_size = data.len() * mem::size_of::<T>();
+        let data_byte_size = mem::size_of_val(data);
         let data_offset = self.len * mem::size_of::<T>();
         let command_buffer = command_buffer_builder.command_buffer();
         unsafe {

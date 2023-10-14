@@ -291,7 +291,7 @@ fn main() -> ey::Result<()> {
         .get(&camera1_instance_handle)
         .wrap_err("Failed to find camera instance")?;
     renderer
-        .set_active_camera(window1.id(), &camera1_instance)
+        .set_active_camera(window1.id(), camera1_instance)
         .wrap_err("Failed to set active camera")?;
 
     // Create CameraInstance for Window2
@@ -307,7 +307,7 @@ fn main() -> ey::Result<()> {
         .get(&camera2_instance_handle)
         .wrap_err("Failed to find camera instance")?;
     renderer
-        .set_active_camera(window2.id(), &camera2_instance)
+        .set_active_camera(window2.id(), camera2_instance)
         .wrap_err("Failed to set active camera")?;
 
     // Create RigidMesh
