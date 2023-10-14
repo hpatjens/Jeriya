@@ -344,7 +344,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 bound_pipeline_layout,
                 vk::ShaderStageFlags::ALL,
                 0,
-                std::slice::from_raw_parts(push_constants.as_ptr() as *const _, push_constants.len() * mem::size_of::<C>()),
+                std::slice::from_raw_parts(push_constants.as_ptr() as *const _, mem::size_of_val(push_constants)),
             );
         }
         Ok(())

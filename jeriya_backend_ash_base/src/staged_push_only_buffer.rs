@@ -32,7 +32,7 @@ impl<T: Clone + 'static + Send + Sync> StagedPushOnlyBuffer<T> {
         debug_info: DebugInfo,
     ) -> crate::Result<Self> {
         let device_visible_buffer = DeviceVisibleBuffer::new(
-            &device,
+            device,
             size * mem::size_of::<T>(),
             device_buffer_usage_flags | BufferUsageFlags::TRANSFER_DST_BIT | BufferUsageFlags::TRANSFER_SRC_BIT,
             debug_info.clone(),
@@ -53,7 +53,7 @@ impl<T: Clone + 'static + Send + Sync> StagedPushOnlyBuffer<T> {
         }
         let host_visible_buffer = Arc::new(HostVisibleBuffer::<T>::new(
             &self.device,
-            &data,
+            data,
             BufferUsageFlags::TRANSFER_SRC_BIT,
             debug_info!("PushOnlyBuffer"),
         )?);
@@ -118,7 +118,7 @@ impl<T: Clone + 'static + Default + Send + Sync> StagedPushOnlyBuffer<T> {
         let (sender, receiver) = std::sync::mpsc::channel();
         command_buffer_builder.push_finished_operation(Box::new(move || {
             let mut data = vec![Default::default(); len];
-            let mut host_visible_buffer = host_visible_buffer.lock();
+            let host_visible_buffer = host_visible_buffer.lock();
             host_visible_buffer.get_memory_unaligned(&mut data)?;
             sender
                 .send(data)

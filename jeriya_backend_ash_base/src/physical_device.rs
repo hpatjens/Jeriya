@@ -19,7 +19,7 @@ impl AsRawVulkan for PhysicalDevice {
 
 impl PhysicalDevice {
     /// Select a physical device that can be used for the device creation
-    pub fn new<'s>(instance: &Instance) -> crate::Result<PhysicalDevice> {
+    pub fn new(instance: &Instance) -> crate::Result<PhysicalDevice> {
         let instance = instance.as_raw_vulkan();
 
         // Get Physical Devices

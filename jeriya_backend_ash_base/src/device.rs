@@ -80,8 +80,8 @@ impl Device {
             })
             .collect::<BTreeMap<_, _>>();
         let queue_priorities = queues_per_family
-            .iter()
-            .map(|(_queue_family_index, queue_count)| iter::repeat(1.0).take(*queue_count as usize).collect::<Vec<_>>())
+            .values()
+            .map(|queue_count| iter::repeat(1.0).take(*queue_count as usize).collect::<Vec<_>>())
             .collect::<Vec<_>>();
         let queue_infos = queues_per_family
             .keys()

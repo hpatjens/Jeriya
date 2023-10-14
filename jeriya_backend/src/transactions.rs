@@ -105,7 +105,7 @@ impl<T: TransactionProcessor> Drop for TransactionRecorder<'_, T> {
 /// Dropping or calling the [`TransactionRecorder::finish`] method on the `TransactionRecorder` will send the `Transaction`
 /// to the renderer. If the ergonomics of the `TransactionRecorder` are not sufficient for the use case, a `Transaction`
 /// can be created with the [`Transaction::new`] method. In this case the `Transaction` has to be sent to the renderer manually.
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct Transaction {
     is_considered_processed: bool,
     events: Vec<Event>,
@@ -116,10 +116,7 @@ impl Transaction {
     ///
     /// Consider using the [`Transaction::record`] method instead. A [`Transaction`] that is created with this method has to be sent to the renderer for processing manually. Otherwise it will panic.
     pub fn new() -> Self {
-        Self {
-            events: Vec::new(),
-            is_considered_processed: false,
-        }
+        Self::default()
     }
 
     /// Starts the recording of a [`Transaction`].
@@ -166,6 +163,11 @@ impl Transaction {
     /// Returns the number of events in the transaction
     pub fn len(&self) -> usize {
         self.events.len()
+    }
+
+    /// Returns whether the transaction is empty
+    pub fn is_empty(&self) -> bool {
+        self.events.is_empty()
     }
 
     /// Returns whether the transaction is considered processed

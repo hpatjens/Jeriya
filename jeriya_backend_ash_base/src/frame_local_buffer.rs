@@ -26,7 +26,7 @@ where
     /// Creates a new [`FrameLocalBuffer`] with the given capacity.
     pub fn new(device: &Arc<Device>, capacity: usize, debug_info: DebugInfo) -> crate::Result<Self> {
         let host_visible_buffer = HostVisibleBuffer::new(
-            &device,
+            device,
             &vec![T::default(); capacity],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info.clone(),

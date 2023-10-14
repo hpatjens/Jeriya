@@ -121,21 +121,21 @@ fn plan_queues<'s>(
     // Select the presentation queues
     for window_id in surfaces {
         if let Some(presentation_queue) =
-            find_unshared_presentation_queue(&queue_family_properties, &window_id, surface_support, &all_presentation_queues)
+            find_unshared_presentation_queue(&queue_family_properties, window_id, surface_support, &all_presentation_queues)
                 .or(find_least_stressed_presentation_queue(
                     &queue_family_properties,
-                    &window_id,
-                    &surface_support,
+                    window_id,
+                    surface_support,
                     &all_presentation_queues,
                 ))
-                .or(find_any_presentation_queue(&queue_family_properties, &window_id, &surface_support))
+                .or(find_any_presentation_queue(&queue_family_properties, window_id, surface_support))
         {
             all_presentation_queues.insert(*window_id, presentation_queue);
         }
     }
 
     // Select the transfer queue
-    let transfer_queue = find_unshared_transfer_queue(&queue_family_properties, &mut all_presentation_queues)?
+    let transfer_queue = find_unshared_transfer_queue(&queue_family_properties, &all_presentation_queues)?
         .or(find_any_dedicated_transfer_queue(&queue_family_properties))
         .or(find_any_transfer_queue(&queue_family_properties))
         .ok_or(Error::NoSuitableQueues)?;
@@ -145,11 +145,11 @@ fn plan_queues<'s>(
     let mut presentation_queue_mapping = BTreeMap::new();
     for (window_id, queue_selection) in &all_presentation_queues {
         if let Some(index) = presentation_queues.iter().position(|selection| selection == queue_selection) {
-            presentation_queue_mapping.insert(window_id.clone(), index);
+            presentation_queue_mapping.insert(*window_id, index);
         } else {
             let index = presentation_queues.len();
             presentation_queues.push(queue_selection.clone());
-            presentation_queue_mapping.insert(window_id.clone(), index);
+            presentation_queue_mapping.insert(*window_id, index);
         }
     }
 
@@ -171,7 +171,7 @@ fn plan_queues<'s>(
 
 /// Find a queue that can be used for presentation
 fn find_any_presentation_queue(
-    queue_family_properties: &Vec<QueueFamilyProperties>,
+    queue_family_properties: &[QueueFamilyProperties],
     window_id: &WindowId,
     surface_support: &BTreeMap<(WindowId, u32), bool>,
 ) -> Option<QueueSelection> {
@@ -191,7 +191,7 @@ fn find_any_presentation_queue(
 
 /// Find a queue that is not already assigned to a surface.
 fn find_unshared_presentation_queue(
-    queue_family_properties: &Vec<QueueFamilyProperties>,
+    queue_family_properties: &[QueueFamilyProperties],
     window_id: &WindowId,
     surface_support: &BTreeMap<(WindowId, u32), bool>,
     presentation_queues: &BTreeMap<WindowId, QueueSelection>,
@@ -215,7 +215,7 @@ fn find_unshared_presentation_queue(
 
 /// Find the queue that is assigned to the least number of surfaces.
 fn find_least_stressed_presentation_queue(
-    queue_family_properties: &Vec<QueueFamilyProperties>,
+    queue_family_properties: &[QueueFamilyProperties],
     window_id: &WindowId,
     surface_support: &BTreeMap<(WindowId, u32), bool>,
     presentation_queues: &BTreeMap<WindowId, QueueSelection>,
@@ -246,7 +246,7 @@ fn find_least_stressed_presentation_queue(
             .count()
     });
 
-    sorted_queue_family_properties.iter().next().cloned()
+    sorted_queue_family_properties.first().cloned()
 }
 
 /// Find the queue index that is not already assigned in the queue family
@@ -311,7 +311,7 @@ fn capability_count(queue_flags: QueueFlags) -> usize {
 }
 
 /// Sort the queue families by the number of capabilities that they support
-fn sort_by_capability_count(queue_family_properties: &Vec<QueueFamilyProperties>) -> Vec<(u32, QueueFamilyProperties)> {
+fn sort_by_capability_count(queue_family_properties: &[QueueFamilyProperties]) -> Vec<(u32, QueueFamilyProperties)> {
     let mut queue_family_properties = queue_family_properties
         .iter()
         .enumerate()
@@ -323,7 +323,7 @@ fn sort_by_capability_count(queue_family_properties: &Vec<QueueFamilyProperties>
 
 /// Find a queue that is not already assigned to a surface and is either a dedicated transfer queue or supports vk::QueueFlags::TRANSFER.
 fn find_unshared_transfer_queue(
-    queue_family_properties: &Vec<QueueFamilyProperties>,
+    queue_family_properties: &[QueueFamilyProperties],
     presentation_queues: &BTreeMap<WindowId, QueueSelection>,
 ) -> crate::Result<Option<QueueSelection>> {
     // Frist, we try to find a queue that is a dedicated transfer queue
@@ -355,7 +355,7 @@ fn find_unshared_transfer_queue(
 }
 
 /// Find a queue that should be used for transfer because it doesn't support vk::QueueFlags::GRAPHICS or vk::QueueFlags::COMPUTE.
-fn find_any_dedicated_transfer_queue(queue_family_properties: &Vec<QueueFamilyProperties>) -> Option<QueueSelection> {
+fn find_any_dedicated_transfer_queue(queue_family_properties: &[QueueFamilyProperties]) -> Option<QueueSelection> {
     for (queue_family_index, queue_family_properties) in queue_family_properties.iter().enumerate() {
         if is_dedicated_transfer_queue_family(queue_family_properties) {
             return Some(QueueSelection {
@@ -368,7 +368,7 @@ fn find_any_dedicated_transfer_queue(queue_family_properties: &Vec<QueueFamilyPr
 }
 
 /// Find any queue that supports vk::QueueFlags::TRANSFER without considering other flags.
-fn find_any_transfer_queue(queue_family_properties: &Vec<QueueFamilyProperties>) -> Option<QueueSelection> {
+fn find_any_transfer_queue(queue_family_properties: &[QueueFamilyProperties]) -> Option<QueueSelection> {
     for (queue_family_index, queue_family_properties) in queue_family_properties.iter().enumerate() {
         if queue_family_properties.queue_flags.contains(vk::QueueFlags::TRANSFER) {
             return Some(QueueSelection {

@@ -2,7 +2,7 @@
 // and the Safety section would only repeat the information that can be found in the
 // Vulkan specification. Please consider the specification directly when calling
 // unsafe functions.
-#![allow(clippy::undocumented_unsafe_block)]
+#![allow(clippy::undocumented_unsafe_blocks)]
 #![allow(clippy::missing_safety_doc)]
 
 pub mod buffer;

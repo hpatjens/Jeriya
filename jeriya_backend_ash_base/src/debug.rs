@@ -89,7 +89,7 @@ unsafe extern "system" fn debug_utils_messenger_callback(
             .replace("Object 0", "\n\tObject 0")
             .replace("Object 1", "\n\tObject 1")
             .replace("Object 2", "\n\tObject 2")
-            .replace("|", "\n\t|")
+            .replace('|', "\n\t|")
             .replace("The Vulkan spec states:", "\n\tThe Vulkan spec states:")
             .replace("(https", "\n\t(https");
 
