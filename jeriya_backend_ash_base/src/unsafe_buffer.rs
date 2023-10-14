@@ -62,8 +62,8 @@ impl<T: Clone> UnsafeBuffer<T> {
         Ok(())
     }
 
-    /// Maps the GPU memory of the buffer and returns a slice to it
-    unsafe fn map_buffer_memory(&mut self) -> crate::Result<(&mut [T], vk::DeviceMemory)> {
+    /// Maps the memory of the buffer and returns a slice to it
+    unsafe fn map_buffer_memory_mut(&mut self) -> crate::Result<(&mut [T], vk::DeviceMemory)> {
         assert!(self.buffer_memory.is_some(), "allocate_memory must be called before set_memory");
         let buffer_memory = self
             .buffer_memory
@@ -73,6 +73,20 @@ impl<T: Clone> UnsafeBuffer<T> {
             .as_raw_vulkan()
             .map_memory(buffer_memory, 0, self.byte_size as u64, vk::MemoryMapFlags::empty())?;
         let slice = slice::from_raw_parts_mut(ptr as *mut T, self.byte_size / mem::size_of::<T>());
+        Ok((slice, buffer_memory))
+    }
+
+    /// Maps the memory of the buffer and returns a slice to it
+    unsafe fn map_buffer_memory(&self) -> crate::Result<(&[T], vk::DeviceMemory)> {
+        assert!(self.buffer_memory.is_some(), "allocate_memory must be called before set_memory");
+        let buffer_memory = self
+            .buffer_memory
+            .expect("buffer_memory must be initialized when set_memory is called");
+        let ptr = self
+            .device
+            .as_raw_vulkan()
+            .map_memory(buffer_memory, 0, self.byte_size as u64, vk::MemoryMapFlags::empty())?;
+        let slice = slice::from_raw_parts(ptr as *const T, self.byte_size / mem::size_of::<T>());
         Ok((slice, buffer_memory))
     }
 
@@ -87,7 +101,7 @@ impl<T: Clone> UnsafeBuffer<T> {
             mem::size_of_val(data),
             "the data has to fit into the buffer exactly"
         );
-        let (slice, buffer_memory) = self.map_buffer_memory()?;
+        let (slice, buffer_memory) = self.map_buffer_memory_mut()?;
         slice.clone_from_slice(data);
         self.device.as_raw_vulkan().unmap_memory(buffer_memory);
         Ok(())
@@ -105,7 +119,7 @@ impl<T: Clone> UnsafeBuffer<T> {
             self.byte_size > offset + size,
             "the data doesn't fit into the buffer at the given offset"
         );
-        let (slice, buffer_memory) = self.map_buffer_memory()?;
+        let (slice, buffer_memory) = self.map_buffer_memory_mut()?;
         slice[index..index + 1].clone_from_slice(slice::from_ref(value));
         self.device.as_raw_vulkan().unmap_memory(buffer_memory);
         Ok(())
@@ -116,7 +130,7 @@ impl<T: Clone> UnsafeBuffer<T> {
     /// # Panics
     ///
     /// Panics if the `data` does not have the same size as the buffer
-    pub unsafe fn get_memory_unaligned(&mut self, data: &mut [T]) -> crate::Result<()> {
+    pub unsafe fn get_memory_unaligned(&self, data: &mut [T]) -> crate::Result<()> {
         assert_eq!(self.byte_size, mem::size_of_val(data), "data must have the same size as the buffer");
         let (slice, buffer_memory) = self.map_buffer_memory()?;
         data.clone_from_slice(slice);
@@ -163,7 +177,7 @@ mod tests {
         use ash::vk;
         use jeriya_shared::debug_info;
 
-        use crate::device::tests::TestFixtureDevice;
+        use crate::device::TestFixtureDevice;
 
         use super::UnsafeBuffer;
 

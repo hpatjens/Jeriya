@@ -47,7 +47,7 @@ impl<T: Clone> HostVisibleBuffer<T> {
     }
 
     /// Reads the buffer into the given slice
-    pub fn get_memory_unaligned(&mut self, data: &mut [T]) -> crate::Result<()> {
+    pub fn get_memory_unaligned(&self, data: &mut [T]) -> crate::Result<()> {
         unsafe {
             self.buffer.get_memory_unaligned(data)?;
         }
@@ -91,7 +91,7 @@ mod tests {
     mod new {
         use jeriya_shared::debug_info;
 
-        use crate::{buffer::BufferUsageFlags, device::tests::TestFixtureDevice};
+        use crate::{buffer::BufferUsageFlags, device::TestFixtureDevice};
 
         use super::HostVisibleBuffer;
 

@@ -1,14 +1,19 @@
 use std::{collections::BTreeMap, iter, sync::Arc, thread};
 
+use crate::{
+    entry::Entry, instance::Instance, physical_device::PhysicalDevice, queue_plan::QueuePlan, surface::Surface, AsRawVulkan, Error,
+    Extensions, PhysicalDeviceFeature,
+};
+
 use ash::{
     extensions::khr,
     vk::{self, PhysicalDeviceFeatures2, PhysicalDeviceShaderDrawParametersFeatures},
 };
-use jeriya_shared::log::{info, trace};
-
-use crate::{
-    instance::Instance, physical_device::PhysicalDevice, queue_plan::QueuePlan, AsRawVulkan, Error, Extensions, PhysicalDeviceFeature,
+use jeriya_shared::{
+    log::{info, trace},
+    winit::window::Window,
 };
+use jeriya_test::create_window;
 
 pub struct Device {
     device: ash::Device,
@@ -203,47 +208,38 @@ impl AsRawVulkan for Device {
     }
 }
 
+/// Test fixture for a [`Device`] and all its dependencies
+pub struct TestFixtureDevice {
+    pub window: Window,
+    pub entry: Arc<Entry>,
+    pub instance: Arc<Instance>,
+    pub surface: Arc<Surface>,
+    pub device: Arc<Device>,
+}
+
+impl TestFixtureDevice {
+    pub fn new() -> crate::Result<Self> {
+        let window = create_window();
+        let entry = Entry::new()?;
+        let instance = Instance::new(&entry, "my_application", true)?;
+        let surface = Surface::new(&entry, &instance, &window)?;
+        let physical_device = PhysicalDevice::new(&instance)?;
+        let queue_plan = QueuePlan::new(&instance, &physical_device, iter::once((&window.id(), &surface))).unwrap();
+        let device = Device::new(physical_device, &instance, queue_plan)?;
+        Ok(Self {
+            window,
+            entry,
+            instance,
+            surface,
+            device,
+        })
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
-    use std::{iter, sync::Arc};
-
-    use jeriya_shared::winit::window::Window;
-    use jeriya_test::create_window;
-
-    use crate::{
-        device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, queue_plan::QueuePlan, surface::Surface,
-    };
-
-    /// Test fixture for a [`Device`] and all its dependencies
-    pub struct TestFixtureDevice {
-        pub window: Window,
-        pub entry: Arc<Entry>,
-        pub instance: Arc<Instance>,
-        pub surface: Arc<Surface>,
-        pub device: Arc<Device>,
-    }
-
-    impl TestFixtureDevice {
-        pub fn new() -> crate::Result<Self> {
-            let window = create_window();
-            let entry = Entry::new()?;
-            let instance = Instance::new(&entry, "my_application", true)?;
-            let surface = Surface::new(&entry, &instance, &window)?;
-            let physical_device = PhysicalDevice::new(&instance)?;
-            let queue_plan = QueuePlan::new(&instance, &physical_device, iter::once((&window.id(), &surface))).unwrap();
-            let device = Device::new(physical_device, &instance, queue_plan)?;
-            Ok(Self {
-                window,
-                entry,
-                instance,
-                surface,
-                device,
-            })
-        }
-    }
-
     mod new {
-        use super::TestFixtureDevice;
+        use crate::device::TestFixtureDevice;
 
         #[test]
         fn smoke() {

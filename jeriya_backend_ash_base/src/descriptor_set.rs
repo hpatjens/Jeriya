@@ -73,7 +73,7 @@ mod tests {
 
         use crate::{
             descriptor_pool::DescriptorPool, descriptor_set::DescriptorSet, descriptor_set_layout::DescriptorSetLayout,
-            device::tests::TestFixtureDevice, swapchain::Swapchain,
+            device::TestFixtureDevice, swapchain::Swapchain,
         };
 
         #[test]

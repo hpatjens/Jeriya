@@ -86,7 +86,7 @@ mod tests {
 
     use super::*;
 
-    use crate::device::tests::TestFixtureDevice;
+    use crate::device::TestFixtureDevice;
 
     #[test]
     fn smoke() {

@@ -88,7 +88,7 @@ mod tests {
 
         use crate::{
             command_pool::{CommandPool, CommandPoolCreateFlags},
-            device::tests::TestFixtureDevice,
+            device::TestFixtureDevice,
             queue::Queue,
             queue_plan::QueueSelection,
         };

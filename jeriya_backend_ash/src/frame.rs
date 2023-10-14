@@ -584,3 +584,42 @@ impl Frame {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::mpsc::channel;
+
+    use base::device::TestFixtureDevice;
+    use jeriya_backend::{elements::camera::Camera, gpu_index_allocator::GpuIndexAllocation, transactions::PushEvent};
+    use jeriya_shared::Handle;
+
+    use super::*;
+
+    #[test]
+    fn resources() {
+        let test_fixture_device = TestFixtureDevice::new().unwrap();
+        let (resource_sender, _resource_receiver) = channel();
+        let backend_shared = BackendShared::new(&test_fixture_device.device, &Arc::new(Default::default()), resource_sender).unwrap();
+        let mut frame = Frame::new(0, &test_fixture_device.window.id(), &backend_shared).unwrap();
+        let mut transaction = Transaction::new();
+        let camera = Camera::new(
+            camera::CameraProjection::Orthographic {
+                left: -10.0,
+                right: 5.0,
+                bottom: 2.0,
+                top: -3.0,
+                near: 4.0,
+                far: 11.0,
+            },
+            debug_info!("my_camera"),
+            Handle::zero(),
+            GpuIndexAllocation::new_unchecked(0),
+        );
+        transaction.push_event(transactions::Event::Camera(camera::Event::Insert(camera.clone())));
+        frame.push_transaction(transaction);
+        frame.process_transactions().unwrap();
+        let mut data = vec![shader_interface::Camera::default(); frame.camera_buffer.capacity()];
+        frame.camera_buffer.host_visible_buffer().get_memory_unaligned(&mut data).unwrap();
+        assert_eq!(data[0].projection_matrix, camera.projection().projection_matrix());
+    }
+}

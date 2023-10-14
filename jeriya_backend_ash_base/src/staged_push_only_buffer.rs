@@ -154,7 +154,7 @@ mod tests {
             buffer::BufferUsageFlags,
             command_buffer::{tests::TestFixtureCommandBuffer, CommandBuffer},
             command_buffer_builder::CommandBufferBuilder,
-            device::tests::TestFixtureDevice,
+            device::TestFixtureDevice,
             staged_push_only_buffer::StagedPushOnlyBuffer,
             Error,
         };

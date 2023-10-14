@@ -1,4 +1,4 @@
-use jeriya_shared::{debug_info, nalgebra::Matrix4, nalgebra_glm, thiserror, DebugInfo, Handle};
+use jeriya_shared::{debug_info, derive_new::new, nalgebra::Matrix4, nalgebra_glm, thiserror, DebugInfo, Handle};
 
 use crate::{
     gpu_index_allocator::GpuIndexAllocation,
@@ -70,6 +70,7 @@ impl Default for CameraProjection {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "test-utils", derive(new))]
 pub struct Camera {
     projection: CameraProjection,
     debug_info: DebugInfo,

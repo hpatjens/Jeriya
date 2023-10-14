@@ -126,7 +126,7 @@ impl DescriptorSetLayoutBuilder {
 #[cfg(test)]
 mod tests {
     mod new {
-        use crate::{descriptor_set_layout::DescriptorSetLayout, device::tests::TestFixtureDevice};
+        use crate::{descriptor_set_layout::DescriptorSetLayout, device::TestFixtureDevice};
 
         #[test]
         fn smoke() {

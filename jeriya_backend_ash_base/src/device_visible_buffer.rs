@@ -107,7 +107,7 @@ mod tests {
         use crate::{
             buffer::BufferUsageFlags,
             command_pool::{CommandPool, CommandPoolCreateFlags},
-            device::tests::TestFixtureDevice,
+            device::TestFixtureDevice,
             device_visible_buffer::DeviceVisibleBuffer,
             host_visible_buffer::HostVisibleBuffer,
             queue::Queue,

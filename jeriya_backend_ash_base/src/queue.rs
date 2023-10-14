@@ -176,7 +176,7 @@ mod tests {
     mod new {
         use jeriya_shared::debug_info;
 
-        use crate::device::tests::TestFixtureDevice;
+        use crate::device::TestFixtureDevice;
 
         use super::*;
 

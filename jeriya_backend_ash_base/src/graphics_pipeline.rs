@@ -425,7 +425,7 @@ mod tests {
         use jeriya_shared::{debug_info, RendererConfig};
 
         use crate::{
-            device::tests::TestFixtureDevice,
+            device::TestFixtureDevice,
             graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, GraphicsPipelineInterface, PrimitiveTopology},
             swapchain::Swapchain,
             swapchain_render_pass::SwapchainRenderPass,

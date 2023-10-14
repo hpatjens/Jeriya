@@ -102,7 +102,7 @@ pub mod tests {
     use crate::{
         command_buffer::CommandBuffer,
         command_pool::{CommandPool, CommandPoolCreateFlags},
-        device::tests::TestFixtureDevice,
+        device::TestFixtureDevice,
         queue::Queue,
         queue_plan::QueueSelection,
     };

@@ -152,8 +152,7 @@ impl<'a> DescriptorPoolBuilder<'a> {
 mod tests {
     mod new {
         use crate::{
-            descriptor_pool::DescriptorPool, descriptor_set_layout::DescriptorSetLayout, device::tests::TestFixtureDevice,
-            swapchain::Swapchain,
+            descriptor_pool::DescriptorPool, descriptor_set_layout::DescriptorSetLayout, device::TestFixtureDevice, swapchain::Swapchain,
         };
 
         #[test]

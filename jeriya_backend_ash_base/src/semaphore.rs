@@ -48,7 +48,7 @@ mod tests {
     mod new {
         use jeriya_shared::debug_info;
 
-        use crate::{device::tests::TestFixtureDevice, semaphore::Semaphore};
+        use crate::{device::TestFixtureDevice, semaphore::Semaphore};
 
         #[test]
         fn smoke() {

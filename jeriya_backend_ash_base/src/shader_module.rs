@@ -56,7 +56,7 @@ mod tests {
 
         use jeriya_shared::debug_info;
 
-        use crate::{device::tests::TestFixtureDevice, shader_module::ShaderModule};
+        use crate::{device::TestFixtureDevice, shader_module::ShaderModule};
 
         #[test]
         fn smoke() {

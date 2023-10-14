@@ -60,7 +60,7 @@ mod tests {
     mod new {
         use jeriya_shared::debug_info;
 
-        use crate::{device::tests::TestFixtureDevice, fence::Fence};
+        use crate::{device::TestFixtureDevice, fence::Fence};
 
         #[test]
         fn smoke() {

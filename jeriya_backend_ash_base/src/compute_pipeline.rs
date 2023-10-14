@@ -120,9 +120,7 @@ mod tests {
 
         use jeriya_shared::debug_info;
 
-        use crate::{
-            compute_pipeline::GenericComputePipeline, compute_pipeline::GenericComputePipelineConfig, device::tests::TestFixtureDevice,
-        };
+        use crate::{compute_pipeline::GenericComputePipeline, compute_pipeline::GenericComputePipelineConfig, device::TestFixtureDevice};
 
         #[test]
         fn smoke() {

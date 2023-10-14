@@ -3,6 +3,9 @@ name = "jeriya_backend"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+test-utils = [] # Enables types and functions for testing
+
 [dependencies]
 jeriya_shared = { path = "../jeriya_shared" }
 jeriya_content = { path = "../jeriya_content" }
