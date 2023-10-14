@@ -70,7 +70,7 @@ impl Default for CameraProjection {
 }
 
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "test-utils", derive(new))]
+#[cfg_attr(feature = "test-utils", derive(jeriya_shared::derive_new::new))]
 pub struct Camera {
     projection: CameraProjection,
     debug_info: DebugInfo,
