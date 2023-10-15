@@ -244,7 +244,7 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
-        builder.draw_indirect(&self.indirect_draw_buffer, self.rigid_mesh_buffer.high_water_mark());
+        builder.draw_indirect(&self.indirect_draw_buffer, self.rigid_mesh_instance_buffer.high_water_mark());
         drop(indirect_span);
 
         // Render with SimpleGraphicsPipeline
