@@ -3,6 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use clap::Parser;
 use color_eyre as ey;
 use ey::eyre::{Context, ContextCompat};
 use gltf::mesh::util::ReadIndices;
@@ -166,7 +167,18 @@ fn setup_asset_processor() -> ey::Result<AssetProcessor> {
     Ok(asset_processor)
 }
 
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct CommandLineArguments {
+    /// Path to the file to open
+    #[arg(default_value_t = String::from("sample_assets/suzanne.glb"))] // not a PathBuf because PathBuf does not implement Display
+    path: String,
+}
+
 fn main() -> ey::Result<()> {
+    // Parse command line arguments
+    let command_line_arguments = CommandLineArguments::parse();
+
     // Setup logging
     fern::Dispatch::new()
         .format(|out, message, record| {
@@ -225,7 +237,7 @@ fn main() -> ey::Result<()> {
     // Load models
     let model = load_vertices().wrap_err("Failed to load model")?;
     let fake_normals = model.iter().map(|_| Vector3::new(0.0, 1.0, 0.0)).collect::<Vec<_>>();
-    let suzanne = Model::import("sample_assets/suzanne.glb").wrap_err("Failed to import model")?;
+    let suzanne = Model::import(command_line_arguments.path).wrap_err("Failed to import model")?;
 
     // Create MeshAttributes for the model
     //
