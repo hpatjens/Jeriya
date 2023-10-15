@@ -16,3 +16,4 @@ jeriya_content = { path = "../jeriya_content" }
 fern = "0.6.1"
 color-eyre = "0.6.2"
 gltf = "1.2.0"
+clap = { version = "4", features = ["derive"] }
