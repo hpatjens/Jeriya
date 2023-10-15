@@ -35,6 +35,7 @@ pub struct BackendShared {
     pub static_vertex_position_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_vertex_normals_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_indices_buffer: Mutex<StagedPushOnlyBuffer<u32>>,
+    pub static_meshlet_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::Meshlet>>,
 
     pub mesh_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<MeshAttributes>>>,
     pub camera_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<elements::camera::Camera>>>,
@@ -85,6 +86,14 @@ impl BackendShared {
             debug_info!("static_indices_buffer"),
         )?);
 
+        info!("Creating static meshlet buffer");
+        let static_meshlet_buffer = Mutex::new(StagedPushOnlyBuffer::new(
+            device,
+            renderer_config.maximum_meshlets,
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!("static_meshlet_buffer"),
+        )?);
+
         info!("Creating the QueueScheduler");
         let queue_scheduler = QueueScheduler::new(device)?;
 
@@ -111,6 +120,7 @@ impl BackendShared {
             static_vertex_position_buffer,
             static_vertex_normals_buffer,
             static_indices_buffer,
+            static_meshlet_buffer,
             mesh_attributes_gpu_index_allocator,
             camera_gpu_index_allocator,
             camera_instance_gpu_index_allocator,

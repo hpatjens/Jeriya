@@ -7,6 +7,7 @@ layout (constant_id = 1) const uint MAX_CAMERA_INSTANCES = 64;
 layout (constant_id = 3) const uint MAX_RIGID_MESHES = 1024;
 layout (constant_id = 4) const uint MAX_MESH_ATTRIBUTES = 1024;
 layout (constant_id = 5) const uint MAX_RIGID_MESH_INSTANCES = 1024;
+layout (constant_id = 6) const uint MAX_MESHLETS = 1024;
 
 struct Camera {
     mat4 projection_matrix;
@@ -24,6 +25,16 @@ struct VkDrawIndirectCommand {
     uint first_instance;
 };
 
+const uint MESHLET_MAX_VERTICES = 64;
+const uint MESHLET_MAX_TRIANGLES = 126;
+
+struct Meshlet {
+    uint global_indices[MESHLET_MAX_VERTICES];
+    uint local_indices[MESHLET_MAX_TRIANGLES * 3];
+    uint vertex_count;
+    uint triangle_count;
+};
+
 struct MeshAttributes {
     uint64_t vertex_positions_start_offset;
     uint64_t vertex_positions_len;
@@ -33,6 +44,9 @@ struct MeshAttributes {
 
     uint64_t indices_start_offset;
     uint64_t indices_len;
+
+    uint64_t meshlets_start_offset;
+    uint64_t meshlets_len;
 };
 
 struct RigidMesh {
@@ -89,6 +103,10 @@ layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {
 
 layout (set = 0, binding = 11) buffer RigidMeshInstancesBuffer {
     RigidMeshInstance rigid_mesh_instances[MAX_RIGID_MESH_INSTANCES];
+};
+
+layout (set = 0, binding = 12) buffer StaticMeshletBuffer {
+    Meshlet meshlets[MAX_MESHLETS];
 };
 
 

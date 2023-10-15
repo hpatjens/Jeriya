@@ -130,7 +130,7 @@ impl Model {
             for (meshlet_index, meshlet) in mesh.meshlets.iter().enumerate() {
                 writeln!(obj_writer, "o mesh_{mesh_index}_meshlet_{meshlet_index}")?;
                 writeln!(obj_writer, "usemtl mesh_{mesh_index}_meshlet_{meshlet_index}")?;
-                for chunk in meshlet.local_indices.rchunks(3) {
+                for chunk in &meshlet.local_indices {
                     let base = written_vertices + 1;
                     let i0 = base + meshlet.global_indices[chunk[0] as usize];
                     let i1 = base + meshlet.global_indices[chunk[1] as usize];
@@ -170,15 +170,17 @@ pub struct SimpleMesh {
     pub indices: Vec<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Meshlet {
     /// Indices into the vertex buffer of the mesh. This contains a maximum of 64 vertices.
-    global_indices: Vec<u32>,
+    pub global_indices: Vec<u32>,
     /// Indices into the `global_indices` buffer. This contains a maximum of 126 triangles.
-    local_indices: Vec<u8>,
+    pub local_indices: Vec<[u8; 3]>,
+}
 
-    triangle_count: u8,
-    vertex_count: u8,
+impl Meshlet {
+    pub const MAX_VERTICES: usize = 64;
+    pub const MAX_TRIANGLES: usize = 126;
 }
 
 /// Function for the [`AssetProcessor`]
@@ -271,14 +273,7 @@ fn build_meshlets(simple_mesh: &SimpleMesh) -> crate::Result<Vec<Meshlet>> {
             info!("Meshlet: {:?}", (meshlet.vertex_count, meshlet.triangle_count));
             Meshlet {
                 global_indices: meshlet.vertices.into_iter().take(meshlet.vertex_count as usize).collect(),
-                local_indices: meshlet
-                    .indices
-                    .into_iter()
-                    .take(meshlet.triangle_count as usize)
-                    .flatten()
-                    .collect(),
-                triangle_count: meshlet.triangle_count,
-                vertex_count: meshlet.vertex_count,
+                local_indices: meshlet.indices.into_iter().take(meshlet.triangle_count as usize).collect(),
             }
         })
         .collect::<Vec<_>>();
@@ -358,8 +353,10 @@ mod tests {
         for meshlet in &model.meshes[0].meshlets {
             assert_eq!(meshlet.global_indices.len(), 24);
             assert_eq!(meshlet.local_indices.len(), 36);
-            for index in &meshlet.local_indices {
-                assert!((*index as usize) < meshlet.global_indices.len());
+            for triangle in &meshlet.local_indices {
+                assert!((triangle[0] as usize) < meshlet.global_indices.len());
+                assert!((triangle[1] as usize) < meshlet.global_indices.len());
+                assert!((triangle[2] as usize) < meshlet.global_indices.len());
             }
             for vertex in &meshlet.global_indices {
                 assert!((*vertex as usize) < model.meshes[0].simple_mesh.vertex_positions.len() as usize);
