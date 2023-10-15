@@ -3,7 +3,7 @@ use jeriya_shared::nalgebra::Matrix4;
 
 pub trait Represents<T> {}
 
-impl Represents<resources::mesh_attributes::MeshAttributes> for bool {}
+impl Represents<resources::mesh_attributes::MeshAttributes> for u32 {}
 
 #[repr(C)]
 #[derive(Debug, Clone, Default)]

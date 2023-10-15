@@ -84,8 +84,8 @@ layout (set = 0, binding = 9) buffer RigidMeshes {
     RigidMesh rigid_meshes[MAX_RIGID_MESHES];
 };
 
-layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {
-    bool mesh_attributes_active[MAX_MESH_ATTRIBUTES];
+layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {  
+    bool mesh_attributes_active[MAX_MESH_ATTRIBUTES]; // bool has an alignment of 4 bytes
 };
 
 layout (set = 0, binding = 11) buffer RigidMeshInstancesBuffer {

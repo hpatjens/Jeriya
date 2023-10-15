@@ -232,7 +232,7 @@ where
                 .push_storage_buffer::<Vector4<f32>>(7, 1)
                 .push_storage_buffer::<MeshAttributes>(8, 1)
                 .push_storage_buffer::<RigidMesh>(9, 1)
-                .push_storage_buffer::<bool>(10, 1)
+                .push_storage_buffer::<u32>(10, 1)
                 .push_storage_buffer::<RigidMeshInstance>(11, 1)
                 .build(device)?,
         );
