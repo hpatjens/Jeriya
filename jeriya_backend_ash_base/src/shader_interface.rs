@@ -60,11 +60,35 @@ pub struct MeshAttributes {
     pub vertex_normals_len: u64,
 
     pub indices_start_offset: u64,
-    // When the mesh doesn't have indices, this is 0.
-    pub indices_len: u64,
+    pub indices_len: u64, // When the mesh doesn't have indices, this is 0.
+
+    pub meshlets_start_offset: u64,
+    pub meshlets_len: u64, // When the mesh doesn't have meshlets, this is 0.
 }
 
 impl Represents<resources::mesh_attributes::MeshAttributes> for MeshAttributes {}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct Meshlet {
+    pub global_indices: [u32; 64],
+    pub local_indices: [[u32; 3]; 126], // u8 is enough, but we need to align to 4 bytes and GLSL doesn't support u8.
+    pub vertex_count: u32,              // u8 is enough, but we need to align to 4 bytes and GLSL doesn't support u8.
+    pub triangle_count: u32,            // u8 is enough, but we need to align to 4 bytes and GLSL doesn't support u8.
+}
+
+impl Default for Meshlet {
+    fn default() -> Self {
+        Self {
+            global_indices: [0; 64],
+            local_indices: [[0; 3]; 126],
+            triangle_count: 0,
+            vertex_count: 0,
+        }
+    }
+}
+
+impl Represents<jeriya_content::model::Meshlet> for Meshlet {}
 
 #[repr(C)]
 #[derive(Debug, Clone)]

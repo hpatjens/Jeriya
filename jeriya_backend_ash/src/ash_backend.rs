@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    iter,
     sync::{
         mpsc::{self, Receiver, Sender},
         Arc,
@@ -42,6 +43,7 @@ use jeriya_backend_ash_base::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
+use jeriya_content::model::Meshlet;
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
@@ -383,6 +385,51 @@ fn handle_mesh_attributes_events(
                     0
                 };
 
+                // Upload the meshlets to the GPU
+                let meshlets_start_offset = if let Some(meshlets) = &mesh_attributes.meshlets() {
+                    let meshlets = meshlets
+                        .iter()
+                        .map(|meshlet| {
+                            assert! {
+                                meshlet.global_indices.len() < Meshlet::MAX_VERTICES,
+                                "Meshlet references too many vertices. The validation of the MeshAttributes should have caught this."
+                            }
+                            // Pad the global indices with 0s
+                            let global_indices = meshlet
+                                .global_indices
+                                .iter()
+                                .cloned()
+                                .chain(iter::repeat(0u32).take(Meshlet::MAX_VERTICES - meshlet.global_indices.len()))
+                                .collect::<Vec<_>>()
+                                .try_into()
+                                .expect("Meshlet global indices are not 64 elements long");
+
+                            // Pad the local indices with 0s
+                            let local_indices = meshlet
+                                .local_indices
+                                .iter()
+                                .map(|triangle| [triangle[0] as u32, triangle[1] as u32, triangle[2] as u32])
+                                .chain(iter::repeat([0; 3]).take(Meshlet::MAX_TRIANGLES - meshlet.local_indices.len()))
+                                .collect::<Vec<_>>()
+                                .try_into()
+                                .expect("Meshlet local indices are not 126 elements long");
+
+                            shader_interface::Meshlet {
+                                global_indices,
+                                local_indices,
+                                vertex_count: meshlet.global_indices.len() as u32,
+                                triangle_count: meshlet.local_indices.len() as u32,
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    backend_shared
+                        .static_meshlet_buffer
+                        .lock()
+                        .push(&meshlets, &mut command_buffer_builder)?
+                } else {
+                    0
+                };
+
                 // Upload the MeshAttributes to the GPU
                 let vertex_positions_start_offset = vertex_positions_start_offset as u64;
                 let vertex_positions_len = mesh_attributes.vertex_positions().len() as u64;
@@ -390,6 +437,8 @@ fn handle_mesh_attributes_events(
                 let vertex_normals_len = mesh_attributes.vertex_normals().len() as u64;
                 let indices_start_offset = indices_start_offset as u64;
                 let indices_len = mesh_attributes.indices().map(|indices| indices.len() as u64).unwrap_or(0);
+                let meshlets_start_offset = meshlets_start_offset as u64;
+                let meshlets_len = mesh_attributes.meshlets().map(|meshlets| meshlets.len() as u64).unwrap_or(0);
                 let mesh_attributes_gpu = shader_interface::MeshAttributes {
                     vertex_positions_start_offset,
                     vertex_positions_len,
@@ -397,6 +446,8 @@ fn handle_mesh_attributes_events(
                     indices_len,
                     vertex_normals_start_offset,
                     vertex_normals_len,
+                    meshlets_start_offset,
+                    meshlets_len,
                 };
                 info!("Inserting a new MeshAttributes: {mesh_attributes_gpu:#?}",);
                 backend_shared

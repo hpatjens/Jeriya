@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use jeriya_content::model::Meshlet;
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector3, thiserror, AsDebugInfo, DebugInfo, Handle};
 
 use crate::gpu_index_allocator::GpuIndexAllocation;
@@ -15,7 +16,19 @@ pub enum Error {
     #[error("The {0:?} are missing")]
     MandatoryAttributeMissing(AttributeType),
     #[error("The index references a vertex that doesn't exist")]
-    WrongIndex(usize),
+    WrongIndex { index_index: usize, index_value: usize },
+    #[error("A global index in a meshlet references a vertex that doesn't exist")]
+    WrongGlobalMeshletIndex {
+        meshlet_index: usize,
+        index_index: usize,
+        index_value: usize,
+    },
+    #[error("A local index in a meshlet references a global index that doesn't exist")]
+    WrongLocalMeshletIndex {
+        meshlet_index: usize,
+        triangle_index: usize,
+        index_value: usize,
+    },
     #[error("The number of attributes doesn't match the number of vertices")]
     WrongSize { expected: usize, got: usize },
     #[error("Allocation failed")]
@@ -30,6 +43,7 @@ pub struct MeshAttributes {
     vertex_positions: Vec<Vector3<f32>>,
     vertex_normals: Vec<Vector3<f32>>,
     indices: Option<Vec<u32>>,
+    meshlets: Option<Vec<Meshlet>>,
     handle: Handle<Arc<MeshAttributes>>,
     gpu_index_allocation: GpuIndexAllocation<MeshAttributes>,
     debug_info: DebugInfo,
@@ -54,6 +68,11 @@ impl MeshAttributes {
     /// Returns the indices
     pub fn indices(&self) -> Option<&Vec<u32>> {
         self.indices.as_ref()
+    }
+
+    /// Returns the meshlets
+    pub fn meshlets(&self) -> Option<&Vec<Meshlet>> {
+        self.meshlets.as_ref()
     }
 
     /// Returns the [`Handle`] of the [`MeshAttributes`].
@@ -88,6 +107,7 @@ pub enum MeshAttributesGpuState {
         vertex_positions: Arc<Vec<Vector3<f32>>>,
         vertex_normals: Arc<Vec<Vector3<f32>>>,
         indices: Option<Arc<Vec<u32>>>,
+        meshlets: Option<Arc<Vec<Meshlet>>>,
     },
     /// The mesh has been uploaded to the GPU
     Uploaded,
@@ -101,6 +121,7 @@ pub struct MeshAttributeBuilder {
     vertex_positions: Option<Vec<Vector3<f32>>>,
     vertex_normals: Option<Vec<Vector3<f32>>>,
     indices: Option<Vec<u32>>,
+    meshlets: Option<Vec<Meshlet>>,
     debug_info: Option<DebugInfo>,
 }
 
@@ -110,6 +131,7 @@ impl MeshAttributeBuilder {
             vertex_positions: None,
             vertex_normals: None,
             indices: None,
+            meshlets: None,
             debug_info: None,
         }
     }
@@ -138,6 +160,12 @@ impl MeshAttributeBuilder {
         self
     }
 
+    /// Sets the meshlets of the [`MeshAttributes`]
+    pub fn with_meshlets(mut self, meshlets: Vec<Meshlet>) -> Self {
+        self.meshlets = Some(meshlets);
+        self
+    }
+
     /// Sets the debug info of the [`MeshAttributes`]
     ///
     /// This is an optional field
@@ -158,6 +186,7 @@ impl MeshAttributeBuilder {
         let vertex_normals = self
             .vertex_normals
             .ok_or(Error::MandatoryAttributeMissing(AttributeType::Normals))?;
+
         // The vertex positions determine the expected number of attributes
         if vertex_positions.len() != vertex_normals.len() {
             return Err(Error::WrongSize {
@@ -165,19 +194,52 @@ impl MeshAttributeBuilder {
                 got: vertex_normals.len(),
             });
         }
+
         // The indices must references existing vertices
         info!("Checking every index in the mesh");
         if let Some(indices) = &self.indices {
-            for index in indices {
-                if *index as usize >= vertex_positions.len() {
-                    return Err(Error::WrongIndex(*index as usize));
+            for (index_index, index_value) in indices.iter().enumerate() {
+                if *index_value as usize >= vertex_positions.len() {
+                    return Err(Error::WrongIndex {
+                        index_index,
+                        index_value: *index_value as usize,
+                    });
                 }
             }
         }
+
+        // The meshlet indices must references existing vertices
+        info!("Checking every meshlet index in the mesh");
+        if let Some(meshlets) = &self.meshlets {
+            for (meshlet_index, meshlet) in meshlets.iter().enumerate() {
+                for (index_index, index_value) in meshlet.global_indices.iter().enumerate() {
+                    if *index_value as usize >= vertex_positions.len() {
+                        return Err(Error::WrongGlobalMeshletIndex {
+                            meshlet_index,
+                            index_index,
+                            index_value: *index_value as usize,
+                        });
+                    }
+                }
+                for (triangle_index, triangle_value) in meshlet.local_indices.iter().enumerate() {
+                    for i in 0..triangle_value.len() {
+                        if triangle_value[i] as usize >= vertex_positions.len() {
+                            return Err(Error::WrongLocalMeshletIndex {
+                                meshlet_index,
+                                triangle_index,
+                                index_value: triangle_value[i] as usize,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(MeshAttributes {
             vertex_positions,
             vertex_normals,
             indices: self.indices,
+            meshlets: self.meshlets,
             handle,
             gpu_index_allocation,
             debug_info: self.debug_info.unwrap_or_else(|| debug_info!("Anonymous-MeshAttributes")),
@@ -204,6 +266,10 @@ mod tests {
                 Vector3::new(0.0, 1.0, 0.0),
             ])
             .with_indices(vec![0, 1, 2])
+            .with_meshlets(vec![Meshlet {
+                global_indices: vec![0],
+                local_indices: vec![[0, 0, 0]],
+            }])
             .with_debug_info(debug_info!("my_mesh"))
             .build(Handle::zero(), gpu_index_allocation)
             .unwrap();
@@ -265,6 +331,54 @@ mod tests {
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
             .with_indices(vec![1])
             .build(Handle::zero(), gpu_index_allocation);
-        assert_eq!(result, Err(Error::WrongIndex(1)));
+        assert_eq!(
+            result,
+            Err(Error::WrongIndex {
+                index_index: 0,
+                index_value: 1
+            })
+        );
+    }
+
+    #[test]
+    fn wrong_global_index() {
+        let gpu_index_allocation = GpuIndexAllocation::new_unchecked(0);
+        let result = MeshAttributes::builder()
+            .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
+            .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
+            .with_meshlets(vec![Meshlet {
+                global_indices: vec![1], // this vertex doesn't exist
+                local_indices: vec![[0, 0, 0]],
+            }])
+            .build(Handle::zero(), gpu_index_allocation);
+        assert_eq!(
+            result,
+            Err(Error::WrongGlobalMeshletIndex {
+                meshlet_index: 0,
+                index_index: 0,
+                index_value: 1
+            })
+        );
+    }
+
+    #[test]
+    fn wrong_local_index() {
+        let gpu_index_allocation = GpuIndexAllocation::new_unchecked(0);
+        let result = MeshAttributes::builder()
+            .with_vertex_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
+            .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)])
+            .with_meshlets(vec![Meshlet {
+                global_indices: vec![0],        // this vertex exists
+                local_indices: vec![[1, 1, 1]], // this index doesn't exist in the global indices
+            }])
+            .build(Handle::zero(), gpu_index_allocation);
+        assert_eq!(
+            result,
+            Err(Error::WrongLocalMeshletIndex {
+                meshlet_index: 0,
+                triangle_index: 0,
+                index_value: 1
+            })
+        );
     }
 }

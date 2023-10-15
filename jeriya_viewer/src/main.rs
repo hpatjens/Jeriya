@@ -6,7 +6,6 @@ use std::{
 use clap::Parser;
 use color_eyre as ey;
 use ey::eyre::{Context, ContextCompat};
-use gltf::mesh::util::ReadIndices;
 use jeriya::Renderer;
 use jeriya_backend::{
     elements::{
@@ -125,38 +124,6 @@ where
     Ok(())
 }
 
-/// Imports a glTF model and returns the vertex positions.
-fn load_vertices() -> ey::Result<Vec<Vector3<f32>>> {
-    let (document, buffers, _images) = gltf::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import glTF model")?;
-    let mut vertex_positions = Vec::new();
-    for mesh in document.meshes() {
-        for primitive in mesh.primitives() {
-            let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
-            let temp_vertex_positions = reader.read_positions().expect("no positions in mesh").collect::<Vec<_>>();
-            if let Some(indices) = reader.read_indices() {
-                match &indices {
-                    ReadIndices::U8(iter) => {
-                        for index in iter.clone() {
-                            vertex_positions.push(temp_vertex_positions[index as usize]);
-                        }
-                    }
-                    ReadIndices::U16(iter) => {
-                        for index in iter.clone() {
-                            vertex_positions.push(temp_vertex_positions[index as usize]);
-                        }
-                    }
-                    ReadIndices::U32(iter) => {
-                        for index in iter.clone() {
-                            vertex_positions.push(temp_vertex_positions[index as usize]);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    Ok(vertex_positions.into_iter().map(|v| Vector3::new(v[0], v[1], v[2])).collect())
-}
-
 fn setup_asset_processor() -> ey::Result<AssetProcessor> {
     let directories = Directories::create_all_dir("assets/unprocessed", "assets/processed")
         .wrap_err("Failed to create Directories for AssetProcessor")?;
@@ -173,6 +140,10 @@ struct CommandLineArguments {
     /// Path to the file to open
     #[arg(default_value_t = String::from("sample_assets/suzanne.glb"))] // not a PathBuf because PathBuf does not implement Display
     path: String,
+
+    /// Enable meshlet rendering
+    #[arg(long, short, default_value_t = true)]
+    enable_meshlet_rendering: bool,
 }
 
 fn main() -> ey::Result<()> {
@@ -235,24 +206,21 @@ fn main() -> ey::Result<()> {
     let mut instance_group = InstanceGroup::new(&renderer, debug_info!("my_instance_group"));
 
     // Load models
-    let model = load_vertices().wrap_err("Failed to load model")?;
-    let fake_normals = model.iter().map(|_| Vector3::new(0.0, 1.0, 0.0)).collect::<Vec<_>>();
-    let suzanne = Model::import(command_line_arguments.path).wrap_err("Failed to import model")?;
+    let cube_model = Model::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import model")?;
+    let main_model = Model::import(command_line_arguments.path).wrap_err("Failed to import model")?;
 
     // Create MeshAttributes for the model
     //
     // This will upload the vertex positions and normals to the GPU asynchronously. When the upload
     // is done a MeshAttributes value will be uploaded to the GPU so that RigidMeshes can reference
     // the vertex data.
-    let mesh_attributes = resource_group
-        .mesh_attributes()
-        .insert_with(
-            MeshAttributes::builder()
-                .with_vertex_positions(model.clone())
-                .with_vertex_normals(fake_normals.clone())
-                .with_debug_info(debug_info!("my_mesh")),
-        )
-        .unwrap();
+    let mesh = &cube_model.meshes.get(0).unwrap().simple_mesh;
+    let mesh_attributes_builder = MeshAttributes::builder()
+        .with_vertex_positions(mesh.vertex_positions.clone())
+        .with_vertex_normals(mesh.vertex_normals.clone())
+        .with_indices(mesh.indices.clone())
+        .with_debug_info(debug_info!("my_mesh"));
+    let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder).unwrap();
 
     // Create a Transaction to record changes to the ElementGroup and InstanceGroup.
     //
@@ -352,7 +320,7 @@ fn main() -> ey::Result<()> {
     // A RigidMeshCollection can be used to create multiple RigidMeshes from a single Model. To display
     // the RigidMeshes in the scene, RigidMeshInstances must be created that reference the RigidMeshes.
     // A RigidMeshInstanceCollection can be used for that.
-    let rigid_mesh_collection = RigidMeshCollection::from_model(&suzanne, &mut resource_group, &mut element_group, &mut transaction)?;
+    let rigid_mesh_collection = RigidMeshCollection::from_model(&main_model, &mut resource_group, &mut element_group, &mut transaction)?;
     let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
         &rigid_mesh_collection,
         element_group.rigid_meshes(),
