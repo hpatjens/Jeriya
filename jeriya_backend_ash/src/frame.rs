@@ -215,6 +215,20 @@ impl Frame {
 
         builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(&presenter_shared.frame_index))?;
 
+        // Cull RigidMeshInstances
+        let cull_rigid_mesh_instances_span = span!("cull rigid mesh instances");
+        builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_rigid_mesh_instances_compute_pipeline);
+        self.push_descriptors(
+            PipelineBindPoint::Compute,
+            &presenter_shared
+                .graphics_pipelines
+                .cull_rigid_mesh_instances_compute_pipeline
+                .descriptor_set_layout,
+            backend_shared,
+            &mut builder,
+        )?;
+        drop(cull_rigid_mesh_instances_span);
+
         // Cull
         let cull_span = span!("record cull commands");
         builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_compute_pipeline);
