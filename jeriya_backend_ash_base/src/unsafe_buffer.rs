@@ -138,6 +138,18 @@ impl<T: Clone> UnsafeBuffer<T> {
         Ok(())
     }
 
+    /// Copies the `data` from the buffer into the given slice
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is out of bounds.
+    pub unsafe fn get_memory_unaligned_index(&self, index: usize) -> crate::Result<T> {
+        let (slice, buffer_memory) = self.map_buffer_memory()?;
+        let value = slice[index].clone();
+        self.device.as_raw_vulkan().unmap_memory(buffer_memory);
+        Ok(value)
+    }
+
     /// Returns the size of the buffer in bytes
     pub fn byte_size(&self) -> usize {
         self.byte_size
@@ -228,6 +240,30 @@ mod tests {
                 let mut data2 = vec![0.0; 4];
                 buffer.get_memory_unaligned(&mut data2).unwrap();
                 assert_eq!(vec![1.0, 2.0, 6.0, 4.0], data2);
+            }
+        }
+
+        #[test]
+        fn get_memory_unaligned_index() {
+            let device_test_fixture = TestFixtureDevice::new().unwrap();
+            let data = vec![1.0f32, 2.0, 3.0, 4.0];
+            unsafe {
+                let mut buffer = UnsafeBuffer::<f32>::new(
+                    &device_test_fixture.device,
+                    std::mem::size_of_val(data.as_slice()),
+                    vk::BufferUsageFlags::TRANSFER_SRC,
+                    vk::SharingMode::EXCLUSIVE,
+                    debug_info!("my_unsafe_buffer"),
+                )
+                .unwrap();
+                assert_eq!(buffer.byte_size(), 16);
+                buffer
+                    .allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT)
+                    .unwrap();
+                buffer.set_memory_unaligned(&data).unwrap();
+                const INDEX: usize = 2;
+                let data2 = buffer.get_memory_unaligned_index(INDEX).unwrap();
+                assert_eq!(data[INDEX], data2);
             }
         }
     }

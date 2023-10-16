@@ -54,6 +54,11 @@ impl<T: Clone> HostVisibleBuffer<T> {
         Ok(())
     }
 
+    /// Reads the buffer at the given index
+    pub fn get_memory_unaligned_index(&self, index: usize) -> crate::Result<T> {
+        unsafe { self.buffer.get_memory_unaligned_index(index) }
+    }
+
     /// Returns the underlying [`UnsafeBuffer`]
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {

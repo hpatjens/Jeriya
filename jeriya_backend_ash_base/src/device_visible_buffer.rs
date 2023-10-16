@@ -81,6 +81,30 @@ impl<T: Clone + 'static + Send + Sync> DeviceVisibleBuffer<T> {
     }
 }
 
+impl<T: Clone + 'static + Send + Sync + Default> DeviceVisibleBuffer<T> {
+    /// Reads the contents of the buffer into a new `HostVisibleBuffer` and waits for the transfer to finish.
+    pub fn read_into_new_buffer_and_wait(
+        self: &Arc<Self>,
+        transfer_queue: &mut Queue,
+        command_pool: &Arc<CommandPool>,
+    ) -> crate::Result<Arc<HostVisibleBuffer<T>>> {
+        let result = Arc::new(HostVisibleBuffer::new(
+            &self.device,
+            &vec![T::default(); self.byte_size() / std::mem::size_of::<T>()],
+            BufferUsageFlags::TRANSFER_DST_BIT,
+            debug_info!("HostVisibleBuffer-fors-DeviceVisibleBuffer"),
+        )?);
+        let mut command_buffer = CommandBuffer::new(&self.device, command_pool, debug_info!("CommandBuffer-for-DeviceVisibleBuffer"))?;
+        CommandBufferBuilder::new(&self.device, &mut command_buffer)?
+            .begin_command_buffer()?
+            .copy_buffer_from_device_to_host(self, &result)
+            .end_command_buffer()?;
+        transfer_queue.submit(command_buffer)?;
+        transfer_queue.wait_idle()?;
+        Ok(result)
+    }
+}
+
 impl<T> GeneralBuffer for DeviceVisibleBuffer<T> {}
 impl<T> Buffer<T> for DeviceVisibleBuffer<T> {}
 

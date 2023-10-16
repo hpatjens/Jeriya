@@ -120,11 +120,13 @@ impl Frame {
         )?;
 
         info!("Create visible rigid mesh instances buffer");
+        let byte_size_indices = backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances * mem::size_of::<u32>();
+        let byte_size_count = mem::size_of::<u32>();
         let visible_rigid_mesh_instances = DeviceVisibleBuffer::new(
             &backend_shared.device,
-            // +1 for the counter at the start of the buffer that counts the number of visible instances
-            backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances * mem::size_of::<u32>() + 1,
-            BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT,
+            byte_size_indices + byte_size_count,
+            // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
+            BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT | BufferUsageFlags::TRANSFER_SRC_BIT,
             debug_info!(format!("VisibleRigidMeshInstancesBuffer-for-Window{:?}", window_id)),
         )?;
 
