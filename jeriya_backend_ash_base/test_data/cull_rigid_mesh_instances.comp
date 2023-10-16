@@ -111,6 +111,7 @@ layout (set = 0, binding = 12) buffer StaticMeshletBuffer {
 };
 
 layout (set = 0, binding = 13) buffer VisibleRigidMeshInstancesBuffer {
+    uint count;
     uint visible_rigid_mesh_instances[MAX_VISIBLE_RIGID_MESH_INSTANCES];
 };
 
@@ -121,5 +122,10 @@ layout (set = 0, binding = 13) buffer VisibleRigidMeshInstancesBuffer {
 layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
 void main() {
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= per_frame_data.rigid_mesh_instance_count) {
+        return;
+    }
 
+    visible_rigid_mesh_instances[index] = index;
 }
