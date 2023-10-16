@@ -127,5 +127,9 @@ void main() {
         return;
     }
 
-    visible_rigid_mesh_instances[index] = index;
+    bool isVisible = true;
+    if (isVisible) {
+        uint visible_index = atomicAdd(count, 1);
+        visible_rigid_mesh_instances[visible_index] = index;
+    }
 }
