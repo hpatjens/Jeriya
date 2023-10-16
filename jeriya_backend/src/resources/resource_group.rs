@@ -55,6 +55,6 @@ mod tests {
             .with_vertex_normals(vec![Vector3::new(0.0, 1.0, 0.0)]);
         let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder);
         drop(mesh_attributes);
-        assert_eq!(renderer.receiver().try_iter().count(), 1);
+        assert_eq!(renderer.receiver().lock().try_iter().count(), 1);
     }
 }

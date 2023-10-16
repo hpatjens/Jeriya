@@ -118,6 +118,6 @@ mod tests {
         assert!(matches!(first, transactions::Event::RigidMesh(rigid_mesh::Event::Insert(_))));
 
         // Assert GpuIndexAllocator
-        assert_eq!(renderer_mock.backend.rigid_mesh_gpu_index_allocator.borrow_mut().len(), 1);
+        assert_eq!(renderer_mock.backend.rigid_mesh_gpu_index_allocator.lock().len(), 1);
     }
 }
