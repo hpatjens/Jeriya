@@ -237,6 +237,7 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
+        builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
         drop(cull_rigid_mesh_instances_span);
 
         // Cull
@@ -249,7 +250,7 @@ impl Frame {
             &mut builder,
         )?;
         builder.dispatch(cull_compute_shader_group_count, 1, 1);
-        builder.indirect_draw_commands_buffer_pipeline_barrier(&self.indirect_draw_buffer);
+        builder.compute_to_vertex_pipeline_barrier(&self.indirect_draw_buffer);
         drop(cull_span);
 
         // Render Pass
