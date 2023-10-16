@@ -54,6 +54,8 @@ pub struct Frame {
     rigid_mesh_instance_buffer: FrameLocalBuffer<shader_interface::RigidMeshInstance>,
 
     indirect_draw_buffer: Arc<DeviceVisibleBuffer<DrawIndirectCommand>>,
+    /// Contains the indices of the visible rigid mesh instances.
+    /// At the front of the buffer is a counter that contains the number of visible instances.
     visible_rigid_mesh_instances: Arc<DeviceVisibleBuffer<u32>>,
     transactions: VecDeque<Transaction>,
 }
@@ -120,8 +122,9 @@ impl Frame {
         info!("Create visible rigid mesh instances buffer");
         let visible_rigid_mesh_instances = DeviceVisibleBuffer::new(
             &backend_shared.device,
-            backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances * mem::size_of::<u32>(),
-            BufferUsageFlags::STORAGE_BUFFER,
+            // +1 for the counter at the start of the buffer that counts the number of visible instances
+            backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances * mem::size_of::<u32>() + 1,
+            BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT,
             debug_info!(format!("VisibleRigidMeshInstancesBuffer-for-Window{:?}", window_id)),
         )?;
 
@@ -237,6 +240,9 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
+        builder.fill_buffer(&self.visible_rigid_mesh_instances, 0, 4, 0);
+        builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
+        builder.dispatch(cull_compute_shader_group_count, 1, 1);
         builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
         drop(cull_rigid_mesh_instances_span);
 
