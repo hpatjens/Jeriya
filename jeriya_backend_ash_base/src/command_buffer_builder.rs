@@ -289,8 +289,8 @@ impl<'buf> CommandBufferBuilder<'buf> {
         Ok(self)
     }
 
-    /// Special function for writing into indirect draw commands buffer from compute shader and then reading from it in vertex shader
-    pub fn indirect_draw_commands_buffer_pipeline_barrier<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>) -> &mut Self {
+    /// Special function for writing into the buffer from the compute shader and then reading from it in vertex shader
+    pub fn compute_to_vertex_pipeline_barrier<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>) -> &mut Self {
         let buffer_memory_barrier = vk::BufferMemoryBarrier::builder()
             .buffer(*buffer.as_raw_vulkan())
             .src_access_mask(vk::AccessFlags::SHADER_WRITE)
@@ -306,6 +306,33 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 *self.command_buffer.as_raw_vulkan(),
                 vk::PipelineStageFlags::COMPUTE_SHADER,
                 vk::PipelineStageFlags::VERTEX_SHADER,
+                vk::DependencyFlags::empty(),
+                &[],
+                &buffer_barriers,
+                &[],
+            )
+        };
+        self.command_buffer.push_dependency(buffer.clone());
+        self
+    }
+
+    /// Special function for writing into the buffer from the compute shader and then reading from it in the compute shader
+    pub fn compute_to_compute_pipeline_barrier<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>) -> &mut Self {
+        let buffer_memory_barrier = vk::BufferMemoryBarrier::builder()
+            .buffer(*buffer.as_raw_vulkan())
+            .src_access_mask(vk::AccessFlags::SHADER_WRITE)
+            .dst_access_mask(vk::AccessFlags::SHADER_READ)
+            .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+            .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+            .offset(0)
+            .size(vk::WHOLE_SIZE)
+            .build();
+        let buffer_barriers = [buffer_memory_barrier];
+        unsafe {
+            self.device.as_raw_vulkan().cmd_pipeline_barrier(
+                *self.command_buffer.as_raw_vulkan(),
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
                 vk::DependencyFlags::empty(),
                 &[],
                 &buffer_barriers,
