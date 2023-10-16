@@ -10,7 +10,7 @@ use std::sync::{
 
 pub use texture2d::*;
 
-use jeriya_shared::AsDebugInfo;
+use jeriya_shared::{parking_lot::Mutex, AsDebugInfo};
 
 use crate::gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, ProvideAllocateGpuIndex};
 
@@ -40,7 +40,7 @@ pub enum ResourceEvent {
 /// A [`ResourceReceiver`] that can be used for testing
 pub struct MockBackend {
     pub sender: Sender<ResourceEvent>,
-    pub receiver: Receiver<ResourceEvent>,
+    pub receiver: Mutex<Receiver<ResourceEvent>>,
 }
 
 impl ResourceReceiver for MockBackend {
@@ -63,14 +63,17 @@ impl MockRenderer {
     #[allow(clippy::arc_with_non_send_sync)]
     pub fn new() -> Arc<Self> {
         let (sender, receiver) = std::sync::mpsc::channel();
-        Arc::new(Self(Arc::new(MockBackend { sender, receiver })))
+        Arc::new(Self(Arc::new(MockBackend {
+            sender,
+            receiver: Mutex::new(receiver),
+        })))
     }
 
     pub fn sender(&self) -> &Sender<ResourceEvent> {
         self.0.sender()
     }
 
-    pub fn receiver(&self) -> &Receiver<ResourceEvent> {
+    pub fn receiver(&self) -> &Mutex<Receiver<ResourceEvent>> {
         &self.0.receiver
     }
 }
@@ -114,7 +117,7 @@ pub mod tests {
         ($backend:expr, $p:pat, $($b:tt)*) => {{
             use crate::resources::ResourceEvent;
             const TIMEOUT: std::time::Duration = std::time::Duration::from_millis(50);
-            let ResourceEvent::MeshAttributes(mesh_attributes_events) = $backend.receiver().recv_timeout(TIMEOUT).unwrap() else {
+            let ResourceEvent::MeshAttributes(mesh_attributes_events) = $backend.receiver().lock().recv_timeout(TIMEOUT).unwrap() else {
                 panic!("failed to receive event")
             };
             assert_eq!(mesh_attributes_events.len(), 1);
@@ -128,7 +131,7 @@ pub mod tests {
     }
 
     pub fn assert_events_empty(backend: &MockRenderer) {
-        assert!(&backend.receiver().try_iter().next().is_none());
-        assert!(backend.receiver().try_iter().next().is_none());
+        assert!(&backend.receiver().lock().try_iter().next().is_none());
+        assert!(backend.receiver().lock().try_iter().next().is_none());
     }
 }
