@@ -194,10 +194,37 @@ impl<'buf> CommandBufferBuilder<'buf> {
         self
     }
 
+    /// Copies the contents of the given `HostVisibleBuffer` to the given `DeviceVisibleBuffer`.
     pub fn copy_buffer_from_host_to_device<T: Clone + 'static + Send + Sync>(
         &mut self,
         src: &Arc<HostVisibleBuffer<T>>,
         dst: &Arc<DeviceVisibleBuffer<T>>,
+    ) -> &mut Self {
+        assert_eq!(src.byte_size(), dst.byte_size(), "buffers must have the same size");
+        unsafe {
+            let copy_region = vk::BufferCopy {
+                src_offset: 0,
+                dst_offset: 0,
+                size: src.byte_size() as u64,
+            };
+            let copy_regions = [copy_region];
+            self.device.as_raw_vulkan().cmd_copy_buffer(
+                *self.command_buffer.as_raw_vulkan(),
+                *src.as_raw_vulkan(),
+                *dst.as_raw_vulkan(),
+                &copy_regions,
+            );
+            self.command_buffer.push_dependency(src.clone());
+            self.command_buffer.push_dependency(dst.clone());
+            self
+        }
+    }
+
+    /// Copies the contents of the given `DeviceVisibleBuffer` to the given `HostVisibleBuffer`.
+    pub fn copy_buffer_from_device_to_host<T: Clone + 'static + Send + Sync>(
+        &mut self,
+        src: &Arc<DeviceVisibleBuffer<T>>,
+        dst: &Arc<HostVisibleBuffer<T>>,
     ) -> &mut Self {
         assert_eq!(src.byte_size(), dst.byte_size(), "buffers must have the same size");
         unsafe {
