@@ -352,7 +352,7 @@ mod tests {
 
         for meshlet in &model.meshes[0].meshlets {
             assert_eq!(meshlet.global_indices.len(), 24);
-            assert_eq!(meshlet.local_indices.len(), 36);
+            assert_eq!(meshlet.local_indices.len(), 12); // number of triangles
             for triangle in &meshlet.local_indices {
                 assert!((triangle[0] as usize) < meshlet.global_indices.len());
                 assert!((triangle[1] as usize) < meshlet.global_indices.len());
