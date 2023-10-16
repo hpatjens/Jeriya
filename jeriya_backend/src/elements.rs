@@ -1,7 +1,6 @@
-use std::{
-    cell::RefCell,
-    sync::{Arc, Weak},
-};
+use std::sync::{Arc, Weak};
+
+use jeriya_shared::parking_lot::Mutex;
 
 use crate::gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, GpuIndexAllocator, ProvideAllocateGpuIndex};
 
@@ -23,7 +22,7 @@ impl MockRenderer {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             backend: Arc::new(MockBackend {
-                rigid_mesh_gpu_index_allocator: RefCell::new(GpuIndexAllocator::new(100)),
+                rigid_mesh_gpu_index_allocator: Mutex::new(GpuIndexAllocator::new(100)),
             }),
         })
     }
@@ -37,17 +36,15 @@ impl ProvideAllocateGpuIndex<RigidMesh> for MockRenderer {
 }
 
 pub struct MockBackend {
-    rigid_mesh_gpu_index_allocator: RefCell<GpuIndexAllocator<RigidMesh>>,
+    rigid_mesh_gpu_index_allocator: Mutex<GpuIndexAllocator<RigidMesh>>,
 }
 
 impl AllocateGpuIndex<RigidMesh> for MockBackend {
     fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMesh>> {
-        self.rigid_mesh_gpu_index_allocator.borrow_mut().allocate_gpu_index()
+        self.rigid_mesh_gpu_index_allocator.lock().allocate_gpu_index()
     }
 
     fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<RigidMesh>) {
-        self.rigid_mesh_gpu_index_allocator
-            .borrow_mut()
-            .free_gpu_index(gpu_index_allocation)
+        self.rigid_mesh_gpu_index_allocator.lock().free_gpu_index(gpu_index_allocation)
     }
 }

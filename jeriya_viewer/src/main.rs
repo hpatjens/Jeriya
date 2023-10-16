@@ -1,5 +1,7 @@
 use std::{
     io,
+    sync::Arc,
+    thread,
     time::{Duration, Instant},
 };
 
@@ -30,6 +32,7 @@ use jeriya_shared::{
     debug_info,
     log::{self, error},
     nalgebra::{self, Matrix4, Translation3, Vector3, Vector4},
+    parking_lot::Mutex,
     spin_sleep,
     winit::{
         dpi::LogicalSize,
@@ -207,7 +210,6 @@ fn main() -> ey::Result<()> {
 
     // Load models
     let cube_model = Model::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import model")?;
-    let main_model = Model::import(command_line_arguments.path).wrap_err("Failed to import model")?;
 
     // Create MeshAttributes for the model
     //
@@ -315,22 +317,46 @@ fn main() -> ey::Result<()> {
         .mutate_via(&mut transaction)
         .insert_with(rigid_mesh_instance_builder)?;
 
-    // Create a RigidMesh from model
-    //
-    // A RigidMeshCollection can be used to create multiple RigidMeshes from a single Model. To display
-    // the RigidMeshes in the scene, RigidMeshInstances must be created that reference the RigidMeshes.
-    // A RigidMeshInstanceCollection can be used for that.
-    let rigid_mesh_collection = RigidMeshCollection::from_model(&main_model, &mut resource_group, &mut element_group, &mut transaction)?;
-    let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
-        &rigid_mesh_collection,
-        element_group.rigid_meshes(),
-        &mut instance_group,
-        &mut transaction,
-        &nalgebra::convert(Translation3::new(-1.5, 0.0, 0.0)),
-    )?;
-
     // Finishing the Transaction will queue all changes to be applied in the next frame.
     transaction.finish();
+
+    let resource_group = Arc::new(Mutex::new(resource_group));
+    let element_group = Arc::new(Mutex::new(element_group));
+    let instance_group = Arc::new(Mutex::new(instance_group));
+
+    let renderer2 = Arc::clone(&renderer);
+    let resource_group2 = Arc::clone(&resource_group);
+    let element_group2 = Arc::clone(&element_group);
+    let instance_group2 = Arc::clone(&instance_group);
+    thread::spawn(move || {
+        let main_model = Model::import(command_line_arguments.path)
+            .wrap_err("Failed to import model")
+            .expect("Failed to import model");
+
+        let mut resource_group = resource_group2.lock();
+        let mut element_group = element_group2.lock();
+        let mut instance_group = instance_group2.lock();
+
+        let mut transaction = Transaction::record(&renderer2);
+
+        // Create a RigidMesh from model
+        //
+        // A RigidMeshCollection can be used to create multiple RigidMeshes from a single Model. To display
+        // the RigidMeshes in the scene, RigidMeshInstances must be created that reference the RigidMeshes.
+        // A RigidMeshInstanceCollection can be used for that.
+        let rigid_mesh_collection = RigidMeshCollection::from_model(&main_model, &mut resource_group, &mut element_group, &mut transaction)
+            .expect("Failed to create RigidMeshCollection");
+        let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
+            &rigid_mesh_collection,
+            element_group.rigid_meshes(),
+            &mut instance_group,
+            &mut transaction,
+            &nalgebra::convert(Translation3::new(-1.5, 0.0, 0.0)),
+        )
+        .expect("Failed to create RigidMeshInstanceCollection");
+
+        transaction.finish();
+    });
 
     const UPDATE_FRAMERATE: u32 = 60;
     let loop_start_time = Instant::now();
@@ -358,6 +384,7 @@ fn main() -> ey::Result<()> {
                 {
                     let position = Vector3::new(t.as_secs_f32().sin() * 0.3, t.as_secs_f32().cos() * 0.3, 0.5);
                     instance_group
+                        .lock()
                         .camera_instances()
                         .get_mut(&camera1_instance_handle)
                         .expect("Failed to find camera instance")
@@ -372,6 +399,7 @@ fn main() -> ey::Result<()> {
                     let distance = 4.0;
                     let position = Vector3::new(t.as_secs_f32().sin() * distance, 3.0, t.as_secs_f32().cos() * distance);
                     instance_group
+                        .lock()
                         .camera_instances()
                         .get_mut(&camera2_instance_handle)
                         .expect("Failed to find camera instance")
@@ -383,6 +411,7 @@ fn main() -> ey::Result<()> {
                     last_mesh_insert_t = t;
                     let radius = 3.5;
                     let position = Vector3::new(t.as_secs_f32().sin() * radius, 0.0, t.as_secs_f32().cos() * radius);
+                    let mut element_group = element_group.lock();
                     let rigid_mesh = element_group
                         .rigid_meshes()
                         .get(&rigid_mesh_handle)
@@ -392,6 +421,7 @@ fn main() -> ey::Result<()> {
                         .with_transform(nalgebra::convert(Translation3::from(position)))
                         .with_debug_info(debug_info!("my_rigid_mesh_instance"));
                     instance_group
+                        .lock()
                         .rigid_mesh_instances()
                         .mutate_via(&mut transaction)
                         .insert_with(rigid_mesh_instance_builder)

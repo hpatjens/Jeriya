@@ -3,7 +3,7 @@ use std::{collections::VecDeque, marker::PhantomData, sync::Weak};
 use jeriya_shared::derive_where::derive_where;
 
 /// Trait that enables allocating a new and unique index for a given type
-pub trait AllocateGpuIndex<T> {
+pub trait AllocateGpuIndex<T>: Send + Sync {
     fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<T>>;
     fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<T>);
 }
