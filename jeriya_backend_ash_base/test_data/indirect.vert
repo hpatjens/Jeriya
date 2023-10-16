@@ -9,7 +9,7 @@ layout (constant_id = 3) const uint MAX_RIGID_MESHES = 1024;
 layout (constant_id = 4) const uint MAX_MESH_ATTRIBUTES = 1024;
 layout (constant_id = 5) const uint MAX_RIGID_MESH_INSTANCES = 1024;
 layout (constant_id = 6) const uint MAX_MESHLETS = 1024;
-layout (constant_id = 7) const uint MAX_CULLED_RIGID_MESH_INSTANCES = 1024;
+layout (constant_id = 7) const uint MAX_VISIBLE_RIGID_MESH_INSTANCES = 1024;
 
 struct Camera {
     mat4 projection_matrix;
