@@ -54,6 +54,7 @@ pub struct Frame {
     rigid_mesh_instance_buffer: FrameLocalBuffer<shader_interface::RigidMeshInstance>,
 
     indirect_draw_buffer: Arc<DeviceVisibleBuffer<DrawIndirectCommand>>,
+    visible_rigid_mesh_instances: Arc<DeviceVisibleBuffer<u32>>,
     transactions: VecDeque<Transaction>,
 }
 
@@ -116,6 +117,14 @@ impl Frame {
             debug_info!(format!("IndirectDrawBuffer-for-Window{:?}", window_id)),
         )?;
 
+        info!("Create visible rigid mesh instances buffer");
+        let visible_rigid_mesh_instances = DeviceVisibleBuffer::new(
+            &backend_shared.device,
+            backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances * mem::size_of::<u32>(),
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!(format!("VisibleRigidMeshInstancesBuffer-for-Window{:?}", window_id)),
+        )?;
+
         Ok(Self {
             presenter_index,
             image_available_semaphore: None,
@@ -127,6 +136,7 @@ impl Frame {
             rigid_mesh_buffer,
             rigid_mesh_instance_buffer,
             indirect_draw_buffer,
+            visible_rigid_mesh_instances,
             transactions: VecDeque::new(),
         })
     }
