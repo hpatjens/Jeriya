@@ -110,6 +110,10 @@ layout (set = 0, binding = 12) buffer StaticMeshletBuffer {
     Meshlet meshlets[MAX_MESHLETS];
 };
 
+layout (set = 0, binding = 13) buffer VisibleRigidMeshInstancesBuffer {
+    uint visible_rigid_mesh_instances[MAX_VISIBLE_RIGID_MESH_INSTANCES];
+};
+
 
 
 
