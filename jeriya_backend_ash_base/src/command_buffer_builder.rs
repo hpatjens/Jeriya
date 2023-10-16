@@ -289,6 +289,18 @@ impl<'buf> CommandBufferBuilder<'buf> {
         Ok(self)
     }
 
+    /// Copies the given value into the buffer at the given offset and size
+    pub fn fill_buffer<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>, offset: u64, size: u64, data: u32) -> &mut Self {
+        jeriya_shared::assert!(offset % 4 == 0, "offset must be a multiple of 4");
+        jeriya_shared::assert!(size % 4 == 0, "size must be a multiple of 4");
+        unsafe {
+            self.device
+                .as_raw_vulkan()
+                .cmd_fill_buffer(*self.command_buffer.as_raw_vulkan(), *buffer.as_raw_vulkan(), offset, size, data)
+        }
+        self
+    }
+
     /// Special function for writing into the buffer from the compute shader and then reading from it in vertex shader
     pub fn compute_to_vertex_pipeline_barrier<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>) -> &mut Self {
         let buffer_memory_barrier = vk::BufferMemoryBarrier::builder()
