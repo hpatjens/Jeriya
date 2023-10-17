@@ -140,22 +140,32 @@ void main() {
         return;
     }
 
-    bool isVisible = true;
-    if (isVisible) {
-        uint visible_index = atomicAdd(visible_rigid_mesh_instances.count, 1);
-        uint occupied_count = visible_index + 1;
-
-        visible_rigid_mesh_instances.instance_indices[visible_index] = index;
-
-        // Group size in dimension x of the compute shader for meshlet culling
-        const uint MESHLET_CULLING_GROUP_SIZE_X = 32;
-
-        // Number of required work groups in dimension x of the compute shader for meshlet culling
-        uint required_meshlet_culling_work_groups_x = (occupied_count + MESHLET_CULLING_GROUP_SIZE_X - 1) / MESHLET_CULLING_GROUP_SIZE_X;
-
-        // Update the dispatch indirect command for meshlet culling
-        atomicMax(visible_rigid_mesh_instances.dispatch_indirect_command.x, required_meshlet_culling_work_groups_x);
-        visible_rigid_mesh_instances.dispatch_indirect_command.y = 1;
-        visible_rigid_mesh_instances.dispatch_indirect_command.z = 1;
+    RigidMeshInstance rigid_mesh_instance = rigid_mesh_instances[index];
+    RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_instance.rigid_mesh_index)];
+    
+    // Ignore this instance if it's not active
+    if (!mesh_attributes_active[uint(rigid_mesh.mesh_attributes_index)]) {
+        return;
     }
+
+    bool isVisible = true;
+    if (!isVisible) {
+        return;
+    }
+
+    uint visible_index = atomicAdd(visible_rigid_mesh_instances.count, 1);
+    uint occupied_count = visible_index + 1;
+
+    visible_rigid_mesh_instances.instance_indices[visible_index] = index;
+
+    // Group size in dimension x of the compute shader for meshlet culling
+    const uint MESHLET_CULLING_GROUP_SIZE_X = 32;
+
+    // Number of required work groups in dimension x of the compute shader for meshlet culling
+    uint required_meshlet_culling_work_groups_x = (occupied_count + MESHLET_CULLING_GROUP_SIZE_X - 1) / MESHLET_CULLING_GROUP_SIZE_X;
+
+    // Update the dispatch indirect command for meshlet culling
+    atomicMax(visible_rigid_mesh_instances.dispatch_indirect_command.x, required_meshlet_culling_work_groups_x);
+    visible_rigid_mesh_instances.dispatch_indirect_command.y = 1;
+    visible_rigid_mesh_instances.dispatch_indirect_command.z = 1;
 }
