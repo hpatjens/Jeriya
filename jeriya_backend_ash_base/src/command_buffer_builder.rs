@@ -1,6 +1,6 @@
 use std::{mem, sync::Arc};
 
-use ash::vk;
+use ash::vk::{self, DispatchIndirectCommand};
 use jeriya_shared::parking_lot::Mutex;
 
 use crate::{
@@ -479,6 +479,21 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 .as_raw_vulkan()
                 .cmd_dispatch(*self.command_buffer.as_raw_vulkan(), x, y, z);
         }
+        self
+    }
+
+    /// Dispatches a compute shader based on the `DispatchIndirectCommand` in the buffer at the given `offset`
+    pub fn dispatch_indirect(
+        &mut self,
+        buffer: &Arc<impl Buffer<DispatchIndirectCommand> + Send + Sync + 'static>,
+        offset: u64,
+    ) -> &mut Self {
+        unsafe {
+            self.device
+                .as_raw_vulkan()
+                .cmd_dispatch_indirect(*self.command_buffer.as_raw_vulkan(), *buffer.as_raw_vulkan(), offset)
+        };
+        self.command_buffer.push_dependency(buffer.clone());
         self
     }
 }
