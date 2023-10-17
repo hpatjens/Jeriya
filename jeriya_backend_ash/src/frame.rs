@@ -57,6 +57,9 @@ pub struct Frame {
     /// Contains the indices of the visible rigid mesh instances.
     /// At the front of the buffer is a counter that contains the number of visible instances.
     visible_rigid_mesh_instances: Arc<DeviceVisibleBuffer<u32>>,
+    /// Contains the indices of the visible meshlets of the visible rigid mesh instances.
+    /// At the front of the buffer is a counter that contains the number of visible meshlets.
+    visible_rigid_mesh_meshlets: Arc<DeviceVisibleBuffer<u32>>,
     transactions: VecDeque<Transaction>,
 }
 
@@ -120,7 +123,7 @@ impl Frame {
         )?;
 
         info!("Create visible rigid mesh instances buffer");
-        let byte_size_indices = backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances * mem::size_of::<u32>();
+        let byte_size_indices = backend_shared.renderer_config.maximum_visible_rigid_mesh_instances * mem::size_of::<u32>();
         let byte_size_count = mem::size_of::<u32>();
         let visible_rigid_mesh_instances = DeviceVisibleBuffer::new(
             &backend_shared.device,
@@ -128,6 +131,17 @@ impl Frame {
             // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
             BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT | BufferUsageFlags::TRANSFER_SRC_BIT,
             debug_info!(format!("VisibleRigidMeshInstancesBuffer-for-Window{:?}", window_id)),
+        )?;
+
+        info!("Create visible rigid mesh meshlets buffer");
+        let byte_size_indices = backend_shared.renderer_config.maximum_visible_rigid_mesh_meshlets * mem::size_of::<u32>();
+        let byte_size_count = mem::size_of::<u32>();
+        let visible_rigid_mesh_meshlets = DeviceVisibleBuffer::new(
+            &backend_shared.device,
+            byte_size_indices + byte_size_count,
+            // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
+            BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT | BufferUsageFlags::TRANSFER_SRC_BIT,
+            debug_info!(format!("VisibleRigidMeshMeshletsBuffer-for-Window{:?}", window_id)),
         )?;
 
         Ok(Self {
@@ -142,6 +156,7 @@ impl Frame {
             rigid_mesh_instance_buffer,
             indirect_draw_buffer,
             visible_rigid_mesh_instances,
+            visible_rigid_mesh_meshlets,
             transactions: VecDeque::new(),
         })
     }
@@ -230,6 +245,24 @@ impl Frame {
 
         builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(&presenter_shared.frame_index))?;
 
+        // Culling
+        //
+        // The culling of the rigid mesh instances is done in two steps:
+        //
+        // 1. Cull the rigid mesh instances: Indices of the visible `RigidMeshInstance`s are written to
+        //    the `visible_rigid_mesh_instances` buffer. The number of visible `RigidMeshInstance`s is
+        //    written to the front of the buffer by an atomic operation turning the buffer into a bump
+        //    allocator. For every `RigidMeshInstance` a compute shader invocation is dispatched.
+        //
+        // 2. Cull the meshlets of the visible rigid mesh instances: Indices of the visible meshlets are
+        //    written to the `visible_rigid_mesh_meshlets` buffer. The number of visible meshlets is
+        //    written to the front of the buffer as in step 1. A 2-dimensional compute shader dispatch
+        //    is used where the first dimension maps to the visible rigid mesh instances and the
+        //    second dimension is a constant value that approximates the lowest expected number of
+        //    meshlets per `RigidMeshInstance`. Inside the shader, a loop is used to iterate over all
+        //    meshlets of the `RigidMeshInstance` writing the indices of the visible meshlets to the
+        //    buffer.
+
         // Cull RigidMeshInstances
         let cull_rigid_mesh_instances_span = span!("cull rigid mesh instances");
         builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_rigid_mesh_instances_compute_pipeline);
@@ -247,6 +280,11 @@ impl Frame {
         builder.dispatch(cull_compute_shader_group_count, 1, 1);
         builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
         drop(cull_rigid_mesh_instances_span);
+
+        // Cull Meshlets
+        let cull_meshlets_span = span!("cull meshlets");
+
+        drop(cull_meshlets_span);
 
         // Cull
         let cull_span = span!("record cull commands");
