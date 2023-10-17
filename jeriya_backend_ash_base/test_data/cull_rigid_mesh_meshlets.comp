@@ -168,10 +168,12 @@ void main() {
 
         bool isVisible = true;
         if (isVisible) {
-            // Allocate a new index for the visible meshlet
-            uint allocated_visible_meshlet_index = atomicAdd(visible_rigid_mesh_meshlets.count, 1);
-            visible_rigid_mesh_meshlets.meshlet_indices[allocated_visible_meshlet_index] = global_meshlet_index;
+            continue;
         }
+
+        // Allocate a new index for the visible meshlet
+        uint allocated_visible_meshlet_index = atomicAdd(visible_rigid_mesh_meshlets.count, 1);
+        visible_rigid_mesh_meshlets.meshlet_indices[allocated_visible_meshlet_index] = global_meshlet_index;
 
         batch_index += 1;
     }
