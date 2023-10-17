@@ -125,6 +125,7 @@ layout (set = 0, binding = 13) buffer VisibleRigidMeshInstancesBuffer {
 
 layout (set = 0, binding = 14) buffer VisibleRigidMeshMeshletsBuffer {
     uint count;
+    VkDrawIndirectCommand indirect_draw_commands[MAX_VISIBLE_RIGID_MESH_MESHLETS];
     uint meshlet_indices[MAX_VISIBLE_RIGID_MESH_MESHLETS];
 } visible_rigid_mesh_meshlets;
 

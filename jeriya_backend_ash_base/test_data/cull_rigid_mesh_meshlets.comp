@@ -125,6 +125,7 @@ layout (set = 0, binding = 13) buffer VisibleRigidMeshInstancesBuffer {
 
 layout (set = 0, binding = 14) buffer VisibleRigidMeshMeshletsBuffer {
     uint count;
+    VkDrawIndirectCommand indirect_draw_commands[MAX_VISIBLE_RIGID_MESH_MESHLETS];
     uint meshlet_indices[MAX_VISIBLE_RIGID_MESH_MESHLETS];
 } visible_rigid_mesh_meshlets;
 
@@ -171,9 +172,18 @@ void main() {
             continue;
         }
 
+        Meshlet meshlet = meshlets[global_meshlet_index];
+
+        VkDrawIndirectCommand draw_indirect_command;
+        draw_indirect_command.vertex_count = meshlet.triangle_count * 3;
+        draw_indirect_command.instance_count = 1;
+        draw_indirect_command.first_vertex = 0;
+        draw_indirect_command.first_instance = 0;
+
         // Allocate a new index for the visible meshlet
-        uint allocated_visible_meshlet_index = atomicAdd(visible_rigid_mesh_meshlets.count, 1);
-        visible_rigid_mesh_meshlets.meshlet_indices[allocated_visible_meshlet_index] = global_meshlet_index;
+        uint allocated_index = atomicAdd(visible_rigid_mesh_meshlets.count, 1);
+        visible_rigid_mesh_meshlets.meshlet_indices[allocated_index] = global_meshlet_index;
+        visible_rigid_mesh_meshlets.indirect_draw_commands[allocated_index] = draw_indirect_command;
 
         batch_index += 1;
     }
