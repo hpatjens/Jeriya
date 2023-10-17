@@ -9,7 +9,7 @@ layout (constant_id = 4) const uint MAX_MESH_ATTRIBUTES = 1024;
 layout (constant_id = 5) const uint MAX_RIGID_MESH_INSTANCES = 1024;
 layout (constant_id = 6) const uint MAX_MESHLETS = 1024;
 layout (constant_id = 7) const uint MAX_VISIBLE_RIGID_MESH_INSTANCES = 1024;
-layout (constant_id = 8) const uint MAX_VISIBLE_MESHLETS = 1024;
+layout (constant_id = 8) const uint MAX_VISIBLE_RIGID_MESH_MESHLETS = 1024;
 
 struct Camera {
     mat4 projection_matrix;
@@ -112,8 +112,15 @@ layout (set = 0, binding = 12) buffer StaticMeshletBuffer {
 };
 
 layout (set = 0, binding = 13) buffer VisibleRigidMeshInstancesBuffer {
-    uint visible_rigid_mesh_instances[MAX_VISIBLE_RIGID_MESH_INSTANCES];
-};
+    uint count;
+    uint instance_indices[MAX_VISIBLE_RIGID_MESH_INSTANCES];
+} visible_rigid_mesh_instances;
+
+layout (set = 0, binding = 14) buffer VisibleRigidMeshMeshletsBuffer {
+    uint count;
+    uint meshlet_indices[MAX_VISIBLE_RIGID_MESH_MESHLETS];
+} visible_rigid_mesh_meshlets;
+
 
 
 
