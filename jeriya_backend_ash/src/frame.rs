@@ -293,7 +293,10 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
+        builder.fill_buffer(&self.visible_rigid_mesh_meshlets, 0, 4, 0);
+        builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
 
+        builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
         drop(cull_meshlets_span);
 
         // Cull
