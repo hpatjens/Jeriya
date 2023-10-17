@@ -40,7 +40,7 @@ pub mod swapchain_render_pass;
 pub mod swapchain_vec;
 pub mod unsafe_buffer;
 
-pub use vk::DrawIndirectCommand;
+pub use vk::{DispatchIndirectCommand, DrawIndirectCommand};
 
 use std::{ffi::NulError, str::Utf8Error, sync::Arc};
 

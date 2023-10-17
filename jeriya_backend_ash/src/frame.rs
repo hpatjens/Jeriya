@@ -22,7 +22,7 @@ use jeriya_backend_ash_base::{
     host_visible_buffer::HostVisibleBuffer,
     push_descriptors::PushDescriptors,
     semaphore::Semaphore,
-    shader_interface, DrawIndirectCommand,
+    shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
 };
 use jeriya_macros::profile;
 use jeriya_shared::{
@@ -123,22 +123,25 @@ impl Frame {
         )?;
 
         info!("Create visible rigid mesh instances buffer");
-        let byte_size_indices = backend_shared.renderer_config.maximum_visible_rigid_mesh_instances * mem::size_of::<u32>();
+        let byte_size_dispatch_indirect_command = mem::size_of::<DispatchIndirectCommand>();
         let byte_size_count = mem::size_of::<u32>();
+        let byte_size_indices = backend_shared.renderer_config.maximum_visible_rigid_mesh_instances * mem::size_of::<u32>();
         let visible_rigid_mesh_instances = DeviceVisibleBuffer::new(
             &backend_shared.device,
-            byte_size_indices + byte_size_count,
-            // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
-            BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT | BufferUsageFlags::TRANSFER_SRC_BIT,
+            byte_size_dispatch_indirect_command + byte_size_count + byte_size_indices,
+            BufferUsageFlags::STORAGE_BUFFER
+                | BufferUsageFlags::INDIRECT_BUFFER
+                | BufferUsageFlags::TRANSFER_DST_BIT
+                | BufferUsageFlags::TRANSFER_SRC_BIT,
             debug_info!(format!("VisibleRigidMeshInstancesBuffer-for-Window{:?}", window_id)),
         )?;
 
         info!("Create visible rigid mesh meshlets buffer");
-        let byte_size_indices = backend_shared.renderer_config.maximum_visible_rigid_mesh_meshlets * mem::size_of::<u32>();
         let byte_size_count = mem::size_of::<u32>();
+        let byte_size_indices = backend_shared.renderer_config.maximum_visible_rigid_mesh_meshlets * mem::size_of::<u32>();
         let visible_rigid_mesh_meshlets = DeviceVisibleBuffer::new(
             &backend_shared.device,
-            byte_size_indices + byte_size_count,
+            byte_size_count + byte_size_indices,
             // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
             BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT | BufferUsageFlags::TRANSFER_SRC_BIT,
             debug_info!(format!("VisibleRigidMeshMeshletsBuffer-for-Window{:?}", window_id)),
@@ -275,7 +278,8 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
-        builder.fill_buffer(&self.visible_rigid_mesh_instances, 0, 4, 0);
+        let clear_bytes_count = mem::size_of::<DispatchIndirectCommand>() + mem::size_of::<u32>();
+        builder.fill_buffer(&self.visible_rigid_mesh_instances, 0, clear_bytes_count as u64, 0);
         builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
         builder.dispatch(cull_compute_shader_group_count, 1, 1);
         builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
@@ -295,7 +299,7 @@ impl Frame {
         )?;
         builder.fill_buffer(&self.visible_rigid_mesh_meshlets, 0, 4, 0);
         builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
-
+        builder.dispatch_indirect(&self.visible_rigid_mesh_instances, 0);
         builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
         drop(cull_meshlets_span);
 

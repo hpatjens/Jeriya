@@ -27,6 +27,12 @@ struct VkDrawIndirectCommand {
     uint first_instance;
 };
 
+struct VkDispatchIndirectCommand {
+    uint x;
+    uint y;
+    uint z;
+};
+
 const uint MESHLET_MAX_VERTICES = 64;
 const uint MESHLET_MAX_TRIANGLES = 126;
 
@@ -112,6 +118,7 @@ layout (set = 0, binding = 12) buffer StaticMeshletBuffer {
 };
 
 layout (set = 0, binding = 13) buffer VisibleRigidMeshInstancesBuffer {
+    VkDispatchIndirectCommand dispatch_indirect_command;
     uint count;
     uint instance_indices[MAX_VISIBLE_RIGID_MESH_INSTANCES];
 } visible_rigid_mesh_instances;
@@ -136,6 +143,19 @@ void main() {
     bool isVisible = true;
     if (isVisible) {
         uint visible_index = atomicAdd(visible_rigid_mesh_instances.count, 1);
+        uint occupied_count = visible_index + 1;
+
         visible_rigid_mesh_instances.instance_indices[visible_index] = index;
+
+        // Group size in dimension x of the compute shader for meshlet culling
+        const uint MESHLET_CULLING_GROUP_SIZE_X = 32;
+
+        // Number of required work groups in dimension x of the compute shader for meshlet culling
+        uint required_meshlet_culling_work_groups_x = (occupied_count + MESHLET_CULLING_GROUP_SIZE_X - 1) / MESHLET_CULLING_GROUP_SIZE_X;
+
+        // Update the dispatch indirect command for meshlet culling
+        atomicMax(visible_rigid_mesh_instances.dispatch_indirect_command.x, required_meshlet_culling_work_groups_x);
+        visible_rigid_mesh_instances.dispatch_indirect_command.y = 1;
+        visible_rigid_mesh_instances.dispatch_indirect_command.z = 1;
     }
 }

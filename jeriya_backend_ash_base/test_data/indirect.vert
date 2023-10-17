@@ -28,6 +28,12 @@ struct VkDrawIndirectCommand {
     uint first_instance;
 };
 
+struct VkDispatchIndirectCommand {
+    uint x;
+    uint y;
+    uint z;
+};
+
 const uint MESHLET_MAX_VERTICES = 64;
 const uint MESHLET_MAX_TRIANGLES = 126;
 
@@ -113,6 +119,7 @@ layout (set = 0, binding = 12) buffer StaticMeshletBuffer {
 };
 
 layout (set = 0, binding = 13) buffer VisibleRigidMeshInstancesBuffer {
+    VkDispatchIndirectCommand dispatch_indirect_command;
     uint count;
     uint instance_indices[MAX_VISIBLE_RIGID_MESH_INSTANCES];
 } visible_rigid_mesh_instances;
