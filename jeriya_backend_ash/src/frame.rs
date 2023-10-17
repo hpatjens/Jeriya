@@ -139,9 +139,11 @@ impl Frame {
         info!("Create visible rigid mesh meshlets buffer");
         let byte_size_count = mem::size_of::<u32>();
         let byte_size_indices = backend_shared.renderer_config.maximum_visible_rigid_mesh_meshlets * mem::size_of::<u32>();
+        let byte_size_draw_indirect_commands =
+            backend_shared.renderer_config.maximum_visible_rigid_mesh_instances * mem::size_of::<DrawIndirectCommand>();
         let visible_rigid_mesh_meshlets = DeviceVisibleBuffer::new(
             &backend_shared.device,
-            byte_size_count + byte_size_indices,
+            byte_size_count + byte_size_indices + byte_size_draw_indirect_commands,
             // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
             BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT | BufferUsageFlags::TRANSFER_SRC_BIT,
             debug_info!(format!("VisibleRigidMeshMeshletsBuffer-for-Window{:?}", window_id)),
