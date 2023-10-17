@@ -497,6 +497,7 @@ impl Frame {
             .push_storage_buffer(11, &self.rigid_mesh_instance_buffer)
             .push_storage_buffer(12, &*backend_shared.static_meshlet_buffer.lock())
             .push_storage_buffer(13, &self.visible_rigid_mesh_instances)
+            .push_storage_buffer(14, &self.visible_rigid_mesh_meshlets)
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())

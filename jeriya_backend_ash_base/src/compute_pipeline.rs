@@ -61,6 +61,7 @@ impl GenericComputePipeline {
                 .push_storage_buffer::<RigidMeshInstance>(11, 1)
                 .push_storage_buffer::<shader_interface::Meshlet>(12, 1)
                 .push_storage_buffer::<u32>(13, 1)
+                .push_storage_buffer::<u32>(14, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];
