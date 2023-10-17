@@ -283,6 +283,16 @@ impl Frame {
 
         // Cull Meshlets
         let cull_meshlets_span = span!("cull meshlets");
+        builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_rigid_mesh_meshlets_compute_pipeline);
+        self.push_descriptors(
+            PipelineBindPoint::Compute,
+            &presenter_shared
+                .graphics_pipelines
+                .cull_rigid_mesh_meshlets_compute_pipeline
+                .descriptor_set_layout,
+            backend_shared,
+            &mut builder,
+        )?;
 
         drop(cull_meshlets_span);
 
