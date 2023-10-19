@@ -14,7 +14,7 @@ use jeriya_backend::{
         camera::{Camera, CameraProjection},
         element_group::ElementGroup,
         helper::{rigid_mesh_collection::RigidMeshCollection, rigid_mesh_instance_collection::RigidMeshInstanceCollection},
-        rigid_mesh::RigidMesh,
+        rigid_mesh::{MeshRepresentation, RigidMesh},
     },
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     instances::{
@@ -300,6 +300,7 @@ fn main() -> ey::Result<()> {
     // a RigidMesh.
     let rigid_mesh_builder = RigidMesh::builder()
         .with_mesh_attributes(mesh_attributes)
+        .with_preferred_mesh_representation(MeshRepresentation::Simple)
         .with_debug_info(debug_info!("my_rigid_mesh"));
     let rigid_mesh_handle = element_group
         .rigid_meshes()
