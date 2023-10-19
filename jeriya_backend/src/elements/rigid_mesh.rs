@@ -20,10 +20,18 @@ pub enum Event {
     Insert(RigidMesh),
 }
 
+#[derive(Default, Clone, Copy, Debug)]
+pub enum MeshRepresentation {
+    #[default]
+    Meshlets,
+    Simple,
+}
+
 #[derive(Debug, Clone)]
 pub struct RigidMesh {
     debug_info: DebugInfo,
     mesh_attributes: Arc<MeshAttributes>,
+    preferred_mesh_representation: MeshRepresentation,
     handle: Handle<RigidMesh>,
     gpu_index_allocation: GpuIndexAllocation<RigidMesh>,
 }
@@ -37,6 +45,11 @@ impl RigidMesh {
     /// Returns the [`MeshAttributes`] of the [`RigidMesh`]
     pub fn mesh_attributes(&self) -> &Arc<MeshAttributes> {
         &self.mesh_attributes
+    }
+
+    /// Returns the preferred [`MeshRepresentation`] of the [`RigidMesh`]
+    pub fn preferred_mesh_representation(&self) -> &MeshRepresentation {
+        &self.preferred_mesh_representation
     }
 
     /// Returns the [`Handle`] of the [`RigidMesh`].
@@ -58,6 +71,7 @@ impl RigidMesh {
 pub struct RigidMeshBuilder {
     debug_info: Option<DebugInfo>,
     mesh_attributes: Option<Arc<MeshAttributes>>,
+    preferred_mesh_representation: Option<MeshRepresentation>,
 }
 
 impl RigidMeshBuilder {
@@ -65,12 +79,19 @@ impl RigidMeshBuilder {
         Self {
             debug_info: None,
             mesh_attributes: None,
+            preferred_mesh_representation: None,
         }
     }
 
     /// Sets the [`MeshAttributes`] of the [`RigidMesh`]
     pub fn with_mesh_attributes(mut self, mesh_attributes: Arc<MeshAttributes>) -> Self {
         self.mesh_attributes = Some(mesh_attributes);
+        self
+    }
+
+    /// Sets the preferred [`MeshRepresentation`] of the [`RigidMesh`]
+    pub fn with_preferred_mesh_representation(mut self, preferred_mesh_representation: MeshRepresentation) -> Self {
+        self.preferred_mesh_representation = Some(preferred_mesh_representation);
         self
     }
 
@@ -86,6 +107,7 @@ impl RigidMeshBuilder {
         Ok(RigidMesh {
             debug_info: self.debug_info.unwrap_or_else(|| debug_info!("Anonymous RigidMesh")),
             mesh_attributes,
+            preferred_mesh_representation: MeshRepresentation::default(),
             handle,
             gpu_index_allocation,
         })

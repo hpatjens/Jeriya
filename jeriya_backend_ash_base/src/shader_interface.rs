@@ -90,18 +90,42 @@ impl Default for Meshlet {
 
 impl Represents<jeriya_content::model::Meshlet> for Meshlet {}
 
+#[repr(u32)]
+#[derive(Default, Debug, Clone, Copy)]
+pub enum MeshRepresentation {
+    /// When the mesh has meshlets, it will be rendered with meshlets.
+    #[default]
+    Meshlets = 0,
+    /// Even when the mesh has meshlets, it will be rendered as a simple mesh.
+    Simple = 1,
+}
+
+impl From<elements::rigid_mesh::MeshRepresentation> for MeshRepresentation {
+    fn from(mesh_representation: elements::rigid_mesh::MeshRepresentation) -> Self {
+        match mesh_representation {
+            elements::rigid_mesh::MeshRepresentation::Meshlets => Self::Meshlets,
+            elements::rigid_mesh::MeshRepresentation::Simple => Self::Simple,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct RigidMesh {
     /// Index into the [`MeshAttributes`] array. -1 means that the [`MeshAttributes`] are not available for the frame.
-    pub mesh_attributes_index: i64,
+    pub mesh_attributes_index: i32,
+    /// Determines how the mesh will be rendered.
+    pub preferred_mesh_representation: MeshRepresentation,
 }
 
 impl Represents<elements::rigid_mesh::RigidMesh> for RigidMesh {}
 
 impl Default for RigidMesh {
     fn default() -> Self {
-        Self { mesh_attributes_index: -1 }
+        Self {
+            mesh_attributes_index: -1,
+            preferred_mesh_representation: MeshRepresentation::default(),
+        }
     }
 }
 

@@ -414,7 +414,8 @@ impl Frame {
                 self.rigid_mesh_buffer.set(
                     rigid_mesh.gpu_index_allocation(),
                     &shader_interface::RigidMesh {
-                        mesh_attributes_index: rigid_mesh.mesh_attributes().gpu_index_allocation().index() as i64,
+                        mesh_attributes_index: rigid_mesh.mesh_attributes().gpu_index_allocation().index() as i32,
+                        preferred_mesh_representation: (*rigid_mesh.preferred_mesh_representation()).into(),
                     },
                 )?;
             }
