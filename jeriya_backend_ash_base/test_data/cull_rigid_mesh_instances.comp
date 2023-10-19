@@ -33,6 +33,10 @@ struct VkDispatchIndirectCommand {
     uint z;
 };
 
+// `MeshRepresentation` enum in `shader_interface.rs`
+const uint MESH_REPRESENTATION_MESHLETS = 0;
+const uint MESH_REPRESENTATION_SIMPLE = 1;
+
 const uint MESHLET_MAX_VERTICES = 64;
 const uint MESHLET_MAX_TRIANGLES = 126;
 
@@ -58,7 +62,8 @@ struct MeshAttributes {
 };
 
 struct RigidMesh {
-    int64_t mesh_attributes_index;
+    int mesh_attributes_index;
+    uint preferred_mesh_representation;
 };
 
 struct RigidMeshInstance {
