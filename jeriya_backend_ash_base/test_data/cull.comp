@@ -86,9 +86,11 @@ layout (set = 0, binding = 2) buffer CameraInstanceBuffer {
     CameraInstance camera_instances[MAX_CAMERA_INSTANCES];
 };
 
-layout (set = 0, binding = 3) buffer IndirectDrawRigidMeshInstanceBuffer { 
-    VkDrawIndirectCommand indirect_draw_rigid_mesh_instances[MAX_RIGID_MESH_INSTANCES];
-};
+layout (set = 0, binding = 3) buffer VisibleRigidMeshInstancesSimpleBuffer { 
+    uint count;
+    VkDrawIndirectCommand indirect_draw_commands[MAX_RIGID_MESH_INSTANCES];
+    uint rigid_mesh_instance_indices[MAX_RIGID_MESH_INSTANCES];
+} visible_rigid_mesh_instances_simple;
 
 layout (set = 0, binding = 5) buffer StaticVertexPositionBuffer {
     vec4 vertex_positions[];
@@ -141,13 +143,13 @@ layout (set = 0, binding = 14) buffer VisibleRigidMeshMeshletsBuffer {
 layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
 void main() {
-    uint index = gl_GlobalInvocationID.x;
-    if (index >= per_frame_data.rigid_mesh_instance_count) {
+    uint rigid_mesh_instance_index = gl_GlobalInvocationID.x;
+    if (rigid_mesh_instance_index >= per_frame_data.rigid_mesh_instance_count) {
         return;
     }
 
     // Query the RigidMesh
-    uint64_t rigid_mesh_index = rigid_mesh_instances[index].rigid_mesh_index;
+    uint64_t rigid_mesh_index = rigid_mesh_instances[rigid_mesh_instance_index].rigid_mesh_index;
     RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_index)];
 
     // Query the MeshAttributes
@@ -169,5 +171,7 @@ void main() {
     draw_indirect_command.first_vertex = 0;
     draw_indirect_command.first_instance = 0;
 
-    indirect_draw_rigid_mesh_instances[index] = draw_indirect_command;
+    uint allocated_index = atomicAdd(visible_rigid_mesh_instances_simple.count, 1);
+    visible_rigid_mesh_instances_simple.indirect_draw_commands[allocated_index] = draw_indirect_command;
+    visible_rigid_mesh_instances_simple.rigid_mesh_instance_indices[allocated_index] = rigid_mesh_instance_index;
 }
