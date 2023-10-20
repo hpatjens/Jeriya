@@ -53,7 +53,9 @@ pub struct Frame {
     rigid_mesh_buffer: FrameLocalBuffer<shader_interface::RigidMesh>,
     rigid_mesh_instance_buffer: FrameLocalBuffer<shader_interface::RigidMeshInstance>,
 
-    indirect_draw_buffer: Arc<DeviceVisibleBuffer<DrawIndirectCommand>>,
+    /// Contains the VkIndirectDrawCommands for the visible rigid mesh instances that will
+    /// be rendered with the simple mesh representation and not with meshlets.
+    visible_rigid_mesh_instances_simple_buffer: Arc<DeviceVisibleBuffer<u32>>,
     /// Contains the indices of the visible rigid mesh instances.
     /// At the front of the buffer is a counter that contains the number of visible instances.
     visible_rigid_mesh_instances: Arc<DeviceVisibleBuffer<u32>>,
@@ -115,10 +117,18 @@ impl Frame {
         )?;
 
         info!("Create indirect draw buffer");
-        let indirect_draw_buffer = DeviceVisibleBuffer::new(
+        let byte_size_draw_indirect_commands =
+            backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances * mem::size_of::<DrawIndirectCommand>();
+        let byte_size_count = mem::size_of::<u32>();
+        let byte_size_rigid_mesh_instance_indices =
+            backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances * mem::size_of::<u32>();
+        let visible_rigid_mesh_instances_simple_buffer = DeviceVisibleBuffer::new(
             &backend_shared.device,
-            backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances * mem::size_of::<DrawIndirectCommand>(),
-            BufferUsageFlags::INDIRECT_BUFFER | BufferUsageFlags::STORAGE_BUFFER,
+            byte_size_count + byte_size_draw_indirect_commands + byte_size_rigid_mesh_instance_indices,
+            BufferUsageFlags::INDIRECT_BUFFER
+                | BufferUsageFlags::STORAGE_BUFFER
+                | BufferUsageFlags::TRANSFER_DST_BIT
+                | BufferUsageFlags::TRANSFER_SRC_BIT,
             debug_info!(format!("IndirectDrawBuffer-for-Window{:?}", window_id)),
         )?;
 
@@ -159,7 +169,7 @@ impl Frame {
             camera_instance_buffer,
             rigid_mesh_buffer,
             rigid_mesh_instance_buffer,
-            indirect_draw_buffer,
+            visible_rigid_mesh_instances_simple_buffer,
             visible_rigid_mesh_instances,
             visible_rigid_mesh_meshlets,
             transactions: VecDeque::new(),
@@ -314,8 +324,11 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
+        let clear_bytes_count = mem::size_of::<u32>();
+        builder.fill_buffer(&self.visible_rigid_mesh_instances_simple_buffer, 0, clear_bytes_count as u64, 0);
+        builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances_simple_buffer);
         builder.dispatch(cull_compute_shader_group_count, 1, 1);
-        builder.compute_to_vertex_pipeline_barrier(&self.indirect_draw_buffer);
+        builder.compute_to_vertex_pipeline_barrier(&self.visible_rigid_mesh_instances_simple_buffer);
         drop(cull_span);
 
         // Render Pass
@@ -334,7 +347,13 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
-        builder.draw_indirect(&self.indirect_draw_buffer, self.rigid_mesh_instance_buffer.high_water_mark());
+        builder.draw_indirect_count(
+            &self.visible_rigid_mesh_instances_simple_buffer,
+            mem::size_of::<u32>() as u64,
+            &self.visible_rigid_mesh_instances_simple_buffer,
+            0,
+            self.rigid_mesh_instance_buffer.high_water_mark(),
+        );
         drop(indirect_span);
 
         // Render with SimpleGraphicsPipeline
@@ -507,7 +526,7 @@ impl Frame {
             .push_uniform_buffer(0, &self.per_frame_data_buffer)
             .push_storage_buffer(1, &self.camera_buffer)
             .push_storage_buffer(2, &self.camera_instance_buffer)
-            .push_storage_buffer(3, &self.indirect_draw_buffer)
+            .push_storage_buffer(3, &self.visible_rigid_mesh_instances_simple_buffer)
             .push_storage_buffer(5, &*backend_shared.static_vertex_position_buffer.lock())
             .push_storage_buffer(6, &*backend_shared.static_indices_buffer.lock())
             .push_storage_buffer(7, &*backend_shared.static_vertex_normals_buffer.lock())

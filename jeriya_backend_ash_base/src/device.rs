@@ -7,7 +7,7 @@ use crate::{
 
 use ash::{
     extensions::khr,
-    vk::{self, PhysicalDeviceFeatures2, PhysicalDeviceShaderDrawParametersFeatures},
+    vk::{self, PhysicalDeviceFeatures2, PhysicalDeviceShaderDrawParametersFeatures, PhysicalDeviceVulkan12Features},
 };
 use jeriya_shared::{
     log::{info, trace},
@@ -51,6 +51,20 @@ impl Device {
                 .wide_lines(true)
                 .shader_int64(true)
                 .multi_draw_indirect(true)
+        };
+
+        // Check for Vulkan 1.2
+        let mut physical_device_vulkan_1_2_features = PhysicalDeviceVulkan12Features::builder().draw_indirect_count(true).build();
+        let mut features2 = PhysicalDeviceFeatures2::builder()
+            .push_next(&mut physical_device_vulkan_1_2_features)
+            .build();
+        unsafe {
+            instance
+                .as_raw_vulkan()
+                .get_physical_device_features2(*physical_device.as_raw_vulkan(), &mut features2);
+        }
+        if physical_device_vulkan_1_2_features.draw_indirect_count != vk::TRUE {
+            return Err(Error::PhysicalDeviceFeatureMissing(PhysicalDeviceFeature::DrawIndirectCount));
         };
 
         // Check for shader draw parameters
@@ -117,12 +131,15 @@ impl Device {
 
         let device_extension_names_raw = [khr::Swapchain::name().as_ptr(), khr::PushDescriptor::name().as_ptr()];
 
+        let mut physical_device_vulkan_1_2_features = PhysicalDeviceVulkan12Features::builder().draw_indirect_count(true).build();
+
         let mut shader_draw_parameters = PhysicalDeviceShaderDrawParametersFeatures::builder()
             .shader_draw_parameters(true)
             .build();
 
         let device_create_info = vk::DeviceCreateInfo::builder()
             .push_next(&mut shader_draw_parameters)
+            .push_next(&mut physical_device_vulkan_1_2_features)
             .queue_create_infos(&queue_infos)
             .enabled_extension_names(&device_extension_names_raw)
             .enabled_features(&features);

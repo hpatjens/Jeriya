@@ -86,9 +86,11 @@ layout (set = 0, binding = 2) buffer CameraInstanceBuffer {
     CameraInstance camera_instances[MAX_CAMERA_INSTANCES];
 };
 
-layout (set = 0, binding = 3) buffer IndirectDrawRigidMeshInstanceBuffer { 
-    VkDrawIndirectCommand indirect_draw_rigid_mesh_instances[MAX_RIGID_MESH_INSTANCES];
-};
+layout (set = 0, binding = 3) buffer VisibleRigidMeshInstancesSimpleBuffer { 
+    uint count;
+    VkDrawIndirectCommand indirect_draw_commands[MAX_RIGID_MESH_INSTANCES];
+    uint rigid_mesh_instance_indices[MAX_RIGID_MESH_INSTANCES];
+} visible_rigid_mesh_instances_simple;
 
 layout (set = 0, binding = 5) buffer StaticVertexPositionBuffer {
     vec4 vertex_positions[];

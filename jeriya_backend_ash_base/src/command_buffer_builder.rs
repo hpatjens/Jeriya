@@ -410,17 +410,37 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
 
     /// Draw command for indirect draw commands
-    pub fn draw_indirect(
-        &mut self,
-        buffer: &Arc<impl Buffer<DrawIndirectCommand> + Send + Sync + 'static>,
-        draw_count: usize,
-    ) -> &mut Self {
+    pub fn draw_indirect<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>, offset: u64, draw_count: usize) -> &mut Self {
         unsafe {
             self.device.as_raw_vulkan().cmd_draw_indirect(
                 *self.command_buffer.as_raw_vulkan(),
                 *buffer.as_raw_vulkan(),
-                0,
+                offset,
                 draw_count as u32,
+                mem::size_of::<DrawIndirectCommand>() as u32,
+            )
+        };
+        self.command_buffer.push_dependency(buffer.clone());
+        self
+    }
+
+    /// Draw command for indirect draw commands with count from buffer
+    pub fn draw_indirect_count<T, E>(
+        &mut self,
+        buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>,
+        offset: u64,
+        count_buffer: &Arc<impl Buffer<E> + Send + Sync + 'static>,
+        count_offset: u64,
+        max_draw_count: usize,
+    ) -> &mut Self {
+        unsafe {
+            self.device.as_raw_vulkan().cmd_draw_indirect_count(
+                *self.command_buffer.as_raw_vulkan(),
+                *buffer.as_raw_vulkan(),
+                offset,
+                *count_buffer.as_raw_vulkan(),
+                count_offset,
+                max_draw_count as u32,
                 mem::size_of::<DrawIndirectCommand>() as u32,
             )
         };

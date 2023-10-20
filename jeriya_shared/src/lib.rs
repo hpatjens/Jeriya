@@ -107,7 +107,7 @@ impl Default for RendererConfig {
             maximum_number_of_cameras: 16,
             maximum_number_of_camera_instances: 64,
             maximum_number_of_rigid_meshes: 2usize.pow(10),
-            maximum_number_of_rigid_mesh_instances: 2usize.pow(16),
+            maximum_number_of_rigid_mesh_instances: 2usize.pow(10),
             maximum_number_of_mesh_attributes: 2usize.pow(10),
             maximum_meshlets: 2usize.pow(10),
             maximum_visible_rigid_mesh_instances: 2usize.pow(10),

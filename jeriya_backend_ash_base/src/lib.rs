@@ -119,6 +119,7 @@ pub enum PhysicalDeviceFeature {
     ShaderInt64,
     MultiDrawIndirect,
     ShaderDrawParameters,
+    DrawIndirectCount,
 }
 
 /// Errors in the ash backend

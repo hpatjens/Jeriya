@@ -87,9 +87,11 @@ layout (set = 0, binding = 2) buffer CameraInstanceBuffer {
     CameraInstance camera_instances[MAX_CAMERA_INSTANCES];
 };
 
-layout (set = 0, binding = 3) buffer IndirectDrawRigidMeshInstanceBuffer { 
-    VkDrawIndirectCommand indirect_draw_rigid_mesh_instances[MAX_RIGID_MESH_INSTANCES];
-};
+layout (set = 0, binding = 3) buffer VisibleRigidMeshInstancesSimpleBuffer { 
+    uint count;
+    VkDrawIndirectCommand indirect_draw_commands[MAX_RIGID_MESH_INSTANCES];
+    uint rigid_mesh_instance_indices[MAX_RIGID_MESH_INSTANCES];
+} visible_rigid_mesh_instances_simple;
 
 layout (set = 0, binding = 5) buffer StaticVertexPositionBuffer {
     vec4 vertex_positions[];
@@ -146,7 +148,9 @@ layout (push_constant) uniform PushConstants {
 layout (location = 0) out vec3 out_vertex_normal;
 
 void main() {
-    RigidMeshInstance rigid_mesh_instance = rigid_mesh_instances[gl_DrawIDARB];
+    uint rigid_mesh_instance_index = visible_rigid_mesh_instances_simple.rigid_mesh_instance_indices[gl_DrawIDARB];
+
+    RigidMeshInstance rigid_mesh_instance = rigid_mesh_instances[rigid_mesh_instance_index];
     RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_instance.rigid_mesh_index)];
     MeshAttributes mesh_attributes = mesh_attributes[uint(rigid_mesh.mesh_attributes_index)];
     bool mesh_attributes_active = mesh_attributes_active[uint(rigid_mesh.mesh_attributes_index)];
