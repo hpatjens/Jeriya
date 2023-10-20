@@ -290,9 +290,20 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
+
+        // Clear counter and VkDispatchIndirectCommand for the visible rigid mesh instances
+        // that will be rendered with the meshlet representation.
         let clear_bytes_count = mem::size_of::<DispatchIndirectCommand>() + mem::size_of::<u32>();
         builder.fill_buffer(&self.visible_rigid_mesh_instances, 0, clear_bytes_count as u64, 0);
         builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
+
+        // Clear counter for the visible rigid mesh instances that will be rendered with the
+        // simple mesh representation.
+        let clear_bytes_count = mem::size_of::<u32>();
+        builder.fill_buffer(&self.visible_rigid_mesh_instances_simple_buffer, 0, clear_bytes_count as u64, 0);
+        builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances_simple_buffer);
+
+        // Dispatch compute shader for every rigid mesh instance
         builder.dispatch(cull_compute_shader_group_count, 1, 1);
         builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
         drop(cull_rigid_mesh_instances_span);
@@ -314,22 +325,6 @@ impl Frame {
         builder.dispatch_indirect(&self.visible_rigid_mesh_instances, 0);
         builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
         drop(cull_meshlets_span);
-
-        // Cull
-        let cull_span = span!("record cull commands");
-        builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_compute_pipeline);
-        self.push_descriptors(
-            PipelineBindPoint::Compute,
-            &presenter_shared.graphics_pipelines.cull_compute_pipeline.descriptor_set_layout,
-            backend_shared,
-            &mut builder,
-        )?;
-        let clear_bytes_count = mem::size_of::<u32>();
-        builder.fill_buffer(&self.visible_rigid_mesh_instances_simple_buffer, 0, clear_bytes_count as u64, 0);
-        builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances_simple_buffer);
-        builder.dispatch(cull_compute_shader_group_count, 1, 1);
-        builder.compute_to_vertex_pipeline_barrier(&self.visible_rigid_mesh_instances_simple_buffer);
-        drop(cull_span);
 
         // Render Pass
         builder.begin_render_pass(

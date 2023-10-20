@@ -129,7 +129,7 @@ mod tests {
         fn smoke() {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
             let config = GenericComputePipelineConfig {
-                shader_spirv: Arc::new(include_bytes!("../test_data/cull.comp.spv").to_vec()),
+                shader_spirv: Arc::new(include_bytes!("../test_data/cull_rigid_mesh_instances.comp.spv").to_vec()),
                 debug_info: debug_info!("my_compute_pipeline"),
             };
             let _compute_pipeline = GenericComputePipeline::new(&test_fixture_device.device, &config).unwrap();
