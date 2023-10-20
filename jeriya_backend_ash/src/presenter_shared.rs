@@ -51,7 +51,6 @@ pub struct GraphicsPipelines {
     pub immediate_graphics_pipeline_line_strip: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
     pub immediate_graphics_pipeline_triangle_list: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
     pub immediate_graphics_pipeline_triangle_strip: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
-    pub cull_compute_pipeline: GenericComputePipeline,
     pub cull_rigid_mesh_instances_compute_pipeline: GenericComputePipeline,
     pub cull_rigid_mesh_meshlets_compute_pipeline: GenericComputePipeline,
     pub indirect_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
@@ -101,15 +100,6 @@ impl GraphicsPipelines {
         let immediate_graphics_pipeline_triangle_list = create_immediate_graphics_pipeline(PrimitiveTopology::TriangleList)?;
         let immediate_graphics_pipeline_triangle_strip = create_immediate_graphics_pipeline(PrimitiveTopology::TriangleStrip)?;
 
-        info!("Create Compute Pipeline");
-        let cull_compute_pipeline = GenericComputePipeline::new(
-            device,
-            &GenericComputePipelineConfig {
-                shader_spirv: spirv!("cull.comp.spv"),
-                debug_info: debug_info!(format!("Cull-ComputePipeline-for-Window{:?}", window_id)),
-            },
-        )?;
-
         info!("Create Cull Rigid Mesh Instances Compute Pipeline");
         let cull_rigid_mesh_instances_compute_pipeline = GenericComputePipeline::new(
             device,
@@ -146,7 +136,6 @@ impl GraphicsPipelines {
             immediate_graphics_pipeline_line_strip,
             immediate_graphics_pipeline_triangle_list,
             immediate_graphics_pipeline_triangle_strip,
-            cull_compute_pipeline,
             cull_rigid_mesh_instances_compute_pipeline,
             cull_rigid_mesh_meshlets_compute_pipeline,
             indirect_graphics_pipeline,

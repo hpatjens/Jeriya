@@ -142,6 +142,55 @@ layout (set = 0, binding = 14) buffer VisibleRigidMeshMeshletsBuffer {
 
 layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 
+/// Appends the given rigid mesh instance to the array of visible rigid mesh 
+/// instances for rendering the meshlet representation.
+void append_visible_rigid_mesh_instance(uint rigid_mesh_instance_index) {
+    uint visible_index = atomicAdd(visible_rigid_mesh_instances.count, 1);
+    uint occupied_count = visible_index + 1;
+
+    visible_rigid_mesh_instances.instance_indices[visible_index] = rigid_mesh_instance_index;
+
+    // Group size in dimension x of the compute shader for meshlet culling
+    const uint MESHLET_CULLING_GROUP_SIZE_X = 32;
+
+    // Number of required work groups in dimension x of the compute shader for meshlet culling
+    uint required_meshlet_culling_work_groups_x = (occupied_count + MESHLET_CULLING_GROUP_SIZE_X - 1) / MESHLET_CULLING_GROUP_SIZE_X;
+
+    // Update the dispatch indirect command for meshlet culling
+    atomicMax(visible_rigid_mesh_instances.dispatch_indirect_command.x, required_meshlet_culling_work_groups_x);
+    visible_rigid_mesh_instances.dispatch_indirect_command.y = 1;
+    visible_rigid_mesh_instances.dispatch_indirect_command.z = 1;
+}
+
+/// Appends the given rigid mesh instance to the array of visible rigid 
+/// mesh instances for rendering the simple mesh representation.
+void append_visible_rigid_mesh_instance_simple(
+    uint rigid_mesh_instance_index,
+    uint mesh_attributes_index
+) {
+    MeshAttributes mesh_attributes = mesh_attributes[mesh_attributes_index];
+
+    // When the mesh has indices, there must be a shader invocation 
+    // for each index instead of for each vertex.
+    uint vertex_count;
+    if (mesh_attributes.indices_len > 0) {
+        vertex_count = uint(mesh_attributes.indices_len);
+    } else {
+        vertex_count = uint(mesh_attributes.vertex_positions_len);
+    }
+
+    VkDrawIndirectCommand draw_indirect_command;
+    draw_indirect_command.vertex_count = vertex_count;
+    draw_indirect_command.instance_count = 1;
+    draw_indirect_command.first_vertex = 0;
+    draw_indirect_command.first_instance = 0;
+
+    uint allocated_index = atomicAdd(visible_rigid_mesh_instances_simple.count, 1);
+    visible_rigid_mesh_instances_simple.indirect_draw_commands[allocated_index] = draw_indirect_command;
+    visible_rigid_mesh_instances_simple.rigid_mesh_instance_indices[allocated_index] = rigid_mesh_instance_index;
+
+}
+
 void main() {
     uint index = gl_GlobalInvocationID.x;
     if (index >= per_frame_data.rigid_mesh_instance_count) {
@@ -161,19 +210,11 @@ void main() {
         return;
     }
 
-    uint visible_index = atomicAdd(visible_rigid_mesh_instances.count, 1);
-    uint occupied_count = visible_index + 1;
+    append_visible_rigid_mesh_instance_simple(index, uint(rigid_mesh.mesh_attributes_index));
 
-    visible_rigid_mesh_instances.instance_indices[visible_index] = index;
-
-    // Group size in dimension x of the compute shader for meshlet culling
-    const uint MESHLET_CULLING_GROUP_SIZE_X = 32;
-
-    // Number of required work groups in dimension x of the compute shader for meshlet culling
-    uint required_meshlet_culling_work_groups_x = (occupied_count + MESHLET_CULLING_GROUP_SIZE_X - 1) / MESHLET_CULLING_GROUP_SIZE_X;
-
-    // Update the dispatch indirect command for meshlet culling
-    atomicMax(visible_rigid_mesh_instances.dispatch_indirect_command.x, required_meshlet_culling_work_groups_x);
-    visible_rigid_mesh_instances.dispatch_indirect_command.y = 1;
-    visible_rigid_mesh_instances.dispatch_indirect_command.z = 1;
+    // if (rigid_mesh.preferred_mesh_representation == MESH_REPRESENTATION_MESHLETS) {
+    //     append_visible_rigid_mesh_instance(index);
+    // } else {
+    //     append_visible_rigid_mesh_instance_simple(index, uint(rigid_mesh.mesh_attributes_index));
+    // }
 }
