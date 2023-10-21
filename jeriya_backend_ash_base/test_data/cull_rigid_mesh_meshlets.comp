@@ -7,9 +7,9 @@ layout (constant_id = 1) const uint MAX_CAMERA_INSTANCES = 64;
 layout (constant_id = 3) const uint MAX_RIGID_MESHES = 1024;
 layout (constant_id = 4) const uint MAX_MESH_ATTRIBUTES = 1024;
 layout (constant_id = 5) const uint MAX_RIGID_MESH_INSTANCES = 1024;
-layout (constant_id = 6) const uint MAX_MESHLETS = 1024;
+layout (constant_id = 6) const uint MAX_MESHLETS = 1048576;
 layout (constant_id = 7) const uint MAX_VISIBLE_RIGID_MESH_INSTANCES = 1024;
-layout (constant_id = 8) const uint MAX_VISIBLE_RIGID_MESH_MESHLETS = 1024;
+layout (constant_id = 8) const uint MAX_VISIBLE_RIGID_MESH_MESHLETS = 1048576;
 
 struct Camera {
     mat4 projection_matrix;
@@ -134,6 +134,7 @@ layout (set = 0, binding = 14) buffer VisibleRigidMeshMeshletsBuffer {
     uint count;
     VkDrawIndirectCommand indirect_draw_commands[MAX_VISIBLE_RIGID_MESH_MESHLETS];
     uint meshlet_indices[MAX_VISIBLE_RIGID_MESH_MESHLETS];
+    uint rigid_mesh_instance_indices[MAX_VISIBLE_RIGID_MESH_MESHLETS];
 } visible_rigid_mesh_meshlets;
 
 
@@ -167,15 +168,15 @@ void main() {
     for (;;) {
         // Index of the meshlet within the RigidMesh the current invocation is processing
         uint local_meshlet_index = batch_index + gl_GlobalInvocationID.y;
-        if (local_meshlet_index >= mesh_attributes.meshlets_len) {
-            break;
+        if (local_meshlet_index >= uint(mesh_attributes.meshlets_len)) {
+            return;
         }
 
         // Index of the meshlet within the global array of meshlets
         uint global_meshlet_index = uint(mesh_attributes.meshlets_start_offset) + local_meshlet_index;
 
         bool isVisible = true;
-        if (isVisible) {
+        if (!isVisible) {
             continue;
         }
 
@@ -190,8 +191,9 @@ void main() {
         // Allocate a new index for the visible meshlet
         uint allocated_index = atomicAdd(visible_rigid_mesh_meshlets.count, 1);
         visible_rigid_mesh_meshlets.meshlet_indices[allocated_index] = global_meshlet_index;
+        visible_rigid_mesh_meshlets.rigid_mesh_instance_indices[allocated_index] = rigid_mesh_instance_index;
         visible_rigid_mesh_meshlets.indirect_draw_commands[allocated_index] = draw_indirect_command;
 
-        batch_index += 1;
+        batch_index += WORK_GROUP_SIZE_Y;
     }
 }

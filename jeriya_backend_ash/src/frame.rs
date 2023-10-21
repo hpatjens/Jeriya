@@ -125,6 +125,7 @@ impl Frame {
         let visible_rigid_mesh_instances_simple_buffer = DeviceVisibleBuffer::new(
             &backend_shared.device,
             byte_size_count + byte_size_draw_indirect_commands + byte_size_rigid_mesh_instance_indices,
+            // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
             BufferUsageFlags::INDIRECT_BUFFER
                 | BufferUsageFlags::STORAGE_BUFFER
                 | BufferUsageFlags::TRANSFER_DST_BIT
@@ -139,6 +140,7 @@ impl Frame {
         let visible_rigid_mesh_instances = DeviceVisibleBuffer::new(
             &backend_shared.device,
             byte_size_dispatch_indirect_command + byte_size_count + byte_size_indices,
+            // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
             BufferUsageFlags::STORAGE_BUFFER
                 | BufferUsageFlags::INDIRECT_BUFFER
                 | BufferUsageFlags::TRANSFER_DST_BIT
@@ -148,14 +150,19 @@ impl Frame {
 
         info!("Create visible rigid mesh meshlets buffer");
         let byte_size_count = mem::size_of::<u32>();
-        let byte_size_indices = backend_shared.renderer_config.maximum_visible_rigid_mesh_meshlets * mem::size_of::<u32>();
         let byte_size_draw_indirect_commands =
-            backend_shared.renderer_config.maximum_visible_rigid_mesh_instances * mem::size_of::<DrawIndirectCommand>();
+            backend_shared.renderer_config.maximum_visible_rigid_mesh_meshlets * mem::size_of::<DrawIndirectCommand>();
+        let byte_size_meshlet_indices = backend_shared.renderer_config.maximum_visible_rigid_mesh_meshlets * mem::size_of::<u32>();
+        let byte_size_rigid_mesh_instance_indices =
+            backend_shared.renderer_config.maximum_visible_rigid_mesh_meshlets * mem::size_of::<u32>();
         let visible_rigid_mesh_meshlets = DeviceVisibleBuffer::new(
             &backend_shared.device,
-            byte_size_count + byte_size_indices + byte_size_draw_indirect_commands,
+            byte_size_count + byte_size_meshlet_indices + byte_size_draw_indirect_commands + byte_size_rigid_mesh_instance_indices,
             // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
-            BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT | BufferUsageFlags::TRANSFER_SRC_BIT,
+            BufferUsageFlags::STORAGE_BUFFER
+                | BufferUsageFlags::INDIRECT_BUFFER
+                | BufferUsageFlags::TRANSFER_DST_BIT
+                | BufferUsageFlags::TRANSFER_SRC_BIT,
             debug_info!(format!("VisibleRigidMeshMeshletsBuffer-for-Window{:?}", window_id)),
         )?;
 
@@ -278,7 +285,7 @@ impl Frame {
         //    meshlets of the `RigidMeshInstance` writing the indices of the visible meshlets to the
         //    buffer.
 
-        // Cull RigidMeshInstances
+        // 1. Cull RigidMeshInstances
         let cull_rigid_mesh_instances_span = span!("cull rigid mesh instances");
         builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_rigid_mesh_instances_compute_pipeline);
         self.push_descriptors(
@@ -306,7 +313,21 @@ impl Frame {
         // Dispatch compute shader for every rigid mesh instance
         builder.dispatch(cull_compute_shader_group_count, 1, 1);
         builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
+        builder.compute_to_vertex_pipeline_barrier(&self.visible_rigid_mesh_instances_simple_buffer);
         drop(cull_rigid_mesh_instances_span);
+
+        // {
+        //     let mut queues = backend_shared.queue_scheduler.queues();
+        //     let buffer = self
+        //         .visible_rigid_mesh_instances
+        //         .read_into_new_buffer_and_wait(queues.presentation_queue(*window_id), &command_pool)
+        //         .unwrap();
+        //     let work_group_x = buffer.get_memory_unaligned_index(0).unwrap();
+        //     let work_group_y = buffer.get_memory_unaligned_index(1).unwrap();
+        //     let work_group_z = buffer.get_memory_unaligned_index(2).unwrap();
+        //     let count = buffer.get_memory_unaligned_index(4).unwrap();
+        //     eprintln!("instances: {count}, work_group: ({work_group_x}, {work_group_y}, {work_group_z})",);
+        // }
 
         // Cull Meshlets
         let cull_meshlets_span = span!("cull meshlets");
@@ -320,11 +341,25 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
-        builder.fill_buffer(&self.visible_rigid_mesh_meshlets, 0, 4, 0);
+        builder.fill_buffer(&self.visible_rigid_mesh_meshlets, 0, mem::size_of::<u32>() as u64, 0);
         builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
         builder.dispatch_indirect(&self.visible_rigid_mesh_instances, 0);
-        builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
+        builder.compute_to_vertex_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
         drop(cull_meshlets_span);
+
+        // {
+        //     let mut queues = backend_shared.queue_scheduler.queues();
+        //     let buffer = self
+        //         .visible_rigid_mesh_meshlets
+        //         .read_into_new_buffer_and_wait(queues.presentation_queue(*window_id), &command_pool)
+        //         .unwrap();
+        //     let count = buffer.get_memory_unaligned_index(0).unwrap();
+        //     let offset = 1 + backend_shared.renderer_config.maximum_visible_rigid_mesh_meshlets * 4;
+        //     let list = (0..10)
+        //         .map(|i| buffer.get_memory_unaligned_index(offset + i).unwrap())
+        //         .collect::<Vec<_>>();
+        //     eprintln!("meshlets: {count} -> {list:?}");
+        // }
 
         // Render Pass
         builder.begin_render_pass(
@@ -333,12 +368,15 @@ impl Frame {
             (presenter_shared.framebuffers(), presenter_shared.frame_index.swapchain_index()),
         )?;
 
-        // Render with IndirectGraphicsPipeline
-        let indirect_span = span!("record indirect commands");
-        builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.indirect_graphics_pipeline);
+        // Render with IndirectSimpleGraphicsPipeline
+        let indirect_simple_span = span!("record indirect simple commands");
+        builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.indirect_simple_graphics_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Graphics,
-            &presenter_shared.graphics_pipelines.indirect_graphics_pipeline.descriptor_set_layout,
+            &presenter_shared
+                .graphics_pipelines
+                .indirect_simple_graphics_pipeline
+                .descriptor_set_layout,
             backend_shared,
             &mut builder,
         )?;
@@ -349,7 +387,28 @@ impl Frame {
             0,
             self.rigid_mesh_instance_buffer.high_water_mark(),
         );
-        drop(indirect_span);
+        drop(indirect_simple_span);
+
+        // Render with IndirectMeshletGraphicsPipeline
+        let indirect_meshlet_span = span!("record indirect meshlet commands");
+        builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.indirect_meshlet_graphics_pipeline);
+        self.push_descriptors(
+            PipelineBindPoint::Graphics,
+            &presenter_shared
+                .graphics_pipelines
+                .indirect_meshlet_graphics_pipeline
+                .descriptor_set_layout,
+            backend_shared,
+            &mut builder,
+        )?;
+        builder.draw_indirect_count(
+            &self.visible_rigid_mesh_meshlets,
+            mem::size_of::<u32>() as u64,
+            &self.visible_rigid_mesh_meshlets,
+            0,
+            backend_shared.static_meshlet_buffer.lock().len(),
+        );
+        drop(indirect_meshlet_span);
 
         // Render with SimpleGraphicsPipeline
         let simple_span = span!("record simple commands");

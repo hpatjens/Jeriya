@@ -1,6 +1,7 @@
 #version 450
 
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_ARB_shader_draw_parameters : enable
 
 layout (constant_id = 0) const uint MAX_CAMERAS = 16;
 layout (constant_id = 1) const uint MAX_CAMERA_INSTANCES = 64;
@@ -112,8 +113,8 @@ layout (set = 0, binding = 9) buffer RigidMeshes {
     RigidMesh rigid_meshes[MAX_RIGID_MESHES];
 };
 
-layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {
-    bool mesh_attributes_active[MAX_MESH_ATTRIBUTES];
+layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {  
+    bool mesh_attributes_active[MAX_MESH_ATTRIBUTES]; // bool has an alignment of 4 bytes
 };
 
 layout (set = 0, binding = 11) buffer RigidMeshInstancesBuffer {
@@ -141,14 +142,33 @@ layout (set = 0, binding = 14) buffer VisibleRigidMeshMeshletsBuffer {
 
 
 
-layout (location = 0) in vec3 inPosition;
-
 layout (push_constant) uniform PushConstants {
-    vec4 color;
-    mat4 matrix;
+    uint _non_zero;
 } push_constants;
 
+layout (location = 0) out vec3 out_vertex_normal;
+layout (location = 1) flat out uint out_meshlet_index;
+
 void main() {
+    uint meshlet_index = visible_rigid_mesh_meshlets.meshlet_indices[gl_DrawIDARB];
+    Meshlet meshlet = meshlets[meshlet_index];
+    // ASSERT: VkDrawIndirectCommand has a vertex count that matches the meshlet.
+
+    uint rigid_mesh_instance_index = visible_rigid_mesh_meshlets.rigid_mesh_instance_indices[gl_DrawIDARB];
+    RigidMeshInstance rigid_mesh_instance = rigid_mesh_instances[rigid_mesh_instance_index];
+    RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_instance.rigid_mesh_index)];
+    MeshAttributes mesh_attributes = mesh_attributes[uint(rigid_mesh.mesh_attributes_index)];
+    // ASSERT: MeshAttributes are active.
+
+    uint local_index = meshlet.local_indices[gl_VertexIndex];
+    uint global_index = meshlet.global_indices[local_index]; // Index relative to the mesh, not the meshlet.
+
+    uint positions_offset = uint(mesh_attributes.vertex_positions_start_offset);
+    vec3 vertex_position = vertex_positions[positions_offset + global_index].xyz;
+
+    uint normals_offset = uint(mesh_attributes.vertex_normals_start_offset);
+    vec3 vertex_normal = vertex_normals[normals_offset + global_index].xyz;
+
     mat4 view_projection_matrix;
     if (per_frame_data.active_camera_instance >= 0) {
         CameraInstance camera_instance = camera_instances[per_frame_data.active_camera_instance];
@@ -158,5 +178,10 @@ void main() {
         view_projection_matrix = mat4(1.0);
     }
 
-    gl_Position = view_projection_matrix * push_constants.matrix * vec4(inPosition, 1.0);
+    mat4 model_matrix = rigid_mesh_instance.transform;
+    mat4 matrix = view_projection_matrix * model_matrix;
+
+    out_meshlet_index = meshlet_index;
+    out_vertex_normal = vertex_normal;
+    gl_Position = matrix * vec4(vertex_position, 1.0);
 }

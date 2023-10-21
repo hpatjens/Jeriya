@@ -409,6 +409,26 @@ impl<'buf> CommandBufferBuilder<'buf> {
         self
     }
 
+    pub fn memory_pipeline_barrier(&mut self) -> &mut Self {
+        let memory_barrier = vk::MemoryBarrier::builder()
+            .src_access_mask(vk::AccessFlags::TRANSFER_WRITE | vk::AccessFlags::SHADER_WRITE)
+            .dst_access_mask(vk::AccessFlags::TRANSFER_READ | vk::AccessFlags::SHADER_READ)
+            .build();
+        let memory_barriers = [memory_barrier];
+        unsafe {
+            self.device.as_raw_vulkan().cmd_pipeline_barrier(
+                *self.command_buffer.as_raw_vulkan(),
+                vk::PipelineStageFlags::COMPUTE_SHADER | vk::PipelineStageFlags::TRANSFER,
+                vk::PipelineStageFlags::COMPUTE_SHADER | vk::PipelineStageFlags::TRANSFER,
+                vk::DependencyFlags::empty(),
+                &memory_barriers,
+                &[],
+                &[],
+            )
+        };
+        self
+    }
+
     /// Draw command for indirect draw commands
     pub fn draw_indirect<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>, offset: u64, draw_count: usize) -> &mut Self {
         unsafe {

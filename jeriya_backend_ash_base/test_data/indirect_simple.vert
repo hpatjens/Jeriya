@@ -8,9 +8,9 @@ layout (constant_id = 1) const uint MAX_CAMERA_INSTANCES = 64;
 layout (constant_id = 3) const uint MAX_RIGID_MESHES = 1024;
 layout (constant_id = 4) const uint MAX_MESH_ATTRIBUTES = 1024;
 layout (constant_id = 5) const uint MAX_RIGID_MESH_INSTANCES = 1024;
-layout (constant_id = 6) const uint MAX_MESHLETS = 1024;
+layout (constant_id = 6) const uint MAX_MESHLETS = 1048576;
 layout (constant_id = 7) const uint MAX_VISIBLE_RIGID_MESH_INSTANCES = 1024;
-layout (constant_id = 8) const uint MAX_VISIBLE_RIGID_MESH_MESHLETS = 1024;
+layout (constant_id = 8) const uint MAX_VISIBLE_RIGID_MESH_MESHLETS = 1048576;
 
 struct Camera {
     mat4 projection_matrix;
@@ -135,6 +135,7 @@ layout (set = 0, binding = 14) buffer VisibleRigidMeshMeshletsBuffer {
     uint count;
     VkDrawIndirectCommand indirect_draw_commands[MAX_VISIBLE_RIGID_MESH_MESHLETS];
     uint meshlet_indices[MAX_VISIBLE_RIGID_MESH_MESHLETS];
+    uint rigid_mesh_instance_indices[MAX_VISIBLE_RIGID_MESH_MESHLETS];
 } visible_rigid_mesh_meshlets;
 
 
