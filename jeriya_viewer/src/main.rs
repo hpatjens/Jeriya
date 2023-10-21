@@ -397,8 +397,13 @@ fn main() -> ey::Result<()> {
                 }
 
                 {
+                    let speed = 0.2;
                     let distance = 4.0;
-                    let position = Vector3::new(t.as_secs_f32().sin() * distance, 3.0, t.as_secs_f32().cos() * distance);
+                    let position = Vector3::new(
+                        (speed * t.as_secs_f32()).sin() * distance,
+                        3.0,
+                        (speed * t.as_secs_f32()).cos() * distance,
+                    );
                     instance_group
                         .lock()
                         .camera_instances()

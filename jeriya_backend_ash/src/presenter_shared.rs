@@ -53,7 +53,8 @@ pub struct GraphicsPipelines {
     pub immediate_graphics_pipeline_triangle_strip: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
     pub cull_rigid_mesh_instances_compute_pipeline: GenericComputePipeline,
     pub cull_rigid_mesh_meshlets_compute_pipeline: GenericComputePipeline,
-    pub indirect_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
+    pub indirect_simple_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
+    pub indirect_meshlet_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
 }
 
 impl GraphicsPipelines {
@@ -107,6 +108,7 @@ impl GraphicsPipelines {
                 shader_spirv: spirv!("cull_rigid_mesh_instances.comp.spv"),
                 debug_info: debug_info!(format!("Cull-RigidMeshInstances-ComputePipeline-for-Window{:?}", window_id)),
             },
+            renderer_config,
         )?;
 
         info!("Create Cull Rigid Mesh Meshlets Compute Pipeline");
@@ -116,15 +118,28 @@ impl GraphicsPipelines {
                 shader_spirv: spirv!("cull_rigid_mesh_meshlets.comp.spv"),
                 debug_info: debug_info!(format!("Cull-RigidMeshMeshlets-ComputePipeline-for-Window{:?}", window_id)),
             },
+            renderer_config,
         )?;
 
-        info!("Create Indirect Graphics Pipeline");
-        let indirect_graphics_pipeline = {
+        info!("Create Indirect Simple Graphics Pipeline");
+        let indirect_simple_graphics_pipeline = {
             let config = GenericGraphicsPipelineConfig {
-                vertex_shader_spirv: Some(spirv!("indirect.vert.spv")),
-                fragment_shader_spirv: Some(spirv!("indirect.frag.spv")),
+                vertex_shader_spirv: Some(spirv!("indirect_simple.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("indirect_simple.frag.spv")),
                 primitive_topology: PrimitiveTopology::TriangleList,
-                debug_info: debug_info!(format!("Indirect-GraphicsPipeline-for-Window{:?}", window_id)),
+                debug_info: debug_info!(format!("Indirect-Simple-GraphicsPipeline-for-Window{:?}", window_id)),
+                ..Default::default()
+            };
+            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, renderer_config)?
+        };
+
+        info!("Create Indirect Meshlet Graphics Pipeline");
+        let indirect_meshlet_graphics_pipeline = {
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("indirect_meshlet.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("indirect_meshlet.frag.spv")),
+                primitive_topology: PrimitiveTopology::TriangleList,
+                debug_info: debug_info!(format!("Indirect-Meshlet-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
             GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, renderer_config)?
@@ -138,7 +153,8 @@ impl GraphicsPipelines {
             immediate_graphics_pipeline_triangle_strip,
             cull_rigid_mesh_instances_compute_pipeline,
             cull_rigid_mesh_meshlets_compute_pipeline,
-            indirect_graphics_pipeline,
+            indirect_simple_graphics_pipeline,
+            indirect_meshlet_graphics_pipeline,
         })
     }
 }

@@ -387,11 +387,12 @@ fn handle_mesh_attributes_events(
 
                 // Upload the meshlets to the GPU
                 let meshlets_start_offset = if let Some(meshlets) = &mesh_attributes.meshlets() {
+                    let mut static_meshlet_buffer = backend_shared.static_meshlet_buffer.lock();
                     let meshlets = meshlets
                         .iter()
                         .map(|meshlet| {
                             assert! {
-                                meshlet.global_indices.len() < Meshlet::MAX_VERTICES,
+                                meshlet.global_indices.len() <= Meshlet::MAX_VERTICES,
                                 "Meshlet references too many vertices. The validation of the MeshAttributes should have caught this."
                             }
                             // Pad the global indices with 0s
@@ -422,10 +423,7 @@ fn handle_mesh_attributes_events(
                             }
                         })
                         .collect::<Vec<_>>();
-                    backend_shared
-                        .static_meshlet_buffer
-                        .lock()
-                        .push(&meshlets, &mut command_buffer_builder)?
+                    static_meshlet_buffer.push(&meshlets, &mut command_buffer_builder)?
                 } else {
                     0
                 };

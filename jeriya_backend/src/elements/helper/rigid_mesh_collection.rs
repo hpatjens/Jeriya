@@ -5,7 +5,7 @@ use jeriya_shared::{debug_info, thiserror, Handle};
 use crate::{
     elements::{
         element_group::ElementGroup,
-        rigid_mesh::{self, RigidMesh},
+        rigid_mesh::{self, MeshRepresentation, RigidMesh},
     },
     resources::{
         mesh_attributes::{self, MeshAttributes},
@@ -78,11 +78,13 @@ fn insert_attributes_and_mesh(
         .with_debug_info(debug_info!(format!("MeshAttributes-Model-{}-Mesh-{}", model_name, mesh_index)))
         .with_vertex_positions(mesh.simple_mesh.vertex_positions.clone())
         .with_vertex_normals(mesh.simple_mesh.vertex_normals.clone())
-        .with_indices(mesh.simple_mesh.indices.clone());
+        .with_indices(mesh.simple_mesh.indices.clone())
+        .with_meshlets(mesh.meshlets.clone());
     let mesh_attributes = resource_group.mesh_attributes().insert_with(mesh_attributes_builder)?;
 
     // Insert the RigidMesh
     let rigid_mesh_builder = RigidMesh::builder()
+        .with_preferred_mesh_representation(MeshRepresentation::Meshlets)
         .with_debug_info(debug_info!(format!("RigidMesh-Model-{}-Mesh-{}", model_name, mesh_index)))
         .with_mesh_attributes(mesh_attributes.clone());
     let handle = element_group
