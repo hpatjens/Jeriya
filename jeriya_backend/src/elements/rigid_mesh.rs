@@ -107,7 +107,7 @@ impl RigidMeshBuilder {
         Ok(RigidMesh {
             debug_info: self.debug_info.unwrap_or_else(|| debug_info!("Anonymous RigidMesh")),
             mesh_attributes,
-            preferred_mesh_representation: MeshRepresentation::default(),
+            preferred_mesh_representation: self.preferred_mesh_representation.unwrap_or_default(),
             handle,
             gpu_index_allocation,
         })
