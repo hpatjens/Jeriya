@@ -312,8 +312,8 @@ impl Frame {
 
         // Dispatch compute shader for every rigid mesh instance
         builder.dispatch(cull_compute_shader_group_count, 1, 1);
-        builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
-        builder.compute_to_vertex_pipeline_barrier(&self.visible_rigid_mesh_instances_simple_buffer);
+        builder.compute_to_indirect_command_pipeline_barrier(&self.visible_rigid_mesh_instances);
+        builder.compute_to_indirect_command_pipeline_barrier(&self.visible_rigid_mesh_instances_simple_buffer);
         drop(cull_rigid_mesh_instances_span);
 
         // {
@@ -344,7 +344,7 @@ impl Frame {
         builder.fill_buffer(&self.visible_rigid_mesh_meshlets, 0, mem::size_of::<u32>() as u64, 0);
         builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
         builder.dispatch_indirect(&self.visible_rigid_mesh_instances, 0);
-        builder.compute_to_vertex_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
+        builder.compute_to_indirect_command_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
         drop(cull_meshlets_span);
 
         // {
