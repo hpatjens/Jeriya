@@ -290,6 +290,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
     pub fn depth_pipeline_barrier(&mut self, swapchain_depth_buffer: &SwapchainDepthBuffer) -> crate::Result<&mut Self> {
         let layout_transition_barrier = vk::ImageMemoryBarrier::builder()
             .image(swapchain_depth_buffer.depth_image)
+            .src_access_mask(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
             .dst_access_mask(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
             .old_layout(vk::ImageLayout::UNDEFINED)
             .new_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
@@ -305,7 +306,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         unsafe {
             self.device.as_raw_vulkan().cmd_pipeline_barrier(
                 *self.command_buffer.as_raw_vulkan(),
-                vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+                vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
                 vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
                 vk::DependencyFlags::empty(),
                 &[],
@@ -328,125 +329,112 @@ impl<'buf> CommandBufferBuilder<'buf> {
         self
     }
 
-    /// Special function for writing into the buffer from the compute shader and then reading from it in vertex shader
-    pub fn compute_to_vertex_pipeline_barrier<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>) -> &mut Self {
-        let buffer_memory_barrier = vk::BufferMemoryBarrier::builder()
-            .buffer(*buffer.as_raw_vulkan())
+    pub fn compute_to_vertex_pipeline_barrier(&mut self) -> &mut Self {
+        let memory_barrier = vk::MemoryBarrier::builder()
             .src_access_mask(vk::AccessFlags::SHADER_WRITE)
             .dst_access_mask(vk::AccessFlags::SHADER_READ)
-            .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .offset(0)
-            .size(vk::WHOLE_SIZE)
             .build();
-        let buffer_barriers = [buffer_memory_barrier];
+        let memory_barriers = [memory_barrier];
         unsafe {
             self.device.as_raw_vulkan().cmd_pipeline_barrier(
                 *self.command_buffer.as_raw_vulkan(),
                 vk::PipelineStageFlags::COMPUTE_SHADER,
                 vk::PipelineStageFlags::VERTEX_SHADER,
                 vk::DependencyFlags::empty(),
+                &memory_barriers,
                 &[],
-                &buffer_barriers,
                 &[],
             )
         };
-        self.command_buffer.push_dependency(buffer.clone());
         self
     }
 
-    /// Special function for writing into the buffer from the compute shader and then reading from it in the compute shader
-    pub fn compute_to_compute_pipeline_barrier<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>) -> &mut Self {
-        let buffer_memory_barrier = vk::BufferMemoryBarrier::builder()
-            .buffer(*buffer.as_raw_vulkan())
+    pub fn compute_to_compute_pipeline_barrier(&mut self) -> &mut Self {
+        let memory_barrier = vk::MemoryBarrier::builder()
             .src_access_mask(vk::AccessFlags::SHADER_WRITE)
             .dst_access_mask(vk::AccessFlags::SHADER_READ)
-            .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .offset(0)
-            .size(vk::WHOLE_SIZE)
             .build();
-        let buffer_barriers = [buffer_memory_barrier];
+        let memory_barriers = [memory_barrier];
         unsafe {
             self.device.as_raw_vulkan().cmd_pipeline_barrier(
                 *self.command_buffer.as_raw_vulkan(),
                 vk::PipelineStageFlags::COMPUTE_SHADER,
                 vk::PipelineStageFlags::COMPUTE_SHADER,
                 vk::DependencyFlags::empty(),
+                &memory_barriers,
                 &[],
-                &buffer_barriers,
                 &[],
             )
         };
-        self.command_buffer.push_dependency(buffer.clone());
         self
     }
 
-    /// Special function for writing into the buffer from the compute shader and then reading from it in the compute shader
-    pub fn transfer_to_compute_pipeline_barrier<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>) -> &mut Self {
-        let buffer_memory_barrier = vk::BufferMemoryBarrier::builder()
-            .buffer(*buffer.as_raw_vulkan())
+    pub fn transfer_to_compute_pipeline_barrier(&mut self) -> &mut Self {
+        let memory_barrier = vk::MemoryBarrier::builder()
             .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
             .dst_access_mask(vk::AccessFlags::SHADER_READ)
-            .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .offset(0)
-            .size(vk::WHOLE_SIZE)
             .build();
-        let buffer_barriers = [buffer_memory_barrier];
+        let memory_barriers = [memory_barrier];
         unsafe {
             self.device.as_raw_vulkan().cmd_pipeline_barrier(
                 *self.command_buffer.as_raw_vulkan(),
                 vk::PipelineStageFlags::TRANSFER,
                 vk::PipelineStageFlags::COMPUTE_SHADER,
                 vk::DependencyFlags::empty(),
+                &memory_barriers,
                 &[],
-                &buffer_barriers,
                 &[],
             )
         };
-        self.command_buffer.push_dependency(buffer.clone());
         self
     }
 
-    pub fn transfer_to_indirect_command_barrier<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>) -> &mut Self {
-        let buffer_memory_barrier = vk::BufferMemoryBarrier::builder()
-            .buffer(*buffer.as_raw_vulkan())
+    pub fn transfer_to_indirect_command_barrier(&mut self) -> &mut Self {
+        let memory_barrier = vk::MemoryBarrier::builder()
             .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
             .dst_access_mask(vk::AccessFlags::INDIRECT_COMMAND_READ)
-            .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .offset(0)
-            .size(vk::WHOLE_SIZE)
             .build();
-        let buffer_barriers = [buffer_memory_barrier];
+        let memory_barriers = [memory_barrier];
         unsafe {
             self.device.as_raw_vulkan().cmd_pipeline_barrier(
                 *self.command_buffer.as_raw_vulkan(),
                 vk::PipelineStageFlags::TRANSFER,
                 vk::PipelineStageFlags::DRAW_INDIRECT,
                 vk::DependencyFlags::empty(),
+                &memory_barriers,
                 &[],
-                &buffer_barriers,
                 &[],
             )
         };
-        self.command_buffer.push_dependency(buffer.clone());
         self
     }
 
-    /// Special function for writing into the buffer from the compute shader and then consuming it as an indirect draw or dispatch buffer
-    pub fn compute_to_indirect_command_pipeline_barrier<T>(&mut self, buffer: &Arc<impl Buffer<T> + Send + Sync + 'static>) -> &mut Self {
-        let buffer_memory_barrier = vk::BufferMemoryBarrier::builder()
-            .buffer(*buffer.as_raw_vulkan())
+    pub fn transfer_to_transfer_command_barrier(&mut self) -> &mut Self {
+        let memory_barrier = vk::MemoryBarrier::builder()
+            .src_access_mask(vk::AccessFlags::TRANSFER_WRITE | vk::AccessFlags::TRANSFER_READ)
+            .dst_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+            .build();
+        let memory_barriers = [memory_barrier];
+        unsafe {
+            self.device.as_raw_vulkan().cmd_pipeline_barrier(
+                *self.command_buffer.as_raw_vulkan(),
+                vk::PipelineStageFlags::TRANSFER,
+                vk::PipelineStageFlags::TRANSFER,
+                vk::DependencyFlags::empty(),
+                &memory_barriers,
+                &[],
+                &[],
+            )
+        };
+        self
+    }
+
+    pub fn compute_to_indirect_command_pipeline_barrier(&mut self) -> &mut Self {
+        let memory_barrier = vk::MemoryBarrier::builder()
             .src_access_mask(vk::AccessFlags::SHADER_WRITE)
             .dst_access_mask(vk::AccessFlags::INDIRECT_COMMAND_READ)
-            .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .offset(0)
-            .size(vk::WHOLE_SIZE)
             .build();
-        let buffer_barriers = [buffer_memory_barrier];
+        let memory_barriers = [memory_barrier];
         unsafe {
             self.device.as_raw_vulkan().cmd_pipeline_barrier(
                 *self.command_buffer.as_raw_vulkan(),
@@ -454,26 +442,85 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 // VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT synchronizes VkDrawIndirect*/VkDispatchIndirect*/VkTraceRaysIndirect*
                 vk::PipelineStageFlags::DRAW_INDIRECT,
                 vk::DependencyFlags::empty(),
+                &memory_barriers,
                 &[],
-                &buffer_barriers,
                 &[],
             )
         };
-        self.command_buffer.push_dependency(buffer.clone());
         self
     }
 
-    pub fn memory_pipeline_barrier(&mut self) -> &mut Self {
+    pub fn indirect_to_compute_command_pipeline_barrier(&mut self) -> &mut Self {
         let memory_barrier = vk::MemoryBarrier::builder()
-            .src_access_mask(vk::AccessFlags::TRANSFER_WRITE | vk::AccessFlags::SHADER_WRITE)
-            .dst_access_mask(vk::AccessFlags::TRANSFER_READ | vk::AccessFlags::SHADER_READ)
+            .src_access_mask(vk::AccessFlags::INDIRECT_COMMAND_READ)
+            .dst_access_mask(vk::AccessFlags::SHADER_WRITE)
             .build();
         let memory_barriers = [memory_barrier];
         unsafe {
             self.device.as_raw_vulkan().cmd_pipeline_barrier(
                 *self.command_buffer.as_raw_vulkan(),
-                vk::PipelineStageFlags::COMPUTE_SHADER | vk::PipelineStageFlags::TRANSFER,
-                vk::PipelineStageFlags::COMPUTE_SHADER | vk::PipelineStageFlags::TRANSFER,
+                vk::PipelineStageFlags::DRAW_INDIRECT,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::DependencyFlags::empty(),
+                &memory_barriers,
+                &[],
+                &[],
+            )
+        };
+        self
+    }
+
+    pub fn indirect_to_transfer_command_pipeline_barrier(&mut self) -> &mut Self {
+        let memory_barrier = vk::MemoryBarrier::builder()
+            .src_access_mask(vk::AccessFlags::INDIRECT_COMMAND_READ)
+            .dst_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+            .build();
+        let memory_barriers = [memory_barrier];
+        unsafe {
+            self.device.as_raw_vulkan().cmd_pipeline_barrier(
+                *self.command_buffer.as_raw_vulkan(),
+                vk::PipelineStageFlags::DRAW_INDIRECT,
+                vk::PipelineStageFlags::TRANSFER,
+                vk::DependencyFlags::empty(),
+                &memory_barriers,
+                &[],
+                &[],
+            )
+        };
+        self
+    }
+
+    pub fn bottom_to_top_pipeline_barrier(&mut self) -> &mut Self {
+        let memory_barrier = vk::MemoryBarrier::builder()
+            .src_access_mask(vk::AccessFlags::MEMORY_WRITE | vk::AccessFlags::MEMORY_READ)
+            .dst_access_mask(vk::AccessFlags::MEMORY_WRITE | vk::AccessFlags::MEMORY_READ)
+            .build();
+        let memory_barriers = [memory_barrier];
+        unsafe {
+            self.device.as_raw_vulkan().cmd_pipeline_barrier(
+                *self.command_buffer.as_raw_vulkan(),
+                vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+                vk::PipelineStageFlags::TOP_OF_PIPE,
+                vk::DependencyFlags::empty(),
+                &memory_barriers,
+                &[],
+                &[],
+            )
+        };
+        self
+    }
+
+    pub fn full_barrier(&mut self) -> &mut Self {
+        let memory_barrier = vk::MemoryBarrier::builder()
+            .src_access_mask(vk::AccessFlags::MEMORY_READ | vk::AccessFlags::MEMORY_WRITE)
+            .dst_access_mask(vk::AccessFlags::MEMORY_READ | vk::AccessFlags::MEMORY_WRITE)
+            .build();
+        let memory_barriers = [memory_barrier];
+        unsafe {
+            self.device.as_raw_vulkan().cmd_pipeline_barrier(
+                *self.command_buffer.as_raw_vulkan(),
+                vk::PipelineStageFlags::ALL_COMMANDS,
+                vk::PipelineStageFlags::ALL_COMMANDS,
                 vk::DependencyFlags::empty(),
                 &memory_barriers,
                 &[],
