@@ -1,4 +1,5 @@
 use std::{
+    f32::consts::TAU,
     io,
     sync::Arc,
     thread,
@@ -58,31 +59,65 @@ where
 
     let immediate_command_buffer_builder = renderer.create_immediate_command_buffer_builder(debug_info!("my_command_buffer"))?;
 
-    let line_list = LineList::new(
-        vec![Vector3::new(-0.5, 0.2, 0.0), Vector3::new(0.8, 0.8, 0.0)],
-        LineConfig {
-            color: Vector4::new(0.1, 0.1, 0.7, 1.0),
-            ..LineConfig::default()
-        },
-    );
-    let line_strip = LineStrip::new(
-        vec![
-            Vector3::new(-0.5, 0.8, 0.0),
-            Vector3::new(-0.2, 0.8, 0.0),
-            Vector3::new(-0.3, 0.5, 0.0),
-            Vector3::new(-0.7, 0.4, 0.0),
-        ],
-        LineConfig {
-            color: Vector4::new(0.8, 1.0, 0.4, 1.0),
-            line_width: 5.0,
-        },
-    );
-    let line_strip_turning = {
-        let x = t.as_secs_f32().sin() * 0.5;
-        let y = t.as_secs_f32().cos() * 0.5;
-        let offset = 1.5;
+    // Grid on the floor
+    const GRID_STEPS: usize = 10;
+    const GRID_EXTENT: f32 = 1.0; // half the length of the line
+    const GRID_STEP_SIZE: f32 = 2.0 * GRID_EXTENT / GRID_STEPS as f32;
+    let line_list = {
+        let n = GRID_STEPS + 1;
+        let mut positions = Vec::with_capacity(2 * n);
+        for x in 0..n {
+            let line_x = x as f32 * GRID_STEP_SIZE - GRID_EXTENT;
+            positions.extend(&[Vector3::new(line_x, 0.0, -GRID_EXTENT), Vector3::new(line_x, 0.0, GRID_EXTENT)]);
+        }
+        for z in 0..n {
+            let line_z = z as f32 * GRID_STEP_SIZE - GRID_EXTENT;
+            positions.extend(&[Vector3::new(-GRID_EXTENT, 0.0, line_z), Vector3::new(GRID_EXTENT, 0.0, line_z)]);
+        }
+        LineList::new(
+            positions,
+            LineConfig {
+                color: Vector4::new(0.7, 0.7, 0.9, 1.0),
+                ..LineConfig::default()
+            },
+        )
+    };
+
+    // Cirlce around the grid
+    const CIRCLE_STEPS: usize = 128;
+    let circle_extent = (2.0 * GRID_EXTENT * GRID_EXTENT).sqrt();
+    let line_strip = {
+        let n = CIRCLE_STEPS + 1;
+        let mut positions = Vec::with_capacity(n);
+        for i in 0..n {
+            let angle = i as f32 / CIRCLE_STEPS as f32 * TAU;
+            let z = angle.cos() * circle_extent;
+            let x = angle.sin() * circle_extent;
+            positions.push(Vector3::new(x, 0.0, z));
+        }
         LineStrip::new(
-            vec![Vector3::new(x, offset + y, 0.0), Vector3::new(-x, offset - y, 0.0)],
+            positions,
+            LineConfig {
+                color: Vector4::new(0.8, 0.8, 1.0, 1.0),
+                line_width: 5.0,
+            },
+        )
+    };
+
+    // Moving line around circle
+    let line_strip_turning = {
+        let segment0 = (t.as_secs() % CIRCLE_STEPS as u64) as usize;
+        let segment1 = ((t.as_secs() + 1) % CIRCLE_STEPS as u64) as usize;
+        let angle0 = segment0 as f32 / CIRCLE_STEPS as f32 * TAU;
+        let angle1 = segment1 as f32 / CIRCLE_STEPS as f32 * TAU;
+        let z0 = angle0.cos() * circle_extent;
+        let x0 = angle0.sin() * circle_extent;
+        let z1 = angle1.cos() * circle_extent;
+        let x1 = angle1.sin() * circle_extent;
+        let position0 = Vector3::new(x0, 0.0, z0);
+        let position1 = Vector3::new(x1, 0.0, z1);
+        LineStrip::new(
+            vec![position0, position1],
             LineConfig {
                 color: Vector4::new(1.0, 0.0, 0.0, 1.0),
                 line_width: 4.0,
@@ -306,17 +341,6 @@ fn main() -> ey::Result<()> {
         .rigid_meshes()
         .mutate_via(&mut transaction)
         .insert_with(rigid_mesh_builder)?;
-    let rigid_mesh = element_group.rigid_meshes().get(&rigid_mesh_handle).unwrap();
-
-    // Create RigidMeshInstance
-    let rigid_mesh_instance_builder = RigidMeshInstance::builder()
-        .with_rigid_mesh(rigid_mesh)
-        .with_transform(nalgebra::convert(Translation3::new(1.5, 0.0, 0.0)))
-        .with_debug_info(debug_info!("my_rigid_mesh_instance"));
-    instance_group
-        .rigid_mesh_instances()
-        .mutate_via(&mut transaction)
-        .insert_with(rigid_mesh_instance_builder)?;
 
     // Finishing the Transaction will queue all changes to be applied in the next frame.
     transaction.finish();
@@ -352,7 +376,7 @@ fn main() -> ey::Result<()> {
             element_group.rigid_meshes(),
             &mut instance_group,
             &mut transaction,
-            &nalgebra::convert(Translation3::new(-1.5, 0.0, 0.0)),
+            &nalgebra::convert(Translation3::new(0.0, 0.0, 0.0)),
         )
         .expect("Failed to create RigidMeshInstanceCollection");
 

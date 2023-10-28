@@ -1,12 +1,7 @@
-use std::{ffi::CString, io::Cursor, mem, sync::Arc};
+use std::{ffi::CString, io::Cursor, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::{
-    byteorder::{LittleEndian, WriteBytesExt},
-    debug_info,
-    nalgebra::Vector4,
-    AsDebugInfo, DebugInfo, RendererConfig,
-};
+use jeriya_shared::{debug_info, nalgebra::Vector4, AsDebugInfo, DebugInfo, RendererConfig};
 
 use crate::{
     descriptor_set_layout::DescriptorSetLayout,
@@ -36,7 +31,7 @@ pub struct GenericComputePipeline {
 }
 
 impl GenericComputePipeline {
-    pub fn new(device: &Arc<Device>, config: &GenericComputePipelineConfig, renderer_config: &RendererConfig) -> crate::Result<Self> {
+    pub fn new(device: &Arc<Device>, config: &GenericComputePipelineConfig, _renderer_config: &RendererConfig) -> crate::Result<Self> {
         let entry_name = CString::new("main").expect("Valid c string");
 
         let shader = ShaderModule::new(
