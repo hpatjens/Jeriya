@@ -265,6 +265,10 @@ impl Frame {
         builder.begin_command_buffer_for_one_time_submit()?;
         drop(begin_span);
 
+        // Wait for everything to be finished
+        builder.bottom_to_top_pipeline_barrier();
+
+        // Image transition to optimal layout
         builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(&presenter_shared.frame_index))?;
 
         // Culling
@@ -298,24 +302,26 @@ impl Frame {
             &mut builder,
         )?;
 
+        // Make sure that all indirect read operations are finished before writing to the buffer
+        builder.indirect_to_compute_command_pipeline_barrier();
+        builder.indirect_to_transfer_command_pipeline_barrier();
+        builder.compute_to_compute_pipeline_barrier();
+
         // Clear counter and VkDispatchIndirectCommand for the visible rigid mesh instances
         // that will be rendered with the meshlet representation.
         let clear_bytes_count = mem::size_of::<DispatchIndirectCommand>() + mem::size_of::<u32>();
+        builder.transfer_to_transfer_command_barrier();
         builder.fill_buffer(&self.visible_rigid_mesh_instances, 0, clear_bytes_count as u64, 0);
-        builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
 
         // Clear counter for the visible rigid mesh instances that will be rendered with the
         // simple mesh representation.
         let clear_bytes_count = mem::size_of::<u32>();
+        builder.transfer_to_transfer_command_barrier();
         builder.fill_buffer(&self.visible_rigid_mesh_instances_simple_buffer, 0, clear_bytes_count as u64, 0);
-        builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances_simple_buffer);
 
         // Dispatch compute shader for every rigid mesh instance
+        builder.transfer_to_compute_pipeline_barrier();
         builder.dispatch(cull_compute_shader_group_count, 1, 1);
-        builder.compute_to_indirect_command_pipeline_barrier(&self.visible_rigid_mesh_instances);
-        builder.compute_to_indirect_command_pipeline_barrier(&self.visible_rigid_mesh_instances_simple_buffer);
-        builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances);
-        builder.compute_to_compute_pipeline_barrier(&self.visible_rigid_mesh_instances_simple_buffer);
         drop(cull_rigid_mesh_instances_span);
 
         // {
@@ -346,12 +352,15 @@ impl Frame {
 
         // Clear counter for the visible meshlets
         builder.fill_buffer(&self.visible_rigid_mesh_meshlets, 0, mem::size_of::<u32>() as u64, 0);
-        builder.transfer_to_indirect_command_barrier(&self.visible_rigid_mesh_meshlets);
-        builder.transfer_to_compute_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
+
+        builder.transfer_to_indirect_command_barrier();
+        builder.transfer_to_compute_pipeline_barrier();
+        builder.compute_to_indirect_command_pipeline_barrier();
+        builder.compute_to_compute_pipeline_barrier();
 
         // Dispatch compute shader for every visible rigid mesh instance
         builder.dispatch_indirect(&self.visible_rigid_mesh_instances, 0);
-        builder.compute_to_indirect_command_pipeline_barrier(&self.visible_rigid_mesh_meshlets);
+        builder.compute_to_indirect_command_pipeline_barrier();
         drop(cull_meshlets_span);
 
         // {
