@@ -8,17 +8,19 @@ use jeriya_shared::byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 pub trait PushSpecializationConstant {
     /// Writes the specialization constant to the given vector and returns the offset in the vector
-    fn push(&self, target: &mut Vec<u8>) -> io::Result<u32>;
+    fn push(&self, target: &mut Vec<u8>) -> u32;
 
     /// Returns the size of the specialization constant in bytes
     fn byte_size() -> usize;
 }
 
 impl PushSpecializationConstant for u32 {
-    fn push(&self, target: &mut Vec<u8>) -> io::Result<u32> {
+    fn push(&self, target: &mut Vec<u8>) -> u32 {
         let offset = target.len();
-        target.write_u32::<LittleEndian>(*self)?;
-        Ok(offset as u32)
+        target
+            .write_u32::<LittleEndian>(*self)
+            .expect("failed to write u32 to specialization constant buffer");
+        offset as u32
     }
 
     fn byte_size() -> usize {
@@ -39,9 +41,9 @@ impl SpecializationConstants {
     }
 
     /// Appends the specialization constants to the `SpecializationConstants`
-    pub fn push<T: PushSpecializationConstant>(&mut self, constant_id: u32, value: T) -> io::Result<&mut Self> {
+    pub fn push<T: PushSpecializationConstant>(&mut self, constant_id: u32, value: T) -> &mut Self {
         // Push the value to the data `Vec`
-        let offset = value.push(&mut self.data)?;
+        let offset = value.push(&mut self.data);
 
         // Push the map entry
         self.map_entries.push(
@@ -52,7 +54,7 @@ impl SpecializationConstants {
                 .build(),
         );
 
-        Ok(self)
+        self
     }
 
     /// Returns the number of specialization constants
@@ -77,6 +79,16 @@ impl SpecializationConstants {
             cursor.read_u32::<LittleEndian>()
         })
     }
+
+    /// Returns the map entries
+    pub fn map_entries(&self) -> &[vk::SpecializationMapEntry] {
+        &self.map_entries
+    }
+
+    /// Returns the data
+    pub fn data(&self) -> &[u8] {
+        &self.data
+    }
 }
 
 #[cfg(test)]
@@ -89,15 +101,15 @@ mod tests {
         assert_eq!(specialization_constants.len(), 0);
         assert_eq!(specialization_constants.is_empty(), true);
 
-        specialization_constants.push(0, 73u32).unwrap();
+        specialization_constants.push(0, 73u32);
         assert_eq!(specialization_constants.len(), 1);
         assert_eq!(specialization_constants.is_empty(), false);
 
-        specialization_constants.push(2, 12u32).unwrap();
+        specialization_constants.push(2, 12u32);
         assert_eq!(specialization_constants.len(), 2);
         assert_eq!(specialization_constants.is_empty(), false);
 
-        specialization_constants.push(1, 5u32).unwrap();
+        specialization_constants.push(1, 5u32);
         assert_eq!(specialization_constants.len(), 3);
         assert_eq!(specialization_constants.is_empty(), false);
 

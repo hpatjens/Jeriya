@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use base::specialization_constants::SpecializationConstants;
 use jeriya_backend::{gpu_index_allocator::GpuIndexAllocation, instances::camera_instance::CameraInstance};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
@@ -13,7 +14,6 @@ use jeriya_backend_ash_base::{
     swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
-use jeriya_shared::RendererConfig;
 use jeriya_shared::{
     debug_info,
     log::info,
@@ -61,7 +61,6 @@ impl GraphicsPipelines {
     fn new(
         device: &Arc<Device>,
         window_id: &WindowId,
-        renderer_config: &RendererConfig,
         swapchain: &Swapchain,
         swapchain_render_pass: &SwapchainRenderPass,
     ) -> base::Result<Self> {
@@ -70,6 +69,21 @@ impl GraphicsPipelines {
                 Arc::new(include_bytes!(concat!("../../jeriya_backend_ash_base/test_data/", $shader)).to_vec())
             };
         }
+
+        info!("Creating specialization constants");
+        let specialization_constants = {
+            let mut specialization_constants = SpecializationConstants::new();
+            specialization_constants.push(0, 16);
+            specialization_constants.push(1, 64);
+            // 2 is missing
+            specialization_constants.push(3, 1024);
+            specialization_constants.push(4, 1024);
+            specialization_constants.push(5, 1024);
+            specialization_constants.push(6, 1048576);
+            specialization_constants.push(7, 1024);
+            specialization_constants.push(8, 1048576);
+            specialization_constants
+        };
 
         info!("Create Simple Graphics Pipeline");
         let simple_graphics_pipeline = {
@@ -80,7 +94,7 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Simple-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, renderer_config)?
+            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
         };
 
         info!("Create Immediate Graphics Pipelines");
@@ -94,7 +108,7 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Immediate-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, renderer_config)
+            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)
         };
         let immediate_graphics_pipeline_line_list = create_immediate_graphics_pipeline(PrimitiveTopology::LineList)?;
         let immediate_graphics_pipeline_line_strip = create_immediate_graphics_pipeline(PrimitiveTopology::LineStrip)?;
@@ -108,7 +122,7 @@ impl GraphicsPipelines {
                 shader_spirv: spirv!("cull_rigid_mesh_instances.comp.spv"),
                 debug_info: debug_info!(format!("Cull-RigidMeshInstances-ComputePipeline-for-Window{:?}", window_id)),
             },
-            renderer_config,
+            &specialization_constants,
         )?;
 
         info!("Create Cull Rigid Mesh Meshlets Compute Pipeline");
@@ -118,7 +132,7 @@ impl GraphicsPipelines {
                 shader_spirv: spirv!("cull_rigid_mesh_meshlets.comp.spv"),
                 debug_info: debug_info!(format!("Cull-RigidMeshMeshlets-ComputePipeline-for-Window{:?}", window_id)),
             },
-            renderer_config,
+            &specialization_constants,
         )?;
 
         info!("Create Indirect Simple Graphics Pipeline");
@@ -130,7 +144,7 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Indirect-Simple-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, renderer_config)?
+            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
         };
 
         info!("Create Indirect Meshlet Graphics Pipeline");
@@ -142,7 +156,7 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Indirect-Meshlet-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, renderer_config)?
+            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
         };
 
         Ok(Self {
@@ -184,13 +198,7 @@ impl PresenterShared {
             SwapchainFramebuffers::new(&backend_shared.device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
 
         info!("Create Graphics Pipelines");
-        let graphics_pipelines = GraphicsPipelines::new(
-            &backend_shared.device,
-            window_id,
-            &backend_shared.renderer_config,
-            &swapchain,
-            &swapchain_render_pass,
-        )?;
+        let graphics_pipelines = GraphicsPipelines::new(&backend_shared.device, window_id, &swapchain, &swapchain_render_pass)?;
 
         Ok(Self {
             frame_index: FrameIndex::new(),
@@ -223,13 +231,7 @@ impl PresenterShared {
             &self.swapchain_render_pass,
         )?;
 
-        self.graphics_pipelines = GraphicsPipelines::new(
-            &backend_shared.device,
-            window_id,
-            &backend_shared.renderer_config,
-            &self.swapchain,
-            &self.swapchain_render_pass,
-        )?;
+        self.graphics_pipelines = GraphicsPipelines::new(&backend_shared.device, window_id, &self.swapchain, &self.swapchain_render_pass)?;
 
         Ok(())
     }

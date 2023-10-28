@@ -1,10 +1,9 @@
 use ash::vk;
 use jeriya_shared::{
-    byteorder::{LittleEndian, WriteBytesExt},
     debug_info,
     log::info,
     nalgebra::{Vector3, Vector4},
-    AsDebugInfo, DebugInfo, RendererConfig,
+    AsDebugInfo, DebugInfo,
 };
 
 use std::{ffi::CString, io::Cursor, marker::PhantomData, mem, sync::Arc};
@@ -14,6 +13,7 @@ use crate::{
     device::Device,
     shader_interface::{self, Camera, CameraInstance, MeshAttributes, PerFrameData, RigidMesh, RigidMeshInstance},
     shader_module::ShaderModule,
+    specialization_constants::SpecializationConstants,
     swapchain::Swapchain,
     swapchain_render_pass::SwapchainRenderPass,
     AsRawVulkan, DebugInfoAshExtension,
@@ -134,7 +134,7 @@ where
         config: &GenericGraphicsPipelineConfig,
         renderpass: &SwapchainRenderPass,
         swapchain: &Swapchain,
-        renderer_config: &RendererConfig,
+        specialization_constants: &SpecializationConstants,
     ) -> crate::Result<Self> {
         let entry_name = CString::new("main").expect("Valid c string");
 
@@ -152,76 +152,9 @@ where
             debug_info!("GenericGraphicsPipeline-fragment-ShaderModule"),
         )?;
 
-        let specialization_constants = [
-            vk::SpecializationMapEntry::builder()
-                .constant_id(0)
-                .offset(0)
-                .size(std::mem::size_of::<u32>())
-                .build(),
-            vk::SpecializationMapEntry::builder()
-                .constant_id(1)
-                .offset(1 * mem::size_of::<u32>() as u32)
-                .size(std::mem::size_of::<u32>())
-                .build(),
-            vk::SpecializationMapEntry::builder()
-                .constant_id(3)
-                .offset(2 * mem::size_of::<u32>() as u32)
-                .size(std::mem::size_of::<u32>())
-                .build(),
-            vk::SpecializationMapEntry::builder()
-                .constant_id(4)
-                .offset(3 * mem::size_of::<u32>() as u32)
-                .size(std::mem::size_of::<u32>())
-                .build(),
-            vk::SpecializationMapEntry::builder()
-                .constant_id(5)
-                .offset(4 * mem::size_of::<u32>() as u32)
-                .size(std::mem::size_of::<u32>())
-                .build(),
-            vk::SpecializationMapEntry::builder()
-                .constant_id(6)
-                .offset(5 * mem::size_of::<u32>() as u32)
-                .size(std::mem::size_of::<u32>())
-                .build(),
-            vk::SpecializationMapEntry::builder()
-                .constant_id(7)
-                .offset(6 * mem::size_of::<u32>() as u32)
-                .size(std::mem::size_of::<u32>())
-                .build(),
-            vk::SpecializationMapEntry::builder()
-                .constant_id(8)
-                .offset(7 * mem::size_of::<u32>() as u32)
-                .size(std::mem::size_of::<u32>())
-                .build(),
-        ];
-        let mut specialization_data = Vec::<u8>::new();
-        specialization_data
-            .write_u32::<LittleEndian>(renderer_config.maximum_number_of_cameras as u32)
-            .expect("failed to write specialization constant");
-        specialization_data
-            .write_u32::<LittleEndian>(renderer_config.maximum_number_of_camera_instances as u32)
-            .expect("failed to write specialization constant");
-        specialization_data
-            .write_u32::<LittleEndian>(renderer_config.maximum_number_of_rigid_meshes as u32)
-            .expect("failed to write specialization constant");
-        specialization_data
-            .write_u32::<LittleEndian>(renderer_config.maximum_number_of_mesh_attributes as u32)
-            .expect("failed to write specialization constant");
-        specialization_data
-            .write_u32::<LittleEndian>(renderer_config.maximum_number_of_rigid_mesh_instances as u32)
-            .expect("failed to write specialization constant");
-        specialization_data
-            .write_u32::<LittleEndian>(renderer_config.maximum_meshlets as u32)
-            .expect("failed to write specialization constant");
-        specialization_data
-            .write_u32::<LittleEndian>(renderer_config.maximum_visible_rigid_mesh_instances as u32)
-            .expect("failed to write specialization constant");
-        specialization_data
-            .write_u32::<LittleEndian>(renderer_config.maximum_visible_rigid_mesh_meshlets as u32)
-            .expect("failed to write specialization constant");
         let specialization_info = vk::SpecializationInfo::builder()
-            .map_entries(&specialization_constants)
-            .data(&specialization_data)
+            .map_entries(specialization_constants.map_entries())
+            .data(specialization_constants.data())
             .build();
 
         let shader_stage_create_infos = [
@@ -449,11 +382,12 @@ mod tests {
     mod new {
         use std::sync::Arc;
 
-        use jeriya_shared::{debug_info, RendererConfig};
+        use jeriya_shared::debug_info;
 
         use crate::{
             device::TestFixtureDevice,
             graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, GraphicsPipelineInterface, PrimitiveTopology},
+            specialization_constants::SpecializationConstants,
             swapchain::Swapchain,
             swapchain_render_pass::SwapchainRenderPass,
         };
@@ -475,12 +409,13 @@ mod tests {
                 debug_info: debug_info!("my_graphics_pipeline"),
                 ..Default::default()
             };
+            let specialization_constants = SpecializationConstants::new();
             let _graphics_pipeline = GenericGraphicsPipeline::<TestGraphicsPipelineInterface>::new(
                 &test_fixture_device.device,
                 &config,
                 &render_pass,
                 &swapchain,
-                &RendererConfig::default(),
+                &specialization_constants,
             )
             .unwrap();
         }
