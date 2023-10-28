@@ -73,7 +73,7 @@ impl SpecializationConstants {
     pub fn read_u32(&self, constant_id: u32) -> Option<io::Result<u32>> {
         self.map_entries.iter().find(|entry| entry.constant_id == constant_id).map(|entry| {
             let offset = entry.offset as usize;
-            let end = offset + entry.size as usize;
+            let end = offset + entry.size;
             let bytes = &self.data[offset..end];
             let mut cursor = Cursor::new(&bytes);
             cursor.read_u32::<LittleEndian>()
