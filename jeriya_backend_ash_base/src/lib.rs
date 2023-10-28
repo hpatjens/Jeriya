@@ -31,6 +31,7 @@ pub mod queue_plan;
 pub mod semaphore;
 pub mod shader_interface;
 pub mod shader_module;
+pub mod specialization_constants;
 pub mod staged_push_only_buffer;
 pub mod surface;
 pub mod swapchain;
