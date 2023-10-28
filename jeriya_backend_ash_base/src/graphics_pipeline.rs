@@ -1,6 +1,5 @@
 use ash::vk;
 use jeriya_shared::{
-    byteorder::{LittleEndian, WriteBytesExt},
     debug_info,
     log::info,
     nalgebra::{Vector3, Vector4},
@@ -134,7 +133,7 @@ where
         config: &GenericGraphicsPipelineConfig,
         renderpass: &SwapchainRenderPass,
         swapchain: &Swapchain,
-        renderer_config: &RendererConfig,
+        _renderer_config: &RendererConfig,
     ) -> crate::Result<Self> {
         let entry_name = CString::new("main").expect("Valid c string");
 
