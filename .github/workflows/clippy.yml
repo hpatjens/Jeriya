@@ -3,8 +3,9 @@ permissions:
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
+    branches: ["**"]
 
 name: clippy
 jobs:
