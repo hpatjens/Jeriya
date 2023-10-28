@@ -73,6 +73,8 @@ uint esgtsa(uint s) {
 }
 
 void main() {
+    vec3 normal_color = 0.5 * in_vertex_normal + vec3(0.5);
     vec3 color = COLORS[esgtsa(in_meshlet_index) % 50];
-    outputColor = vec4(color, 1.0);
+    vec3 final_color = mix(normal_color, color, 0.3);
+    outputColor = vec4(final_color, 1.0);
 }
