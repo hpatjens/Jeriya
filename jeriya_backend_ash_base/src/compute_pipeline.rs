@@ -46,7 +46,7 @@ impl GenericComputePipeline {
         )?;
 
         let specialization_info = vk::SpecializationInfo::builder()
-            .map_entries(&specialization_constants.map_entries())
+            .map_entries(specialization_constants.map_entries())
             .data(specialization_constants.data())
             .build();
 

@@ -222,12 +222,12 @@ impl MeshAttributeBuilder {
                     }
                 }
                 for (triangle_index, triangle_value) in meshlet.local_indices.iter().enumerate() {
-                    for i in 0..triangle_value.len() {
-                        if triangle_value[i] as usize >= vertex_positions.len() {
+                    for &local_index in triangle_value {
+                        if local_index as usize >= vertex_positions.len() {
                             return Err(Error::WrongLocalMeshletIndex {
                                 meshlet_index,
                                 triangle_index,
-                                index_value: triangle_value[i] as usize,
+                                index_value: local_index as usize,
                             });
                         }
                     }
