@@ -23,36 +23,53 @@ impl PointCloud {
 
     /// Creates a point cloud by sampling the surface of the given `Model`.
     pub fn sample_from_model(model: &Model, points_per_square_unit: f32) -> Self {
-        let mut point_cloud = Self::new();
+        // Compute the surface area of the model
+        let mut surface_area = 0.0;
         for mesh in &model.meshes {
             for triangle in mesh.simple_mesh.indices.chunks(3) {
                 let a = mesh.simple_mesh.vertex_positions[triangle[0] as usize];
                 let b = mesh.simple_mesh.vertex_positions[triangle[1] as usize];
                 let c = mesh.simple_mesh.vertex_positions[triangle[2] as usize];
 
-                // Compute surface area of triangle
                 let ab = b - a;
                 let ac = c - a;
-                let area = ab.cross(&ac).norm() / 2.0;
-
-                // Sample the triangle
-                let num_points = (area * points_per_square_unit).ceil() as usize;
-                for _ in 0..num_points {
-                    // Sample point in parallelogram
-                    let u = rand::random::<f32>();
-                    let v = rand::random::<f32>();
-                    let in_triangle = u + v <= 1.0;
-                    let point = if in_triangle {
-                        a + u * ab + v * ac
-                    } else {
-                        a + (1.0 - u) * ab + (1.0 - v) * ac
-                    };
-
-                    // Push the point to the point cloud
-                    point_cloud.push(point, ByteColor3::new(255, 0, 0));
-                }
+                surface_area += ab.cross(&ac).norm() / 2.0;
             }
         }
+
+        // Sample the model
+        let mut point_cloud = Self::new();
+        let sample_count = (surface_area * points_per_square_unit).ceil() as usize;
+        for _ in 0..sample_count {
+            // Pick a random mesh
+            let mesh_index = rand::random::<usize>() % model.meshes.len();
+            let mesh = &model.meshes[mesh_index];
+
+            // Pick a random triangle
+            let triangle_index = rand::random::<usize>() % (mesh.simple_mesh.indices.len() / 3);
+            let triangle_start_index = 3 * triangle_index;
+            let triangle = &mesh.simple_mesh.indices[triangle_start_index..triangle_start_index + 3];
+
+            let a = mesh.simple_mesh.vertex_positions[triangle[0] as usize];
+            let b = mesh.simple_mesh.vertex_positions[triangle[1] as usize];
+            let c = mesh.simple_mesh.vertex_positions[triangle[2] as usize];
+            let ab = b - a;
+            let ac = c - a;
+
+            // Sample point in parallelogram
+            let u = rand::random::<f32>();
+            let v = rand::random::<f32>();
+            let in_triangle = u + v <= 1.0;
+            let point = if in_triangle {
+                a + u * ab + v * ac
+            } else {
+                a + (1.0 - u) * ab + (1.0 - v) * ac
+            };
+
+            // Push the point to the point cloud
+            point_cloud.push(point, ByteColor3::new(255, 0, 0));
+        }
+
         point_cloud
     }
 
@@ -141,7 +158,7 @@ mod tests {
     #[test]
     fn sample_from_model() {
         let model = Model::import("../sample_assets/suzanne.glb").unwrap();
-        let point_cloud = PointCloud::sample_from_model(&model);
-        assert_eq!(point_cloud.len(), 1092);
+        let point_cloud = PointCloud::sample_from_model(&model, 100.0);
+        assert_eq!(point_cloud.len(), 2646);
     }
 }
