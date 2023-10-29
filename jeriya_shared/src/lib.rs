@@ -8,7 +8,7 @@ use std::{
     result,
 };
 
-use nalgebra::Vector4;
+use nalgebra::{Vector3, Vector4};
 use winit::window::Window;
 
 pub use debug_info::*;
@@ -177,4 +177,9 @@ pub fn pseudo_random_color(index: usize) -> Vector4<f32> {
     let b = BASE + b * (1.0 - BASE);
 
     Vector4::new(r, g, b, 1.0)
+}
+
+/// Returns a random normalized vector
+pub fn random_direction() -> Vector3<f32> {
+    Vector3::new(rand::random::<f32>(), rand::random::<f32>(), rand::random::<f32>()).normalize()
 }

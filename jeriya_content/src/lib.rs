@@ -54,6 +54,9 @@ mod asset_processor;
 mod common;
 
 pub mod model;
+pub mod point_cloud {
+    pub struct PointCloud {}
+}
 
 pub use asset_importer::*;
 pub use asset_processor::*;
