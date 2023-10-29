@@ -34,7 +34,7 @@ fn main() -> ey::Result<()> {
     match &command_line_arguments {
         CommandLineArguments::Convert(convert) => {
             let model = Model::import(&convert.source_filepath).wrap_err("Failed to import model")?;
-            let point_cloud = PointCloud::sample_from_model(&model);
+            let point_cloud = PointCloud::sample_from_model(&model, 500.0);
             point_cloud
                 .to_obj(&convert.destination_filepath)
                 .wrap_err("Failed to write point cloud to OBJ")?;
