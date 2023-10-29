@@ -334,8 +334,10 @@ mod tests {
     }
 
     fn assert_obj_model(contents: &Contents, expected_model_path: impl AsRef<Path>) {
-        let expected_obj = fs::read_to_string(&expected_model_path).unwrap();
-        let expected_mtl = fs::read_to_string(&expected_model_path.as_ref().with_extension("mtl")).unwrap();
+        let expected_obj = fs::read_to_string(&expected_model_path).unwrap().replace("\r\n", "\n");
+        let expected_mtl = fs::read_to_string(&expected_model_path.as_ref().with_extension("mtl"))
+            .unwrap()
+            .replace("\r\n", "\n");
         assert_eq!(contents.obj, expected_obj);
         assert_eq!(contents.mtl, expected_mtl);
     }
