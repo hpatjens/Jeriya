@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use jeriya_shared::{nalgebra::Vector3, random_direction, ByteColor3};
+use jeriya_shared::{nalgebra::Vector3, rand, random_direction, ByteColor3};
 use serde::{Deserialize, Serialize};
 
 use crate::model::Model;
@@ -22,16 +22,35 @@ impl PointCloud {
     }
 
     /// Creates a point cloud by sampling the surface of the given `Model`.
-    pub fn sample_from_model(model: &Model) -> Self {
+    pub fn sample_from_model(model: &Model, points_per_square_unit: f32) -> Self {
         let mut point_cloud = Self::new();
         for mesh in &model.meshes {
             for triangle in mesh.simple_mesh.indices.chunks(3) {
-                // Vertices of the current triangle
                 let a = mesh.simple_mesh.vertex_positions[triangle[0] as usize];
                 let b = mesh.simple_mesh.vertex_positions[triangle[1] as usize];
                 let c = mesh.simple_mesh.vertex_positions[triangle[2] as usize];
-                let center = (a + b + c) / 3.0;
-                point_cloud.push(center, ByteColor3::new(255, 0, 0));
+
+                // Compute surface area of triangle
+                let ab = b - a;
+                let ac = c - a;
+                let area = ab.cross(&ac).norm() / 2.0;
+
+                // Sample the triangle
+                let num_points = (area * points_per_square_unit).ceil() as usize;
+                for _ in 0..num_points {
+                    // Sample point in parallelogram
+                    let u = rand::random::<f32>();
+                    let v = rand::random::<f32>();
+                    let in_triangle = u + v <= 1.0;
+                    let point = if in_triangle {
+                        a + u * ab + v * ac
+                    } else {
+                        a + (1.0 - u) * ab + (1.0 - v) * ac
+                    };
+
+                    // Push the point to the point cloud
+                    point_cloud.push(point, ByteColor3::new(255, 0, 0));
+                }
             }
         }
         point_cloud
