@@ -1134,6 +1134,7 @@ dependencies = [
  "pathdiff",
  "rand 0.8.5",
  "rayon",
+ "serde",
  "spin_sleep",
  "thiserror",
  "thread-id",

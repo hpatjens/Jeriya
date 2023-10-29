@@ -9,6 +9,7 @@ use std::{
 };
 
 use nalgebra::{Vector3, Vector4};
+use serde::{Deserialize, Serialize};
 use winit::window::Window;
 
 pub use debug_info::*;
@@ -69,6 +70,64 @@ macro_rules! assert_eq {
             std::assert_eq!($($arg)*);
         }
     };
+}
+
+/// Color with the components red, green and blue.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub struct ByteColor3 {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
+
+impl ByteColor3 {
+    /// Creates a new `Color3` with the given red, green and blue components.
+    pub fn new(r: u8, g: u8, b: u8) -> Self {
+        Self { r, g, b }
+    }
+
+    /// Returns the `Color3` as a `Vector3<f32>`.
+    pub fn as_vector3(&self) -> Vector3<f32> {
+        Vector3::new(self.r as f32 / 255.0, self.g as f32 / 255.0, self.b as f32 / 255.0)
+    }
+
+    /// Returns the `Color3` as a `Vector4<f32>` with alpha set to 1.0.
+    pub fn as_vector4(&self) -> Vector4<f32> {
+        Vector4::new(self.r as f32 / 255.0, self.g as f32 / 255.0, self.b as f32 / 255.0, 1.0)
+    }
+}
+
+/// Color with the components red, green, blue and alpha.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub struct ByteColor4 {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+}
+
+impl ByteColor4 {
+    /// Creates a new `Color4` with the given red, green, blue and alpha components.
+    pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self { r, g, b, a }
+    }
+
+    /// Returns the `Color4` as a `Vector3<f32>`.
+    pub fn as_vector3(&self) -> Vector3<f32> {
+        Vector3::new(self.r as f32 / 255.0, self.g as f32 / 255.0, self.b as f32 / 255.0)
+    }
+
+    /// Returns the `Color4` as a `Vector4<f32>`.
+    pub fn as_vector4(&self) -> Vector4<f32> {
+        Vector4::new(
+            self.r as f32 / 255.0,
+            self.g as f32 / 255.0,
+            self.b as f32 / 255.0,
+            self.a as f32 / 255.0,
+        )
+    }
 }
 
 /// Determines the frame rate at which a window is rendered.
