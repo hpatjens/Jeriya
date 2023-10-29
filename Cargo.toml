@@ -9,5 +9,6 @@ members = [
     "jeriya_content",
     "jeriya_viewer",
     "jeriya_backend",
+    "jeriya_tool",
 ]
 resolver = "2"
