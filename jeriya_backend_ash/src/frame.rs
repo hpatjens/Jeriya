@@ -48,6 +48,7 @@ pub struct Frame {
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
 
     mesh_attributes_active_buffer: FrameLocalBuffer<u32>, // every u32 represents a bool
+    point_cloud_attributes_active_buffer: FrameLocalBuffer<u32>, // every u32 represents a bool
     camera_buffer: FrameLocalBuffer<shader_interface::Camera>,
     camera_instance_buffer: FrameLocalBuffer<shader_interface::CameraInstance>,
     rigid_mesh_buffer: FrameLocalBuffer<shader_interface::RigidMesh>,
@@ -98,6 +99,14 @@ impl Frame {
             &backend_shared.device,
             len,
             debug_info!(format!("MeshAttributesActiveBuffer-for-Window{:?}", window_id)),
+        )?;
+
+        let len = backend_shared.renderer_config.maximum_number_of_point_cloud_attributes;
+        info!("Create point cloud attributes active buffer with length: {len}");
+        let point_cloud_attributes_active_buffer = FrameLocalBuffer::new(
+            &backend_shared.device,
+            len,
+            debug_info!(format!("PointCloudAttributesActiveBuffer-for-Window{:?}", window_id)),
         )?;
 
         let len = backend_shared.renderer_config.maximum_number_of_rigid_meshes;
@@ -172,6 +181,7 @@ impl Frame {
             rendering_complete_semaphore: None,
             per_frame_data_buffer,
             mesh_attributes_active_buffer,
+            point_cloud_attributes_active_buffer,
             camera_buffer,
             camera_instance_buffer,
             rigid_mesh_buffer,
@@ -492,7 +502,9 @@ impl Frame {
                     Event::SetPointCloudAttributesActive {
                         gpu_index_allocation,
                         is_active,
-                    } => {}
+                    } => self
+                        .point_cloud_attributes_active_buffer
+                        .set(&gpu_index_allocation, &if is_active { 1 } else { 0 })?,
                 }
             }
         }
