@@ -740,6 +740,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "float-cmp"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "flume"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1124,6 +1133,7 @@ dependencies = [
  "derive-new",
  "derive-where",
  "derive_more",
+ "float-cmp 0.9.0",
  "indoc",
  "itertools 0.11.0",
  "log",
@@ -1160,6 +1170,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "color-eyre",
+ "fern",
  "jeriya_content",
  "jeriya_shared",
 ]
@@ -1372,7 +1383,7 @@ checksum = "85bc418147122ebbcbe3d26f486ebb4f186c24a6ee9ce8f4d53780e32b264ced"
 dependencies = [
  "cc",
  "failure",
- "float-cmp",
+ "float-cmp 0.5.3",
 ]
 
 [[package]]
