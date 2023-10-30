@@ -269,7 +269,7 @@ mod tests {
 
     #[test]
     fn sample_from_model() {
-        let model = Model::import("../sample_assets/suzanne.glb").unwrap();
+        let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
         let point_cloud = PointCloud::sample_from_model(&model, 100.0);
         assert_eq!(point_cloud.len(), 2646);
     }
@@ -289,7 +289,7 @@ mod tests {
 
         #[test]
         fn smoke() {
-            let model = Model::import("../sample_assets/suzanne.glb").unwrap();
+            let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
             let surface_areas = SurfaceAreas::compute_for(&model);
             assert!(approx_eq!(f32, surface_areas.overall_surface_area, 26.453384, ulps = 2));
             // mesh surface areas
@@ -314,7 +314,7 @@ mod tests {
 
         #[test]
         fn smoke() {
-            let model = Model::import("../sample_assets/suzanne.glb").unwrap();
+            let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
             let surface_areas = SurfaceAreas::compute_for(&model);
             let cumulative_sums = CumulativeSums::compute_for(&surface_areas);
             // mesh cumulative sums

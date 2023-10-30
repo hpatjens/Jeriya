@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn smoke() {
         setup_logger();
-        let model = Model::import("../sample_assets/rotated_cube.glb").unwrap();
+        let model = Model::import("../sample_assets/models/rotated_cube.glb").unwrap();
         assert_eq!(model.meshes.len(), 1);
         assert_eq!(model.meshes[0].simple_mesh.vertex_positions.len(), 24);
         assert_eq!(model.meshes[0].simple_mesh.vertex_normals.len(), 24);
@@ -369,7 +369,11 @@ mod tests {
     #[test]
     fn obj_export_rotated_cube() {
         setup_logger();
-        let contents = export("../sample_assets/rotated_cube.glb", "rotated_cube", ObjWriteConfig::FromSimpleMesh);
+        let contents = export(
+            "../sample_assets/models/rotated_cube.glb",
+            "rotated_cube",
+            ObjWriteConfig::FromSimpleMesh,
+        );
         assert_obj_model(&contents, "expected_results/rotated_cube.obj");
     }
 
@@ -377,7 +381,7 @@ mod tests {
     fn obj_export_suzanne_simple_mesh() {
         setup_logger();
         let contents = export(
-            "../sample_assets/suzanne.glb",
+            "../sample_assets/models/suzanne.glb",
             "suzanne_simple_mesh",
             ObjWriteConfig::FromSimpleMesh,
         );
@@ -387,7 +391,11 @@ mod tests {
     #[test]
     fn obj_export_suzanne_meshlets() {
         setup_logger();
-        let contents = export("../sample_assets/suzanne.glb", "suzanne_meshlets", ObjWriteConfig::FromMeshlets);
+        let contents = export(
+            "../sample_assets/models/suzanne.glb",
+            "suzanne_meshlets",
+            ObjWriteConfig::FromMeshlets,
+        );
         assert_obj_model(&contents, "expected_results/suzanne_meshlets.obj");
     }
 }

@@ -6,7 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use color_eyre as ey;
 use ey::eyre::{Context, ContextCompat};
 use jeriya::Renderer;
@@ -172,12 +172,23 @@ fn setup_asset_processor() -> ey::Result<AssetProcessor> {
     Ok(asset_processor)
 }
 
+#[derive(ValueEnum, Debug, Clone)]
+enum FileType {
+    Model,
+    PointCloud,
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct CommandLineArguments {
     /// Path to the file to open
-    #[arg(default_value_t = String::from("sample_assets/suzanne.glb"))] // not a PathBuf because PathBuf does not implement Display
+    #[arg(default_value_t = String::from("sample_assets/models/suzanne.glb"))]
+    // not a PathBuf because PathBuf does not implement Display
     path: String,
+
+    /// Type of the file to open
+    #[arg(long, short, default_value = "model")]
+    file_type: FileType,
 
     /// Enable meshlet rendering
     #[arg(long, short, default_value_t = true)]
@@ -244,7 +255,7 @@ fn main() -> ey::Result<()> {
     let mut instance_group = InstanceGroup::new(&renderer, debug_info!("my_instance_group"));
 
     // Load models
-    let cube_model = Model::import("sample_assets/rotated_cube.glb").wrap_err("Failed to import model")?;
+    let cube_model = Model::import("sample_assets/models/rotated_cube.glb").wrap_err("Failed to import model")?;
 
     // Create MeshAttributes for the model
     //
