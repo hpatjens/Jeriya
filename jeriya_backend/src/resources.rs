@@ -1,6 +1,7 @@
 pub mod mesh_attributes;
 pub mod mesh_attributes_group;
 pub mod point_cloud_attributes;
+pub mod point_cloud_attributes_group;
 pub mod resource_group;
 mod texture2d;
 
@@ -15,7 +16,10 @@ use jeriya_shared::{parking_lot::Mutex, AsDebugInfo};
 
 use crate::gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation, ProvideAllocateGpuIndex};
 
-use self::{mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesEvent};
+use self::{
+    mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesEvent, point_cloud_attributes::PointCloudAttributes,
+    point_cloud_attributes_group::PointCloudAttributesEvent,
+};
 
 /// Trait that provides access to the `Sender` that is used to send [`ResourceEvent`]s to the resource thread
 pub trait ResourceReceiver {
@@ -36,6 +40,7 @@ pub trait Resource: AsDebugInfo {}
 pub enum ResourceEvent {
     FrameStart,
     MeshAttributes(Vec<MeshAttributesEvent>),
+    PointCloudAttributes(Vec<PointCloudAttributesEvent>),
 }
 
 /// A [`ResourceReceiver`] that can be used for testing
@@ -55,6 +60,13 @@ impl AllocateGpuIndex<MeshAttributes> for MockBackend {
         Some(GpuIndexAllocation::new_unchecked(0))
     }
     fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<MeshAttributes>) {}
+}
+
+impl AllocateGpuIndex<PointCloudAttributes> for MockBackend {
+    fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<PointCloudAttributes>> {
+        Some(GpuIndexAllocation::new_unchecked(0))
+    }
+    fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<PointCloudAttributes>) {}
 }
 
 /// A mock that acts as the renderer in the context of resources.
@@ -93,6 +105,13 @@ impl ProvideAllocateGpuIndex<MeshAttributes> for MockRenderer {
     }
 }
 
+impl ProvideAllocateGpuIndex<PointCloudAttributes> for MockRenderer {
+    type AllocateGpuIndex = MockBackend;
+    fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+        Arc::downgrade(&self.0)
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use std::sync::Arc;
@@ -125,6 +144,24 @@ pub mod tests {
             // At the time of writing, the MeshAttributesEvent has only the Insert variant
             #[allow(irrefutable_let_patterns)]
             let $p = &mesh_attributes_events[0] else {
+                panic!("unexpected event")
+            };
+            $($b)*
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! match_one_point_cloud_attributes_event {
+        ($backend:expr, $p:pat, $($b:tt)*) => {{
+            use crate::resources::ResourceEvent;
+            const TIMEOUT: std::time::Duration = std::time::Duration::from_millis(50);
+            let ResourceEvent::PointCloudAttributes(point_cloud_attributes_events) = $backend.receiver().lock().recv_timeout(TIMEOUT).unwrap() else {
+                panic!("failed to receive event")
+            };
+            assert_eq!(point_cloud_attributes_events.len(), 1);
+            // At the time of writing, the PointCloudAttributesEvent has only the Insert variant
+            #[allow(irrefutable_let_patterns)]
+            let $p = &point_cloud_attributes_events[0] else {
                 panic!("unexpected event")
             };
             $($b)*

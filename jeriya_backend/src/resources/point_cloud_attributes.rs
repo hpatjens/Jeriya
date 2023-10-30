@@ -13,10 +13,13 @@ pub enum AttributeType {
 pub enum Error {
     #[error("Mandatory attribute {0:?} missing")]
     MandatoryAttributeMissing(AttributeType),
+    #[error("Allocation failed")]
+    AllocationFailed,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+#[derive(Debug)]
 pub struct PointCloudAttributes {
     point_positions: Vec<Vector3<f32>>,
     handle: Handle<Arc<PointCloudAttributes>>,
