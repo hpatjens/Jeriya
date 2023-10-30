@@ -315,6 +315,7 @@ fn run_resource_thread(resource_event_receiver: Receiver<ResourceEvent>, backend
             ResourceEvent::MeshAttributes(mesh_attributes_events) => {
                 handle_mesh_attributes_events(backend, mesh_attributes_events)?;
             }
+            ResourceEvent::PointCloudAttributes(point_cloud_attributes_events) => {}
         }
     }
 }
