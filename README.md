@@ -106,7 +106,7 @@ let camera_instance = instance_group
 renderer.set_active_camera(window.id(), camera_instance).unwrap();
 
 // Load model
-let suzanne = Model::import("../sample_assets/suzanne.glb").unwrap();
+let suzanne = Model::import("../sample_assets/models/suzanne.glb").unwrap();
 let mesh = &suzanne.meshes[1].simple_mesh;
 
 // Copy Vertex Data to GPU
