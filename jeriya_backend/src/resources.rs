@@ -1,5 +1,6 @@
 pub mod mesh_attributes;
 pub mod mesh_attributes_group;
+pub mod point_cloud_attributes;
 pub mod resource_group;
 mod texture2d;
 
