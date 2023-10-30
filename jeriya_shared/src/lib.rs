@@ -27,6 +27,7 @@ pub use crossbeam_channel;
 pub use derive_more;
 pub use derive_new;
 pub use derive_where;
+pub use float_cmp;
 pub use indoc;
 pub use itertools;
 pub use log;

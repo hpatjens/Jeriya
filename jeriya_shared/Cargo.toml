@@ -8,6 +8,8 @@ profile = ["tracy-client/default"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 
 [dependencies]
+# see https://crates.io/crates/tracy-client for version support table
+tracy-client = { version = "0.16", default-features = false }
 chrono = "0.4.24"
 log = "0.4.17"
 parking_lot = "0.12.1"
@@ -35,7 +37,4 @@ itertools = "0.11.0"
 maplit = "1.0.2"
 derive-where = "1.2.5"
 serde = { version = "1.0.177", features = ["derive"] }
-
-
-# see https://crates.io/crates/tracy-client for version support table
-tracy-client = { version = "0.16", default-features = false }
+float-cmp = "0.9.0"
