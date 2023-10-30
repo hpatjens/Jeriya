@@ -28,6 +28,7 @@ use jeriya_backend::{
     resources::{
         mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
         mesh_attributes_group::MeshAttributesEvent,
+        point_cloud_attributes::PointCloudAttributes,
         ResourceEvent, ResourceReceiver,
     },
     transactions::{self, PushEvent, Transaction, TransactionProcessor},
@@ -145,6 +146,22 @@ impl AllocateGpuIndex<MeshAttributes> for AshBackend {
     fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<MeshAttributes>) {
         self.backend_shared
             .mesh_attributes_gpu_index_allocator
+            .lock()
+            .free_gpu_index(gpu_index_allocation);
+    }
+}
+
+impl AllocateGpuIndex<PointCloudAttributes> for AshBackend {
+    fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<PointCloudAttributes>> {
+        self.backend_shared
+            .point_cloud_attributes_gpu_index_allocator
+            .lock()
+            .allocate_gpu_index()
+    }
+
+    fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<PointCloudAttributes>) {
+        self.backend_shared
+            .point_cloud_attributes_gpu_index_allocator
             .lock()
             .free_gpu_index(gpu_index_allocation);
     }

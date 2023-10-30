@@ -5,7 +5,7 @@ use jeriya_backend::{
     gpu_index_allocator::ProvideAllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
     instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
-    resources::{mesh_attributes::MeshAttributes, ProvideResourceReceiver},
+    resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes, ProvideResourceReceiver},
     transactions::ProvideTransactionProcessor,
     Backend, Result,
 };
@@ -149,6 +149,13 @@ impl<B: Backend> ProvideAllocateGpuIndex<MeshAttributes> for Renderer<B> {
     }
 }
 
+impl<B: Backend> ProvideAllocateGpuIndex<PointCloudAttributes> for Renderer<B> {
+    type AllocateGpuIndex = B;
+    fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+        Arc::downgrade(self.backend())
+    }
+}
+
 impl<'s, B: Backend + 's> ProvideTransactionProcessor<'s> for Renderer<B> {
     type TransactionProcessor = B;
     fn provide_transaction_processor(&'s self) -> &'s Arc<Self::TransactionProcessor> {
@@ -248,7 +255,7 @@ mod tests {
         gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
         immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
         instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
-        resources::{mesh_attributes::MeshAttributes, ResourceEvent, ResourceReceiver},
+        resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes, ResourceEvent, ResourceReceiver},
         transactions::{Transaction, TransactionProcessor},
         Backend, ImmediateCommandBufferBuilderHandler,
     };
@@ -330,6 +337,12 @@ mod tests {
             None
         }
         fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<MeshAttributes>) {}
+    }
+    impl AllocateGpuIndex<PointCloudAttributes> for DummyBackend {
+        fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<PointCloudAttributes>> {
+            None
+        }
+        fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<PointCloudAttributes>) {}
     }
     impl Backend for DummyBackend {
         type BackendConfig = ();

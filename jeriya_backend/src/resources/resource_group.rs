@@ -7,8 +7,11 @@ use crate::{
     resources::{mesh_attributes::MeshAttributes, mesh_attributes_group::MeshAttributesGroup, ProvideResourceReceiver},
 };
 
+use super::{point_cloud_attributes::PointCloudAttributes, point_cloud_attributes_group::PointCloudAttributesGroup};
+
 pub struct ResourceGroup {
     mesh_attributes_group: MeshAttributesGroup,
+    point_cloud_attributes_group: PointCloudAttributesGroup,
     debug_info: DebugInfo,
 }
 
@@ -18,11 +21,14 @@ impl ResourceGroup {
     /// Pass the [`Renderer`] as the `resource_receiver` parameter.
     pub fn new<B>(backend: &Arc<B>, debug_info: DebugInfo) -> Self
     where
-        B: ProvideResourceReceiver + ProvideAllocateGpuIndex<MeshAttributes>,
+        B: ProvideResourceReceiver + ProvideAllocateGpuIndex<MeshAttributes> + ProvideAllocateGpuIndex<PointCloudAttributes>,
     {
         let mesh_attributes_group = MeshAttributesGroup::new(backend, debug_info!(format!("{}-mesh-attributes-group", debug_info.name())));
+        let point_cloud_attributes_group =
+            PointCloudAttributesGroup::new(backend, debug_info!(format!("{}-point-cloud-attributes-group", debug_info.name())));
         Self {
             mesh_attributes_group,
+            point_cloud_attributes_group,
             debug_info,
         }
     }
@@ -30,6 +36,11 @@ impl ResourceGroup {
     /// Returns the [`MeshAttributesGroup`] that manages the mesh attributes.
     pub fn mesh_attributes(&mut self) -> &mut MeshAttributesGroup {
         &mut self.mesh_attributes_group
+    }
+
+    /// Returns the [`PointCloudAttributesGroup`] that manages the point cloud attributes.
+    pub fn point_cloud_attributes(&mut self) -> &mut PointCloudAttributesGroup {
+        &mut self.point_cloud_attributes_group
     }
 
     /// Returns the [`DebugInfo`] of the [`ResourceGroup`].
