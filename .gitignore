@@ -4,3 +4,4 @@ lcov.info
 .vscode
 assets
 *.log
+ignored
