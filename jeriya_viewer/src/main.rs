@@ -23,12 +23,12 @@ use jeriya_backend::{
         instance_group::InstanceGroup,
         rigid_mesh_instance::RigidMeshInstance,
     },
-    resources::{mesh_attributes::MeshAttributes, resource_group::ResourceGroup},
+    resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes, resource_group::ResourceGroup},
     transactions::Transaction,
     Backend,
 };
 use jeriya_backend_ash::AshBackend;
-use jeriya_content::{model::Model, AssetImporter, AssetProcessor, Directories, FileSystem};
+use jeriya_content::{model::Model, point_cloud::PointCloud, AssetImporter, AssetProcessor, Directories, FileSystem};
 use jeriya_shared::{
     debug_info,
     log::{self, error},
@@ -365,33 +365,53 @@ fn main() -> ey::Result<()> {
     let element_group2 = Arc::clone(&element_group);
     let instance_group2 = Arc::clone(&instance_group);
     thread::spawn(move || {
-        let main_model = Model::import(command_line_arguments.path)
-            .wrap_err("Failed to import model")
-            .expect("Failed to import model");
+        match command_line_arguments.file_type {
+            FileType::Model => {
+                let main_model = Model::import(command_line_arguments.path)
+                    .wrap_err("Failed to import model")
+                    .expect("Failed to import model");
 
-        let mut resource_group = resource_group2.lock();
-        let mut element_group = element_group2.lock();
-        let mut instance_group = instance_group2.lock();
+                let mut resource_group = resource_group2.lock();
+                let mut element_group = element_group2.lock();
+                let mut instance_group = instance_group2.lock();
 
-        let mut transaction = Transaction::record(&renderer2);
+                let mut transaction = Transaction::record(&renderer2);
 
-        // Create a RigidMesh from model
-        //
-        // A RigidMeshCollection can be used to create multiple RigidMeshes from a single Model. To display
-        // the RigidMeshes in the scene, RigidMeshInstances must be created that reference the RigidMeshes.
-        // A RigidMeshInstanceCollection can be used for that.
-        let rigid_mesh_collection = RigidMeshCollection::from_model(&main_model, &mut resource_group, &mut element_group, &mut transaction)
-            .expect("Failed to create RigidMeshCollection");
-        let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
-            &rigid_mesh_collection,
-            element_group.rigid_meshes(),
-            &mut instance_group,
-            &mut transaction,
-            &nalgebra::convert(Translation3::new(0.0, 0.0, 0.0)),
-        )
-        .expect("Failed to create RigidMeshInstanceCollection");
+                // Create a RigidMesh from model
+                //
+                // A RigidMeshCollection can be used to create multiple RigidMeshes from a single Model. To display
+                // the RigidMeshes in the scene, RigidMeshInstances must be created that reference the RigidMeshes.
+                // A RigidMeshInstanceCollection can be used for that.
+                let rigid_mesh_collection =
+                    RigidMeshCollection::from_model(&main_model, &mut resource_group, &mut element_group, &mut transaction)
+                        .expect("Failed to create RigidMeshCollection");
+                let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
+                    &rigid_mesh_collection,
+                    element_group.rigid_meshes(),
+                    &mut instance_group,
+                    &mut transaction,
+                    &nalgebra::convert(Translation3::new(0.0, 0.0, 0.0)),
+                )
+                .expect("Failed to create RigidMeshInstanceCollection");
 
-        transaction.finish();
+                transaction.finish();
+            }
+            FileType::PointCloud => {
+                let point_cloud = PointCloud::deserialize_from_file(&command_line_arguments.path)
+                    .wrap_err("Failed to deserialize PointCloud")
+                    .expect("Failed to deserialize PointCloud");
+
+                let mut resource_group = resource_group2.lock();
+
+                let point_cloud_attributes_builder = PointCloudAttributes::builder()
+                    .with_point_positions(point_cloud.point_positions().iter().cloned().collect())
+                    .with_debug_info(debug_info!("my_point_cloud"));
+                let _point_cloud_attributes = resource_group
+                    .point_cloud_attributes()
+                    .insert_with(point_cloud_attributes_builder)
+                    .expect("Failed to insert PointCloudAttributes");
+            }
+        }
     });
 
     const UPDATE_FRAMERATE: u32 = 60;

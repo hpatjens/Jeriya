@@ -9,7 +9,7 @@ use jeriya_backend::{
     instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{
         mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
-        point_cloud_attributes::PointCloudAttributes,
+        point_cloud_attributes::{PointCloudAttributes, PointCloudAttributesGpuState},
         ResourceEvent,
     },
 };
@@ -33,10 +33,14 @@ pub struct BackendShared {
     pub mesh_attributes_gpu_states: Arc<Mutex<HashMap<Handle<Arc<MeshAttributes>>, MeshAttributesGpuState>>>,
     pub mesh_attributes_buffer: Mutex<HostVisibleBuffer<shader_interface::MeshAttributes>>,
 
+    pub point_cloud_attributes_gpu_states: Arc<Mutex<HashMap<Handle<Arc<PointCloudAttributes>>, PointCloudAttributesGpuState>>>,
+    pub point_cloud_attributes_buffer: Mutex<HostVisibleBuffer<shader_interface::PointCloudAttributes>>,
+
     pub static_vertex_position_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_vertex_normals_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_indices_buffer: Mutex<StagedPushOnlyBuffer<u32>>,
     pub static_meshlet_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::Meshlet>>,
+    pub static_point_positions_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
 
     pub mesh_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<MeshAttributes>>>,
     pub point_cloud_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<PointCloudAttributes>>>,
@@ -52,13 +56,20 @@ impl BackendShared {
         renderer_config: &Arc<RendererConfig>,
         resource_sender: Sender<ResourceEvent>,
     ) -> jeriya_backend::Result<Self> {
-        info!("Creating Cameras");
         info!("Creating HostVisibleBuffer for MeshAttributes");
         let mesh_attributes_buffer = Mutex::new(HostVisibleBuffer::new(
             device,
             &vec![shader_interface::MeshAttributes::default(); renderer_config.maximum_number_of_mesh_attributes],
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!("mesh_attributes_buffer"),
+        )?);
+
+        info!("Creating HostVisibleBuffer for PointCloudAttributes");
+        let point_cloud_attributes_buffer = Mutex::new(HostVisibleBuffer::new(
+            device,
+            &vec![shader_interface::PointCloudAttributes::default(); renderer_config.maximum_number_of_point_cloud_attributes],
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!("point_cloud_attribute_buffer"),
         )?);
 
         info!("Creating static vertex positions buffer");
@@ -86,6 +97,15 @@ impl BackendShared {
             STATIC_INDICES_BUFFER_CAPACITY,
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!("static_indices_buffer"),
+        )?);
+
+        info!("Creating static point positions buffer");
+        const STATIC_POINT_POSITIONS_BUFFER_CAPACITY: usize = 16_000_000;
+        let static_point_positions_buffer = Mutex::new(StagedPushOnlyBuffer::new(
+            device,
+            STATIC_POINT_POSITIONS_BUFFER_CAPACITY,
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!("static_point_positions_buffer"),
         )?);
 
         info!("Creating static meshlet buffer");
@@ -122,10 +142,13 @@ impl BackendShared {
             resource_event_sender: resource_sender,
             mesh_attributes_buffer,
             mesh_attributes_gpu_states: Arc::new(Mutex::new(HashMap::new())),
+            point_cloud_attributes_buffer,
+            point_cloud_attributes_gpu_states: Arc::new(Mutex::new(HashMap::new())),
             static_vertex_position_buffer,
             static_vertex_normals_buffer,
             static_indices_buffer,
             static_meshlet_buffer,
+            static_point_positions_buffer,
             mesh_attributes_gpu_index_allocator,
             point_cloud_attributes_gpu_index_allocator,
             camera_gpu_index_allocator,
