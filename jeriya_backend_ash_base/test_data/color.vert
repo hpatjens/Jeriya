@@ -4,6 +4,7 @@
 
 layout (constant_id = 0) const uint MAX_CAMERAS = 16;
 layout (constant_id = 1) const uint MAX_CAMERA_INSTANCES = 64;
+layout (constant_id = 2) const uint MAX_POINT_CLOUD_ATTRIBUTES = 1024;
 layout (constant_id = 3) const uint MAX_RIGID_MESHES = 1024;
 layout (constant_id = 4) const uint MAX_MESH_ATTRIBUTES = 1024;
 layout (constant_id = 5) const uint MAX_RIGID_MESH_INSTANCES = 1024;
@@ -141,7 +142,6 @@ layout (set = 0, binding = 14) buffer VisibleRigidMeshMeshletsBuffer {
     uint meshlet_indices[MAX_VISIBLE_RIGID_MESH_MESHLETS];
     uint rigid_mesh_instance_indices[MAX_VISIBLE_RIGID_MESH_MESHLETS];
 } visible_rigid_mesh_meshlets;
-
 
 
 
