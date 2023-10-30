@@ -4,7 +4,7 @@ use crate::{
     elements::{camera, rigid_mesh},
     gpu_index_allocator::GpuIndexAllocation,
     instances::{camera_instance, rigid_mesh_instance},
-    resources::mesh_attributes::MeshAttributes,
+    resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes},
 };
 
 /// Trait that enables sending [`Transaction`]s to the renderer
@@ -32,6 +32,10 @@ pub enum Event {
     CameraInstance(camera_instance::Event),
     SetMeshAttributeActive {
         gpu_index_allocation: GpuIndexAllocation<MeshAttributes>,
+        is_active: bool,
+    },
+    SetPointCloudAttributesActive {
+        gpu_index_allocation: GpuIndexAllocation<PointCloudAttributes>,
         is_active: bool,
     },
 }

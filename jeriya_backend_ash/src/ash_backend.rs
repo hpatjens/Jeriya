@@ -28,7 +28,8 @@ use jeriya_backend::{
     resources::{
         mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
         mesh_attributes_group::MeshAttributesEvent,
-        point_cloud_attributes::PointCloudAttributes,
+        point_cloud_attributes::{PointCloudAttributes, PointCloudAttributesGpuState},
+        point_cloud_attributes_group::PointCloudAttributesEvent,
         ResourceEvent, ResourceReceiver,
     },
     transactions::{self, PushEvent, Transaction, TransactionProcessor},
@@ -332,9 +333,106 @@ fn run_resource_thread(resource_event_receiver: Receiver<ResourceEvent>, backend
             ResourceEvent::MeshAttributes(mesh_attributes_events) => {
                 handle_mesh_attributes_events(backend, mesh_attributes_events)?;
             }
-            ResourceEvent::PointCloudAttributes(point_cloud_attributes_events) => {}
+            ResourceEvent::PointCloudAttributes(point_cloud_attributes_events) => {
+                handle_point_cloud_attributes_events(backend, point_cloud_attributes_events)?;
+            }
         }
     }
+}
+
+#[profile]
+fn handle_point_cloud_attributes_events(
+    backend: &Arc<AshBackend>,
+    point_cloud_attributes_events: Vec<PointCloudAttributesEvent>,
+) -> jeriya_backend::Result<()> {
+    let _span = span!("Handle point cloud attributes events");
+
+    let backend_shared = &backend.backend_shared;
+
+    info!("Creating CommandPool");
+    let mut queues = backend_shared.queue_scheduler.queues();
+    let command_pool = CommandPool::new(
+        &backend_shared.device,
+        queues.transfer_queue(),
+        CommandPoolCreateFlags::ResetCommandBuffer,
+        debug_info!("PointCloudAttributes-CommandPool"),
+    )?;
+    drop(queues);
+
+    // Create a new command buffer for maintaining the meshes
+    let mut command_buffer = CommandBuffer::new(
+        &backend_shared.device,
+        &command_pool.clone(),
+        debug_info!("PointCloudAttributes-CommandBuffer"),
+    )?;
+    let mut command_buffer_builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
+    command_buffer_builder.begin_command_buffer_for_one_time_submit()?;
+
+    // Handle mesh attributes events
+    for point_cloud_attributes_event in point_cloud_attributes_events {
+        match point_cloud_attributes_event {
+            PointCloudAttributesEvent::Insert {
+                handle,
+                point_cloud_attributes,
+            } => {
+                let _span = span!("Insert point cloud attributes");
+
+                // Upload the point positions to the GPU
+                let point_positions4 = point_cloud_attributes
+                    .point_positions()
+                    .iter()
+                    .map(|v| Vector4::new(v.x, v.y, v.z, 1.0))
+                    .collect::<Vec<_>>();
+                let vertex_positions_start_offset = backend_shared
+                    .static_point_positions_buffer
+                    .lock()
+                    .push(&point_positions4, &mut command_buffer_builder)?;
+
+                // Upload the PointCloudAttributes to the GPU
+                let points_len = point_cloud_attributes.point_positions().len() as u32;
+                let point_positions_start_offset = vertex_positions_start_offset as u32;
+                let point_cloud_attributes_gpu = shader_interface::PointCloudAttributes {
+                    points_len,
+                    point_positions_start_offset,
+                };
+                info!("Inserting a new PointCloudAttributes: {point_cloud_attributes_gpu:#?}",);
+                backend_shared
+                    .point_cloud_attributes_buffer
+                    .lock()
+                    .set_memory_unaligned_index(point_cloud_attributes.gpu_index_allocation().index(), &point_cloud_attributes_gpu)?;
+
+                // Insert the GPU state for the PointCloudAttributes when the upload to the GPU is done
+                let point_cloud_attributes_gpu_states2 = backend_shared.point_cloud_attributes_gpu_states.clone();
+                let backend2 = backend.clone();
+                command_buffer_builder.push_finished_operation(Box::new(move || {
+                    point_cloud_attributes_gpu_states2
+                        .lock()
+                        .insert(handle, PointCloudAttributesGpuState::Uploaded);
+
+                    // Notify the frames that the PointCloudAttributes are ready
+                    let mut transaction = Transaction::new();
+                    transaction.push_event(transactions::Event::SetPointCloudAttributesActive {
+                        gpu_index_allocation: *point_cloud_attributes.gpu_index_allocation(),
+                        is_active: true,
+                    });
+                    backend2.process(transaction);
+
+                    info! {
+                        "Upload of PointCloudAttributes {} ({:?}) to GPU is done",
+                        point_cloud_attributes.debug_info().format_one_line(),
+                        handle
+                    }
+                    Ok(())
+                }));
+            }
+        }
+    }
+    command_buffer_builder.end_command_buffer()?;
+
+    let mut queues = backend_shared.queue_scheduler.queues();
+    queues.transfer_queue().submit(command_buffer)?;
+
+    Ok(())
 }
 
 #[profile]

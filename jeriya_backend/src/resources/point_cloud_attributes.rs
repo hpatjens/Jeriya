@@ -54,6 +54,15 @@ impl PointCloudAttributes {
     }
 }
 
+/// Represents the state of the point cloud on the GPU
+#[derive(Debug)]
+pub enum PointCloudAttributesGpuState {
+    /// The point cloud is currently being uploaded to the GPU
+    WaitingForUpload { point_positions: Arc<Vec<Vector3<f32>>> },
+    /// The point cloud has been uploaded to the GPU
+    Uploaded,
+}
+
 #[derive(Default)]
 pub struct PointCloudAttributesBuilder {
     point_positions: Option<Vec<Vector3<f32>>>,

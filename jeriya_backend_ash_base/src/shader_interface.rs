@@ -69,6 +69,13 @@ pub struct MeshAttributes {
 impl Represents<resources::mesh_attributes::MeshAttributes> for MeshAttributes {}
 
 #[repr(C)]
+#[derive(Debug, Clone, Default)]
+pub struct PointCloudAttributes {
+    pub points_len: u32,
+    pub point_positions_start_offset: u32,
+}
+
+#[repr(C)]
 #[derive(Debug, Clone)]
 pub struct Meshlet {
     pub global_indices: [u32; 64],

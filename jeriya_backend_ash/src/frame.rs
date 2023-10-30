@@ -489,6 +489,10 @@ impl Frame {
                         self.mesh_attributes_active_buffer
                             .set(&gpu_index_allocation, &if is_active { 1 } else { 0 })?;
                     }
+                    Event::SetPointCloudAttributesActive {
+                        gpu_index_allocation,
+                        is_active,
+                    } => {}
                 }
             }
         }
