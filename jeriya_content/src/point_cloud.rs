@@ -85,7 +85,7 @@ impl PointCloud {
     }
 
     /// Writes the `PointCloud` to an OBJ file.
-    pub fn to_obj(&self, filepath: impl AsRef<Path>) -> io::Result<()> {
+    pub fn to_obj(&self, filepath: impl AsRef<Path>, point_size: f32) -> io::Result<()> {
         let mut file = File::create(filepath)?;
 
         // Writing the vertex positions
@@ -99,10 +99,9 @@ impl PointCloud {
             let n = u.cross(&v).normalize();
 
             // Creating a triangle
-            const K: f32 = 0.01;
             let a = position;
-            let b = position + K * u;
-            let c = position + K * n;
+            let b = position + point_size * u;
+            let c = position + point_size * n;
 
             writeln!(file, "v {} {} {}", a.x, a.y, a.z)?;
             writeln!(file, "v {} {} {}", b.x, b.y, b.z)?;
@@ -115,6 +114,19 @@ impl PointCloud {
         }
 
         Ok(())
+    }
+
+    /// Serializes the `PointCloud` to a file.
+    pub fn serialize_to_file(&self, filepath: &impl AsRef<Path>) -> crate::Result<()> {
+        let file = File::create(filepath)?;
+        bincode::serialize_into(file, self).map_err(|err| crate::Error::FailedSerialization(err))?;
+        Ok(())
+    }
+
+    /// Deserializes the `PointCloud` from a file.
+    pub fn deserialize_from_file(filepath: &impl AsRef<Path>) -> crate::Result<Self> {
+        let file = File::open(filepath)?;
+        bincode::deserialize_from(file).map_err(|err| crate::Error::FailedDeserialization(err))
     }
 
     /// Returns the positions of the points in the `PointCloud`.

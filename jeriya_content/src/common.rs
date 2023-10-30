@@ -31,6 +31,8 @@ pub enum Error {
     InvalidAssetData(PathBuf),
     #[error("Failed to serialize the asset: {0}")]
     FailedSerialization(Box<dyn std::error::Error + Send + Sync>),
+    #[error("Failed to deserialize the asset: {0}")]
+    FailedDeserialization(Box<dyn std::error::Error + Send + Sync>),
     #[error("Other: {0}")]
     Other(Box<dyn std::error::Error + Send + Sync>),
 }
