@@ -62,6 +62,11 @@ struct MeshAttributes {
     uint64_t meshlets_len;
 };
 
+struct PointCloudAttributes {
+    uint points_len;
+    uint point_positions_start_offset;
+};
+
 struct RigidMesh {
     int mesh_attributes_index;
     uint preferred_mesh_representation;
