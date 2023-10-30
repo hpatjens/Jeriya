@@ -4,6 +4,7 @@ use jeriya_shared::nalgebra::Matrix4;
 pub trait Represents<T> {}
 
 impl Represents<resources::mesh_attributes::MeshAttributes> for u32 {}
+impl Represents<resources::point_cloud_attributes::PointCloudAttributes> for u32 {}
 
 #[repr(C)]
 #[derive(Debug, Clone, Default)]
@@ -74,6 +75,8 @@ pub struct PointCloudAttributes {
     pub points_len: u32,
     pub point_positions_start_offset: u32,
 }
+
+impl Represents<resources::point_cloud_attributes::PointCloudAttributes> for PointCloudAttributes {}
 
 #[repr(C)]
 #[derive(Debug, Clone)]
