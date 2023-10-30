@@ -1,0 +1,5 @@
+glslc jeriya_backend_ash_base\test_data\indirect_meshlet.vert -o jeriya_backend_ash_base\test_data\indirect_meshlet.vert.spv
+glslc jeriya_backend_ash_base\test_data\indirect_simple.vert -o jeriya_backend_ash_base\test_data\indirect_simple.vert.spv
+glslc jeriya_backend_ash_base\test_data\color.vert -o jeriya_backend_ash_base\test_data\color.vert.spv
+glslc jeriya_backend_ash_base\test_data\cull_rigid_mesh_instances.comp -o jeriya_backend_ash_base\test_data\cull_rigid_mesh_instances.comp.spv
+glslc jeriya_backend_ash_base\test_data\cull_rigid_mesh_meshlets.comp -o jeriya_backend_ash_base\test_data\cull_rigid_mesh_meshlets.comp.spv

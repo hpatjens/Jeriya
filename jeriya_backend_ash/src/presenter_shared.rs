@@ -75,7 +75,7 @@ impl GraphicsPipelines {
             let mut specialization_constants = SpecializationConstants::new();
             specialization_constants.push(0, 16);
             specialization_constants.push(1, 64);
-            // 2 is missing
+            specialization_constants.push(2, 1024);
             specialization_constants.push(3, 1024);
             specialization_constants.push(4, 1024);
             specialization_constants.push(5, 1024);
