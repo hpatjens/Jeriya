@@ -7,7 +7,7 @@ use crate::{
     gpu_index_allocator::AllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
     instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
-    resources::{mesh_attributes::MeshAttributes, ResourceReceiver},
+    resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes, ResourceReceiver},
     transactions::TransactionProcessor,
 };
 
@@ -17,6 +17,7 @@ pub trait Backend:
     + ResourceReceiver
     + TransactionProcessor
     + AllocateGpuIndex<MeshAttributes>
+    + AllocateGpuIndex<PointCloudAttributes>
     + AllocateGpuIndex<elements::camera::Camera>
     + AllocateGpuIndex<CameraInstance>
     + AllocateGpuIndex<RigidMesh>
