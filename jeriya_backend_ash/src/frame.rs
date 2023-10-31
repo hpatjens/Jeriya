@@ -447,6 +447,19 @@ impl Frame {
             &mut builder,
         )?;
 
+        // Clear counter for the visible point cloud instances
+        builder.fill_buffer(&self.visible_point_cloud_instances_buffer, 0, mem::size_of::<u32>() as u64, 0);
+
+        // Dispatch
+        let cull_point_cloud_instances_group_count = {
+            const LOCAL_SIZE_X: u32 = 128;
+            (self.point_cloud_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X
+        };
+        builder.transfer_to_indirect_command_barrier();
+        builder.transfer_to_compute_pipeline_barrier();
+        builder.dispatch(cull_point_cloud_instances_group_count, 1, 1);
+
+        builder.compute_to_indirect_command_pipeline_barrier();
         drop(cull_point_cloud_instances_span);
 
         // Render Pass
