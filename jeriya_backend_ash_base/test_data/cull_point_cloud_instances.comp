@@ -173,6 +173,10 @@ layout (set = 0, binding = 18) buffer VisiblePointCloudInstanceBuffer {
     uint instance_indices[MAX_POINT_CLOUD_INSTANCES];
 } visible_point_cloud_instances;
 
+layout (set = 0, binding = 19) buffer PointCloudAttributesBuffer {
+    PointCloudAttributes point_cloud_attributes[MAX_POINT_CLOUD_ATTRIBUTES];
+};
+
 
 
 
@@ -183,4 +187,30 @@ void main() {
     if (index >= per_frame_data.point_cloud_instance_count) {
         return;
     }
+
+    PointCloudInstance point_cloud_instance = point_cloud_instances[index];
+    PointCloud point_cloud = point_cloud[uint(point_cloud_instance.point_cloud_index)];
+
+    // Ignore this instance if it's not active
+    if (!point_cloud_attributes_active[point_cloud.point_cloud_attributes_index]) {
+        return;
+    }
+
+    bool isVisible = true;
+    if (!isVisible) {
+        return;
+    }
+
+    PointCloudAttributes point_cloud_attributes = point_cloud_attributes[index];
+    uint vertex_count = 3 * point_cloud_attributes.points_len;
+
+    VkDrawIndirectCommand draw_indirect_command;
+    draw_indirect_command.vertex_count = vertex_count;
+    draw_indirect_command.instance_count = 1;
+    draw_indirect_command.first_vertex = 0;
+    draw_indirect_command.first_instance = 0;
+
+    uint allocated_index = atomicAdd(visible_point_cloud_instances.count, 1);
+    visible_point_cloud_instances.indirect_draw_commands[allocated_index] = draw_indirect_command;
+    visible_point_cloud_instances.instance_indices[allocated_index] = index;
 }
