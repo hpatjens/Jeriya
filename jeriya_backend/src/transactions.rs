@@ -1,7 +1,7 @@
 use std::{mem, sync::Arc};
 
 use crate::{
-    elements::{camera, rigid_mesh},
+    elements::{camera, point_cloud, rigid_mesh},
     gpu_index_allocator::GpuIndexAllocation,
     instances::{camera_instance, rigid_mesh_instance},
     resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes},
@@ -27,6 +27,7 @@ pub trait PushEvent {
 #[derive(Debug, Clone)]
 pub enum Event {
     RigidMesh(rigid_mesh::Event),
+    PointCloud(point_cloud::Event),
     Camera(camera::Event),
     RigidMeshInstance(rigid_mesh_instance::Event),
     CameraInstance(camera_instance::Event),

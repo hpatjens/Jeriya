@@ -14,6 +14,13 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+#[derive(Clone, Debug)]
+pub enum Event {
+    Noop,
+    Insert(PointCloud),
+}
+
+#[derive(Debug, Clone)]
 pub struct PointCloud {
     debug_info: DebugInfo,
     point_cloud_attributes: Arc<PointCloudAttributes>,
