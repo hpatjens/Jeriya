@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::{mem, sync::Arc};
 
 use base::frame_local_buffer::FrameLocalBuffer;
-use jeriya_backend::elements::camera;
+use jeriya_backend::elements::{camera, point_cloud};
 use jeriya_backend::instances::camera_instance;
 use jeriya_backend::{
     elements::rigid_mesh,
@@ -487,6 +487,7 @@ impl Frame {
             for event in transaction.process() {
                 match event {
                     Event::RigidMesh(rigid_mesh) => self.process_rigid_mesh_event(rigid_mesh)?,
+                    Event::PointCloud(point_cloud) => self.process_point_cloud_event(point_cloud)?,
                     Event::Camera(camera_event) => self.process_camera_event(camera_event)?,
                     Event::CameraInstance(camera_instance_event) => self.process_camera_instance_event(camera_instance_event)?,
                     Event::RigidMeshInstance(rigid_mesh_instance_event) => {
@@ -524,6 +525,15 @@ impl Frame {
                     },
                 )?;
             }
+            Event::Noop => {}
+        }
+        Ok(())
+    }
+
+    fn process_point_cloud_event(&mut self, event: point_cloud::Event) -> base::Result<()> {
+        use point_cloud::Event;
+        match event {
+            Event::Insert(point_cloud) => {}
             Event::Noop => {}
         }
         Ok(())
