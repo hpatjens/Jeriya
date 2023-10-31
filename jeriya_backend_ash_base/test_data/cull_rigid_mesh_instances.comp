@@ -79,6 +79,15 @@ struct RigidMeshInstance {
     mat4 transform;
 };
 
+struct PointCloud {
+    int point_cloud_attributes_index;
+};
+
+struct PointCloudInstance {
+    uint64_t point_cloud_index;
+    mat4 transform;
+};
+
 layout (set = 0, binding = 0) uniform PerFrameData { 
     int active_camera_instance; // -1 means no active camera
     uint mesh_attributes_count;
