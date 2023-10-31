@@ -93,6 +93,7 @@ layout (set = 0, binding = 0) uniform PerFrameData {
     uint mesh_attributes_count;
     uint rigid_mesh_count;
     uint rigid_mesh_instance_count;
+    uint point_cloud_instance_count;
 } per_frame_data;
 
 layout (set = 0, binding = 1) buffer Cameras { 
@@ -171,13 +172,12 @@ layout (set = 0, binding = 17) buffer PointCloudInstanceBuffer {
 
 
 
-layout (location = 0) in vec3 inPosition;
-
 layout (push_constant) uniform PushConstants {
     vec4 color;
     mat4 matrix;
 } push_constants;
 
 void main() {
+    gl_PointSize = 1.0;
     gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
 }

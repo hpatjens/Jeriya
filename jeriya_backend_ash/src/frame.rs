@@ -260,6 +260,7 @@ impl Frame {
             mesh_attributes_count: self.mesh_attributes_active_buffer.high_water_mark() as u32,
             rigid_mesh_count: self.rigid_mesh_buffer.high_water_mark() as u32,
             rigid_mesh_instance_count: self.rigid_mesh_instance_buffer.high_water_mark() as u32,
+            point_cloud_instance_count: self.point_cloud_instance_buffer.high_water_mark() as u32,
         };
         self.per_frame_data_buffer.set_memory_unaligned(&[per_frame_data])?;
         drop(span);
