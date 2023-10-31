@@ -53,6 +53,8 @@ pub struct Frame {
     camera_instance_buffer: FrameLocalBuffer<shader_interface::CameraInstance>,
     rigid_mesh_buffer: FrameLocalBuffer<shader_interface::RigidMesh>,
     rigid_mesh_instance_buffer: FrameLocalBuffer<shader_interface::RigidMeshInstance>,
+    point_cloud_buffer: FrameLocalBuffer<shader_interface::PointCloud>,
+    point_cloud_instance_buffer: FrameLocalBuffer<shader_interface::PointCloudInstance>,
 
     /// Contains the VkIndirectDrawCommands for the visible rigid mesh instances that will
     /// be rendered with the simple mesh representation and not with meshlets.
@@ -125,6 +127,22 @@ impl Frame {
             debug_info!(format!("RigidMeshInstanceBuffer-for-Window{:?}", window_id)),
         )?;
 
+        let len = backend_shared.renderer_config.maximum_number_of_point_clouds;
+        info!("Create point cloud buffer with length: {len}");
+        let point_cloud_buffer = FrameLocalBuffer::new(
+            &backend_shared.device,
+            len,
+            debug_info!(format!("PointCloudBuffer-for-Window{:?}", window_id)),
+        )?;
+
+        let len = backend_shared.renderer_config.maximum_number_of_point_cloud_instances;
+        info!("Create point cloud instance buffer with length: {len}");
+        let point_cloud_instance_buffer = FrameLocalBuffer::new(
+            &backend_shared.device,
+            len,
+            debug_info!(format!("PointCloudInstanceBuffer-for-Window{:?}", window_id)),
+        )?;
+
         info!("Create indirect draw buffer");
         let byte_size_draw_indirect_commands =
             backend_shared.renderer_config.maximum_number_of_rigid_mesh_instances * mem::size_of::<DrawIndirectCommand>();
@@ -186,6 +204,8 @@ impl Frame {
             camera_instance_buffer,
             rigid_mesh_buffer,
             rigid_mesh_instance_buffer,
+            point_cloud_buffer,
+            point_cloud_instance_buffer,
             visible_rigid_mesh_instances_simple_buffer,
             visible_rigid_mesh_instances,
             visible_rigid_mesh_meshlets,
@@ -536,7 +556,14 @@ impl Frame {
     fn process_point_cloud_event(&mut self, event: point_cloud::Event) -> base::Result<()> {
         use point_cloud::Event;
         match event {
-            Event::Insert(point_cloud) => {}
+            Event::Insert(point_cloud) => {
+                self.point_cloud_buffer.set(
+                    point_cloud.gpu_index_allocation(),
+                    &shader_interface::PointCloud {
+                        point_cloud_attributes_index: point_cloud.point_cloud_attributes().gpu_index_allocation().index() as i32,
+                    },
+                )?;
+            }
             Event::Noop => {}
         }
         Ok(())
@@ -566,7 +593,16 @@ impl Frame {
         use point_cloud_instance::Event;
         match event {
             Event::Noop => {}
-            Event::Insert(point_cloud_instance) => {}
+            Event::Insert(point_cloud_instance) => {
+                self.point_cloud_instance_buffer.set(
+                    point_cloud_instance.gpu_index_allocation(),
+                    &shader_interface::PointCloudInstance {
+                        point_cloud_index: point_cloud_instance.point_cloud_gpu_index_allocation().index() as u64,
+                        _padding: 0,
+                        transform: *point_cloud_instance.transform(),
+                    },
+                )?;
+            }
         }
         Ok(())
     }

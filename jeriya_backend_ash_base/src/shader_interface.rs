@@ -122,7 +122,6 @@ impl From<elements::rigid_mesh::MeshRepresentation> for MeshRepresentation {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct RigidMesh {
-    /// Index into the [`MeshAttributes`] array. -1 means that the [`MeshAttributes`] are not available for the frame.
     pub mesh_attributes_index: i32,
     /// Determines how the mesh will be rendered.
     pub preferred_mesh_representation: MeshRepresentation,
@@ -153,6 +152,42 @@ impl Default for RigidMeshInstance {
     fn default() -> Self {
         Self {
             rigid_mesh_index: 0,
+            _padding: 0,
+            transform: Matrix4::identity(),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct PointCloud {
+    pub point_cloud_attributes_index: i32,
+}
+
+impl Represents<elements::point_cloud::PointCloud> for PointCloud {}
+
+impl Default for PointCloud {
+    fn default() -> Self {
+        Self {
+            point_cloud_attributes_index: -1,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct PointCloudInstance {
+    pub point_cloud_index: u64,
+    pub _padding: u64,
+    pub transform: Matrix4<f32>,
+}
+
+impl Represents<instances::point_cloud_instance::PointCloudInstance> for PointCloudInstance {}
+
+impl Default for PointCloudInstance {
+    fn default() -> Self {
+        Self {
+            point_cloud_index: 0,
             _padding: 0,
             transform: Matrix4::identity(),
         }
