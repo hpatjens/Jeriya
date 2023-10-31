@@ -302,7 +302,7 @@ impl Frame {
         // Image transition to optimal layout
         builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(&presenter_shared.frame_index))?;
 
-        // Culling
+        // Rigid Mesh Culling
         //
         // The culling of the rigid mesh instances is done in two steps:
         //
@@ -407,6 +407,26 @@ impl Frame {
         //         .collect::<Vec<_>>();
         //     eprintln!("meshlets: {count} -> {list:?}");
         // }
+
+        // Point Cloud Culling
+        //
+        // The culling of the point cloud instances is done in a single step. The instances are
+        // culled by a compute shader that writes the indices of the visible point cloud instances
+        // to the `visible_point_cloud_instances` buffer. The number of visible point cloud instances
+        // is written to the front of the buffer as in the culling of the rigid mesh instances.
+        let cull_point_cloud_instances_span = span!("cull point cloud instances");
+        builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_point_cloud_instances_compute_pipeline);
+        self.push_descriptors(
+            PipelineBindPoint::Compute,
+            &presenter_shared
+                .graphics_pipelines
+                .cull_point_cloud_instances_compute_pipeline
+                .descriptor_set_layout,
+            backend_shared,
+            &mut builder,
+        )?;
+
+        drop(cull_point_cloud_instances_span);
 
         // Render Pass
         builder.begin_render_pass(
