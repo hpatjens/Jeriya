@@ -171,59 +171,10 @@ layout (set = 0, binding = 17) buffer PointCloudInstanceBuffer {
 
 
 
-const uint WORK_GROUP_SIZE_X = 32; // Maps to the visible `RigidMeshInstance`s
-const uint WORK_GROUP_SIZE_Y = 32; // Maps meshlets per instance
-layout (
-    local_size_x = WORK_GROUP_SIZE_X, 
-    local_size_y = WORK_GROUP_SIZE_Y, 
-    local_size_z = 1
-) in;
 
 void main() {
-    // Index into the array of visible rigid mesh instances
-    uint instance_index = gl_GlobalInvocationID.x;
-    if (instance_index >= visible_rigid_mesh_instances.count) {
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= per_frame_data.point_cloud_instance_count) {
         return;
-    }
-
-    uint rigid_mesh_instance_index = visible_rigid_mesh_instances.instance_indices[instance_index];
-
-    RigidMeshInstance rigid_mesh_instance = rigid_mesh_instances[rigid_mesh_instance_index];
-    RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_instance.rigid_mesh_index)];
-    MeshAttributes mesh_attributes = mesh_attributes[uint(rigid_mesh.mesh_attributes_index)];
-
-    // We assume that the mesh attributes are active if the instance was inserted into the visible list
-
-    uint batch_index = 0;
-    for (;;) {
-        // Index of the meshlet within the RigidMesh the current invocation is processing
-        uint local_meshlet_index = batch_index + gl_GlobalInvocationID.y;
-        if (local_meshlet_index >= uint(mesh_attributes.meshlets_len)) {
-            return;
-        }
-
-        // Index of the meshlet within the global array of meshlets
-        uint global_meshlet_index = uint(mesh_attributes.meshlets_start_offset) + local_meshlet_index;
-
-        bool isVisible = true;
-        if (!isVisible) {
-            continue;
-        }
-
-        Meshlet meshlet = meshlets[global_meshlet_index];
-
-        VkDrawIndirectCommand draw_indirect_command;
-        draw_indirect_command.vertex_count = meshlet.triangle_count * 3;
-        draw_indirect_command.instance_count = 1;
-        draw_indirect_command.first_vertex = 0;
-        draw_indirect_command.first_instance = 0;
-
-        // Allocate a new index for the visible meshlet
-        uint allocated_index = atomicAdd(visible_rigid_mesh_meshlets.count, 1);
-        visible_rigid_mesh_meshlets.meshlet_indices[allocated_index] = global_meshlet_index;
-        visible_rigid_mesh_meshlets.rigid_mesh_instance_indices[allocated_index] = rigid_mesh_instance_index;
-        visible_rigid_mesh_meshlets.indirect_draw_commands[allocated_index] = draw_indirect_command;
-
-        batch_index += WORK_GROUP_SIZE_Y;
     }
 }

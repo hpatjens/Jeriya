@@ -13,6 +13,7 @@ pub struct PerFrameData {
     pub mesh_attributes_count: u32,
     pub rigid_mesh_count: u32,
     pub rigid_mesh_instance_count: u32,
+    pub point_cloud_instance_count: u32,
 }
 
 #[repr(C)]
