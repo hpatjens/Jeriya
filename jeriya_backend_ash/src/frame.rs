@@ -65,6 +65,9 @@ pub struct Frame {
     /// Contains the indices of the visible meshlets of the visible rigid mesh instances.
     /// At the front of the buffer is a counter that contains the number of visible meshlets.
     visible_rigid_mesh_meshlets: Arc<DeviceVisibleBuffer<u32>>,
+    /// Contains the indices of the visible point cloud instances as well as the indirect
+    /// rendering commands preceded with a counter that contains the number of visible instances.
+    visible_point_cloud_instances_buffer: Arc<DeviceVisibleBuffer<u32>>,
     transactions: VecDeque<Transaction>,
 }
 
@@ -193,6 +196,23 @@ impl Frame {
             debug_info!(format!("VisibleRigidMeshMeshletsBuffer-for-Window{:?}", window_id)),
         )?;
 
+        info!("Create visible point cloud instances buffer");
+        let byte_size_count = mem::size_of::<u32>();
+        let byte_size_draw_indirect_commands =
+            backend_shared.renderer_config.maximum_number_of_point_cloud_instances * mem::size_of::<DrawIndirectCommand>();
+        let byte_size_point_cloud_instance_indices =
+            backend_shared.renderer_config.maximum_number_of_point_cloud_instances * mem::size_of::<u32>();
+        let visible_point_cloud_instances_buffer = DeviceVisibleBuffer::new(
+            &backend_shared.device,
+            byte_size_count + byte_size_draw_indirect_commands + byte_size_point_cloud_instance_indices,
+            // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
+            BufferUsageFlags::STORAGE_BUFFER
+                | BufferUsageFlags::INDIRECT_BUFFER
+                | BufferUsageFlags::TRANSFER_DST_BIT
+                | BufferUsageFlags::TRANSFER_SRC_BIT,
+            debug_info!(format!("VisiblePointCloudInstancesBuffer-for-Window{:?}", window_id)),
+        )?;
+
         Ok(Self {
             presenter_index,
             image_available_semaphore: None,
@@ -209,6 +229,7 @@ impl Frame {
             visible_rigid_mesh_instances_simple_buffer,
             visible_rigid_mesh_instances,
             visible_rigid_mesh_meshlets,
+            visible_point_cloud_instances_buffer,
             transactions: VecDeque::new(),
         })
     }
@@ -721,6 +742,7 @@ impl Frame {
             .push_storage_buffer(15, &self.point_cloud_attributes_active_buffer)
             .push_storage_buffer(16, &self.point_cloud_buffer)
             .push_storage_buffer(17, &self.point_cloud_instance_buffer)
+            .push_storage_buffer(18, &self.visible_point_cloud_instances_buffer)
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())
