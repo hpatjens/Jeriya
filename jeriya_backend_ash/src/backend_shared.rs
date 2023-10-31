@@ -6,7 +6,7 @@ use std::{
 use jeriya_backend::{
     elements::{self, point_cloud::PointCloud, rigid_mesh::RigidMesh},
     gpu_index_allocator::GpuIndexAllocator,
-    instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
+    instances::{camera_instance::CameraInstance, point_cloud_instance::PointCloudInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{
         mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
         point_cloud_attributes::{PointCloudAttributes, PointCloudAttributesGpuState},
@@ -49,6 +49,7 @@ pub struct BackendShared {
     pub rigid_mesh_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<RigidMesh>>>,
     pub rigid_mesh_instance_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<RigidMeshInstance>>>,
     pub point_cloud_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<PointCloud>>>,
+    pub point_cloud_instance_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<PointCloudInstance>>>,
 }
 
 impl BackendShared {
@@ -131,6 +132,7 @@ impl BackendShared {
         let point_cloud_attributes_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_point_cloud_attributes);
         let rigid_mesh_instance_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_rigid_mesh_instances);
         let point_cloud_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_point_clouds);
+        let point_cloud_instance_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_point_cloud_instances);
 
         Ok(Self {
             device: device.clone(),
@@ -153,6 +155,7 @@ impl BackendShared {
             rigid_mesh_gpu_index_allocator,
             rigid_mesh_instance_gpu_index_allocator,
             point_cloud_gpu_index_allocator,
+            point_cloud_instance_gpu_index_allocator,
         })
     }
 }
