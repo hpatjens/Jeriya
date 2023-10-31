@@ -456,6 +456,21 @@ impl Frame {
         );
         drop(indirect_meshlet_span);
 
+        // Render Point Clouds
+        let point_cloud_span = span!("record point cloud commands");
+        builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.point_cloud_graphics_pipeline);
+        self.push_descriptors(
+            PipelineBindPoint::Graphics,
+            &presenter_shared
+                .graphics_pipelines
+                .point_cloud_graphics_pipeline
+                .descriptor_set_layout,
+            backend_shared,
+            &mut builder,
+        )?;
+
+        drop(point_cloud_span);
+
         // Render with SimpleGraphicsPipeline
         let simple_span = span!("record simple commands");
         builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.simple_graphics_pipeline);
