@@ -82,6 +82,8 @@ impl GraphicsPipelines {
             specialization_constants.push(6, 1048576);
             specialization_constants.push(7, 1024);
             specialization_constants.push(8, 1048576);
+            specialization_constants.push(9, 1024);
+            specialization_constants.push(10, 1024);
             specialization_constants
         };
 
