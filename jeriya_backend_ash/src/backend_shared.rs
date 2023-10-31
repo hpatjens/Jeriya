@@ -4,7 +4,7 @@ use std::{
 };
 
 use jeriya_backend::{
-    elements::{self, rigid_mesh::RigidMesh},
+    elements::{self, point_cloud::PointCloud, rigid_mesh::RigidMesh},
     gpu_index_allocator::GpuIndexAllocator,
     instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{
@@ -48,6 +48,7 @@ pub struct BackendShared {
     pub camera_instance_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<CameraInstance>>>,
     pub rigid_mesh_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<RigidMesh>>>,
     pub rigid_mesh_instance_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<RigidMeshInstance>>>,
+    pub point_cloud_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<PointCloud>>>,
 }
 
 impl BackendShared {
@@ -120,20 +121,16 @@ impl BackendShared {
         let queue_scheduler = QueueScheduler::new(device)?;
 
         info!("Creating the GpuIndexAllocators");
-        let camera_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(renderer_config.maximum_number_of_cameras)));
-        let camera_instance_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(
-            renderer_config.maximum_number_of_camera_instances,
-        )));
-        let rigid_mesh_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(renderer_config.maximum_number_of_rigid_meshes)));
-        let mesh_attributes_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(
-            renderer_config.maximum_number_of_mesh_attributes,
-        )));
-        let point_cloud_attributes_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(
-            renderer_config.maximum_number_of_point_cloud_attributes,
-        )));
-        let rigid_mesh_instance_gpu_index_allocator = Arc::new(Mutex::new(GpuIndexAllocator::new(
-            renderer_config.maximum_number_of_rigid_mesh_instances,
-        )));
+        fn new_allocator<T>(max_count: usize) -> Arc<Mutex<GpuIndexAllocator<T>>> {
+            Arc::new(Mutex::new(GpuIndexAllocator::new(max_count)))
+        }
+        let camera_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_cameras);
+        let camera_instance_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_camera_instances);
+        let rigid_mesh_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_rigid_meshes);
+        let mesh_attributes_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_mesh_attributes);
+        let point_cloud_attributes_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_point_cloud_attributes);
+        let rigid_mesh_instance_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_rigid_mesh_instances);
+        let point_cloud_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_point_clouds);
 
         Ok(Self {
             device: device.clone(),
@@ -155,6 +152,7 @@ impl BackendShared {
             camera_instance_gpu_index_allocator,
             rigid_mesh_gpu_index_allocator,
             rigid_mesh_instance_gpu_index_allocator,
+            point_cloud_gpu_index_allocator,
         })
     }
 }
