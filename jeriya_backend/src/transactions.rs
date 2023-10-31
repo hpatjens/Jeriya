@@ -3,7 +3,7 @@ use std::{mem, sync::Arc};
 use crate::{
     elements::{camera, point_cloud, rigid_mesh},
     gpu_index_allocator::GpuIndexAllocation,
-    instances::{camera_instance, rigid_mesh_instance},
+    instances::{camera_instance, point_cloud_instance, rigid_mesh_instance},
     resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes},
 };
 
@@ -26,11 +26,12 @@ pub trait PushEvent {
 /// An event that is sent to the renderer to be processed as part of a [`Transaction`].
 #[derive(Debug, Clone)]
 pub enum Event {
-    RigidMesh(rigid_mesh::Event),
-    PointCloud(point_cloud::Event),
     Camera(camera::Event),
-    RigidMeshInstance(rigid_mesh_instance::Event),
     CameraInstance(camera_instance::Event),
+    RigidMesh(rigid_mesh::Event),
+    RigidMeshInstance(rigid_mesh_instance::Event),
+    PointCloud(point_cloud::Event),
+    PointCloudInstance(point_cloud_instance::Event),
     SetMeshAttributeActive {
         gpu_index_allocation: GpuIndexAllocation<MeshAttributes>,
         is_active: bool,
