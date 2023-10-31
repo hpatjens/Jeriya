@@ -173,6 +173,9 @@ layout (set = 0, binding = 18) buffer VisiblePointCloudInstanceBuffer {
     uint instance_indices[MAX_POINT_CLOUD_INSTANCES];
 } visible_point_cloud_instances;
 
+layout (set = 0, binding = 19) buffer PointCloudAttributesBuffer {
+    PointCloudAttributes point_cloud_attributes[MAX_POINT_CLOUD_ATTRIBUTES];
+};
 
 
 

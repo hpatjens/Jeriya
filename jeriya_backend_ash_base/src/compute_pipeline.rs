@@ -77,6 +77,7 @@ impl GenericComputePipeline {
                 .push_storage_buffer::<shader_interface::PointCloud>(16, 1)
                 .push_storage_buffer::<shader_interface::PointCloudInstance>(17, 1)
                 .push_storage_buffer::<u32>(18, 1)
+                .push_storage_buffer::<shader_interface::PointCloudAttributes>(19, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];
