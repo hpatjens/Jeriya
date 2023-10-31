@@ -6,7 +6,7 @@ use crate::{
     elements::{self, point_cloud::PointCloud, rigid_mesh::RigidMesh},
     gpu_index_allocator::AllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
-    instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
+    instances::{camera_instance::CameraInstance, point_cloud_instance::PointCloudInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes, ResourceReceiver},
     transactions::TransactionProcessor,
 };
@@ -23,6 +23,7 @@ pub trait Backend:
     + AllocateGpuIndex<RigidMesh>
     + AllocateGpuIndex<PointCloud>
     + AllocateGpuIndex<RigidMeshInstance>
+    + AllocateGpuIndex<PointCloudInstance>
     + 'static
 {
     type BackendConfig: Default;

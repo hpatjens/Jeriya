@@ -24,7 +24,7 @@ use jeriya_backend::{
     elements::{self, point_cloud::PointCloud, rigid_mesh::RigidMesh},
     gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
     immediate::{self, ImmediateRenderingFrame},
-    instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
+    instances::{camera_instance::CameraInstance, point_cloud_instance::PointCloudInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{
         mesh_attributes::{MeshAttributes, MeshAttributesGpuState},
         mesh_attributes_group::MeshAttributesEvent,
@@ -147,6 +147,22 @@ impl AllocateGpuIndex<RigidMeshInstance> for AshBackend {
     fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<RigidMeshInstance>) {
         self.backend_shared
             .rigid_mesh_instance_gpu_index_allocator
+            .lock()
+            .free_gpu_index(gpu_index_allocation);
+    }
+}
+
+impl AllocateGpuIndex<PointCloudInstance> for AshBackend {
+    fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<PointCloudInstance>> {
+        self.backend_shared
+            .point_cloud_instance_gpu_index_allocator
+            .lock()
+            .allocate_gpu_index()
+    }
+
+    fn free_gpu_index(&self, gpu_index_allocation: GpuIndexAllocation<PointCloudInstance>) {
+        self.backend_shared
+            .point_cloud_instance_gpu_index_allocator
             .lock()
             .free_gpu_index(gpu_index_allocation);
     }
