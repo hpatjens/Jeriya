@@ -130,7 +130,7 @@ impl GraphicsPipelines {
             &GenericGraphicsPipelineConfig {
                 vertex_shader_spirv: Some(spirv!("point_cloud.vert.spv")),
                 fragment_shader_spirv: Some(spirv!("point_cloud.frag.spv")),
-                primitive_topology: PrimitiveTopology::PointList,
+                primitive_topology: PrimitiveTopology::TriangleList,
                 debug_info: debug_info!(format!("Point-Cloud-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             },

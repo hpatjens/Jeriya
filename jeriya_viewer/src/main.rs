@@ -15,12 +15,14 @@ use jeriya_backend::{
         camera::{Camera, CameraProjection},
         element_group::ElementGroup,
         helper::{rigid_mesh_collection::RigidMeshCollection, rigid_mesh_instance_collection::RigidMeshInstanceCollection},
+        point_cloud,
         rigid_mesh::{MeshRepresentation, RigidMesh},
     },
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     instances::{
         camera_instance::{CameraInstance, CameraTransform},
         instance_group::InstanceGroup,
+        point_cloud_instance::PointCloudInstance,
         rigid_mesh_instance::RigidMeshInstance,
     },
     resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes, resource_group::ResourceGroup},
@@ -402,14 +404,41 @@ fn main() -> ey::Result<()> {
                     .expect("Failed to deserialize PointCloud");
 
                 let mut resource_group = resource_group2.lock();
+                let mut element_group = element_group2.lock();
+                let mut instance_group = instance_group2.lock();
 
+                // Create PointCloudAttributes
                 let point_cloud_attributes_builder = PointCloudAttributes::builder()
                     .with_point_positions(point_cloud.point_positions().iter().cloned().collect())
-                    .with_debug_info(debug_info!("my_point_cloud"));
-                let _point_cloud_attributes = resource_group
+                    .with_debug_info(debug_info!("my_point_cloud_attributes"));
+                let point_cloud_attributes = resource_group
                     .point_cloud_attributes()
                     .insert_with(point_cloud_attributes_builder)
                     .expect("Failed to insert PointCloudAttributes");
+
+                let mut transaction = Transaction::record(&renderer2);
+
+                // Create PointCloud
+                let point_cloud_builder = point_cloud::PointCloud::builder()
+                    .with_point_cloud_attributes(point_cloud_attributes)
+                    .with_debug_info(debug_info!("my_point_cloud"));
+                let point_cloud = element_group
+                    .point_clouds()
+                    .mutate_via(&mut transaction)
+                    .insert_with(point_cloud_builder)
+                    .expect("Failed to insert PointCloud");
+
+                // Create PointCloudInstance
+                let point_cloud_instance_builder = PointCloudInstance::builder()
+                    .with_point_cloud(element_group.point_clouds().get(&point_cloud).unwrap())
+                    .with_debug_info(debug_info!("my_point_cloud_instance"));
+                let _point_cloud_instance = instance_group
+                    .point_cloud_instances()
+                    .mutate_via(&mut transaction)
+                    .insert_with(point_cloud_instance_builder)
+                    .expect("Failed to insert PointCloudInstance");
+
+                transaction.finish();
             }
         }
     });
