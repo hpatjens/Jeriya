@@ -33,6 +33,11 @@ impl GraphicsPipelineInterface for SimpleGraphicsPipelineInterface {
     type PushConstants = u32;
 }
 
+pub struct PointCloudGraphicsPipelineInterface;
+impl GraphicsPipelineInterface for PointCloudGraphicsPipelineInterface {
+    type PushConstants = u32;
+}
+
 #[repr(C)]
 #[derive(Debug, Default, PartialEq)]
 pub struct PushConstants {
@@ -55,6 +60,7 @@ pub struct GraphicsPipelines {
     pub cull_rigid_mesh_meshlets_compute_pipeline: GenericComputePipeline,
     pub indirect_simple_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
     pub indirect_meshlet_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
+    pub point_cloud_graphics_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
 }
 
 impl GraphicsPipelines {
@@ -117,6 +123,21 @@ impl GraphicsPipelines {
         let immediate_graphics_pipeline_triangle_list = create_immediate_graphics_pipeline(PrimitiveTopology::TriangleList)?;
         let immediate_graphics_pipeline_triangle_strip = create_immediate_graphics_pipeline(PrimitiveTopology::TriangleStrip)?;
 
+        info!("Create Point Cloud Graphics Pipeline");
+        let point_cloud_graphics_pipeline = GenericGraphicsPipeline::new(
+            device,
+            &GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("point_cloud.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("point_cloud.frag.spv")),
+                primitive_topology: PrimitiveTopology::PointList,
+                debug_info: debug_info!(format!("Point-Cloud-GraphicsPipeline-for-Window{:?}", window_id)),
+                ..Default::default()
+            },
+            swapchain_render_pass,
+            swapchain,
+            &specialization_constants,
+        )?;
+
         info!("Create Cull Rigid Mesh Instances Compute Pipeline");
         let cull_rigid_mesh_instances_compute_pipeline = GenericComputePipeline::new(
             device,
@@ -171,6 +192,7 @@ impl GraphicsPipelines {
             cull_rigid_mesh_meshlets_compute_pipeline,
             indirect_simple_graphics_pipeline,
             indirect_meshlet_graphics_pipeline,
+            point_cloud_graphics_pipeline,
         })
     }
 }
