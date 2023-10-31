@@ -158,6 +158,14 @@ layout (set = 0, binding = 15) buffer PointCloudAttributesActiveBuffer {
     bool point_cloud_attributes_active[MAX_POINT_CLOUD_ATTRIBUTES];
 };
 
+layout (set = 0, binding = 16) buffer PointCloudBuffer {
+    PointCloud point_cloud[MAX_POINT_CLOUDS];
+};
+
+layout (set = 0, binding = 17) buffer PointCloudInstanceBuffer {
+    PointCloudInstance point_cloud_instances[MAX_POINT_CLOUD_INSTANCES];
+};
+
 
 
 
