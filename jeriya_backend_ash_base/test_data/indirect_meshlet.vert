@@ -161,7 +161,7 @@ layout (set = 0, binding = 15) buffer PointCloudAttributesActiveBuffer {
 };
 
 layout (set = 0, binding = 16) buffer PointCloudBuffer {
-    PointCloud point_cloud[MAX_POINT_CLOUDS];
+    PointCloud point_clouds[MAX_POINT_CLOUDS];
 };
 
 layout (set = 0, binding = 17) buffer PointCloudInstanceBuffer {
@@ -176,6 +176,10 @@ layout (set = 0, binding = 18) buffer VisiblePointCloudInstanceBuffer {
 
 layout (set = 0, binding = 19) buffer PointCloudAttributesBuffer {
     PointCloudAttributes point_cloud_attributes[MAX_POINT_CLOUD_ATTRIBUTES];
+};
+
+layout (set = 0, binding = 20) buffer StaticPointPositionBuffer {
+    vec4 point_positions[];
 };
 
 

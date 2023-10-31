@@ -1,6 +1,7 @@
 #version 450
 
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_ARB_shader_draw_parameters : enable
 
 layout (constant_id = 0) const uint MAX_CAMERAS = 16;
 layout (constant_id = 1) const uint MAX_CAMERA_INSTANCES = 64;
@@ -160,7 +161,7 @@ layout (set = 0, binding = 15) buffer PointCloudAttributesActiveBuffer {
 };
 
 layout (set = 0, binding = 16) buffer PointCloudBuffer {
-    PointCloud point_cloud[MAX_POINT_CLOUDS];
+    PointCloud point_clouds[MAX_POINT_CLOUDS];
 };
 
 layout (set = 0, binding = 17) buffer PointCloudInstanceBuffer {
@@ -177,6 +178,10 @@ layout (set = 0, binding = 19) buffer PointCloudAttributesBuffer {
     PointCloudAttributes point_cloud_attributes[MAX_POINT_CLOUD_ATTRIBUTES];
 };
 
+layout (set = 0, binding = 20) buffer StaticPointPositionBuffer {
+    vec4 point_positions[];
+};
+
 
 
 
@@ -188,6 +193,44 @@ layout (push_constant) uniform PushConstants {
 } push_constants;
 
 void main() {
-    gl_PointSize = 1.0;
-    gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+    uint point_cloud_instance_index = visible_point_cloud_instances.instance_indices[gl_DrawIDARB];
+
+    PointCloudInstance point_cloud_instance = point_cloud_instances[point_cloud_instance_index];
+    PointCloud point_cloud = point_clouds[uint(point_cloud_instance.point_cloud_index)];
+    PointCloudAttributes point_cloud_attributes = point_cloud_attributes[point_cloud.point_cloud_attributes_index];
+    // It's assumed that the point cloud attributes are active if the point cloud is considered visible
+
+    mat4 view_projection_matrix;
+    if (per_frame_data.active_camera_instance >= 0) {
+        CameraInstance camera_instance = camera_instances[per_frame_data.active_camera_instance];
+        Camera camera = cameras[uint(camera_instance.camera_index)];
+        view_projection_matrix = camera.projection_matrix * camera_instance.view_matrix;
+    } else {
+        view_projection_matrix = mat4(1.0);
+    }
+
+    mat4 model_matrix = point_cloud_instance.transform;
+    mat4 matrix = view_projection_matrix * model_matrix;
+
+    uint point_index = gl_VertexIndex / 3;
+    uint global_point_index = point_cloud_attributes.point_positions_start_offset + point_index;
+    vec3 point_position = point_positions[global_point_index].xyz;
+
+    float triangle_size = 0.01;
+
+    vec3 offset;
+    switch (gl_VertexIndex % 3) {
+        case 0: 
+            offset = vec3(0.0, 0.0, 0.0);
+            break;
+        case 1: 
+            offset = vec3(triangle_size, 0.0, 0.0);
+            break;
+        case 2:
+            offset = vec3(0.0, triangle_size, 0.0);
+            break;
+    }
+
+    gl_Position = matrix * vec4(point_position + offset, 1.0);
+
 }

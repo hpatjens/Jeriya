@@ -199,6 +199,7 @@ where
                 .push_storage_buffer::<shader_interface::PointCloudInstance>(17, 1)
                 .push_storage_buffer::<u32>(18, 1)
                 .push_storage_buffer::<shader_interface::PointCloudAttributes>(19, 1)
+                .push_storage_buffer::<Vector4<f32>>(20, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];

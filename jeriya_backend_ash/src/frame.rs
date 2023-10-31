@@ -462,19 +462,19 @@ impl Frame {
         builder.compute_to_indirect_command_pipeline_barrier();
         drop(cull_point_cloud_instances_span);
 
-        // {
-        //     let mut queues = backend_shared.queue_scheduler.queues();
-        //     let buffer = self
-        //         .visible_point_cloud_instances_buffer
-        //         .read_into_new_buffer_and_wait(queues.presentation_queue(*window_id), &command_pool)
-        //         .unwrap();
-        //     let count = buffer.get_memory_unaligned_index(0).unwrap();
-        //     let offset = 1 + backend_shared.renderer_config.maximum_number_of_point_cloud_instances * 4;
-        //     let list = (0..10)
-        //         .map(|i| buffer.get_memory_unaligned_index(offset + i).unwrap())
-        //         .collect::<Vec<_>>();
-        //     eprintln!("point_clouds: {count} -> {list:?}");
-        // }
+        {
+            let mut queues = backend_shared.queue_scheduler.queues();
+            let buffer = self
+                .visible_point_cloud_instances_buffer
+                .read_into_new_buffer_and_wait(queues.presentation_queue(*window_id), &command_pool)
+                .unwrap();
+            let count = buffer.get_memory_unaligned_index(0).unwrap();
+            let offset = 1;
+            let list = (0..10)
+                .map(|i| buffer.get_memory_unaligned_index(offset + i).unwrap())
+                .collect::<Vec<_>>();
+            eprintln!("point_clouds: {count} -> {list:?}");
+        }
 
         // Render Pass
         builder.begin_render_pass(
@@ -777,6 +777,7 @@ impl Frame {
             .push_storage_buffer(17, &self.point_cloud_instance_buffer)
             .push_storage_buffer(18, &self.visible_point_cloud_instances_buffer)
             .push_storage_buffer(19, &*backend_shared.point_cloud_attributes_buffer.lock())
+            .push_storage_buffer(20, &*backend_shared.static_point_positions_buffer.lock())
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())
