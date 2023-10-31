@@ -462,6 +462,20 @@ impl Frame {
         builder.compute_to_indirect_command_pipeline_barrier();
         drop(cull_point_cloud_instances_span);
 
+        // {
+        //     let mut queues = backend_shared.queue_scheduler.queues();
+        //     let buffer = self
+        //         .visible_point_cloud_instances_buffer
+        //         .read_into_new_buffer_and_wait(queues.presentation_queue(*window_id), &command_pool)
+        //         .unwrap();
+        //     let count = buffer.get_memory_unaligned_index(0).unwrap();
+        //     let offset = 1 + backend_shared.renderer_config.maximum_number_of_point_cloud_instances * 4;
+        //     let list = (0..10)
+        //         .map(|i| buffer.get_memory_unaligned_index(offset + i).unwrap())
+        //         .collect::<Vec<_>>();
+        //     eprintln!("point_clouds: {count} -> {list:?}");
+        // }
+
         // Render Pass
         builder.begin_render_pass(
             presenter_shared.swapchain(),
@@ -523,7 +537,13 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
-
+        builder.draw_indirect_count(
+            &self.visible_point_cloud_instances_buffer,
+            mem::size_of::<u32>() as u64,
+            &self.visible_point_cloud_instances_buffer,
+            0,
+            self.point_cloud_instance_buffer.high_water_mark(),
+        );
         drop(point_cloud_span);
 
         // Render with SimpleGraphicsPipeline
