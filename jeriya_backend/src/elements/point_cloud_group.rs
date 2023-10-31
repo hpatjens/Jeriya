@@ -1,9 +1,9 @@
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
 use jeriya_shared::{DebugInfo, Handle, IndexingContainer};
 
 use crate::{
-    gpu_index_allocator::AllocateGpuIndex,
+    gpu_index_allocator::{AllocateGpuIndex, ProvideAllocateGpuIndex},
     transactions::{self, PushEvent},
 };
 
@@ -17,9 +17,9 @@ pub struct PointCloudGroup {
 
 impl PointCloudGroup {
     /// Creates a new [`PointCloudGroup`]
-    pub(crate) fn new(gpu_index_allocator: &Weak<dyn AllocateGpuIndex<PointCloud>>, debug_info: DebugInfo) -> Self {
+    pub(crate) fn new(gpu_index_allocator: &Arc<impl ProvideAllocateGpuIndex<PointCloud>>, debug_info: DebugInfo) -> Self {
         Self {
-            gpu_index_allocator: gpu_index_allocator.clone(),
+            gpu_index_allocator: gpu_index_allocator.provide_gpu_index_allocator(),
             debug_info,
             indexing_container: IndexingContainer::new(),
         }

@@ -1,7 +1,7 @@
 use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, RendererConfig, WindowConfig};
 
 use jeriya_backend::{
-    elements::{self, rigid_mesh::RigidMesh},
+    elements::{self, point_cloud::PointCloud, rigid_mesh::RigidMesh},
     gpu_index_allocator::ProvideAllocateGpuIndex,
     immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
     instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
@@ -135,6 +135,13 @@ impl<B: Backend> ProvideAllocateGpuIndex<RigidMesh> for Renderer<B> {
     }
 }
 
+impl<B: Backend> ProvideAllocateGpuIndex<PointCloud> for Renderer<B> {
+    type AllocateGpuIndex = B;
+    fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
+        Arc::downgrade(self.backend())
+    }
+}
+
 impl<B: Backend> ProvideAllocateGpuIndex<RigidMeshInstance> for Renderer<B> {
     type AllocateGpuIndex = B;
     fn provide_gpu_index_allocator(&self) -> Weak<Self::AllocateGpuIndex> {
@@ -251,7 +258,7 @@ fn run_deadlock_detection() {
 #[cfg(test)]
 mod tests {
     use jeriya_backend::{
-        elements::{self, rigid_mesh::RigidMesh},
+        elements::{self, point_cloud::PointCloud, rigid_mesh::RigidMesh},
         gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
         immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
         instances::{camera_instance::CameraInstance, rigid_mesh_instance::RigidMeshInstance},
@@ -325,6 +332,12 @@ mod tests {
             None
         }
         fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<RigidMesh>) {}
+    }
+    impl AllocateGpuIndex<PointCloud> for DummyBackend {
+        fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<PointCloud>> {
+            None
+        }
+        fn free_gpu_index(&self, _gpu_index_allocation: GpuIndexAllocation<PointCloud>) {}
     }
     impl AllocateGpuIndex<RigidMeshInstance> for DummyBackend {
         fn allocate_gpu_index(&self) -> Option<GpuIndexAllocation<RigidMeshInstance>> {
