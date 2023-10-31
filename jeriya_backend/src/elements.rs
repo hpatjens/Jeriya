@@ -10,6 +10,7 @@ pub mod camera;
 pub mod camera_group;
 pub mod element_group;
 pub mod helper;
+pub mod point_cloud;
 pub mod rigid_mesh;
 pub mod rigid_mesh_group;
 
