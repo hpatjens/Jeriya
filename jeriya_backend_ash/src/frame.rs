@@ -3,7 +3,7 @@ use std::{mem, sync::Arc};
 
 use base::frame_local_buffer::FrameLocalBuffer;
 use jeriya_backend::elements::{camera, point_cloud};
-use jeriya_backend::instances::camera_instance;
+use jeriya_backend::instances::{camera_instance, point_cloud_instance};
 use jeriya_backend::{
     elements::rigid_mesh,
     instances::rigid_mesh_instance,
@@ -487,12 +487,15 @@ impl Frame {
             for event in transaction.process() {
                 match event {
                     Event::RigidMesh(rigid_mesh) => self.process_rigid_mesh_event(rigid_mesh)?,
-                    Event::PointCloud(point_cloud) => self.process_point_cloud_event(point_cloud)?,
-                    Event::Camera(camera_event) => self.process_camera_event(camera_event)?,
-                    Event::CameraInstance(camera_instance_event) => self.process_camera_instance_event(camera_instance_event)?,
                     Event::RigidMeshInstance(rigid_mesh_instance_event) => {
                         self.process_rigid_mesh_instance_event(rigid_mesh_instance_event)?
                     }
+                    Event::PointCloud(point_cloud) => self.process_point_cloud_event(point_cloud)?,
+                    Event::PointCloudInstance(point_cloud_instance_event) => {
+                        self.process_point_cloud_instance_event(point_cloud_instance_event)?
+                    }
+                    Event::Camera(camera_event) => self.process_camera_event(camera_event)?,
+                    Event::CameraInstance(camera_instance_event) => self.process_camera_instance_event(camera_instance_event)?,
                     Event::SetMeshAttributeActive {
                         gpu_index_allocation,
                         is_active,
@@ -554,6 +557,16 @@ impl Frame {
                     },
                 )?;
             }
+        }
+        Ok(())
+    }
+
+    /// Processes a [`point_cloud_instance::Event`].
+    fn process_point_cloud_instance_event(&mut self, event: point_cloud_instance::Event) -> base::Result<()> {
+        use point_cloud_instance::Event;
+        match event {
+            Event::Noop => {}
+            Event::Insert(point_cloud_instance) => {}
         }
         Ok(())
     }
