@@ -243,7 +243,7 @@ pub struct SimpleMesh {
     pub material_index: Option<usize>,
     pub vertex_positions: Vec<Vector3<f32>>,
     pub vertex_normals: Vec<Vector3<f32>>,
-    pub vertex_texture_coordinates: Vec<Vector2<f32>>,
+    pub vertex_texture_coordinates: Option<Vec<Vector2<f32>>>,
     pub indices: Vec<u32>,
 }
 
@@ -371,7 +371,11 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<Simpl
         material_index,
         vertex_positions,
         vertex_normals,
-        vertex_texture_coordinates,
+        vertex_texture_coordinates: if vertex_texture_coordinates.is_empty() {
+            None
+        } else {
+            Some(vertex_texture_coordinates)
+        },
         indices,
     })
 }
