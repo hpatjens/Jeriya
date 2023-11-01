@@ -218,18 +218,12 @@ void main() {
 
     float triangle_size = 0.01;
 
-    vec3 offset;
-    switch (gl_VertexIndex % 3) {
-        case 0: 
-            offset = vec3(0.0, 0.0, 0.0);
-            break;
-        case 1: 
-            offset = vec3(triangle_size, 0.0, 0.0);
-            break;
-        case 2:
-            offset = vec3(0.0, triangle_size, 0.0);
-            break;
-    }
+    vec3 offsets[] = {
+        vec3(0.0, 0.0, 0.0),
+        vec3(triangle_size, 0.0, 0.0),
+        vec3(0.0, triangle_size, 0.0),
+    };
+    vec3 offset = offsets[gl_VertexIndex % 3];
 
     gl_Position = matrix * vec4(point_position + offset, 1.0);
 
