@@ -12,7 +12,7 @@ use gltf::{
 use jeriya_shared::{
     log::{info, trace},
     nalgebra::Vector3,
-    thiserror,
+    thiserror, ByteColor4,
 };
 use serde::{Deserialize, Serialize};
 
@@ -41,18 +41,60 @@ pub enum ObjWriteConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Texture {
+    data: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Material {
+    pub name: String,
+    pub base_color_texture_index: Option<usize>,
+    pub base_color_color: ByteColor4,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Model {
     pub name: String,
     pub meshes: Vec<Mesh>,
+    pub textures: Vec<Texture>,
+    pub materials: Vec<Material>,
 }
 
 impl Model {
     /// Import model from a glTF file.
     pub fn import(path: impl AsRef<Path>) -> crate::Result<Model> {
-        let (document, buffers, _images) = gltf::import(&path).map_err(|err| Error::FailedLoading {
+        let (document, buffers, images) = gltf::import(&path).map_err(|err| Error::FailedLoading {
             path: path.as_ref().to_owned(),
             error_message: err.to_string(),
         })?;
+
+        let textures = images
+            .iter()
+            .map(|image| {
+                let data = image.pixels.to_owned();
+                let width = image.width;
+                let height = image.height;
+                Texture { data, width, height }
+            })
+            .collect::<Vec<_>>();
+
+        let materials = document
+            .materials()
+            .map(|material| {
+                let base_color_color = ByteColor4::from(material.pbr_metallic_roughness().base_color_factor());
+                let base_color_texture_index = material
+                    .pbr_metallic_roughness()
+                    .base_color_texture()
+                    .map(|texture| texture.texture().index());
+                Material {
+                    name: material.name().unwrap_or("unknown").to_owned(),
+                    base_color_texture_index,
+                    base_color_color,
+                }
+            })
+            .collect::<Vec<_>>();
 
         let model_name = path.as_ref().to_str().unwrap_or("unknown");
         let meshes = document
@@ -63,6 +105,8 @@ impl Model {
         Ok(Model {
             name: model_name.to_owned(),
             meshes,
+            textures,
+            materials,
         })
     }
 

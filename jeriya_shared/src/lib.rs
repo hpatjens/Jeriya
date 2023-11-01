@@ -88,6 +88,11 @@ impl ByteColor3 {
         Self { r, g, b }
     }
 
+    /// Creates a new `Color3` with the given red, green and blue components as floats in the range [0.0, 1.0].
+    pub fn from_floats(r: f32, g: f32, b: f32) -> Self {
+        Self::new((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8)
+    }
+
     /// Returns the `Color3` as a `Vector3<f32>`.
     pub fn as_vector3(&self) -> Vector3<f32> {
         Vector3::new(self.r as f32 / 255.0, self.g as f32 / 255.0, self.b as f32 / 255.0)
@@ -96,6 +101,12 @@ impl ByteColor3 {
     /// Returns the `Color3` as a `Vector4<f32>` with alpha set to 1.0.
     pub fn as_vector4(&self) -> Vector4<f32> {
         Vector4::new(self.r as f32 / 255.0, self.g as f32 / 255.0, self.b as f32 / 255.0, 1.0)
+    }
+}
+
+impl From<[f32; 3]> for ByteColor3 {
+    fn from([r, g, b]: [f32; 3]) -> Self {
+        Self::from_floats(r, g, b)
     }
 }
 
@@ -115,6 +126,11 @@ impl ByteColor4 {
         Self { r, g, b, a }
     }
 
+    /// Creates a new `Color4` with the given red, green, blue and alpha components as floats in the range [0.0, 1.0].
+    pub fn from_floats(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self::new((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8, (a * 255.0) as u8)
+    }
+
     /// Returns the `Color4` as a `Vector3<f32>`.
     pub fn as_vector3(&self) -> Vector3<f32> {
         Vector3::new(self.r as f32 / 255.0, self.g as f32 / 255.0, self.b as f32 / 255.0)
@@ -128,6 +144,12 @@ impl ByteColor4 {
             self.b as f32 / 255.0,
             self.a as f32 / 255.0,
         )
+    }
+}
+
+impl From<[f32; 4]> for ByteColor4 {
+    fn from([r, g, b, a]: [f32; 4]) -> Self {
+        Self::from_floats(r, g, b, a)
     }
 }
 
