@@ -14,7 +14,7 @@ use jeriya_shared::{
     byte_unit::Byte,
     log::{info, trace},
     nalgebra::{Vector2, Vector3},
-    thiserror, ByteColor4,
+    thiserror, ByteColor3, ByteColor4,
 };
 use serde::{Deserialize, Serialize};
 
@@ -42,16 +42,34 @@ pub enum ObjWriteConfig {
     FromMeshlets,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum TextureFormat {
+    R8G8B8A8,
+    R8G8B8,
+}
+
+impl From<gltf::image::Format> for TextureFormat {
+    fn from(value: gltf::image::Format) -> Self {
+        use gltf::image::Format;
+        match value {
+            Format::R8G8B8A8 => TextureFormat::R8G8B8A8,
+            Format::R8G8B8 => TextureFormat::R8G8B8,
+            _ => panic!("Unsupported texture format: {:?}", value),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Texture {
-    data: Vec<ByteColor4>,
+    data: Vec<u8>,
+    format: TextureFormat,
     width: u32,
     height: u32,
 }
 
 impl Texture {
-    /// Pixel data in RGBA format.
-    pub fn data(&self) -> &[ByteColor4] {
+    /// Pixel data in the format specified by `format`.
+    pub fn data(&self) -> &[u8] {
         &self.data
     }
 
@@ -66,11 +84,38 @@ impl Texture {
     }
 
     /// Returns the color of the pixel at the given UV coordinates.
-    pub fn sample(&self, uv: Vector2<f32>) -> ByteColor4 {
+    pub fn sample_rgba(&self, uv: Vector2<f32>) -> ByteColor4 {
+        assert_eq!(self.format, TextureFormat::R8G8B8A8);
+        let uv = Vector2::new(uv.x.fract(), uv.y.fract());
         let x = (uv.x * self.width as f32) as usize;
         let y = (uv.y * self.height as f32) as usize;
         let index = (y * self.width as usize + x) * 4;
-        self.data[index]
+        let r = self.data[index];
+        let g = self.data[index + 1];
+        let b = self.data[index + 2];
+        let a = self.data[index + 3];
+        ByteColor4::new(r, g, b, a)
+    }
+
+    /// Returns the color of the pixel at the given UV coordinates.
+    pub fn sample_rgb(&self, uv: Vector2<f32>) -> ByteColor3 {
+        assert_eq!(self.format, TextureFormat::R8G8B8);
+        let uv = Vector2::new(uv.x.fract(), uv.y.fract());
+        let x = (uv.x * self.width as f32) as usize;
+        let y = (uv.y * self.height as f32) as usize;
+        let index = (y * self.width as usize + x) * 3;
+        let r = self.data[index];
+        let g = self.data[index + 1];
+        let b = self.data[index + 2];
+        ByteColor3::new(r, g, b)
+    }
+
+    /// Returns the color of the pixel at the given UV coordinates.
+    pub fn sample(&self, uv: Vector2<f32>) -> ByteColor4 {
+        match self.format {
+            TextureFormat::R8G8B8A8 => self.sample_rgba(uv),
+            TextureFormat::R8G8B8 => self.sample_rgb(uv).as_byte_color4(),
+        }
     }
 }
 
@@ -100,14 +145,15 @@ impl Model {
         let textures = images
             .iter()
             .map(|image| {
-                let data = image
-                    .pixels
-                    .chunks(4)
-                    .map(|chunk| ByteColor4::new(chunk[0], chunk[1], chunk[2], chunk[3]))
-                    .collect::<Vec<_>>();
+                let data = image.pixels.clone();
                 let width = image.width;
                 let height = image.height;
-                Texture { data, width, height }
+                Texture {
+                    data,
+                    format: image.format.into(),
+                    width,
+                    height,
+                }
             })
             .collect::<Vec<_>>();
 

@@ -84,7 +84,7 @@ pub struct ByteColor3 {
 
 impl ByteColor3 {
     /// Creates a new `Color3` with the given red, green and blue components.
-    pub fn new(r: u8, g: u8, b: u8) -> Self {
+    pub const fn new(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }
     }
 
@@ -101,6 +101,11 @@ impl ByteColor3 {
     /// Returns the `Color3` as a `Vector4<f32>` with alpha set to 1.0.
     pub fn as_vector4(&self) -> Vector4<f32> {
         Vector4::new(self.r as f32 / 255.0, self.g as f32 / 255.0, self.b as f32 / 255.0, 1.0)
+    }
+
+    /// Returns the `Color3` as a `Color4` with alpha set to 1.0.
+    pub fn as_byte_color4(&self) -> ByteColor4 {
+        ByteColor4::new(self.r, self.g, self.b, 255)
     }
 }
 
@@ -144,6 +149,11 @@ impl ByteColor4 {
             self.b as f32 / 255.0,
             self.a as f32 / 255.0,
         )
+    }
+
+    /// Returns the `Color4` as a `Color3` without the alpha component.
+    pub fn as_byte_color3(&self) -> ByteColor3 {
+        ByteColor3::new(self.r, self.g, self.b)
     }
 }
 

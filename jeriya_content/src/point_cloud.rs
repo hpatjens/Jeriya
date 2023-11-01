@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use jeriya_shared::{float_cmp::approx_eq, log::info, nalgebra::Vector3, rand, random_direction, ByteColor3};
+use jeriya_shared::{byte_unit::Byte, float_cmp::approx_eq, log::info, nalgebra::Vector3, rand, random_direction, ByteColor3};
 use serde::{Deserialize, Serialize};
 
 use crate::model::Model;
@@ -67,18 +67,48 @@ impl PointCloud {
             let ab = b - a;
             let ac = c - a;
 
-            // Sample point in parallelogram
-            let u = rand::random::<f32>();
-            let v = rand::random::<f32>();
-            let in_triangle = u + v <= 1.0;
-            let point = if in_triangle {
-                a + u * ab + v * ac
+            // Sample in parallelogram
+            let alpha = rand::random::<f32>();
+            let beta = rand::random::<f32>();
+            let in_triangle = alpha + beta <= 1.0;
+
+            // Compute the point position
+            let point_position = if in_triangle {
+                a + alpha * ab + beta * ac
             } else {
-                a + (1.0 - u) * ab + (1.0 - v) * ac
+                a + (1.0 - alpha) * ab + (1.0 - beta) * ac
+            };
+
+            // Sample the point color
+            const MISSING_COLOR: ByteColor3 = ByteColor3::new(255, 0, 0);
+            let point_color = if let Some(vertex_texture_coordinates) = &mesh.simple_mesh.vertex_texture_coordinates {
+                let uv_a = vertex_texture_coordinates[triangle[0] as usize];
+                let uv_b = vertex_texture_coordinates[triangle[1] as usize];
+                let uv_c = vertex_texture_coordinates[triangle[2] as usize];
+                let uv_ab = uv_b - uv_a;
+                let uv_ac = uv_c - uv_a;
+                let uv = if in_triangle {
+                    uv_a + alpha * uv_ab + beta * uv_ac
+                } else {
+                    uv_a + (1.0 - alpha) * uv_ab + (1.0 - beta) * uv_ac
+                };
+                if let Some(material_index) = mesh.simple_mesh.material_index {
+                    let material = &model.materials[material_index];
+                    if let Some(base_color_texture_index) = &material.base_color_texture_index {
+                        let base_color_texture = &model.textures[*base_color_texture_index];
+                        base_color_texture.sample(uv).as_byte_color3()
+                    } else {
+                        material.base_color_color.as_byte_color3()
+                    }
+                } else {
+                    MISSING_COLOR
+                }
+            } else {
+                MISSING_COLOR
             };
 
             // Push the point to the point cloud
-            point_cloud.push(point, ByteColor3::new(255, 0, 0));
+            point_cloud.push(point_position, point_color);
         }
 
         point_cloud
