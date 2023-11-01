@@ -243,6 +243,7 @@ pub struct SimpleMesh {
     pub material_index: Option<usize>,
     pub vertex_positions: Vec<Vector3<f32>>,
     pub vertex_normals: Vec<Vector3<f32>>,
+    pub vertex_texture_coordinates: Vec<Vector2<f32>>,
     pub indices: Vec<u32>,
 }
 
@@ -273,8 +274,10 @@ pub fn process_model(asset_builder: &mut AssetBuilder) -> crate::Result<()> {
 fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<SimpleMesh> {
     let mut used_vertex_positions = BTreeMap::new();
     let mut used_vertex_normals = BTreeMap::new();
+    let mut used_vertex_texture_coordinates = BTreeMap::new();
     let mut old_indices = Vec::new();
 
+    // Currently materials are only supported when all primitives use the same material
     let material_indices = mesh.primitives().map(|primitive| primitive.material().index()).collect::<Vec<_>>();
     let is_uniform_material = material_indices
         .first()
@@ -288,6 +291,9 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<Simpl
         let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
         let temp_vertex_positions = reader.read_positions().ok_or(Error::NoVertexPositions)?.collect::<Vec<_>>();
         let temp_vertex_normals = reader.read_normals().ok_or(Error::NoVertexNormals)?.collect::<Vec<_>>();
+        let temp_vertex_texture_coordinates = reader
+            .read_tex_coords(0)
+            .map(|iter| iter.into_f32().map(|uv| Vector2::new(uv[0], uv[1])).collect::<Vec<_>>());
         if let Some(indices) = reader.read_indices() {
             match &indices {
                 ReadIndices::U8(iter) => {
@@ -299,6 +305,11 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<Simpl
                         used_vertex_normals
                             .entry(index as u32)
                             .or_insert(temp_vertex_normals[index as usize]);
+                        if let Some(texture_coordinates) = &temp_vertex_texture_coordinates {
+                            used_vertex_texture_coordinates
+                                .entry(index as u32)
+                                .or_insert(texture_coordinates[index as usize]);
+                        }
                     }
                 }
                 ReadIndices::U16(iter) => {
@@ -310,6 +321,11 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<Simpl
                         used_vertex_normals
                             .entry(index as u32)
                             .or_insert(temp_vertex_normals[index as usize]);
+                        if let Some(texture_coordinates) = &temp_vertex_texture_coordinates {
+                            used_vertex_texture_coordinates
+                                .entry(index as u32)
+                                .or_insert(texture_coordinates[index as usize]);
+                        }
                     }
                 }
                 ReadIndices::U32(iter) => {
@@ -317,6 +333,11 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<Simpl
                         old_indices.push(index);
                         used_vertex_positions.entry(index).or_insert(temp_vertex_positions[index as usize]);
                         used_vertex_normals.entry(index).or_insert(temp_vertex_normals[index as usize]);
+                        if let Some(texture_coordinates) = &temp_vertex_texture_coordinates {
+                            used_vertex_texture_coordinates
+                                .entry(index as u32)
+                                .or_insert(texture_coordinates[index as usize]);
+                        }
                     }
                 }
             }
@@ -335,6 +356,11 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<Simpl
         vertex_normals.push(Vector3::new(vertex[0], vertex[1], vertex[2]));
     }
 
+    let mut vertex_texture_coordinates = Vec::new();
+    for (_, uv) in used_vertex_texture_coordinates.into_iter() {
+        vertex_texture_coordinates.push(Vector2::new(uv[0], uv[1]));
+    }
+
     let indices = old_indices
         .into_iter()
         .map(|old_index| index_mapping[&old_index])
@@ -345,6 +371,7 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<Simpl
         material_index,
         vertex_positions,
         vertex_normals,
+        vertex_texture_coordinates,
         indices,
     })
 }
