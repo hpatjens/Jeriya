@@ -200,17 +200,18 @@ void main() {
     PointCloudAttributes point_cloud_attributes = point_cloud_attributes[point_cloud.point_cloud_attributes_index];
     // It's assumed that the point cloud attributes are active if the point cloud is considered visible
 
-    mat4 view_projection_matrix;
+    mat4 model_matrix = point_cloud_instance.transform;
+    mat4 view_matrix;
+    mat4 projection_matrix;
     if (per_frame_data.active_camera_instance >= 0) {
         CameraInstance camera_instance = camera_instances[per_frame_data.active_camera_instance];
         Camera camera = cameras[uint(camera_instance.camera_index)];
-        view_projection_matrix = camera.projection_matrix * camera_instance.view_matrix;
+        view_matrix = camera_instance.view_matrix;
+        projection_matrix = camera.projection_matrix;
     } else {
-        view_projection_matrix = mat4(1.0);
+        view_matrix = mat4(1.0);
+        projection_matrix = mat4(1.0);
     }
-
-    mat4 model_matrix = point_cloud_instance.transform;
-    mat4 matrix = view_projection_matrix * model_matrix;
 
     uint point_index = gl_VertexIndex / 3;
     uint global_point_index = point_cloud_attributes.point_positions_start_offset + point_index;
@@ -225,6 +226,7 @@ void main() {
     };
     vec3 offset = offsets[gl_VertexIndex % 3];
 
-    gl_Position = matrix * vec4(point_position + offset, 1.0);
+    vec4 view_position = view_matrix * model_matrix * vec4(point_position, 1.0);
+    gl_Position = projection_matrix * view_position + vec4(offset, 0.0);
 
 }
