@@ -1,6 +1,7 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     fs::File,
+    hash::Hash,
     io::Write,
     path::{Path, PathBuf},
 };
@@ -10,8 +11,9 @@ use gltf::{
     mesh::{util::ReadIndices, Mode},
 };
 use jeriya_shared::{
+    byte_unit::Byte,
     log::{info, trace},
-    nalgebra::Vector3,
+    nalgebra::{Vector2, Vector3},
     thiserror, ByteColor4,
 };
 use serde::{Deserialize, Serialize};
@@ -42,9 +44,34 @@ pub enum ObjWriteConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Texture {
-    data: Vec<u8>,
+    data: Vec<ByteColor4>,
     width: u32,
     height: u32,
+}
+
+impl Texture {
+    /// Pixel data in RGBA format.
+    pub fn data(&self) -> &[ByteColor4] {
+        &self.data
+    }
+
+    /// Width of the texture in pixels.
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    /// Height of the texture in pixels.
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    /// Returns the color of the pixel at the given UV coordinates.
+    pub fn sample(&self, uv: Vector2<f32>) -> ByteColor4 {
+        let x = (uv.x * self.width as f32) as usize;
+        let y = (uv.y * self.height as f32) as usize;
+        let index = (y * self.width as usize + x) * 4;
+        self.data[index]
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,7 +100,11 @@ impl Model {
         let textures = images
             .iter()
             .map(|image| {
-                let data = image.pixels.to_owned();
+                let data = image
+                    .pixels
+                    .chunks(4)
+                    .map(|chunk| ByteColor4::new(chunk[0], chunk[1], chunk[2], chunk[3]))
+                    .collect::<Vec<_>>();
                 let width = image.width;
                 let height = image.height;
                 Texture { data, width, height }
@@ -209,6 +240,7 @@ pub struct Mesh {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimpleMesh {
+    pub material_index: Option<usize>,
     pub vertex_positions: Vec<Vector3<f32>>,
     pub vertex_normals: Vec<Vector3<f32>>,
     pub indices: Vec<u32>,
@@ -242,6 +274,13 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<Simpl
     let mut used_vertex_positions = BTreeMap::new();
     let mut used_vertex_normals = BTreeMap::new();
     let mut old_indices = Vec::new();
+
+    let material_indices = mesh.primitives().map(|primitive| primitive.material().index()).collect::<Vec<_>>();
+    let is_uniform_material = material_indices
+        .first()
+        .map_or(true, |first| material_indices.iter().all(|id| id == first));
+    assert!(is_uniform_material, "Currently only uniform materials are supported");
+    let material_index = material_indices.first().cloned().expect("Expected at least one material");
 
     for primitive in mesh.primitives() {
         trace!("Primitive mode: {:?}", primitive.mode());
@@ -303,6 +342,7 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<Simpl
     let indices = meshopt::optimize::optimize_vertex_cache(&indices, vertex_positions.len());
 
     Ok(SimpleMesh {
+        material_index,
         vertex_positions,
         vertex_normals,
         indices,
