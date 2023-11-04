@@ -197,6 +197,8 @@ layout (push_constant) uniform PushConstants {
     mat4 matrix;
 } push_constants;
 
+layout (location = 0) out vec4 out_point_color;
+
 void main() {
     uint point_cloud_instance_index = visible_point_cloud_instances.instance_indices[gl_DrawIDARB];
 
@@ -219,8 +221,12 @@ void main() {
     }
 
     uint point_index = gl_VertexIndex / 3;
-    uint global_point_index = point_cloud_attributes.point_positions_start_offset + point_index;
-    vec3 point_position = point_positions[global_point_index].xyz;
+
+    uint global_point_position_index = point_cloud_attributes.point_positions_start_offset + point_index;
+    vec3 point_position = point_positions[global_point_position_index].xyz;
+
+    uint global_point_color_index = point_cloud_attributes.point_colors_start_offset + point_index;
+    vec4 point_color = point_colors[global_point_color_index];
 
     float triangle_size = 0.01;
 
@@ -232,6 +238,8 @@ void main() {
     vec3 offset = offsets[gl_VertexIndex % 3];
 
     vec4 view_position = view_matrix * model_matrix * vec4(point_position, 1.0);
+
+    out_point_color = point_color;
     gl_Position = projection_matrix * view_position + vec4(offset, 0.0);
 
 }
