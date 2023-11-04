@@ -183,6 +183,10 @@ layout (set = 0, binding = 20) buffer StaticPointPositionBuffer {
     vec4 point_positions[];
 };
 
+layout (set = 0, binding = 21) buffer StaticPointColorBuffer {
+    vec4 point_colors[];
+};
+
 
 
 
