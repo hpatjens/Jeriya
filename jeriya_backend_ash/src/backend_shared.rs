@@ -41,6 +41,7 @@ pub struct BackendShared {
     pub static_indices_buffer: Mutex<StagedPushOnlyBuffer<u32>>,
     pub static_meshlet_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::Meshlet>>,
     pub static_point_positions_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
+    pub static_point_colors_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
 
     pub mesh_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<MeshAttributes>>>,
     pub point_cloud_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<PointCloudAttributes>>>,
@@ -110,6 +111,15 @@ impl BackendShared {
             debug_info!("static_point_positions_buffer"),
         )?);
 
+        info!("Creating static point colors buffer");
+        const STATIC_POINT_COLORS_BUFFER_CAPACITY: usize = 16_000_000;
+        let static_point_colors_buffer = Mutex::new(StagedPushOnlyBuffer::new(
+            device,
+            STATIC_POINT_COLORS_BUFFER_CAPACITY,
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!("static_point_colors_buffer"),
+        )?);
+
         info!("Creating static meshlet buffer");
         let static_meshlet_buffer = Mutex::new(StagedPushOnlyBuffer::new(
             device,
@@ -148,6 +158,7 @@ impl BackendShared {
             static_indices_buffer,
             static_meshlet_buffer,
             static_point_positions_buffer,
+            static_point_colors_buffer,
             mesh_attributes_gpu_index_allocator,
             point_cloud_attributes_gpu_index_allocator,
             camera_gpu_index_allocator,
