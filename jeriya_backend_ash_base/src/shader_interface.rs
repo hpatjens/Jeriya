@@ -75,6 +75,7 @@ impl Represents<resources::mesh_attributes::MeshAttributes> for MeshAttributes {
 pub struct PointCloudAttributes {
     pub points_len: u32,
     pub point_positions_start_offset: u32,
+    pub point_colors_start_offset: u32,
 }
 
 impl Represents<resources::point_cloud_attributes::PointCloudAttributes> for PointCloudAttributes {}

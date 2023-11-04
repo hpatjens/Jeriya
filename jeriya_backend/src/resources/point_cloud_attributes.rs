@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
-use jeriya_shared::{debug_info, nalgebra::Vector3, thiserror, DebugInfo, Handle};
+use jeriya_shared::{debug_info, nalgebra::Vector3, thiserror, ByteColor3, DebugInfo, Handle};
 
 use crate::gpu_index_allocator::GpuIndexAllocation;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AttributeType {
     PointPositions,
+    PointColors,
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -22,6 +23,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub struct PointCloudAttributes {
     point_positions: Vec<Vector3<f32>>,
+    point_colors: Vec<ByteColor3>,
     handle: Handle<Arc<PointCloudAttributes>>,
     gpu_index_allocation: GpuIndexAllocation<PointCloudAttributes>,
     debug_info: DebugInfo,
@@ -36,6 +38,11 @@ impl PointCloudAttributes {
     /// Returns the point positions of the `PointCloudAttributes`
     pub fn point_positions(&self) -> &[Vector3<f32>] {
         &self.point_positions
+    }
+
+    /// Returns the point colors of the `PointCloudAttributes`
+    pub fn point_colors(&self) -> &[ByteColor3] {
+        &self.point_colors
     }
 
     /// Returns the [`Handle`] of the `PointCloudAttributes`
@@ -66,6 +73,7 @@ pub enum PointCloudAttributesGpuState {
 #[derive(Default)]
 pub struct PointCloudAttributesBuilder {
     point_positions: Option<Vec<Vector3<f32>>>,
+    point_colors: Option<Vec<ByteColor3>>,
     debug_info: Option<DebugInfo>,
 }
 
@@ -73,6 +81,12 @@ impl PointCloudAttributesBuilder {
     /// Sets the point positions of the [`PointCloudAttributes`]
     pub fn with_point_positions(mut self, point_positions: Vec<Vector3<f32>>) -> Self {
         self.point_positions = Some(point_positions);
+        self
+    }
+
+    /// Sets the point colors of the [`PointCloudAttributes`]
+    pub fn with_point_colors(mut self, point_colors: Vec<ByteColor3>) -> Self {
+        self.point_colors = Some(point_colors);
         self
     }
 
@@ -91,8 +105,12 @@ impl PointCloudAttributesBuilder {
         let point_positions = self
             .point_positions
             .ok_or(Error::MandatoryAttributeMissing(AttributeType::PointPositions))?;
+        let point_colors = self
+            .point_colors
+            .ok_or(Error::MandatoryAttributeMissing(AttributeType::PointColors))?;
         Ok(PointCloudAttributes {
             point_positions,
+            point_colors,
             handle,
             gpu_index_allocation,
             debug_info: self.debug_info.unwrap_or_else(|| debug_info!("Anonymous-PointCloudAttributes")),

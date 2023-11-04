@@ -412,17 +412,30 @@ fn handle_point_cloud_attributes_events(
                     .iter()
                     .map(|v| Vector4::new(v.x, v.y, v.z, 1.0))
                     .collect::<Vec<_>>();
-                let vertex_positions_start_offset = backend_shared
+                let point_positions_start_offset = backend_shared
                     .static_point_positions_buffer
                     .lock()
                     .push(&point_positions4, &mut command_buffer_builder)?;
 
+                // Upload the point colors to the GPU
+                let point_colors4 = point_cloud_attributes
+                    .point_colors()
+                    .iter()
+                    .map(|v| v.as_vector4())
+                    .collect::<Vec<_>>();
+                let point_colors_start_offset = backend_shared
+                    .static_point_colors_buffer
+                    .lock()
+                    .push(&point_colors4, &mut command_buffer_builder)?;
+
                 // Upload the PointCloudAttributes to the GPU
                 let points_len = point_cloud_attributes.point_positions().len() as u32;
-                let point_positions_start_offset = vertex_positions_start_offset as u32;
+                let point_positions_start_offset = point_positions_start_offset as u32;
+                let point_colors_start_offset = point_colors_start_offset as u32;
                 let point_cloud_attributes_gpu = shader_interface::PointCloudAttributes {
                     points_len,
                     point_positions_start_offset,
+                    point_colors_start_offset,
                 };
                 info!("Inserting a new PointCloudAttributes: {point_cloud_attributes_gpu:#?}",);
                 backend_shared
