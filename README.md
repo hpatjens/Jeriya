@@ -11,9 +11,9 @@
 
 Jeriya is an experimental renderer in its infancy.
 
-The following image shows a test scene with a cube model, a suzanne on a plate model and some primitives rendered in immediate mode.
+The following image shows a test scene with a point cloud representation of the Sponza model and primitives rendered in immediate mode.
 
-![Image-0.1.0](docs/image-0.1.0.jpg)
+![Image-0.1.0](docs/image-0.3.0.jpg)
 
 ## API
 
