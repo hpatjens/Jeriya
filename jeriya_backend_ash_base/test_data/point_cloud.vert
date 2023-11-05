@@ -198,6 +198,7 @@ layout (push_constant) uniform PushConstants {
 } push_constants;
 
 layout (location = 0) out vec4 out_point_color;
+layout (location = 1) out vec2 out_texcoord;
 
 void main() {
     uint point_cloud_instance_index = visible_point_cloud_instances.instance_indices[gl_DrawIDARB];
@@ -228,18 +229,22 @@ void main() {
     uint global_point_color_index = point_cloud_attributes.point_colors_start_offset + point_index;
     vec4 point_color = point_colors[global_point_color_index];
 
-    float triangle_size = 0.01;
+    float triangle_size = 0.1;
 
-    vec3 offsets[] = {
-        vec3(0.0, 0.0, 0.0),
-        vec3(triangle_size, 0.0, 0.0),
-        vec3(0.0, triangle_size, 0.0),
+    const float triangle_height = 0.8660254; // h = sin(pi / 3)
+    const float extent_down = 0.288675; // e = h / 3
+    const float extent_up = triangle_height - extent_down;
+    const vec2 factors[3] = {
+        vec2(0.5, -extent_down),
+        vec2(-0.5, -extent_down),
+        vec2(0.0, extent_up),
     };
-    vec3 offset = offsets[gl_VertexIndex % 3];
+    vec2 factor = factors[gl_VertexIndex % 3];
 
     vec4 view_position = view_matrix * model_matrix * vec4(point_position, 1.0);
 
     out_point_color = point_color;
-    gl_Position = projection_matrix * view_position + vec4(offset, 0.0);
+    out_texcoord = factor;
+    gl_Position = projection_matrix * view_position + vec4(triangle_size * factor, 0.0, 0.0);
 
 }

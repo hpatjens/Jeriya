@@ -11,7 +11,13 @@ layout (push_constant) uniform PushConstants {
 } push_constants;
 
 layout (location = 0) in vec4 in_point_color;
+layout (location = 1) in vec2 in_texcoord;
 
 void main() {
+    const float extent_down = 0.288675;
+    if (length(in_texcoord) > extent_down) {
+        discard;
+        return;
+    }
     outputColor = in_point_color;
 }
