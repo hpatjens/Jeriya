@@ -1,7 +1,6 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::BTreeMap,
     fs::File,
-    hash::Hash,
     io::Write,
     path::{Path, PathBuf},
 };
@@ -11,7 +10,6 @@ use gltf::{
     mesh::{util::ReadIndices, Mode},
 };
 use jeriya_shared::{
-    byte_unit::Byte,
     log::{info, trace},
     nalgebra::{Vector2, Vector3},
     thiserror, ByteColor3, ByteColor4,
@@ -381,7 +379,7 @@ fn build_simple_mesh(mesh: &gltf::Mesh, buffers: &[Data]) -> crate::Result<Simpl
                         used_vertex_normals.entry(index).or_insert(temp_vertex_normals[index as usize]);
                         if let Some(texture_coordinates) = &temp_vertex_texture_coordinates {
                             used_vertex_texture_coordinates
-                                .entry(index as u32)
+                                .entry(index)
                                 .or_insert(texture_coordinates[index as usize]);
                         }
                     }
