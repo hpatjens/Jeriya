@@ -79,7 +79,7 @@ impl PointCloudAttributesGroup {
 
 #[cfg(test)]
 mod tests {
-    use jeriya_shared::{debug_info, nalgebra::Vector3};
+    use jeriya_shared::{debug_info, nalgebra::Vector3, ByteColor3};
 
     use crate::{match_one_point_cloud_attributes_event, resources::tests::assert_events_empty, resources::MockRenderer};
 
@@ -91,6 +91,7 @@ mod tests {
         let mut point_cloud_attributes_group = PointCloudAttributesGroup::new(&renderer, debug_info!("my_mesh_attributes_group"));
         let point_cloud_attributes_builder = PointCloudAttributes::builder()
             .with_point_positions(vec![Vector3::new(0.0, 0.0, 0.0)])
+            .with_point_colors(vec![ByteColor3::new(0, 0, 0)])
             .with_debug_info(debug_info!("my_attributes"));
         point_cloud_attributes_group.insert_with(point_cloud_attributes_builder).unwrap();
         match_one_point_cloud_attributes_event!(
