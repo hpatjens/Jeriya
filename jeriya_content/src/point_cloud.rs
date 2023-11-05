@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use jeriya_shared::{byte_unit::Byte, float_cmp::approx_eq, log::info, nalgebra::Vector3, rand, random_direction, ByteColor3};
+use jeriya_shared::{float_cmp::approx_eq, log::info, nalgebra::Vector3, rand, random_direction, ByteColor3};
 use serde::{Deserialize, Serialize};
 
 use crate::model::Model;

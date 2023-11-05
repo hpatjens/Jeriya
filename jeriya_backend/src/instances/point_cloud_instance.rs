@@ -76,8 +76,8 @@ pub struct PointCloudInstanceBuilder {
 impl PointCloudInstanceBuilder {
     /// Sets the [`PointCloud`] of the [`PointCloudInstance`]
     pub fn with_point_cloud(mut self, point_cloud: &PointCloud) -> Self {
-        self.point_cloud_handle = Some(point_cloud.handle().clone());
-        self.point_cloud_gpu_index_allocation = Some(point_cloud.gpu_index_allocation().clone());
+        self.point_cloud_handle = Some(*point_cloud.handle());
+        self.point_cloud_gpu_index_allocation = Some(*point_cloud.gpu_index_allocation());
         self
     }
 

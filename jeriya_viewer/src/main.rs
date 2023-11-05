@@ -409,8 +409,8 @@ fn main() -> ey::Result<()> {
 
                 // Create PointCloudAttributes
                 let point_cloud_attributes_builder = PointCloudAttributes::builder()
-                    .with_point_positions(point_cloud.point_positions().iter().cloned().collect())
-                    .with_point_colors(point_cloud.point_colors().iter().cloned().collect())
+                    .with_point_positions(point_cloud.point_positions().to_vec())
+                    .with_point_colors(point_cloud.point_colors().to_vec())
                     .with_debug_info(debug_info!("my_point_cloud_attributes"));
                 let point_cloud_attributes = resource_group
                     .point_cloud_attributes()
