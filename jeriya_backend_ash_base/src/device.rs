@@ -129,7 +129,11 @@ impl Device {
         }
         info!("The following queues will be created on the device: {:#?}", queue_infos);
 
-        let device_extension_names_raw = [khr::Swapchain::name().as_ptr(), khr::PushDescriptor::name().as_ptr()];
+        let device_extension_names_raw = [
+            khr::Swapchain::name().as_ptr(),
+            khr::PushDescriptor::name().as_ptr(),
+            khr::Maintenance1::name().as_ptr(),
+        ];
 
         let mut physical_device_vulkan_1_2_features = PhysicalDeviceVulkan12Features::builder().draw_indirect_count(true).build();
 
