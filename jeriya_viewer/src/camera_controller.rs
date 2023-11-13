@@ -130,7 +130,8 @@ impl CameraController {
 
     /// Rotate the camera around the local X axis.
     pub fn rotate_up(&mut self, delta: f32) {
-        self.theta = (self.theta - delta).max(0.0).min(std::f32::consts::PI);
+        let epsilon = 0.001;
+        self.theta = (self.theta - delta).max(epsilon).min(std::f32::consts::PI - epsilon);
         self.is_dirty = true;
     }
 
@@ -151,8 +152,6 @@ impl CameraController {
         if !self.is_dirty {
             return Ok(());
         }
-
-        println!("r={} theta={} phi={}", self.r, self.theta, self.phi);
 
         // Rotate the camera based on the cursor's movement.
         let cursor_delta = self.cursor_position - self.cursor_position_on_last_update;
