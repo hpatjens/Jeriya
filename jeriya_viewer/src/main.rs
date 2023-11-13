@@ -475,6 +475,7 @@ fn main() -> ey::Result<()> {
         rotate_phi_speed_keyboard: 2.0,
         rotate_phi_speed_mouse_cursor: 0.2,
         zoom_speed_mouse_wheel: 0.4,
+        zoom_speed_keyboard: 5.0,
     });
 
     const UPDATE_FRAMERATE: u32 = 60;

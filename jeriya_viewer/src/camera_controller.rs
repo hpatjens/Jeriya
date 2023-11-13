@@ -24,8 +24,10 @@ pub struct Config {
     pub rotate_phi_speed_keyboard: f32,
     /// Speed of the camera's horizontal rotation around using the mouse.
     pub rotate_phi_speed_mouse_cursor: f32,
-    /// Speed of the camera's zoom using the keyboard.
+    /// Speed of the camera's zoom using the mouse.
     pub zoom_speed_mouse_wheel: f32,
+    /// Speed of the camera's zoom using the keyboard.
+    pub zoom_speed_keyboard: f32,
 }
 
 impl Default for Config {
@@ -36,6 +38,7 @@ impl Default for Config {
             rotate_phi_speed_keyboard: 1.0,
             rotate_phi_speed_mouse_cursor: 1.0,
             zoom_speed_mouse_wheel: 1.0,
+            zoom_speed_keyboard: 10.0,
         }
     }
 }
@@ -183,10 +186,10 @@ impl CameraController {
             self.rotate_up(-self.config.rotate_phi_speed_keyboard * dt.as_secs_f32());
         }
         if self.is_zooming_in {
-            self.zoom_out(-dt.as_secs_f32());
+            self.zoom_out(-self.config.zoom_speed_keyboard * dt.as_secs_f32());
         }
         if self.is_zooming_out {
-            self.zoom_out(dt.as_secs_f32());
+            self.zoom_out(self.config.zoom_speed_keyboard * dt.as_secs_f32());
         }
 
         let camera = instance_group
