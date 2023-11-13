@@ -501,6 +501,8 @@ fn main() -> ey::Result<()> {
                             Some(VirtualKeyCode::Left) => camera_controller2.set_rotating_left(input.state == ElementState::Pressed),
                             Some(VirtualKeyCode::Up) => camera_controller2.set_rotating_up(input.state == ElementState::Pressed),
                             Some(VirtualKeyCode::Down) => camera_controller2.set_rotating_down(input.state == ElementState::Pressed),
+                            Some(VirtualKeyCode::PageUp) => camera_controller2.set_zooming_in(input.state == ElementState::Pressed),
+                            Some(VirtualKeyCode::PageDown) => camera_controller2.set_zooming_out(input.state == ElementState::Pressed),
                             _ => {}
                         },
                         WindowEvent::CursorMoved { position, .. } => {
