@@ -14,16 +14,40 @@ use jeriya_shared::{
     Handle,
 };
 
+#[derive(Debug, Clone)]
+pub struct Config {
+    /// Speed of the camera's vertical rotation around using the keyboard.
+    pub rotate_theta_speed_keyboard: f32,
+    /// Speed of the camera's vertical rotation around using the mouse.
+    pub rotate_theta_speed_mouse_cursor: f32,
+    /// Speed of the camera's horizontal rotation around using the keyboard.
+    pub rotate_phi_speed_keyboard: f32,
+    /// Speed of the camera's horizontal rotation around using the mouse.
+    pub rotate_phi_speed_mouse_cursor: f32,
+    /// Speed of the camera's zoom using the keyboard.
+    pub zoom_speed_mouse_wheel: f32,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            rotate_theta_speed_keyboard: 1.0,
+            rotate_theta_speed_mouse_cursor: 1.0,
+            rotate_phi_speed_keyboard: 1.0,
+            rotate_phi_speed_mouse_cursor: 1.0,
+            zoom_speed_mouse_wheel: 1.0,
+        }
+    }
+}
+
 pub struct CameraController {
     is_dirty: bool,
+
+    config: Config,
 
     theta: f32,
     phi: f32,
     r: f32,
-
-    rotate_theta_speed: f32,
-    rotate_phi_speed: f32,
-    zoom_speed: f32,
 
     is_rotating_right: bool,
     is_rotating_left: bool,
@@ -33,19 +57,19 @@ pub struct CameraController {
     is_zooming_out: bool,
 
     cursor_position: Vector2<f32>,
+    cursor_position_on_last_update: Vector2<f32>,
+    is_cursor_rotation_active: bool,
 }
 
 impl CameraController {
     /// Create a new camera controller and a camera.
-    pub fn new(rotate_theta_speed: f32, rotate_phi_speed: f32, zoom_speed: f32) -> Self {
+    pub fn new(config: Config) -> Self {
         Self {
             is_dirty: true,
+            config,
             theta: std::f32::consts::FRAC_PI_2,
             phi: 0.0,
             r: 1.0,
-            rotate_theta_speed,
-            rotate_phi_speed,
-            zoom_speed,
             is_rotating_right: false,
             is_rotating_left: false,
             is_rotating_up: false,
@@ -53,7 +77,19 @@ impl CameraController {
             is_zooming_in: false,
             is_zooming_out: false,
             cursor_position: Vector2::zeros(),
+            cursor_position_on_last_update: Vector2::zeros(),
+            is_cursor_rotation_active: false,
         }
+    }
+
+    pub fn set_cursor_rotation_active(&mut self, is_cursor_rotation_active: bool) {
+        self.is_cursor_rotation_active = is_cursor_rotation_active;
+        self.is_dirty = true;
+    }
+
+    pub fn set_cursor_position(&mut self, cursor_position: Vector2<f32>) {
+        self.cursor_position = cursor_position;
+        self.is_dirty = true;
     }
 
     pub fn set_rotating_right(&mut self, is_rotating_right: bool) {
@@ -100,7 +136,7 @@ impl CameraController {
 
     /// Zoom the camera out.
     pub fn zoom_out(&mut self, delta: f32) {
-        self.r = (self.r + self.zoom_speed * delta).max(0.1);
+        self.r = (self.r + self.config.zoom_speed_mouse_wheel * delta).max(0.1);
         self.is_dirty = true;
     }
 
@@ -118,17 +154,26 @@ impl CameraController {
 
         println!("r={} theta={} phi={}", self.r, self.theta, self.phi);
 
+        // Rotate the camera based on the cursor's movement.
+        let cursor_delta = self.cursor_position - self.cursor_position_on_last_update;
+        self.cursor_position_on_last_update = self.cursor_position;
+        if self.is_cursor_rotation_active {
+            self.rotate_right(cursor_delta.x * self.config.rotate_theta_speed_mouse_cursor * dt.as_secs_f32());
+            self.rotate_up(cursor_delta.y * self.config.rotate_phi_speed_mouse_cursor * dt.as_secs_f32());
+        }
+
+        // Rotate the camera based on the keyboard input.
         if self.is_rotating_right {
-            self.rotate_right(-self.rotate_theta_speed * dt.as_secs_f32());
+            self.rotate_right(-self.config.rotate_theta_speed_keyboard * dt.as_secs_f32());
         }
         if self.is_rotating_left {
-            self.rotate_right(self.rotate_theta_speed * dt.as_secs_f32());
+            self.rotate_right(self.config.rotate_theta_speed_keyboard * dt.as_secs_f32());
         }
         if self.is_rotating_up {
-            self.rotate_up(self.rotate_phi_speed * dt.as_secs_f32());
+            self.rotate_up(self.config.rotate_phi_speed_keyboard * dt.as_secs_f32());
         }
         if self.is_rotating_down {
-            self.rotate_up(-self.rotate_phi_speed * dt.as_secs_f32());
+            self.rotate_up(-self.config.rotate_phi_speed_keyboard * dt.as_secs_f32());
         }
         if self.is_zooming_in {
             self.zoom_out(-dt.as_secs_f32());

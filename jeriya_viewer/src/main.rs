@@ -22,9 +22,7 @@ use jeriya_backend::{
     },
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
     instances::{
-        camera_instance::{CameraInstance, CameraTransform},
-        instance_group::InstanceGroup,
-        point_cloud_instance::PointCloudInstance,
+        camera_instance::CameraInstance, instance_group::InstanceGroup, point_cloud_instance::PointCloudInstance,
         rigid_mesh_instance::RigidMeshInstance,
     },
     resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes, resource_group::ResourceGroup},
@@ -36,12 +34,12 @@ use jeriya_content::{model::Model, point_cloud::PointCloud, AssetImporter, Asset
 use jeriya_shared::{
     debug_info,
     log::{self, error},
-    nalgebra::{self, Matrix4, Translation3, Vector3, Vector4},
+    nalgebra::{self, Matrix4, Translation3, Vector2, Vector3, Vector4},
     parking_lot::Mutex,
     spin_sleep,
     winit::{
         dpi::LogicalSize,
-        event::{ElementState, Event, MouseScrollDelta, VirtualKeyCode, WindowEvent},
+        event::{ElementState, Event, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent},
         event_loop::EventLoop,
         window::WindowBuilder,
     },
@@ -471,7 +469,13 @@ fn main() -> ey::Result<()> {
         }
     });
 
-    let mut camera_controller1 = CameraController::new(0.5, 1.0, 1.0);
+    let mut camera_controller2 = CameraController::new(camera_controller::Config {
+        rotate_theta_speed_keyboard: 2.0,
+        rotate_theta_speed_mouse_cursor: 0.2,
+        rotate_phi_speed_keyboard: 2.0,
+        rotate_phi_speed_mouse_cursor: 0.2,
+        zoom_speed_mouse_wheel: 0.4,
+    });
 
     const UPDATE_FRAMERATE: u32 = 60;
     let loop_start_time = Instant::now();
@@ -486,32 +490,37 @@ fn main() -> ey::Result<()> {
         match event {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
-                window_id,
-            } if window_id == window1.id() => control_flow.set_exit(),
-            Event::WindowEvent { window_id, event } => match event {
-                WindowEvent::CloseRequested => control_flow.set_exit(),
-                WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
-                    Some(VirtualKeyCode::Right) => camera_controller1.set_rotating_right(input.state == ElementState::Pressed),
-                    Some(VirtualKeyCode::Left) => camera_controller1.set_rotating_left(input.state == ElementState::Pressed),
-                    Some(VirtualKeyCode::Up) => camera_controller1.set_rotating_up(input.state == ElementState::Pressed),
-                    Some(VirtualKeyCode::Down) => camera_controller1.set_rotating_down(input.state == ElementState::Pressed),
-                    _ => {}
-                },
-                WindowEvent::CursorMoved {
-                    device_id,
-                    position,
-                    modifiers,
-                } => {}
-                WindowEvent::MouseWheel { delta, .. } => {
-                    if window_id == window2.id() {
-                        match delta {
-                            MouseScrollDelta::LineDelta(_x, y) => camera_controller1.zoom_out(-y as f32),
-                            MouseScrollDelta::PixelDelta(delta) => camera_controller1.zoom_out(-delta.y as f32),
+                ..
+            } => control_flow.set_exit(),
+            Event::WindowEvent { window_id, event } => {
+                if window_id == window2.id() {
+                    match event {
+                        WindowEvent::CloseRequested => control_flow.set_exit(),
+                        WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
+                            Some(VirtualKeyCode::Right) => camera_controller2.set_rotating_right(input.state == ElementState::Pressed),
+                            Some(VirtualKeyCode::Left) => camera_controller2.set_rotating_left(input.state == ElementState::Pressed),
+                            Some(VirtualKeyCode::Up) => camera_controller2.set_rotating_up(input.state == ElementState::Pressed),
+                            Some(VirtualKeyCode::Down) => camera_controller2.set_rotating_down(input.state == ElementState::Pressed),
+                            _ => {}
+                        },
+                        WindowEvent::CursorMoved { position, .. } => {
+                            camera_controller2.set_cursor_position(Vector2::new(position.x as f32, position.y as f32));
                         }
+                        WindowEvent::MouseWheel { delta, .. } => {
+                            if window_id == window2.id() {
+                                match delta {
+                                    MouseScrollDelta::LineDelta(_x, y) => camera_controller2.zoom_out(-y as f32),
+                                    MouseScrollDelta::PixelDelta(delta) => camera_controller2.zoom_out(-delta.y as f32),
+                                }
+                            }
+                        }
+                        WindowEvent::MouseInput { state, button, .. } => {
+                            camera_controller2.set_cursor_rotation_active(button == MouseButton::Left && state == ElementState::Pressed);
+                        }
+                        _ => {}
                     }
                 }
-                _ => {}
-            },
+            }
             Event::MainEventsCleared => {
                 loop_helper.loop_start();
                 let frame_start_time = Instant::now();
@@ -520,7 +529,7 @@ fn main() -> ey::Result<()> {
 
                 let mut transaction = Transaction::record(&renderer);
 
-                camera_controller1
+                camera_controller2
                     .update(dt, &mut transaction, &mut instance_group.lock(), camera2_instance_handle)
                     .expect("Failed to update camera controller");
 
