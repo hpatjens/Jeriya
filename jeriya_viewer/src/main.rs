@@ -89,6 +89,29 @@ where
         )
     };
 
+    // Vertical lines on the corners of the grid
+    const CORNER_LINE_LENGTH: f32 = 0.2;
+    let corner_lines = {
+        let mut positions = Vec::with_capacity(8);
+        positions.extend(&[
+            Vector3::new(-GRID_EXTENT, 0.0, -GRID_EXTENT),
+            Vector3::new(-GRID_EXTENT, CORNER_LINE_LENGTH, -GRID_EXTENT),
+            Vector3::new(-GRID_EXTENT, 0.0, GRID_EXTENT),
+            Vector3::new(-GRID_EXTENT, CORNER_LINE_LENGTH, GRID_EXTENT),
+            Vector3::new(GRID_EXTENT, 0.0, -GRID_EXTENT),
+            Vector3::new(GRID_EXTENT, CORNER_LINE_LENGTH, -GRID_EXTENT),
+            Vector3::new(GRID_EXTENT, 0.0, GRID_EXTENT),
+            Vector3::new(GRID_EXTENT, CORNER_LINE_LENGTH, GRID_EXTENT),
+        ]);
+        LineList::new(
+            positions,
+            LineConfig {
+                color: Vector4::new(0.7, 0.7, 0.9, 1.0),
+                ..LineConfig::default()
+            },
+        )
+    };
+
     // Cirlce around the grid
     const CIRCLE_STEPS: usize = 128;
     let circle_extent = (2.0 * GRID_EXTENT * GRID_EXTENT).sqrt();
@@ -156,7 +179,7 @@ where
     );
 
     let immediate_command_buffer = immediate_command_buffer_builder
-        .push_line_lists(&[line_list])?
+        .push_line_lists(&[line_list, corner_lines])?
         .push_line_strips(&[line_strip, line_strip_turning])?
         .matrix(Matrix4::new_scaling(0.5))?
         .push_triangle_lists(&[triangle_list])?

@@ -119,16 +119,16 @@ impl CameraController {
         println!("r={} theta={} phi={}", self.r, self.theta, self.phi);
 
         if self.is_rotating_right {
-            self.rotate_right(self.rotate_theta_speed * dt.as_secs_f32());
-        }
-        if self.is_rotating_left {
             self.rotate_right(-self.rotate_theta_speed * dt.as_secs_f32());
         }
+        if self.is_rotating_left {
+            self.rotate_right(self.rotate_theta_speed * dt.as_secs_f32());
+        }
         if self.is_rotating_up {
-            self.rotate_up(-self.rotate_phi_speed * dt.as_secs_f32());
+            self.rotate_up(self.rotate_phi_speed * dt.as_secs_f32());
         }
         if self.is_rotating_down {
-            self.rotate_up(self.rotate_phi_speed * dt.as_secs_f32());
+            self.rotate_up(-self.rotate_phi_speed * dt.as_secs_f32());
         }
         if self.is_zooming_in {
             self.zoom_out(-dt.as_secs_f32());
@@ -147,7 +147,7 @@ impl CameraController {
             self.r * self.theta.sin() * self.phi.sin(),
         );
         let forward = -position;
-        let up = -Vector3::y();
+        let up = Vector3::y();
         let camera_transform = CameraTransform::new(position, forward, up);
         camera.mutate_via(transaction).set_transform(camera_transform);
         Ok(())
