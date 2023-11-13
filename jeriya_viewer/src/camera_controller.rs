@@ -82,41 +82,49 @@ impl CameraController {
         }
     }
 
+    /// Determine whether the current change in the cursor position should be considered as a rotation.
     pub fn set_cursor_rotation_active(&mut self, is_cursor_rotation_active: bool) {
         self.is_cursor_rotation_active = is_cursor_rotation_active;
         self.is_dirty = true;
     }
 
+    /// Set the cursor position.
     pub fn set_cursor_position(&mut self, cursor_position: Vector2<f32>) {
         self.cursor_position = cursor_position;
         self.is_dirty = true;
     }
 
+    /// Determine whether the camera is rotating around the Y axis.
     pub fn set_rotating_right(&mut self, is_rotating_right: bool) {
         self.is_rotating_right = is_rotating_right;
         self.is_dirty = true;
     }
 
+    /// Determine whether the camera is rotating around the Y axis.
     pub fn set_rotating_left(&mut self, is_rotating_left: bool) {
         self.is_rotating_left = is_rotating_left;
         self.is_dirty = true;
     }
 
+    /// Determine whether the camera is rotating around the X axis.
     pub fn set_rotating_up(&mut self, is_rotating_up: bool) {
         self.is_rotating_up = is_rotating_up;
         self.is_dirty = true;
     }
 
+    /// Determine whether the camera is rotating around the X axis.
     pub fn set_rotating_down(&mut self, is_rotating_down: bool) {
         self.is_rotating_down = is_rotating_down;
         self.is_dirty = true;
     }
 
+    /// Determine whether the camera is zooming in.
     pub fn set_zooming_in(&mut self, is_zooming_in: bool) {
         self.is_zooming_in = is_zooming_in;
         self.is_dirty = true;
     }
 
+    /// Determine whether the camera is zooming out.    
     pub fn set_zooming_out(&mut self, is_zooming_out: bool) {
         self.is_zooming_out = is_zooming_out;
         self.is_dirty = true;
