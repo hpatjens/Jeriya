@@ -235,8 +235,8 @@ void main() {
     const float extent_down = 0.288675; // e = h / 3
     const float extent_up = triangle_height - extent_down;
     const vec2 factors[3] = {
-        vec2(0.5, -extent_down),
         vec2(-0.5, -extent_down),
+        vec2(0.5, -extent_down),
         vec2(0.0, extent_up),
     };
     vec2 factor = factors[gl_VertexIndex % 3];

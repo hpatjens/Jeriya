@@ -46,9 +46,9 @@ impl From<PolygonMode> for vk::PolygonMode {
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum CullMode {
-    #[default]
     None,
     Front,
+    #[default]
     Back,
     FrontAndBack,
 }
@@ -246,7 +246,7 @@ where
             .viewports(&viewports);
 
         let rasterization_info = vk::PipelineRasterizationStateCreateInfo {
-            front_face: vk::FrontFace::CLOCKWISE,
+            front_face: vk::FrontFace::COUNTER_CLOCKWISE,
             line_width: 1.0,
             polygon_mode: config.polygon_mode.into(),
             cull_mode: config.cull_mode.into(),
