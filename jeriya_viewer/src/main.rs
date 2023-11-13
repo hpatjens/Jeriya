@@ -1,3 +1,5 @@
+mod camera_controller;
+
 use std::{
     f32::consts::TAU,
     io,
@@ -39,12 +41,14 @@ use jeriya_shared::{
     spin_sleep,
     winit::{
         dpi::LogicalSize,
-        event::{Event, WindowEvent},
+        event::{ElementState, Event, MouseScrollDelta, VirtualKeyCode, WindowEvent},
         event_loop::EventLoop,
         window::WindowBuilder,
     },
     FrameRate, RendererConfig, WindowConfig,
 };
+
+use crate::camera_controller::CameraController;
 
 /// Shows how the immediate rendering API can be used.
 fn immediate_rendering<B>(
@@ -444,6 +448,8 @@ fn main() -> ey::Result<()> {
         }
     });
 
+    let mut camera_controller1 = CameraController::new(0.5, 1.0, 1.0);
+
     const UPDATE_FRAMERATE: u32 = 60;
     let loop_start_time = Instant::now();
     let mut last_frame_start_time = Instant::now();
@@ -459,6 +465,30 @@ fn main() -> ey::Result<()> {
                 event: WindowEvent::CloseRequested,
                 window_id,
             } if window_id == window1.id() => control_flow.set_exit(),
+            Event::WindowEvent { window_id, event } => match event {
+                WindowEvent::CloseRequested => control_flow.set_exit(),
+                WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
+                    Some(VirtualKeyCode::Right) => camera_controller1.set_rotating_right(input.state == ElementState::Pressed),
+                    Some(VirtualKeyCode::Left) => camera_controller1.set_rotating_left(input.state == ElementState::Pressed),
+                    Some(VirtualKeyCode::Up) => camera_controller1.set_rotating_up(input.state == ElementState::Pressed),
+                    Some(VirtualKeyCode::Down) => camera_controller1.set_rotating_down(input.state == ElementState::Pressed),
+                    _ => {}
+                },
+                WindowEvent::CursorMoved {
+                    device_id,
+                    position,
+                    modifiers,
+                } => {}
+                WindowEvent::MouseWheel { delta, .. } => {
+                    if window_id == window2.id() {
+                        match delta {
+                            MouseScrollDelta::LineDelta(_x, y) => camera_controller1.zoom_out(-y as f32),
+                            MouseScrollDelta::PixelDelta(delta) => camera_controller1.zoom_out(-delta.y as f32),
+                        }
+                    }
+                }
+                _ => {}
+            },
             Event::MainEventsCleared => {
                 loop_helper.loop_start();
                 let frame_start_time = Instant::now();
@@ -467,36 +497,9 @@ fn main() -> ey::Result<()> {
 
                 let mut transaction = Transaction::record(&renderer);
 
-                {
-                    let position = Vector3::new(t.as_secs_f32().sin() * 0.3, t.as_secs_f32().cos() * 0.3, 0.5);
-                    instance_group
-                        .lock()
-                        .camera_instances()
-                        .get_mut(&camera1_instance_handle)
-                        .expect("Failed to find camera instance")
-                        .mutate_via(&mut transaction)
-                        .set_transform(CameraTransform {
-                            position,
-                            ..Default::default()
-                        });
-                }
-
-                {
-                    let speed = 0.2;
-                    let distance = 4.0;
-                    let position = Vector3::new(
-                        (speed * t.as_secs_f32()).sin() * distance,
-                        3.0,
-                        (speed * t.as_secs_f32()).cos() * distance,
-                    );
-                    instance_group
-                        .lock()
-                        .camera_instances()
-                        .get_mut(&camera2_instance_handle)
-                        .expect("Failed to find camera instance")
-                        .mutate_via(&mut transaction)
-                        .set_transform(CameraTransform::new(position, -position.normalize(), Vector3::new(0.0, -1.0, 0.0)));
-                }
+                camera_controller1
+                    .update(dt, &mut transaction, &mut instance_group.lock(), camera2_instance_handle)
+                    .expect("Failed to update camera controller");
 
                 if mesh_count < 10 && (t - last_mesh_insert_t).as_secs() > 1 {
                     last_mesh_insert_t = t;
