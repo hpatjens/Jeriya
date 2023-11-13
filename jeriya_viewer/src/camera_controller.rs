@@ -70,9 +70,9 @@ impl CameraController {
         Self {
             is_dirty: true,
             config,
-            theta: std::f32::consts::FRAC_PI_2,
-            phi: 0.0,
-            r: 1.0,
+            theta: std::f32::consts::FRAC_PI_2 / 2.0,
+            phi: 3.0 * std::f32::consts::FRAC_PI_2 / 2.0,
+            r: 3.0,
             is_rotating_right: false,
             is_rotating_left: false,
             is_rotating_up: false,
