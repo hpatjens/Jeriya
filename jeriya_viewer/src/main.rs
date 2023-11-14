@@ -34,7 +34,7 @@ use jeriya_content::{model::Model, point_cloud::PointCloud, AssetImporter, Asset
 use jeriya_shared::{
     debug_info,
     log::{self, error},
-    nalgebra::{self, Matrix4, Translation3, Vector2, Vector3, Vector4},
+    nalgebra::{self, Matrix4, Scale3, Translation3, Vector2, Vector3, Vector4},
     parking_lot::Mutex,
     spin_sleep,
     winit::{
@@ -220,6 +220,10 @@ struct CommandLineArguments {
     /// Enable meshlet rendering
     #[arg(long, short, default_value_t = true)]
     enable_meshlet_rendering: bool,
+
+    /// Scale of the model
+    #[arg(long, short, default_value_t = 1.0)]
+    scale: f32,
 }
 
 fn main() -> ey::Result<()> {
@@ -455,8 +459,10 @@ fn main() -> ey::Result<()> {
                     .expect("Failed to insert PointCloud");
 
                 // Create PointCloudInstance
+                let s = command_line_arguments.scale;
                 let point_cloud_instance_builder = PointCloudInstance::builder()
                     .with_point_cloud(element_group.point_clouds().get(&point_cloud).unwrap())
+                    .with_transform(Scale3::new(s, s, s).into())
                     .with_debug_info(debug_info!("my_point_cloud_instance"));
                 let _point_cloud_instance = instance_group
                     .point_cloud_instances()
