@@ -8,6 +8,7 @@ use std::{
 };
 
 use jeriya_shared::{log::trace, thiserror};
+use serde::{Deserialize, Serialize};
 
 pub const ASSET_META_FILE_NAME: &str = "asset.yaml";
 
@@ -111,7 +112,7 @@ impl Directories {
 }
 
 /// Identifies the asset. It's a relative path in the asset directory.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct AssetKey(PathBuf);
 
 impl AssetKey {
