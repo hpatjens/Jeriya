@@ -1,8 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::File,
     io::{self, Write},
-    path::Path,
 };
 
 use jeriya_shared::{float_cmp::approx_eq, log::info, nalgebra::Vector3, rand, random_direction, ByteColor3};
