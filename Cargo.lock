@@ -1132,6 +1132,7 @@ dependencies = [
  "maplit",
  "nalgebra",
  "nalgebra-glm",
+ "num_cpus",
  "parking_lot",
  "pathdiff",
  "rand 0.8.5",

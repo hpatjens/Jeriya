@@ -46,7 +46,7 @@ impl Cluster {
     pub const MAX_POINTS: usize = 128;
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PointCloud {
     simple_point_cloud: Option<SimplePointCloud>,
     pages: Vec<Page>,
@@ -103,5 +103,14 @@ impl PointCloud {
     pub fn deserialize_from_file(filepath: &impl AsRef<Path>) -> crate::Result<Self> {
         let file = File::open(filepath)?;
         bincode::deserialize_from(file).map_err(|err| crate::Error::FailedDeserialization(err))
+    }
+}
+
+impl std::fmt::Debug for PointCloud {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PointCloud")
+            .field("simple_point_cloud", &self.simple_point_cloud)
+            .field("pages", &self.pages.len())
+            .finish()
     }
 }
