@@ -1,9 +1,12 @@
-use std::{io, path::PathBuf};
+use std::{fs::File, io, path::PathBuf};
 
 use clap::Parser;
 use color_eyre as ey;
 use ey::eyre::Context;
-use jeriya_content::{model::Model, point_cloud::PointCloud};
+use jeriya_content::{
+    model::Model,
+    point_cloud::{self, PointCloud},
+};
 use jeriya_shared::log::{self, info};
 
 #[derive(Parser, Debug)]
@@ -81,8 +84,13 @@ fn main() -> ey::Result<()> {
                     PointCloud::deserialize_from_file(&convert.source_filepath).wrap_err("Failed to deserialize point cloud")?;
 
                 info!("Writing point cloud to OBJ");
+                let mut file = File::create(&convert.destination_filepath).wrap_err("Failed to create OBJ file")?;
+                let config = point_cloud::ObjWriteConfig {
+                    source: point_cloud::ObjWriteSource::SimplePointCloud,
+                    point_size,
+                };
                 point_cloud
-                    .to_obj(&convert.destination_filepath, point_size)
+                    .to_obj(&config, &mut file)
                     .wrap_err("Failed to write point cloud to OBJ")?;
             }
         },
