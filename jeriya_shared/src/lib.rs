@@ -34,6 +34,7 @@ pub use log;
 pub use maplit;
 pub use nalgebra;
 pub use nalgebra_glm;
+pub use num_cpus;
 pub use parking_lot;
 pub use pathdiff;
 pub use rand;

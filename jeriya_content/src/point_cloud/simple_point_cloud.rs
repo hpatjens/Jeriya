@@ -1,14 +1,17 @@
 use std::{
     collections::HashMap,
     io::{self, Write},
+    sync::Arc,
 };
 
-use jeriya_shared::{float_cmp::approx_eq, log::info, nalgebra::Vector3, rand, random_direction, ByteColor3};
+use jeriya_shared::{
+    float_cmp::approx_eq, log::info, nalgebra::Vector3, num_cpus, parking_lot::Mutex, rand, random_direction, rayon, ByteColor3,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::model::Model;
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct SimplePointCloud {
     point_positions: Vec<Vector3<f32>>,
     point_colors: Vec<ByteColor3>,
@@ -46,70 +49,85 @@ impl SimplePointCloud {
         info!("Sample count: {}", sample_count);
 
         // Sample the model
-        let mut point_cloud = Self::new();
-        for _ in 0..sample_count {
-            // Pick a random mesh
-            let mesh_random = rand::random::<f32>();
-            let mesh_index = index_from_cumulative_sums(&cumulative_sums.mesh_cumulative_sums, mesh_random);
-            let mesh = &model.meshes[mesh_index];
+        let point_cloud = Arc::new(Mutex::new(Self::new()));
+        let cpu_count = num_cpus::get();
+        let sample_cound_per_cpu = sample_count / cpu_count;
+        rayon::scope(|s| {
+            for _ in 0..cpu_count {
+                s.spawn(|_| {
+                    let mut point_positions = Vec::new();
+                    let mut point_colors = Vec::new();
+                    for _ in 0..sample_cound_per_cpu {
+                        // Pick a random mesh
+                        let mesh_random = rand::random::<f32>();
+                        let mesh_index = index_from_cumulative_sums(&cumulative_sums.mesh_cumulative_sums, mesh_random);
+                        let mesh = &model.meshes[mesh_index];
 
-            // Pick a random triangle
-            let triangle_random = rand::random::<f32>();
-            let triangle_index = index_from_cumulative_sums(&cumulative_sums.all_triangle_cumulative_sums[&mesh_index], triangle_random);
-            let triangle_start_index = 3 * triangle_index;
-            let triangle = &mesh.simple_mesh.indices[triangle_start_index..triangle_start_index + 3];
+                        // Pick a random triangle
+                        let triangle_random = rand::random::<f32>();
+                        let triangle_index =
+                            index_from_cumulative_sums(&cumulative_sums.all_triangle_cumulative_sums[&mesh_index], triangle_random);
+                        let triangle_start_index = 3 * triangle_index;
+                        let triangle = &mesh.simple_mesh.indices[triangle_start_index..triangle_start_index + 3];
 
-            let a = mesh.simple_mesh.vertex_positions[triangle[0] as usize];
-            let b = mesh.simple_mesh.vertex_positions[triangle[1] as usize];
-            let c = mesh.simple_mesh.vertex_positions[triangle[2] as usize];
-            let ab = b - a;
-            let ac = c - a;
+                        let a = mesh.simple_mesh.vertex_positions[triangle[0] as usize];
+                        let b = mesh.simple_mesh.vertex_positions[triangle[1] as usize];
+                        let c = mesh.simple_mesh.vertex_positions[triangle[2] as usize];
+                        let ab = b - a;
+                        let ac = c - a;
 
-            // Sample in parallelogram
-            let alpha = rand::random::<f32>();
-            let beta = rand::random::<f32>();
-            let in_triangle = alpha + beta <= 1.0;
+                        // Sample in parallelogram
+                        let alpha = rand::random::<f32>();
+                        let beta = rand::random::<f32>();
+                        let in_triangle = alpha + beta <= 1.0;
 
-            // Compute the point position
-            let point_position = if in_triangle {
-                a + alpha * ab + beta * ac
-            } else {
-                a + (1.0 - alpha) * ab + (1.0 - beta) * ac
-            };
+                        // Compute the point position
+                        let point_position = if in_triangle {
+                            a + alpha * ab + beta * ac
+                        } else {
+                            a + (1.0 - alpha) * ab + (1.0 - beta) * ac
+                        };
 
-            // Sample the point color
-            const MISSING_COLOR: ByteColor3 = ByteColor3::new(255, 0, 0);
-            let point_color = if let Some(vertex_texture_coordinates) = &mesh.simple_mesh.vertex_texture_coordinates {
-                let uv_a = vertex_texture_coordinates[triangle[0] as usize];
-                let uv_b = vertex_texture_coordinates[triangle[1] as usize];
-                let uv_c = vertex_texture_coordinates[triangle[2] as usize];
-                let uv_ab = uv_b - uv_a;
-                let uv_ac = uv_c - uv_a;
-                let uv = if in_triangle {
-                    uv_a + alpha * uv_ab + beta * uv_ac
-                } else {
-                    uv_a + (1.0 - alpha) * uv_ab + (1.0 - beta) * uv_ac
-                };
-                if let Some(material_index) = mesh.simple_mesh.material_index {
-                    let material = &model.materials[material_index];
-                    if let Some(base_color_texture_index) = &material.base_color_texture_index {
-                        let base_color_texture = &model.textures[*base_color_texture_index];
-                        base_color_texture.sample(uv).as_byte_color3()
-                    } else {
-                        material.base_color_color.as_byte_color3()
+                        // Sample the point color
+                        const MISSING_COLOR: ByteColor3 = ByteColor3::new(255, 0, 0);
+                        let point_color = if let Some(vertex_texture_coordinates) = &mesh.simple_mesh.vertex_texture_coordinates {
+                            let uv_a = vertex_texture_coordinates[triangle[0] as usize];
+                            let uv_b = vertex_texture_coordinates[triangle[1] as usize];
+                            let uv_c = vertex_texture_coordinates[triangle[2] as usize];
+                            let uv_ab = uv_b - uv_a;
+                            let uv_ac = uv_c - uv_a;
+                            let uv = if in_triangle {
+                                uv_a + alpha * uv_ab + beta * uv_ac
+                            } else {
+                                uv_a + (1.0 - alpha) * uv_ab + (1.0 - beta) * uv_ac
+                            };
+                            if let Some(material_index) = mesh.simple_mesh.material_index {
+                                let material = &model.materials[material_index];
+                                if let Some(base_color_texture_index) = &material.base_color_texture_index {
+                                    let base_color_texture = &model.textures[*base_color_texture_index];
+                                    base_color_texture.sample(uv).as_byte_color3()
+                                } else {
+                                    material.base_color_color.as_byte_color3()
+                                }
+                            } else {
+                                MISSING_COLOR
+                            }
+                        } else {
+                            MISSING_COLOR
+                        };
+
+                        // Push the point to the point cloud
+                        point_positions.push(point_position);
+                        point_colors.push(point_color);
                     }
-                } else {
-                    MISSING_COLOR
-                }
-            } else {
-                MISSING_COLOR
-            };
-
-            // Push the point to the point cloud
-            point_cloud.push(point_position, point_color);
-        }
-
-        point_cloud
+                    let mut guard = point_cloud.lock();
+                    guard.point_positions.extend(point_positions);
+                    guard.point_colors.extend(point_colors);
+                });
+            }
+        });
+        let mut guard = point_cloud.lock();
+        std::mem::take(&mut *guard)
     }
 
     /// Writes the `PointCloud` to an OBJ file.
@@ -167,6 +185,15 @@ impl SimplePointCloud {
     /// Returns `true` if the `PointCloud` contains no points.
     pub fn is_empty(&self) -> bool {
         self.point_positions.is_empty()
+    }
+}
+
+impl std::fmt::Debug for SimplePointCloud {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SimplePointCloud")
+            .field("point_positions", &self.point_positions.len())
+            .field("point_colors", &self.point_colors.len())
+            .finish()
     }
 }
 

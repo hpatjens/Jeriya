@@ -33,7 +33,7 @@ use jeriya_backend_ash::AshBackend;
 use jeriya_content::{model::Model, point_cloud::PointCloud, AssetImporter, AssetProcessor, Directories, FileSystem};
 use jeriya_shared::{
     debug_info,
-    log::{self, error},
+    log::{self, error, info},
     nalgebra::{self, Matrix4, Scale3, Translation3, Vector2, Vector3, Vector4},
     parking_lot::Mutex,
     spin_sleep,
@@ -431,6 +431,7 @@ fn main() -> ey::Result<()> {
                 let point_cloud = PointCloud::deserialize_from_file(&command_line_arguments.path)
                     .wrap_err("Failed to deserialize PointCloud")
                     .expect("Failed to deserialize PointCloud");
+                info!("PointCloud to view: {point_cloud:?}");
 
                 let mut resource_group = resource_group2.lock();
                 let mut element_group = element_group2.lock();
