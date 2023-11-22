@@ -10,7 +10,7 @@ use gltf::{
     mesh::{util::ReadIndices, Mode},
 };
 use jeriya_shared::{
-    log::{info, trace},
+    log::trace,
     nalgebra::{Vector2, Vector3},
     thiserror, ByteColor3, ByteColor4,
 };
@@ -428,12 +428,9 @@ fn build_meshlets(simple_mesh: &SimpleMesh) -> crate::Result<Vec<Meshlet>> {
     let meshlets = meshopt::clusterize::build_meshlets(&simple_mesh.indices, simple_mesh.vertex_positions.len(), 64, 126);
     let meshlets = meshlets
         .into_iter()
-        .map(|meshlet| {
-            info!("Meshlet: {:?}", (meshlet.vertex_count, meshlet.triangle_count));
-            Meshlet {
-                global_indices: meshlet.vertices.into_iter().take(meshlet.vertex_count as usize).collect(),
-                local_indices: meshlet.indices.into_iter().take(meshlet.triangle_count as usize).collect(),
-            }
+        .map(|meshlet| Meshlet {
+            global_indices: meshlet.vertices.into_iter().take(meshlet.vertex_count as usize).collect(),
+            local_indices: meshlet.indices.into_iter().take(meshlet.triangle_count as usize).collect(),
         })
         .collect::<Vec<_>>();
     Ok(meshlets)

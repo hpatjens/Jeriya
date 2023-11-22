@@ -39,3 +39,5 @@ derive-where = "1.2.5"
 serde = { version = "1.0.177", features = ["derive"] }
 float-cmp = "0.9.0"
 num_cpus = "1"
+kdtree = "0.7"
+plotters = "0.3"

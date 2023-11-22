@@ -147,6 +147,15 @@ pub fn assert_compare_hybrid(image1: RgbImage, image2: RgbImage, min: f64, max: 
     );
 }
 
+/// Creates a folder for each module in the path of the function name
+pub fn create_test_result_folder_for_function(function_name: &str) -> PathBuf {
+    let sub_path = function_name.replace("::", "/");
+    const TEST_RESULT_FOLDER: &str = "test_results";
+    let path = PathBuf::from(TEST_RESULT_FOLDER).join(sub_path);
+    std::fs::create_dir_all(&path).expect("failed to create the test result folder");
+    path
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
