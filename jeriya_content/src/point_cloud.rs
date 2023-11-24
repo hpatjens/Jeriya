@@ -2,7 +2,12 @@ pub mod bounding_box;
 pub mod cluster_hash_grid;
 pub mod simple_point_cloud;
 
-use std::{collections::HashSet, fs::File, io::Write, path::Path};
+use std::{
+    collections::HashSet,
+    fs::File,
+    io::{self, Write},
+    path::Path,
+};
 
 use jeriya_shared::{
     kdtree::KdTree,
@@ -253,7 +258,10 @@ impl PointCloud {
                 self.simple_point_cloud.to_obj(obj_writer, config.point_size)?;
                 Ok(())
             }
-            ObjWriteSource::Clusters => todo!(),
+            ObjWriteSource::Clusters => {
+                pages_to_obj(&self.pages, obj_writer, config.point_size)?;
+                Ok(())
+            }
         }
     }
 
@@ -278,6 +286,31 @@ impl std::fmt::Debug for PointCloud {
             .field("pages", &self.pages.len())
             .finish()
     }
+}
+
+fn pages_to_obj(pages: &Vec<Page>, mut obj_writer: impl Write, point_size: f32) -> io::Result<()> {
+    let mut vertex_index = 1;
+    for (page_index, page) in pages.iter().enumerate() {
+        writeln!(obj_writer, "g page_{page_index}")?;
+        // writeln!(obj_writer, "mtl page_{page_index}")?;
+        for cluster in &page.clusters {
+            for index in cluster.index_start..cluster.index_start + cluster.len {
+                let position = &page.point_positions[index as usize];
+                let (a, b, c) = SimplePointCloud::create_triangle_for_point(position, point_size)?;
+                writeln!(obj_writer, "v {} {} {}", a.x, a.y, a.z)?;
+                writeln!(obj_writer, "v {} {} {}", b.x, b.y, b.z)?;
+                writeln!(obj_writer, "v {} {} {}", c.x, c.y, c.z)?;
+            }
+            for index in cluster.index_start..cluster.index_start + cluster.len {
+                let f0 = vertex_index + index * 3;
+                let f1 = vertex_index + index * 3 + 1;
+                let f2 = vertex_index + index * 3 + 2;
+                writeln!(obj_writer, "f {f0} {f1} {f2}")?;
+            }
+            vertex_index += cluster.len * 3;
+        }
+    }
+    Ok(())
 }
 
 struct LeafCell {
@@ -347,4 +380,19 @@ fn insert_into_page(pages: &mut Vec<Page>, points: &[usize], point_positions: &[
     last_page.clusters.push(cluster);
     last_page.point_positions.extend(points.iter().map(|&index| point_positions[index]));
     last_page.point_colors.extend(points.iter().map(|&index| point_colors[index]));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sample_from_model() {
+        let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
+        let mut point_cloud = PointCloud::sample_from_model(&model, 200.0);
+        point_cloud.compute_clusters();
+        dbg!(point_cloud.pages().len());
+        dbg!(point_cloud.simple_point_cloud().point_positions().len());
+        assert!(false);
+    }
 }
