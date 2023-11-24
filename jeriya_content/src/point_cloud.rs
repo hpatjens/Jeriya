@@ -2,18 +2,20 @@ pub mod bounding_box;
 pub mod cluster_hash_grid;
 pub mod simple_point_cloud;
 
-use std::{fs::File, io::Write, path::Path};
+use std::{collections::HashSet, fs::File, io::Write, path::Path};
 
 use jeriya_shared::{
     kdtree::KdTree,
     log::{info, trace, warn},
     nalgebra::Vector3,
-    rayon::iter::IndexedParallelIterator,
     ByteColor3,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{model::Model, point_cloud::cluster_hash_grid::ClusterHashGrid};
+use crate::{
+    model::Model,
+    point_cloud::cluster_hash_grid::{CellContent, CellType, ClusterHashGrid},
+};
 
 use self::simple_point_cloud::SimplePointCloud;
 
@@ -58,7 +60,7 @@ impl Cluster {
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct PointCloud {
-    simple_point_cloud: Option<SimplePointCloud>,
+    simple_point_cloud: SimplePointCloud,
     pages: Vec<Page>,
 }
 
@@ -168,25 +170,75 @@ impl PointCloud {
             pages.len()
         }
 
-        Self {
-            simple_point_cloud: Some(simple_point_cloud),
-            pages,
-        }
+        Self { simple_point_cloud, pages }
     }
 
+    /// Computes the cluster for the [`PointCloud`] when it contains a [`SimplePointCloud`].
     pub fn compute_clusters(&mut self) {
-        if let Some(simple_point_cloud) = &self.simple_point_cloud {
-            let target_points_per_cell = 128;
-            let hash_grid = ClusterHashGrid::new(simple_point_cloud.point_positions(), target_points_per_cell);
+        let target_points_per_cell = 256;
+        let hash_grid = ClusterHashGrid::new(self.simple_point_cloud.point_positions(), target_points_per_cell);
 
-            todo!()
+        // Creates a priority queue that is used to process the cells starting from the lowest levels.
+        let mut priority_queue = create_priority_queue(&hash_grid);
+
+        // When cells are inserted into a page, they have to be removed from the queue. Instead
+        // of searching throught the Vec, the unique index of the cell is stored in a HashSet.
+        // Every time a cell is popped from the queue, the HashSet can be used to look up whether
+        // the cell still needs processing.
+        let mut processed_cells_indices = HashSet::new();
+
+        // The information from the cells is collected into the last page and when it is full,
+        // a new page is created.
+        let mut pages = vec![Page::default()];
+
+        // Take the cells from the queue and collect them into pages by sampling the neighboring
+        // cells until the page is full.
+        while let Some(pivot_cell) = priority_queue.pop() {
+            if processed_cells_indices.contains(&pivot_cell.unique_index) {
+                continue;
+            }
+
+            // Insert the pivot cell into the page
+            insert_into_page(
+                &mut pages,
+                &pivot_cell.points,
+                self.simple_point_cloud.point_positions(),
+                self.simple_point_cloud.point_colors(),
+            );
+
+            // Sample the neighboring cells and insert them into the page
+            for x in -1..=1 {
+                for y in -1..=1 {
+                    for z in -1..=1 {
+                        if x == 0 && y == 0 && z == 0 {
+                            continue;
+                        }
+                        let neighbor_sample = Vector3::new(
+                            pivot_cell.center.x + x as f32 * pivot_cell.size.x,
+                            pivot_cell.center.y + y as f32 * pivot_cell.size.y,
+                            pivot_cell.center.z + z as f32 * pivot_cell.size.z,
+                        );
+                        if let Some((unique_index, points)) = hash_grid.get_leaf(neighbor_sample) {
+                            insert_into_page(
+                                &mut pages,
+                                points,
+                                self.simple_point_cloud.point_positions(),
+                                self.simple_point_cloud.point_colors(),
+                            );
+                            processed_cells_indices.insert(unique_index);
+                        }
+                    }
+                }
+            }
         }
+
+        self.pages = pages;
     }
 
     /// Returns a reference to the [`SimplePointCloud`]. The [`PointCloud`] might not
     /// contain a [`SimplePointCloud`] when only the [`Cluster`]s are used.
-    pub fn simple_point_cloud(&self) -> Option<&SimplePointCloud> {
-        self.simple_point_cloud.as_ref()
+    pub fn simple_point_cloud(&self) -> &SimplePointCloud {
+        &self.simple_point_cloud
     }
 
     /// Returns a reference to the [`Page`]s of the [`PointCloud`].
@@ -198,9 +250,7 @@ impl PointCloud {
     pub fn to_obj(&self, config: &ObjWriteConfig, obj_writer: impl Write) -> crate::Result<()> {
         match &config.source {
             ObjWriteSource::SimplePointCloud => {
-                if let Some(simple_point_cloud) = &self.simple_point_cloud {
-                    simple_point_cloud.to_obj(obj_writer, config.point_size)?;
-                }
+                self.simple_point_cloud.to_obj(obj_writer, config.point_size)?;
                 Ok(())
             }
             ObjWriteSource::Clusters => todo!(),
@@ -228,4 +278,73 @@ impl std::fmt::Debug for PointCloud {
             .field("pages", &self.pages.len())
             .finish()
     }
+}
+
+struct LeafCell {
+    unique_index: usize,
+    center: Vector3<f32>,
+    size: Vector3<f32>,
+    points: Vec<usize>,
+}
+
+/// Creates a priority queue that is used to process the cells starting from the lowest levels.
+fn create_priority_queue(hash_grid: &ClusterHashGrid) -> Vec<LeafCell> {
+    // Its not trivial to find the neighbors of a cell in the hash grid because the
+    // cells might be subdivided finding the neighbors in the child cells would
+    // require knowledge about the direction of neighborhood. However, when traversing
+    // down to the leafs, finding the neighbors is trivial because the neighboring
+    // cell is always found a cell width aways from the center. Here, the tree is
+    // traversed down to the leafs and the cells are inserted into a queue that is
+    // used to process the cells starting from the lowest levels.
+    let mut priority_queue = Vec::new();
+    fn insert_into_queue(priority_queue: &mut Vec<LeafCell>, cell_content: &CellContent) {
+        match &cell_content.ty {
+            CellType::Points(points) => {
+                priority_queue.push(LeafCell {
+                    unique_index: cell_content.unique_index,
+                    center: cell_content.center,
+                    size: cell_content.size,
+                    points: points.clone(),
+                });
+            }
+            CellType::Grid(grid) => insert_into_queue_from_grid(priority_queue, grid.cells()),
+            CellType::XAxisHalfSplit(first, second) => {
+                insert_into_queue(priority_queue, first);
+                insert_into_queue(priority_queue, second);
+            }
+        }
+    }
+    fn insert_into_queue_from_grid<'a>(priority_queue: &mut Vec<LeafCell>, cells: impl Iterator<Item = &'a CellContent>) {
+        // Since we want to traverse the tree donw to the leafs before adding cells in the
+        // higher levels, the cells are partitioned into recursive and non-recursive cells.
+        let (recursive, non_recursive) = cells.partition::<Vec<_>, _>(|cell| matches!(&cell.ty, CellType::Grid(_)));
+        for cell in recursive {
+            insert_into_queue(priority_queue, cell);
+        }
+        for cell in non_recursive {
+            insert_into_queue(priority_queue, cell);
+        }
+    }
+    insert_into_queue_from_grid(&mut priority_queue, hash_grid.cells());
+    priority_queue
+}
+
+/// Inserts the points into the page.
+fn insert_into_page(pages: &mut Vec<Page>, points: &[usize], point_positions: &[Vector3<f32>], point_colors: &[ByteColor3]) {
+    // When the last page is full, a new page is created.
+    let has_space = pages.last().map_or(false, |page| page.clusters.len() + 1 < Page::MAX_CLUSTERS);
+    if !has_space {
+        pages.push(Page::default());
+    }
+
+    // Insert the cluster into the page
+    let Some(last_page) = pages.last_mut() else {
+        panic!("Failed to get the last page");
+    };
+    let index_start = last_page.point_positions.len() as u32;
+    let len = points.len() as u32;
+    let cluster = Cluster { index_start, len };
+    last_page.clusters.push(cluster);
+    last_page.point_positions.extend(points.iter().map(|&index| point_positions[index]));
+    last_page.point_colors.extend(points.iter().map(|&index| point_colors[index]));
 }
