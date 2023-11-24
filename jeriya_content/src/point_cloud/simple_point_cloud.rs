@@ -134,18 +134,7 @@ impl SimplePointCloud {
     pub fn to_obj(&self, mut obj_writer: impl Write, point_size: f32) -> io::Result<()> {
         // Writing the vertex positions
         for position in &self.point_positions {
-            // Creating a coordinate system
-            let u = random_direction();
-            let mut v = random_direction();
-            while v == u {
-                v = random_direction();
-            }
-            let n = u.cross(&v).normalize();
-
-            // Creating a triangle
-            let a = position;
-            let b = position + point_size * u;
-            let c = position + point_size * n;
+            let (a, b, c) = Self::create_triangle_for_point(position, point_size)?;
 
             writeln!(obj_writer, "v {} {} {}", a.x, a.y, a.z)?;
             writeln!(obj_writer, "v {} {} {}", b.x, b.y, b.z)?;
@@ -158,6 +147,27 @@ impl SimplePointCloud {
         }
 
         Ok(())
+    }
+
+    /// Creates the points of a triangle for representing the given point in an OBJ file.
+    pub(crate) fn create_triangle_for_point(
+        position: &Vector3<f32>,
+        point_size: f32,
+    ) -> io::Result<(Vector3<f32>, Vector3<f32>, Vector3<f32>)> {
+        // Creating a coordinate system
+        let u = random_direction();
+        let mut v = random_direction();
+        while v == u {
+            v = random_direction();
+        }
+        let n = u.cross(&v).normalize();
+
+        // Creating a triangle
+        let a = *position;
+        let b = *position + point_size * u;
+        let c = *position + point_size * n;
+
+        Ok((a, b, c))
     }
 
     /// Returns the positions of the points in the `PointCloud`.
@@ -288,6 +298,11 @@ fn compute_cumulative_sums(surface_areas: &[f32]) -> Vec<f32> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+
+    use jeriya_shared::function_name;
+    use jeriya_test::create_test_result_folder_for_function;
+
     use super::*;
 
     #[test]
@@ -310,8 +325,12 @@ mod tests {
     #[test]
     fn sample_from_model() {
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
-        let point_cloud = SimplePointCloud::sample_from_model(&model, 100.0);
-        assert_eq!(point_cloud.len(), 2646);
+        let point_cloud = SimplePointCloud::sample_from_model(&model, 200.0);
+        let directory = create_test_result_folder_for_function(function_name!());
+        let obj_path = directory.join("suzanne.obj");
+        let file = File::create(&obj_path).unwrap();
+        point_cloud.to_obj(file, 0.02).unwrap();
+        assert_eq!(point_cloud.len(), 5288);
     }
 
     #[test]
