@@ -26,7 +26,12 @@ use self::{bounding_box::AABB, simple_point_cloud::SimplePointCloud};
 /// Configuration for writing an OBJ file.
 pub enum ObjWriteConfig {
     SimplePointCloud(simple_point_cloud::ObjWriteConfig),
-    Clusters { point_size: f32 },
+    Clusters(ObjClusterWriteConfig),
+}
+
+pub enum ObjClusterWriteConfig {
+    Points { point_size: f32 },
+    HashGridCells,
 }
 
 /// Determines whether the [`SimplePointCloud`] or the [`Cluster`]s are used to produce the OBJ file.
@@ -68,10 +73,21 @@ pub struct DebugGeometry {
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]
-pub struct PointCloud {
-    simple_point_cloud: SimplePointCloud,
+pub struct ClusteredPointCloud {
     pages: Vec<Page>,
     debug_geometry: Option<DebugGeometry>,
+}
+
+impl std::fmt::Debug for ClusteredPointCloud {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ClusteredPointCloud").field("pages", &self.pages.len()).finish()
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct PointCloud {
+    simple_point_cloud: SimplePointCloud,
+    clustered_point_cloud: Option<ClusteredPointCloud>,
 }
 
 impl PointCloud {
@@ -83,11 +99,9 @@ impl PointCloud {
     /// Creates a new [`PointCloud`] from the given [`Model`].
     pub fn sample_from_model(model: &Model, points_per_square_unit: f32) -> Self {
         let simple_point_cloud = SimplePointCloud::sample_from_model(model, points_per_square_unit);
-
         Self {
             simple_point_cloud,
-            pages: Vec::new(),
-            debug_geometry: None,
+            clustered_point_cloud: None,
         }
     }
 
@@ -150,7 +164,10 @@ impl PointCloud {
             }
         }
 
-        self.pages = pages;
+        self.clustered_point_cloud = Some(ClusteredPointCloud {
+            pages,
+            debug_geometry: None,
+        });
     }
 
     /// Returns a reference to the [`SimplePointCloud`]. The [`PointCloud`] might not
@@ -160,18 +177,21 @@ impl PointCloud {
     }
 
     /// Returns a reference to the [`Page`]s of the [`PointCloud`].
-    pub fn pages(&self) -> &[Page] {
-        &self.pages
+    pub fn clustered_point_cloud(&self) -> Option<&ClusteredPointCloud> {
+        self.clustered_point_cloud.as_ref()
     }
 
     /// Writes the point cloud as an OBJ file.
     pub fn to_obj(&self, config: &ObjWriteConfig, obj_writer: impl Write, mtl_writer: impl Write, mtl_filename: &str) -> io::Result<()> {
         match &config {
             ObjWriteConfig::SimplePointCloud(obj_write_config) => self.simple_point_cloud.to_obj(obj_writer, obj_write_config),
-            ObjWriteConfig::Clusters { point_size } => {
-                pages_to_obj(&self.pages, obj_writer, mtl_writer, mtl_filename, *point_size)?;
-                Ok(())
-            }
+            ObjWriteConfig::Clusters(obj_cluster_write_config) => clustered_point_cloud_to_obj(
+                &self.clustered_point_cloud,
+                obj_writer,
+                mtl_writer,
+                mtl_filename,
+                obj_cluster_write_config,
+            ),
         }
     }
 
@@ -203,73 +223,73 @@ impl PointCloud {
     }
 }
 
-impl std::fmt::Debug for PointCloud {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PointCloud")
-            .field("simple_point_cloud", &self.simple_point_cloud)
-            .field("pages", &self.pages.len())
-            .finish()
-    }
-}
-
-fn pages_to_obj(
-    pages: &Vec<Page>,
+fn clustered_point_cloud_to_obj(
+    clustered_point_cloud: &Option<ClusteredPointCloud>,
     mut obj_writer: impl Write,
     mut mtl_writer: impl Write,
     mtl_filename: &str,
-    point_size: f32,
+    config: &ObjClusterWriteConfig,
 ) -> io::Result<()> {
-    writeln!(obj_writer, "mtllib {mtl_filename}")?;
+    let Some(clustered_point_cloud) = clustered_point_cloud.as_ref() else {
+        panic!("Failed to get the clustered point cloud");
+    };
 
-    // Write OBJ file
-    let mut global_clutser_index = 0;
-    for (page_index, page) in pages.iter().enumerate() {
-        let mut vertex_index = 1;
-        for (cluster_index, cluster) in page.clusters.iter().enumerate() {
-            writeln!(obj_writer, "")?;
-            writeln!(obj_writer, "# Cluster {cluster_index} in page {page_index}")?;
-            writeln!(obj_writer, "o cluster_{global_clutser_index}")?;
-            writeln!(obj_writer, "usemtl cluster_{global_clutser_index}")?;
-            for index in cluster.index_start..cluster.index_start + cluster.len {
-                let position = &page.point_positions[index as usize];
-                let (a, b, c) = SimplePointCloud::create_triangle_for_point(position, point_size)?;
-                writeln!(obj_writer, "v {} {} {}", a.x, a.y, a.z)?;
-                writeln!(obj_writer, "v {} {} {}", b.x, b.y, b.z)?;
-                writeln!(obj_writer, "v {} {} {}", c.x, c.y, c.z)?;
+    match config {
+        ObjClusterWriteConfig::Points { point_size } => {
+            writeln!(obj_writer, "mtllib {mtl_filename}")?;
+
+            // Write OBJ file
+            let mut global_clutser_index = 0;
+            for (page_index, page) in clustered_point_cloud.pages.iter().enumerate() {
+                let mut vertex_index = 1;
+                for (cluster_index, cluster) in page.clusters.iter().enumerate() {
+                    writeln!(obj_writer, "")?;
+                    writeln!(obj_writer, "# Cluster {cluster_index} in page {page_index}")?;
+                    writeln!(obj_writer, "o cluster_{global_clutser_index}")?;
+                    writeln!(obj_writer, "usemtl cluster_{global_clutser_index}")?;
+                    for index in cluster.index_start..cluster.index_start + cluster.len {
+                        let position = &page.point_positions[index as usize];
+                        let (a, b, c) = SimplePointCloud::create_triangle_for_point(position, *point_size)?;
+                        writeln!(obj_writer, "v {} {} {}", a.x, a.y, a.z)?;
+                        writeln!(obj_writer, "v {} {} {}", b.x, b.y, b.z)?;
+                        writeln!(obj_writer, "v {} {} {}", c.x, c.y, c.z)?;
+                    }
+                    for index in cluster.index_start..cluster.index_start + cluster.len {
+                        let f0 = vertex_index + index * 3;
+                        let f1 = vertex_index + index * 3 + 1;
+                        let f2 = vertex_index + index * 3 + 2;
+                        writeln!(obj_writer, "f {f0} {f1} {f2}")?;
+                    }
+                    vertex_index += cluster.len * 3;
+                    global_clutser_index += 1;
+                }
             }
-            for index in cluster.index_start..cluster.index_start + cluster.len {
-                let f0 = vertex_index + index * 3;
-                let f1 = vertex_index + index * 3 + 1;
-                let f2 = vertex_index + index * 3 + 2;
-                writeln!(obj_writer, "f {f0} {f1} {f2}")?;
+
+            // Write MTL file
+            let mut global_clutser_index = 0;
+            for (page_index, page) in clustered_point_cloud.pages.iter().enumerate() {
+                for (cluster_index, _cluster) in page.clusters.iter().enumerate() {
+                    let hue = rand::random::<f32>() * 360.0;
+                    let hsv = Hsl::from(hue, 100.0, 50.0);
+                    let rgb = hsv.to_rgb();
+                    let r = rgb.get_red() / 255.0;
+                    let g = rgb.get_green() / 255.0;
+                    let b = rgb.get_blue() / 255.0;
+                    writeln!(mtl_writer, "# Material for cluster {cluster_index} in page {page_index}")?;
+                    writeln!(mtl_writer, "newmtl cluster_{global_clutser_index}")?;
+                    writeln!(mtl_writer, "Ka {r} {g} {b}")?;
+                    writeln!(mtl_writer, "Kd {r} {g} {b}")?;
+                    writeln!(mtl_writer, "Ks 1.0 1.0 1.0")?;
+                    writeln!(mtl_writer, "Ns 100")?;
+                    writeln!(mtl_writer, "")?;
+                    global_clutser_index += 1;
+                }
             }
-            vertex_index += cluster.len * 3;
-            global_clutser_index += 1;
-        }
-    }
 
-    // Write MTL file
-    let mut global_clutser_index = 0;
-    for (page_index, page) in pages.iter().enumerate() {
-        for (cluster_index, _cluster) in page.clusters.iter().enumerate() {
-            let hue = rand::random::<f32>() * 360.0;
-            let hsv = Hsl::from(hue, 100.0, 50.0);
-            let rgb = hsv.to_rgb();
-            let r = rgb.get_red() / 255.0;
-            let g = rgb.get_green() / 255.0;
-            let b = rgb.get_blue() / 255.0;
-            writeln!(mtl_writer, "# Material for cluster {cluster_index} in page {page_index}")?;
-            writeln!(mtl_writer, "newmtl cluster_{global_clutser_index}")?;
-            writeln!(mtl_writer, "Ka {r} {g} {b}")?;
-            writeln!(mtl_writer, "Kd {r} {g} {b}")?;
-            writeln!(mtl_writer, "Ks 1.0 1.0 1.0")?;
-            writeln!(mtl_writer, "Ns 100")?;
-            writeln!(mtl_writer, "")?;
-            global_clutser_index += 1;
+            Ok(())
         }
+        ObjClusterWriteConfig::HashGridCells => Ok(()),
     }
-
-    Ok(())
 }
 
 struct LeafCell {
@@ -353,10 +373,16 @@ mod tests {
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
         let mut point_cloud = PointCloud::sample_from_model(&model, 200.0);
         point_cloud.compute_clusters();
-        dbg!(point_cloud.pages().len());
+        dbg!(point_cloud.clustered_point_cloud().unwrap().pages.len());
         dbg!(point_cloud.simple_point_cloud().point_positions().len());
         let directory = create_test_result_folder_for_function(function_name!());
-        let config = ObjWriteConfig::Clusters { point_size: 0.02 };
+
+        let config = ObjWriteConfig::Clusters(ObjClusterWriteConfig::Points { point_size: 0.02 });
         point_cloud.to_obj_file(&config, &directory.join("point_cloud.obj")).unwrap();
+
+        let config = ObjWriteConfig::SimplePointCloud(simple_point_cloud::ObjWriteConfig::AABB);
+        point_cloud
+            .to_obj_file(&config, &directory.join("point_cloud_bounding_box.obj"))
+            .unwrap();
     }
 }
