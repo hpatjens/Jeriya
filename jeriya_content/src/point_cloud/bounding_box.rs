@@ -1,7 +1,8 @@
 use jeriya_shared::nalgebra::Vector3;
+use serde::{Deserialize, Serialize};
 
 /// Axis-aligned bounding box defined by its minimum and maximum extent.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AABB {
     pub min: Vector3<f32>,
     pub max: Vector3<f32>,
