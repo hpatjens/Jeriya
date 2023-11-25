@@ -1,6 +1,33 @@
 use jeriya_shared::nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 
+/// Trait that allows a type to expand an [`AABB`].
+pub trait Include {
+    fn expand_aabb(&self, aabb: &mut AABB);
+}
+
+impl Include for Vector3<f32> {
+    fn expand_aabb(&self, aabb: &mut AABB) {
+        aabb.min.x = aabb.min.x.min(self.x);
+        aabb.min.y = aabb.min.y.min(self.y);
+        aabb.min.z = aabb.min.z.min(self.z);
+        aabb.max.x = aabb.max.x.max(self.x);
+        aabb.max.y = aabb.max.y.max(self.y);
+        aabb.max.z = aabb.max.z.max(self.z);
+    }
+}
+
+impl Include for AABB {
+    fn expand_aabb(&self, aabb: &mut AABB) {
+        aabb.min.x = aabb.min.x.min(self.min.x);
+        aabb.min.y = aabb.min.y.min(self.min.y);
+        aabb.min.z = aabb.min.z.min(self.min.z);
+        aabb.max.x = aabb.max.x.max(self.max.x);
+        aabb.max.y = aabb.max.y.max(self.max.y);
+        aabb.max.z = aabb.max.z.max(self.max.z);
+    }
+}
+
 /// Axis-aligned bounding box defined by its minimum and maximum extent.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AABB {
@@ -60,25 +87,35 @@ impl AABB {
     /// # use jeriya_content::point_cloud::bounding_box::AABB;
     /// # use jeriya_shared::float_cmp::assert_approx_eq;
     /// let mut bounding_box = AABB::empty();
-    /// bounding_box.add(Vector3::new(0.0, 0.0, 0.0));
+    ///
+    /// // Inserting a point into an empty AABB expands it to contain the point.
+    /// bounding_box.include(&Vector3::new(0.0, 0.0, 0.0));
     /// assert!(!bounding_box.is_empty());
     ///
-    /// bounding_box.add(Vector3::new(1.0, 2.0, 3.0));
-    /// bounding_box.add(Vector3::new(-4.0, -5.0, -6.0));
+    /// bounding_box.include(&Vector3::new(1.0, 2.0, 3.0));
+    /// bounding_box.include(&Vector3::new(-4.0, -5.0, -6.0));
     /// assert_approx_eq!(f32, bounding_box.min.x, -4.0, ulps = 1);
     /// assert_approx_eq!(f32, bounding_box.min.y, -5.0, ulps = 1);
     /// assert_approx_eq!(f32, bounding_box.min.z, -6.0, ulps = 1);
     /// assert_approx_eq!(f32, bounding_box.max.x, 1.0, ulps = 1);
     /// assert_approx_eq!(f32, bounding_box.max.y, 2.0, ulps = 1);
     /// assert_approx_eq!(f32, bounding_box.max.z, 3.0, ulps = 1);
+    ///
+    /// // Inserting an AABB into the AABB expands it to contain the AABB.
+    /// bounding_box.include(&AABB::from_slice(&[
+    ///    Vector3::new(0.0, 0.0, 0.0),
+    ///    Vector3::new(2.0, 3.0, 4.0),
+    ///    Vector3::new(-5.0, -6.0, -7.0),
+    /// ]));
+    /// assert_approx_eq!(f32, bounding_box.min.x, -5.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.min.y, -6.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.min.z, -7.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.max.x, 2.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.max.y, 3.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.max.z, 4.0, ulps = 1);
     /// ```
-    pub fn add(&mut self, point: Vector3<f32>) {
-        self.min.x = self.min.x.min(point.x);
-        self.min.y = self.min.y.min(point.y);
-        self.min.z = self.min.z.min(point.z);
-        self.max.x = self.max.x.max(point.x);
-        self.max.y = self.max.y.max(point.y);
-        self.max.z = self.max.z.max(point.z);
+    pub fn include(&mut self, other: &impl Include) {
+        other.expand_aabb(self);
     }
 
     /// Checks whether the given point in contained in the `AABB`
@@ -89,8 +126,8 @@ impl AABB {
     /// # use jeriya_shared::nalgebra::Vector3;
     /// # use jeriya_content::point_cloud::bounding_box::AABB;
     /// let mut bounding_box = AABB::empty();
-    /// bounding_box.add(Vector3::new(1.0, 2.0, 3.0));
-    /// bounding_box.add(Vector3::new(-4.0, -5.0, -6.0));
+    /// bounding_box.include(&Vector3::new(1.0, 2.0, 3.0));
+    /// bounding_box.include(&Vector3::new(-4.0, -5.0, -6.0));
     /// assert!(bounding_box.contains(Vector3::new(0.0, 0.0, 0.0)));
     /// assert!(bounding_box.contains(Vector3::new(0.5, 0.5, 0.5)));
     /// assert!(bounding_box.contains(Vector3::new(1.0, 2.0, 3.0)));
@@ -109,9 +146,9 @@ impl AABB {
     /// # use jeriya_content::point_cloud::bounding_box::AABB;
     /// # use jeriya_shared::float_cmp::assert_approx_eq;
     /// let mut bounding_box = AABB::empty();
-    /// bounding_box.add(Vector3::new(0.0, 0.0, 0.0));
-    /// bounding_box.add(Vector3::new(1.0, 2.0, 3.0));
-    /// bounding_box.add(Vector3::new(-4.0, -5.0, -6.0));
+    /// bounding_box.include(&Vector3::new(0.0, 0.0, 0.0));
+    /// bounding_box.include(&Vector3::new(1.0, 2.0, 3.0));
+    /// bounding_box.include(&Vector3::new(-4.0, -5.0, -6.0));
     /// assert_approx_eq!(f32, bounding_box.center().x, -1.5, ulps = 1);
     /// assert_approx_eq!(f32, bounding_box.center().y, -1.5, ulps = 1);
     /// assert_approx_eq!(f32, bounding_box.center().z, -1.5, ulps = 1);
@@ -140,7 +177,7 @@ impl Default for AABB {
 impl Extend<Vector3<f32>> for AABB {
     fn extend<T: IntoIterator<Item = Vector3<f32>>>(&mut self, iter: T) {
         for point in iter {
-            self.add(point);
+            self.include(&point);
         }
     }
 }
@@ -148,7 +185,7 @@ impl Extend<Vector3<f32>> for AABB {
 impl<'s> Extend<&'s Vector3<f32>> for AABB {
     fn extend<T: IntoIterator<Item = &'s Vector3<f32>>>(&mut self, iter: T) {
         for point in iter {
-            self.add(*point);
+            self.include(point);
         }
     }
 }
@@ -163,7 +200,7 @@ mod tests {
     fn smoke() {
         let mut bounding_box = AABB::empty();
         assert!(bounding_box.is_empty());
-        bounding_box.add(Vector3::new(0.0, 0.0, 0.0));
+        bounding_box.include(&Vector3::new(0.0, 0.0, 0.0));
         assert!(!bounding_box.is_empty());
         assert_approx_eq!(f32, bounding_box.min.x, 0.0, ulps = 1);
         assert_approx_eq!(f32, bounding_box.min.y, 0.0, ulps = 1);
@@ -176,8 +213,8 @@ mod tests {
     #[test]
     fn expand_positive() {
         let mut bounding_box = AABB::empty();
-        bounding_box.add(Vector3::new(0.0, 0.0, 0.0));
-        bounding_box.add(Vector3::new(1.0, 2.0, 3.0));
+        bounding_box.include(&Vector3::new(0.0, 0.0, 0.0));
+        bounding_box.include(&Vector3::new(1.0, 2.0, 3.0));
         assert_approx_eq!(f32, bounding_box.min.x, 0.0, ulps = 1);
         assert_approx_eq!(f32, bounding_box.min.y, 0.0, ulps = 1);
         assert_approx_eq!(f32, bounding_box.min.z, 0.0, ulps = 1);
