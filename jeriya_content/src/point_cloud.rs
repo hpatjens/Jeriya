@@ -3,18 +3,16 @@ pub mod cluster_hash_grid;
 pub mod simple_point_cloud;
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fs::File,
     io::{self, Write},
     path::Path,
 };
 
 use jeriya_shared::{
-    colors_transform::{Color, Hsl, Rgb},
-    kdtree::KdTree,
-    log::{info, trace, warn},
+    colors_transform::{Color, Hsl},
     nalgebra::Vector3,
-    pseudo_random_color, rand, ByteColor3,
+    rand, ByteColor3,
 };
 use serde::{Deserialize, Serialize};
 
@@ -26,9 +24,9 @@ use crate::{
 use self::{bounding_box::AABB, simple_point_cloud::SimplePointCloud};
 
 /// Configuration for writing an OBJ file.
-pub struct ObjWriteConfig {
-    pub source: ObjWriteSource,
-    pub point_size: f32,
+pub enum ObjWriteConfig {
+    SimplePointCloud(simple_point_cloud::ObjWriteConfig),
+    Clusters { point_size: f32 },
 }
 
 /// Determines whether the [`SimplePointCloud`] or the [`Cluster`]s are used to produce the OBJ file.
@@ -167,21 +165,18 @@ impl PointCloud {
     }
 
     /// Writes the point cloud as an OBJ file.
-    pub fn to_obj(&self, config: &ObjWriteConfig, obj_writer: impl Write, mtl_writer: impl Write, mtl_filename: &str) -> crate::Result<()> {
-        match &config.source {
-            ObjWriteSource::SimplePointCloud => {
-                self.simple_point_cloud.to_obj(obj_writer, config.point_size)?;
-                Ok(())
-            }
-            ObjWriteSource::Clusters => {
-                pages_to_obj(&self.pages, obj_writer, mtl_writer, mtl_filename, config.point_size)?;
+    pub fn to_obj(&self, config: &ObjWriteConfig, obj_writer: impl Write, mtl_writer: impl Write, mtl_filename: &str) -> io::Result<()> {
+        match &config {
+            ObjWriteConfig::SimplePointCloud(obj_write_config) => self.simple_point_cloud.to_obj(obj_writer, obj_write_config),
+            ObjWriteConfig::Clusters { point_size } => {
+                pages_to_obj(&self.pages, obj_writer, mtl_writer, mtl_filename, *point_size)?;
                 Ok(())
             }
         }
     }
 
     /// Writes the point cloud as an OBJ file. The MTL file is written to the same directory.
-    pub fn to_obj_file(&self, config: &ObjWriteConfig, filepath: &impl AsRef<Path>) -> crate::Result<()> {
+    pub fn to_obj_file(&self, config: &ObjWriteConfig, filepath: &impl AsRef<Path>) -> io::Result<()> {
         let obj_filepath = filepath.as_ref().with_extension("obj");
         let mtl_filepath = filepath.as_ref().with_extension("mtl");
         let obj_file = File::create(&obj_filepath)?;
@@ -361,10 +356,7 @@ mod tests {
         dbg!(point_cloud.pages().len());
         dbg!(point_cloud.simple_point_cloud().point_positions().len());
         let directory = create_test_result_folder_for_function(function_name!());
-        let config = ObjWriteConfig {
-            source: ObjWriteSource::Clusters,
-            point_size: 0.02,
-        };
+        let config = ObjWriteConfig::Clusters { point_size: 0.02 };
         point_cloud.to_obj_file(&config, &directory.join("point_cloud.obj")).unwrap();
     }
 }

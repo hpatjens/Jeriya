@@ -5,7 +5,7 @@ use color_eyre as ey;
 use ey::eyre::Context;
 use jeriya_content::{
     model::Model,
-    point_cloud::{self, PointCloud},
+    point_cloud::{self, simple_point_cloud, PointCloud},
 };
 use jeriya_shared::log::{self, info};
 
@@ -84,10 +84,7 @@ fn main() -> ey::Result<()> {
                     PointCloud::deserialize_from_file(&convert.source_filepath).wrap_err("Failed to deserialize point cloud")?;
 
                 info!("Writing point cloud to OBJ");
-                let config = point_cloud::ObjWriteConfig {
-                    source: point_cloud::ObjWriteSource::SimplePointCloud,
-                    point_size,
-                };
+                let config = point_cloud::ObjWriteConfig::SimplePointCloud(simple_point_cloud::ObjWriteConfig::Points { point_size });
                 point_cloud
                     .to_obj_file(&config, &convert.destination_filepath)
                     .wrap_err("Failed to write point cloud to OBJ")?;

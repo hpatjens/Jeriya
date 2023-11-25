@@ -13,6 +13,12 @@ use crate::model::Model;
 
 use super::bounding_box::AABB;
 
+/// Determines what is exported to the OBJ file.
+pub enum ObjWriteConfig {
+    Points { point_size: f32 },
+    AABB,
+}
+
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct SimplePointCloud {
     bounding_box: AABB,
@@ -52,12 +58,13 @@ impl SimplePointCloud {
         info!("Sample count: {}", sample_count);
 
         // Sample the model
-        let point_cloud = Arc::new(Mutex::new(Self::new()));
+        let simple_point_cloud = Arc::new(Mutex::new(Self::new()));
         let cpu_count = num_cpus::get();
         let sample_cound_per_cpu = sample_count / cpu_count;
         rayon::scope(|s| {
             for _ in 0..cpu_count {
                 s.spawn(|_| {
+                    let mut aabb = AABB::empty();
                     let mut point_positions = Vec::new();
                     let mut point_colors = Vec::new();
                     for _ in 0..sample_cound_per_cpu {
@@ -91,6 +98,9 @@ impl SimplePointCloud {
                             a + (1.0 - alpha) * ab + (1.0 - beta) * ac
                         };
 
+                        // Expand the AABB
+                        aabb.include(&point_position);
+
                         // Sample the point color
                         const MISSING_COLOR: ByteColor3 = ByteColor3::new(255, 0, 0);
                         let point_color = if let Some(vertex_texture_coordinates) = &mesh.simple_mesh.vertex_texture_coordinates {
@@ -123,32 +133,65 @@ impl SimplePointCloud {
                         point_positions.push(point_position);
                         point_colors.push(point_color);
                     }
-                    let mut guard = point_cloud.lock();
+                    let mut guard = simple_point_cloud.lock();
                     guard.point_positions.extend(point_positions);
                     guard.point_colors.extend(point_colors);
+                    guard.bounding_box.include(&aabb);
                 });
             }
         });
-        let mut guard = point_cloud.lock();
+        let mut guard = simple_point_cloud.lock();
         std::mem::take(&mut *guard)
     }
 
     /// Writes the `PointCloud` to an OBJ file.
-    pub fn to_obj(&self, mut obj_writer: impl Write, point_size: f32) -> io::Result<()> {
-        // Writing the vertex positions
-        for position in &self.point_positions {
-            let (a, b, c) = Self::create_triangle_for_point(position, point_size)?;
+    pub fn to_obj(&self, mut obj_writer: impl Write, config: &ObjWriteConfig) -> io::Result<()> {
+        match config {
+            ObjWriteConfig::Points { point_size } => {
+                // Writing the vertex positions
+                for position in &self.point_positions {
+                    let (a, b, c) = Self::create_triangle_for_point(position, *point_size)?;
 
-            writeln!(obj_writer, "v {} {} {}", a.x, a.y, a.z)?;
-            writeln!(obj_writer, "v {} {} {}", b.x, b.y, b.z)?;
-            writeln!(obj_writer, "v {} {} {}", c.x, c.y, c.z)?;
+                    writeln!(obj_writer, "v {} {} {}", a.x, a.y, a.z)?;
+                    writeln!(obj_writer, "v {} {} {}", b.x, b.y, b.z)?;
+                    writeln!(obj_writer, "v {} {} {}", c.x, c.y, c.z)?;
+                }
+
+                // Writing the faces
+                for index in 0..self.point_positions.len() {
+                    writeln!(obj_writer, "f {} {} {}", 3 * index + 1, 3 * index + 2, 3 * index + 3)?;
+                }
+            }
+            ObjWriteConfig::AABB => {
+                let b = &self.bounding_box;
+
+                // Write vertex positions
+                writeln!(obj_writer, "v {} {} {}", b.min.x, b.min.y, b.min.z)?; // 1
+                writeln!(obj_writer, "v {} {} {}", b.min.x, b.min.y, b.max.z)?; // 2
+                writeln!(obj_writer, "v {} {} {}", b.min.x, b.max.y, b.min.z)?; // 3
+                writeln!(obj_writer, "v {} {} {}", b.min.x, b.max.y, b.max.z)?; // 4
+                writeln!(obj_writer, "v {} {} {}", b.max.x, b.min.y, b.min.z)?; // 5
+                writeln!(obj_writer, "v {} {} {}", b.max.x, b.min.y, b.max.z)?; // 6
+                writeln!(obj_writer, "v {} {} {}", b.max.x, b.max.y, b.min.z)?; // 7
+                writeln!(obj_writer, "v {} {} {}", b.max.x, b.max.y, b.max.z)?; // 8
+
+                // Write lines
+                writeln!(obj_writer, "l 1 2")?;
+                writeln!(obj_writer, "l 3 4")?;
+                writeln!(obj_writer, "l 5 6")?;
+                writeln!(obj_writer, "l 7 8")?;
+
+                writeln!(obj_writer, "l 1 3")?;
+                writeln!(obj_writer, "l 2 4")?;
+                writeln!(obj_writer, "l 5 7")?;
+                writeln!(obj_writer, "l 6 8")?;
+
+                writeln!(obj_writer, "l 1 5")?;
+                writeln!(obj_writer, "l 2 6")?;
+                writeln!(obj_writer, "l 3 7")?;
+                writeln!(obj_writer, "l 4 8")?;
+            }
         }
-
-        // Writing the faces
-        for index in 0..self.point_positions.len() {
-            writeln!(obj_writer, "f {} {} {}", 3 * index + 1, 3 * index + 2, 3 * index + 3)?;
-        }
-
         Ok(())
     }
 
@@ -332,7 +375,8 @@ mod tests {
         let directory = create_test_result_folder_for_function(function_name!());
         let obj_path = directory.join("suzanne.obj");
         let file = File::create(&obj_path).unwrap();
-        point_cloud.to_obj(file, 0.02).unwrap();
+        let config = ObjWriteConfig::Points { point_size: 0.01 };
+        point_cloud.to_obj(file, &config).unwrap();
         assert_eq!(point_cloud.len(), 5288);
     }
 
