@@ -84,13 +84,12 @@ fn main() -> ey::Result<()> {
                     PointCloud::deserialize_from_file(&convert.source_filepath).wrap_err("Failed to deserialize point cloud")?;
 
                 info!("Writing point cloud to OBJ");
-                let mut file = File::create(&convert.destination_filepath).wrap_err("Failed to create OBJ file")?;
                 let config = point_cloud::ObjWriteConfig {
                     source: point_cloud::ObjWriteSource::SimplePointCloud,
                     point_size,
                 };
                 point_cloud
-                    .to_obj(&config, &mut file)
+                    .to_obj_file(&config, &convert.destination_filepath)
                     .wrap_err("Failed to write point cloud to OBJ")?;
             }
         },
