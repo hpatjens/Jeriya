@@ -10,10 +10,11 @@ use std::{
 };
 
 use jeriya_shared::{
+    colors_transform::{Color, Hsl, Rgb},
     kdtree::KdTree,
     log::{info, trace, warn},
     nalgebra::Vector3,
-    ByteColor3,
+    pseudo_random_color, rand, ByteColor3,
 };
 use serde::{Deserialize, Serialize};
 
@@ -178,7 +179,7 @@ impl PointCloud {
         Self { simple_point_cloud, pages }
     }
 
-    /// Computes the cluster for the [`PointCloud`] when it contains a [`SimplePointCloud`].
+    /// Computes the cluster for the [`PointCloud`].
     pub fn compute_clusters(&mut self) {
         let target_points_per_cell = 256;
         let hash_grid = ClusterHashGrid::new(self.simple_point_cloud.point_positions(), target_points_per_cell);
@@ -252,17 +253,31 @@ impl PointCloud {
     }
 
     /// Writes the point cloud as an OBJ file.
-    pub fn to_obj(&self, config: &ObjWriteConfig, obj_writer: impl Write) -> crate::Result<()> {
+    pub fn to_obj(&self, config: &ObjWriteConfig, obj_writer: impl Write, mtl_writer: impl Write, mtl_filename: &str) -> crate::Result<()> {
         match &config.source {
             ObjWriteSource::SimplePointCloud => {
                 self.simple_point_cloud.to_obj(obj_writer, config.point_size)?;
                 Ok(())
             }
             ObjWriteSource::Clusters => {
-                pages_to_obj(&self.pages, obj_writer, config.point_size)?;
+                pages_to_obj(&self.pages, obj_writer, mtl_writer, mtl_filename, config.point_size)?;
                 Ok(())
             }
         }
+    }
+
+    /// Writes the point cloud as an OBJ file. The MTL file is written to the same directory.
+    pub fn to_obj_file(&self, config: &ObjWriteConfig, filepath: &impl AsRef<Path>) -> crate::Result<()> {
+        let obj_filepath = filepath.as_ref().with_extension("obj");
+        let mtl_filepath = filepath.as_ref().with_extension("mtl");
+        let obj_file = File::create(&obj_filepath)?;
+        let mtl_file = File::create(&mtl_filepath)?;
+        let mtl_filename = mtl_filepath
+            .file_name()
+            .expect("Failed to get MTL filename")
+            .to_str()
+            .expect("Failed to convert MTL filename to str");
+        self.to_obj(config, obj_file, mtl_file, mtl_filename)
     }
 
     /// Serializes the `PointCloud` to a file.
@@ -288,12 +303,24 @@ impl std::fmt::Debug for PointCloud {
     }
 }
 
-fn pages_to_obj(pages: &Vec<Page>, mut obj_writer: impl Write, point_size: f32) -> io::Result<()> {
-    let mut vertex_index = 1;
+fn pages_to_obj(
+    pages: &Vec<Page>,
+    mut obj_writer: impl Write,
+    mut mtl_writer: impl Write,
+    mtl_filename: &str,
+    point_size: f32,
+) -> io::Result<()> {
+    writeln!(obj_writer, "mtllib {mtl_filename}")?;
+
+    // Write OBJ file
+    let mut global_clutser_index = 0;
     for (page_index, page) in pages.iter().enumerate() {
-        writeln!(obj_writer, "g page_{page_index}")?;
-        // writeln!(obj_writer, "mtl page_{page_index}")?;
-        for cluster in &page.clusters {
+        let mut vertex_index = 1;
+        for (cluster_index, cluster) in page.clusters.iter().enumerate() {
+            writeln!(obj_writer, "")?;
+            writeln!(obj_writer, "# Cluster {cluster_index} in page {page_index}")?;
+            writeln!(obj_writer, "o cluster_{global_clutser_index}")?;
+            writeln!(obj_writer, "usemtl cluster_{global_clutser_index}")?;
             for index in cluster.index_start..cluster.index_start + cluster.len {
                 let position = &page.point_positions[index as usize];
                 let (a, b, c) = SimplePointCloud::create_triangle_for_point(position, point_size)?;
@@ -308,8 +335,31 @@ fn pages_to_obj(pages: &Vec<Page>, mut obj_writer: impl Write, point_size: f32) 
                 writeln!(obj_writer, "f {f0} {f1} {f2}")?;
             }
             vertex_index += cluster.len * 3;
+            global_clutser_index += 1;
         }
     }
+
+    // Write MTL file
+    let mut global_clutser_index = 0;
+    for (page_index, page) in pages.iter().enumerate() {
+        for (cluster_index, _cluster) in page.clusters.iter().enumerate() {
+            let hue = rand::random::<f32>() * 360.0;
+            let hsv = Hsl::from(hue, 100.0, 50.0);
+            let rgb = hsv.to_rgb();
+            let r = rgb.get_red() / 255.0;
+            let g = rgb.get_green() / 255.0;
+            let b = rgb.get_blue() / 255.0;
+            writeln!(mtl_writer, "# Material for cluster {cluster_index} in page {page_index}")?;
+            writeln!(mtl_writer, "newmtl cluster_{global_clutser_index}")?;
+            writeln!(mtl_writer, "Ka {r} {g} {b}")?;
+            writeln!(mtl_writer, "Kd {r} {g} {b}")?;
+            writeln!(mtl_writer, "Ks 1.0 1.0 1.0")?;
+            writeln!(mtl_writer, "Ns 100")?;
+            writeln!(mtl_writer, "")?;
+            global_clutser_index += 1;
+        }
+    }
+
     Ok(())
 }
 
@@ -384,6 +434,9 @@ fn insert_into_page(pages: &mut Vec<Page>, points: &[usize], point_positions: &[
 
 #[cfg(test)]
 mod tests {
+    use jeriya_shared::function_name;
+    use jeriya_test::create_test_result_folder_for_function;
+
     use super::*;
 
     #[test]
@@ -393,6 +446,11 @@ mod tests {
         point_cloud.compute_clusters();
         dbg!(point_cloud.pages().len());
         dbg!(point_cloud.simple_point_cloud().point_positions().len());
-        assert!(false);
+        let directory = create_test_result_folder_for_function(function_name!());
+        let config = ObjWriteConfig {
+            source: ObjWriteSource::Clusters,
+            point_size: 0.02,
+        };
+        point_cloud.to_obj_file(&config, &directory.join("point_cloud.obj")).unwrap();
     }
 }
