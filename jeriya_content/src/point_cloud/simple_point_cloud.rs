@@ -11,8 +11,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::Model;
 
+use super::bounding_box::AABB;
+
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct SimplePointCloud {
+    bounding_box: AABB,
     point_positions: Vec<Vector3<f32>>,
     point_colors: Vec<ByteColor3>,
 }
