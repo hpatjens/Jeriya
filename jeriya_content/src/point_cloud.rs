@@ -11,7 +11,7 @@ use std::{
 };
 
 use jeriya_shared::{
-    bounding_box::AABB,
+    aabb::AABB,
     colors_transform::{Color, Hsl},
     itertools::Itertools,
     log::{info, trace},
@@ -408,7 +408,7 @@ mod tests {
         env_logger::builder().filter_level(jeriya_shared::log::LevelFilter::Trace).init();
 
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
-        let mut point_cloud = PointCloud::sample_from_model(&model, 200.0);
+        let mut point_cloud = PointCloud::sample_from_model(&model, 2000.0);
         point_cloud.compute_clusters();
         dbg!(point_cloud.clustered_point_cloud().unwrap().pages.len());
         dbg!(point_cloud.simple_point_cloud().point_positions().len());

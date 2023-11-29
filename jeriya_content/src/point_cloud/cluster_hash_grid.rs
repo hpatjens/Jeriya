@@ -5,7 +5,7 @@ use std::{
 };
 
 use jeriya_shared::{
-    bounding_box::AABB,
+    aabb::AABB,
     log::trace,
     nalgebra::Vector3,
     plotters::{
@@ -15,8 +15,6 @@ use jeriya_shared::{
         prelude::*,
     },
 };
-
-use super::Cluster;
 
 pub type CellIndex = Vector3<i32>;
 
@@ -109,12 +107,10 @@ impl ClusterHashGrid {
                 let grid_aabb = AABB::new(aabb_min, aabb_max);
                 trace!("ClusterHashGrid grid AABB: {grid_aabb:?}");
 
-                jeriya_shared::assert!(points_aabb.min.x >= grid_aabb.min.x);
-                jeriya_shared::assert!(points_aabb.min.y >= grid_aabb.min.y);
-                jeriya_shared::assert!(points_aabb.min.z >= grid_aabb.min.z);
-                jeriya_shared::assert!(points_aabb.max.x <= grid_aabb.max.x);
-                jeriya_shared::assert!(points_aabb.max.y <= grid_aabb.max.y);
-                jeriya_shared::assert!(points_aabb.max.z <= grid_aabb.max.z);
+                jeriya_shared::assert!(
+                    grid_aabb.contains(&points_aabb),
+                    "points AABB must be in the AABB of the ClusterHashGrid"
+                );
 
                 (grid_aabb, cell_size, cell_resolution)
             }
@@ -132,7 +128,7 @@ impl ClusterHashGrid {
         // Insert the points into cells
         for (point_index, point_position) in point_positions.iter().enumerate() {
             let cell_index = Self::cell_at_point_with_cell_size(*point_position, cell_size);
-            jeriya_shared::assert!(aabb.contains(*point_position), "point must be in the AABB of the ClusterHashGrid");
+            jeriya_shared::assert!(aabb.contains(point_position), "point must be in the AABB of the ClusterHashGrid");
             initial_distribution.entry(cell_index).or_insert_with(Vec::new).push(point_index);
         }
 
@@ -196,7 +192,7 @@ impl ClusterHashGrid {
             points
                 .iter()
                 .map(|&point_index| point_positions[point_index])
-                .all(|point| aabb.contains(point)),
+                .all(|point| aabb.contains(&point)),
             "points must be in the AABB of the cell"
         }
 

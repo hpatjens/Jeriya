@@ -29,6 +29,33 @@ impl Include for AABB {
     }
 }
 
+/// Trait that allows a type to check whether it is contained in an [`AABB`].
+pub trait Contains {
+    fn contains(&self, aabb: &AABB) -> bool;
+}
+
+impl Contains for Vector3<f32> {
+    fn contains(&self, aabb: &AABB) -> bool {
+        self.x >= aabb.min.x
+            && self.y >= aabb.min.y
+            && self.z >= aabb.min.z
+            && self.x <= aabb.max.x
+            && self.y <= aabb.max.y
+            && self.z <= aabb.max.z
+    }
+}
+
+impl Contains for AABB {
+    fn contains(&self, aabb: &AABB) -> bool {
+        self.min.x >= aabb.min.x
+            && self.min.y >= aabb.min.y
+            && self.min.z >= aabb.min.z
+            && self.max.x <= aabb.max.x
+            && self.max.y <= aabb.max.y
+            && self.max.z <= aabb.max.z
+    }
+}
+
 /// Axis-aligned bounding box defined by its minimum and maximum extent.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AABB {
@@ -42,7 +69,7 @@ impl AABB {
     /// # Examples
     ///
     /// ```
-    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// # use jeriya_shared::aabb::AABB;
     /// let mut bounding_box = AABB::empty();
     /// assert!(bounding_box.is_empty());
     /// ```
@@ -58,10 +85,11 @@ impl AABB {
     /// # Examples
     ///
     /// ```
-    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// # use jeriya_shared::aabb::AABB;
+    /// # use jeriya_shared::nalgebra::Vector3;
     /// let mut bounding_box = AABB::infinity();
-    /// assert!(bounding_box.contains(Vector3::new(0.0, 0.0, 0.0)));
-    /// assert!(bounding_box.contains(Vector3::new(87624.38, -923771.95, 9102823.51)));
+    /// assert!(bounding_box.contains(&Vector3::new(0.0, 0.0, 0.0)));
+    /// assert!(bounding_box.contains(&Vector3::new(87624.38, -923771.95, 9102823.51)));
     /// assert!(!bounding_box.is_empty());
     /// ```
     pub fn infinity() -> Self {
@@ -76,7 +104,8 @@ impl AABB {
     /// # Examples
     ///
     /// ```
-    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// # use jeriya_shared::aabb::AABB;
+    /// # use jeriya_shared::nalgebra::Vector3;
     /// let mut bounding_box = AABB::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
     /// assert!(!bounding_box.is_empty());
     /// ```
@@ -89,7 +118,8 @@ impl AABB {
     /// # Examples
     ///
     /// ```
-    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// # use jeriya_shared::aabb::AABB;
+    /// # use jeriya_shared::nalgebra::Vector3;
     /// let mut bounding_box = AABB::from_center_and_size(Vector3::zeros(), Vector3::new(1.0, 1.0, 1.0));
     /// assert!(!bounding_box.is_empty());
     /// ```
@@ -107,7 +137,7 @@ impl AABB {
     ///
     /// ```
     /// # use jeriya_shared::nalgebra::Vector3;
-    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// # use jeriya_shared::aabb::AABB;
     /// # use jeriya_shared::float_cmp::assert_approx_eq;
     /// let bounding_box = AABB::from_slice(&[
     ///     Vector3::new(0.0, 0.0, 0.0),
@@ -131,7 +161,7 @@ impl AABB {
     ///
     /// ```
     /// # use jeriya_shared::nalgebra::Vector3;
-    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// # use jeriya_shared::aabb::AABB;
     /// # use jeriya_shared::float_cmp::assert_approx_eq;
     /// let vec = vec![
     ///     Vector3::new(0.0, 0.0, 0.0),
@@ -158,7 +188,7 @@ impl AABB {
     ///
     /// ```
     /// # use jeriya_shared::nalgebra::Vector3;
-    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// # use jeriya_shared::aabb::AABB;
     /// # use jeriya_shared::float_cmp::assert_approx_eq;
     /// let mut bounding_box = AABB::empty();
     ///
@@ -198,17 +228,23 @@ impl AABB {
     ///
     /// ```
     /// # use jeriya_shared::nalgebra::Vector3;
-    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// # use jeriya_shared::aabb::AABB;
     /// let mut bounding_box = AABB::empty();
     /// bounding_box.include(&Vector3::new(1.0, 2.0, 3.0));
     /// bounding_box.include(&Vector3::new(-4.0, -5.0, -6.0));
-    /// assert!(bounding_box.contains(Vector3::new(0.0, 0.0, 0.0)));
-    /// assert!(bounding_box.contains(Vector3::new(0.5, 0.5, 0.5)));
-    /// assert!(bounding_box.contains(Vector3::new(1.0, 2.0, 3.0)));
-    /// assert!(bounding_box.contains(Vector3::new(-4.0, -5.0, -6.0)));
+    /// 
+    /// // The AABB contains points
+    /// assert!(bounding_box.contains(&Vector3::new(0.0, 0.0, 0.0)));
+    /// assert!(bounding_box.contains(&Vector3::new(0.5, 0.5, 0.5)));
+    /// assert!(bounding_box.contains(&Vector3::new(1.0, 2.0, 3.0)));
+    /// assert!(bounding_box.contains(&Vector3::new(-4.0, -5.0, -6.0)));
+    /// 
+    /// // The AABB contains this AABB
+    /// let other = AABB::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.5, 0.5, 0.5));
+    /// assert!(bounding_box.contains(&other));
     /// ```
-    pub fn contains(&self, point: Vector3<f32>) -> bool {
-        point >= self.min && point <= self.max
+    pub fn contains(&self, other: &impl Contains) -> bool {
+        other.contains(&self)
     }
 
     /// Returns the center of the `AABB`
@@ -217,7 +253,7 @@ impl AABB {
     ///
     /// ```
     /// # use jeriya_shared::nalgebra::Vector3;
-    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// # use jeriya_shared::aabb::AABB;
     /// # use jeriya_shared::float_cmp::assert_approx_eq;
     /// let mut bounding_box = AABB::empty();
     /// bounding_box.include(&Vector3::new(0.0, 0.0, 0.0));
