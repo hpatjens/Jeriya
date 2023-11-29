@@ -232,13 +232,13 @@ impl AABB {
     /// let mut bounding_box = AABB::empty();
     /// bounding_box.include(&Vector3::new(1.0, 2.0, 3.0));
     /// bounding_box.include(&Vector3::new(-4.0, -5.0, -6.0));
-    /// 
+    ///
     /// // The AABB contains points
     /// assert!(bounding_box.contains(&Vector3::new(0.0, 0.0, 0.0)));
     /// assert!(bounding_box.contains(&Vector3::new(0.5, 0.5, 0.5)));
     /// assert!(bounding_box.contains(&Vector3::new(1.0, 2.0, 3.0)));
     /// assert!(bounding_box.contains(&Vector3::new(-4.0, -5.0, -6.0)));
-    /// 
+    ///
     /// // The AABB contains this AABB
     /// let other = AABB::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.5, 0.5, 0.5));
     /// assert!(bounding_box.contains(&other));
