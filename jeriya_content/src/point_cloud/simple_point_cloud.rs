@@ -5,8 +5,8 @@ use std::{
 };
 
 use jeriya_shared::{
-    bounding_box::AABB, float_cmp::approx_eq, log::info, nalgebra::Vector3, num_cpus, obj_writer::write_bounding_box_o, parking_lot::Mutex,
-    rand, random_direction, rayon, ByteColor3,
+    aabb::AABB, float_cmp::approx_eq, log::info, nalgebra::Vector3, num_cpus, obj_writer::write_bounding_box_o, parking_lot::Mutex, rand,
+    random_direction, rayon, ByteColor3,
 };
 use serde::{Deserialize, Serialize};
 

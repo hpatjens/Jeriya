@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use crate::bounding_box::AABB;
+use crate::aabb::AABB;
 
 /// Writes the lines of a bounding box to an OBJ file.
 ///

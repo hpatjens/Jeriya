@@ -1,4 +1,4 @@
-pub mod bounding_box;
+pub mod aabb;
 mod debug_info;
 mod event_queue;
 mod indexing_container;
