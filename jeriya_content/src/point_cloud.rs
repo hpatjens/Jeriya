@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     model::Model,
-    point_cloud::cluster_hash_grid::{BoundingBoxStrategy, CellContent, CellType, ClusterHashGrid},
+    point_cloud::cluster_hash_grid::{BoundingBoxStrategy, CellContent, CellType, ClusterHashGrid, Context, Selection},
 };
 
 use self::simple_point_cloud::SimplePointCloud;
@@ -116,14 +116,14 @@ impl PointCloud {
         let mut debug_hash_grid_cells = Vec::new();
 
         let mut unique_index_counter = AtomicUsize::new(0);
-        let hash_grid = ClusterHashGrid::with_debug_options(
-            self.simple_point_cloud.point_positions(),
-            target_points_per_cell,
-            BoundingBoxStrategy::Auto,
-            &mut unique_index_counter,
-            None,
-            &mut Some(&mut debug_hash_grid_cells),
-        );
+        let mut context = Context {
+            point_positions: self.simple_point_cloud.point_positions(),
+            unique_index_counter: &mut unique_index_counter,
+            plot_directory: None,
+            debug_hash_grid_cells: &mut Some(&mut debug_hash_grid_cells),
+        };
+        let hash_grid =
+            ClusterHashGrid::with_debug_options(Selection::All, target_points_per_cell, BoundingBoxStrategy::Auto, &mut context);
 
         // Creates a priority queue that is used to process the cells starting from the lowest levels.
         let mut priority_queue = create_priority_queue(&hash_grid);
@@ -408,7 +408,7 @@ mod tests {
         env_logger::builder().filter_level(jeriya_shared::log::LevelFilter::Trace).init();
 
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
-        let mut point_cloud = PointCloud::sample_from_model(&model, 2000.0);
+        let mut point_cloud = PointCloud::sample_from_model(&model, 10000.0);
         point_cloud.compute_clusters();
         dbg!(point_cloud.clustered_point_cloud().unwrap().pages.len());
         dbg!(point_cloud.simple_point_cloud().point_positions().len());
