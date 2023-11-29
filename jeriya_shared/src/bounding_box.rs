@@ -1,4 +1,5 @@
-use jeriya_shared::nalgebra::Vector3;
+use nalgebra::Vector3;
+
 use serde::{Deserialize, Serialize};
 
 /// Trait that allows a type to expand an [`AABB`].
@@ -52,6 +53,54 @@ impl AABB {
         }
     }
 
+    /// Creates a new [`AABB`] that contains everything (min: `f32::NEG_INFINITY`, max: `f32::INFINITY`).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// let mut bounding_box = AABB::infinity();
+    /// assert!(bounding_box.contains(Vector3::new(0.0, 0.0, 0.0)));
+    /// assert!(bounding_box.contains(Vector3::new(87624.38, -923771.95, 9102823.51)));
+    /// assert!(!bounding_box.is_empty());
+    /// ```
+    pub fn infinity() -> Self {
+        Self {
+            min: Vector3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY),
+            max: Vector3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
+        }
+    }
+
+    /// Creates a new [`AABB`] with the given `min` and `max` extent.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// let mut bounding_box = AABB::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+    /// assert!(!bounding_box.is_empty());
+    /// ```
+    pub fn new(min: Vector3<f32>, max: Vector3<f32>) -> Self {
+        Self { min, max }
+    }
+
+    /// Creates a new [`AABB`] with the given `size` around the given `center`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// let mut bounding_box = AABB::from_center_and_size(Vector3::zeros(), Vector3::new(1.0, 1.0, 1.0));
+    /// assert!(!bounding_box.is_empty());
+    /// ```
+    pub fn from_center_and_size(center: Vector3<f32>, size: Vector3<f32>) -> Self {
+        let half_size = size / 2.0;
+        Self {
+            min: center - half_size,
+            max: center + half_size,
+        }
+    }
+
     /// Creates a new [`AABB`] that contains the given `points`.
     ///
     /// # Examples
@@ -73,6 +122,31 @@ impl AABB {
     /// assert_approx_eq!(f32, bounding_box.max.z, 3.0, ulps = 1);
     /// ```
     pub fn from_slice(points: &[Vector3<f32>]) -> Self {
+        Self::from_iter(points.iter())
+    }
+
+    /// Creates a new [`AABB`] that contains the `points` from the iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use jeriya_shared::nalgebra::Vector3;
+    /// # use jeriya_content::point_cloud::bounding_box::AABB;
+    /// # use jeriya_shared::float_cmp::assert_approx_eq;
+    /// let vec = vec![
+    ///     Vector3::new(0.0, 0.0, 0.0),
+    ///     Vector3::new(1.0, 2.0, 3.0),
+    ///     Vector3::new(-4.0, -5.0, -6.0),
+    /// ];
+    /// let bounding_box = AABB::from_iter(vec.iter());
+    /// assert_approx_eq!(f32, bounding_box.min.x, -4.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.min.y, -5.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.min.z, -6.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.max.x, 1.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.max.y, 2.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.max.z, 3.0, ulps = 1);
+    /// ```
+    pub fn from_iter<'v>(points: impl IntoIterator<Item = &'v Vector3<f32>>) -> Self {
         let mut bounding_box = Self::empty();
         bounding_box.extend(points);
         bounding_box
@@ -192,7 +266,7 @@ impl<'s> Extend<&'s Vector3<f32>> for AABB {
 
 #[cfg(test)]
 mod tests {
-    use jeriya_shared::float_cmp::assert_approx_eq;
+    use float_cmp::assert_approx_eq;
 
     use super::*;
 

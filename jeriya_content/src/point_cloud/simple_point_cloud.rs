@@ -5,13 +5,12 @@ use std::{
 };
 
 use jeriya_shared::{
-    float_cmp::approx_eq, log::info, nalgebra::Vector3, num_cpus, parking_lot::Mutex, rand, random_direction, rayon, ByteColor3,
+    bounding_box::AABB, float_cmp::approx_eq, log::info, nalgebra::Vector3, num_cpus, obj_writer::write_bounding_box_o, parking_lot::Mutex,
+    rand, random_direction, rayon, ByteColor3,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::model::Model;
-
-use super::bounding_box::AABB;
 
 /// Determines what is exported to the OBJ file.
 pub enum ObjWriteConfig {
@@ -164,32 +163,7 @@ impl SimplePointCloud {
             }
             ObjWriteConfig::AABB => {
                 let b = &self.bounding_box;
-
-                // Write vertex positions
-                writeln!(obj_writer, "v {} {} {}", b.min.x, b.min.y, b.min.z)?; // 1
-                writeln!(obj_writer, "v {} {} {}", b.min.x, b.min.y, b.max.z)?; // 2
-                writeln!(obj_writer, "v {} {} {}", b.min.x, b.max.y, b.min.z)?; // 3
-                writeln!(obj_writer, "v {} {} {}", b.min.x, b.max.y, b.max.z)?; // 4
-                writeln!(obj_writer, "v {} {} {}", b.max.x, b.min.y, b.min.z)?; // 5
-                writeln!(obj_writer, "v {} {} {}", b.max.x, b.min.y, b.max.z)?; // 6
-                writeln!(obj_writer, "v {} {} {}", b.max.x, b.max.y, b.min.z)?; // 7
-                writeln!(obj_writer, "v {} {} {}", b.max.x, b.max.y, b.max.z)?; // 8
-
-                // Write lines
-                writeln!(obj_writer, "l 1 2")?;
-                writeln!(obj_writer, "l 3 4")?;
-                writeln!(obj_writer, "l 5 6")?;
-                writeln!(obj_writer, "l 7 8")?;
-
-                writeln!(obj_writer, "l 1 3")?;
-                writeln!(obj_writer, "l 2 4")?;
-                writeln!(obj_writer, "l 5 7")?;
-                writeln!(obj_writer, "l 6 8")?;
-
-                writeln!(obj_writer, "l 1 5")?;
-                writeln!(obj_writer, "l 2 6")?;
-                writeln!(obj_writer, "l 3 7")?;
-                writeln!(obj_writer, "l 4 8")?;
+                write_bounding_box_o("bounding_box", 0, obj_writer, b)?;
             }
         }
         Ok(())

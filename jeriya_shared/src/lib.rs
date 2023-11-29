@@ -1,6 +1,8 @@
+pub mod bounding_box;
 mod debug_info;
 mod event_queue;
 mod indexing_container;
+pub mod obj_writer;
 
 use std::{
     collections::hash_map::DefaultHasher,

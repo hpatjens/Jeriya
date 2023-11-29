@@ -1,27 +1,32 @@
-pub mod bounding_box;
 pub mod cluster_hash_grid;
 pub mod simple_point_cloud;
 
 use std::{
     collections::HashSet,
+    fmt::Debug,
     fs::File,
     io::{self, Write},
     path::Path,
+    sync::atomic::AtomicUsize,
 };
 
 use jeriya_shared::{
+    bounding_box::AABB,
     colors_transform::{Color, Hsl},
+    itertools::Itertools,
+    log::{info, trace},
     nalgebra::Vector3,
+    obj_writer::write_bounding_box_o,
     rand, ByteColor3,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{
     model::Model,
-    point_cloud::cluster_hash_grid::{CellContent, CellType, ClusterHashGrid},
+    point_cloud::cluster_hash_grid::{BoundingBoxStrategy, CellContent, CellType, ClusterHashGrid},
 };
 
-use self::{bounding_box::AABB, simple_point_cloud::SimplePointCloud};
+use self::simple_point_cloud::SimplePointCloud;
 
 /// Configuration for writing an OBJ file.
 pub enum ObjWriteConfig {
@@ -108,10 +113,21 @@ impl PointCloud {
     /// Computes the cluster for the [`PointCloud`].
     pub fn compute_clusters(&mut self) {
         let target_points_per_cell = 256;
-        let hash_grid = ClusterHashGrid::new(self.simple_point_cloud.point_positions(), target_points_per_cell);
+        let mut debug_hash_grid_cells = Vec::new();
+
+        let mut unique_index_counter = AtomicUsize::new(0);
+        let hash_grid = ClusterHashGrid::with_debug_options(
+            self.simple_point_cloud.point_positions(),
+            target_points_per_cell,
+            BoundingBoxStrategy::Auto,
+            &mut unique_index_counter,
+            None,
+            &mut Some(&mut debug_hash_grid_cells),
+        );
 
         // Creates a priority queue that is used to process the cells starting from the lowest levels.
         let mut priority_queue = create_priority_queue(&hash_grid);
+        jeriya_shared::assert!(priority_queue.iter().map(|cell| cell.unique_index).all_unique());
 
         // When cells are inserted into a page, they have to be removed from the queue. Instead
         // of searching throught the Vec, the unique index of the cell is stored in a HashSet.
@@ -137,6 +153,7 @@ impl PointCloud {
                 self.simple_point_cloud.point_positions(),
                 self.simple_point_cloud.point_colors(),
             );
+            processed_cells_indices.insert(pivot_cell.unique_index);
 
             // Sample the neighboring cells and insert them into the page
             for x in -1..=1 {
@@ -146,11 +163,15 @@ impl PointCloud {
                             continue;
                         }
                         let neighbor_sample = Vector3::new(
-                            pivot_cell.center.x + x as f32 * pivot_cell.size.x,
-                            pivot_cell.center.y + y as f32 * pivot_cell.size.y,
-                            pivot_cell.center.z + z as f32 * pivot_cell.size.z,
+                            pivot_cell.aabb.center().x + x as f32 * pivot_cell.aabb.size().x,
+                            pivot_cell.aabb.center().y + y as f32 * pivot_cell.aabb.size().y,
+                            pivot_cell.aabb.center().z + z as f32 * pivot_cell.aabb.size().z,
                         );
                         if let Some((unique_index, points)) = hash_grid.get_leaf(neighbor_sample) {
+                            jeriya_shared::assert!(pivot_cell.unique_index != unique_index);
+                            if processed_cells_indices.contains(&unique_index) {
+                                continue;
+                            }
                             insert_into_page(
                                 &mut pages,
                                 points,
@@ -164,9 +185,14 @@ impl PointCloud {
             }
         }
 
+        info!("Number of hash grid cells for debugging: {}", debug_hash_grid_cells.len());
+        trace!("{:?}", &debug_hash_grid_cells);
+
         self.clustered_point_cloud = Some(ClusteredPointCloud {
             pages,
-            debug_geometry: None,
+            debug_geometry: Some(DebugGeometry {
+                hash_grid_cells: debug_hash_grid_cells,
+            }),
         });
     }
 
@@ -185,13 +211,18 @@ impl PointCloud {
     pub fn to_obj(&self, config: &ObjWriteConfig, obj_writer: impl Write, mtl_writer: impl Write, mtl_filename: &str) -> io::Result<()> {
         match &config {
             ObjWriteConfig::SimplePointCloud(obj_write_config) => self.simple_point_cloud.to_obj(obj_writer, obj_write_config),
-            ObjWriteConfig::Clusters(obj_cluster_write_config) => clustered_point_cloud_to_obj(
-                &self.clustered_point_cloud,
-                obj_writer,
-                mtl_writer,
-                mtl_filename,
-                obj_cluster_write_config,
-            ),
+            ObjWriteConfig::Clusters(obj_cluster_write_config) => {
+                let Some(clustered_point_cloud) = self.clustered_point_cloud.as_ref() else {
+                    panic!("Failed to get the clustered point cloud");
+                };
+                clustered_point_cloud_to_obj(
+                    clustered_point_cloud,
+                    obj_writer,
+                    mtl_writer,
+                    mtl_filename,
+                    obj_cluster_write_config,
+                )
+            }
         }
     }
 
@@ -224,29 +255,25 @@ impl PointCloud {
 }
 
 fn clustered_point_cloud_to_obj(
-    clustered_point_cloud: &Option<ClusteredPointCloud>,
+    clustered_point_cloud: &ClusteredPointCloud,
     mut obj_writer: impl Write,
     mut mtl_writer: impl Write,
     mtl_filename: &str,
     config: &ObjClusterWriteConfig,
 ) -> io::Result<()> {
-    let Some(clustered_point_cloud) = clustered_point_cloud.as_ref() else {
-        panic!("Failed to get the clustered point cloud");
-    };
-
     match config {
         ObjClusterWriteConfig::Points { point_size } => {
             writeln!(obj_writer, "mtllib {mtl_filename}")?;
 
             // Write OBJ file
-            let mut global_clutser_index = 0;
+            let mut vertex_index = 1;
+            let mut global_cluster_index = 0;
             for (page_index, page) in clustered_point_cloud.pages.iter().enumerate() {
-                let mut vertex_index = 1;
                 for (cluster_index, cluster) in page.clusters.iter().enumerate() {
                     writeln!(obj_writer, "")?;
                     writeln!(obj_writer, "# Cluster {cluster_index} in page {page_index}")?;
-                    writeln!(obj_writer, "o cluster_{global_clutser_index}")?;
-                    writeln!(obj_writer, "usemtl cluster_{global_clutser_index}")?;
+                    writeln!(obj_writer, "o cluster_{global_cluster_index}")?;
+                    writeln!(obj_writer, "usemtl cluster_{global_cluster_index}")?;
                     for index in cluster.index_start..cluster.index_start + cluster.len {
                         let position = &page.point_positions[index as usize];
                         let (a, b, c) = SimplePointCloud::create_triangle_for_point(position, *point_size)?;
@@ -254,14 +281,14 @@ fn clustered_point_cloud_to_obj(
                         writeln!(obj_writer, "v {} {} {}", b.x, b.y, b.z)?;
                         writeln!(obj_writer, "v {} {} {}", c.x, c.y, c.z)?;
                     }
-                    for index in cluster.index_start..cluster.index_start + cluster.len {
-                        let f0 = vertex_index + index * 3;
-                        let f1 = vertex_index + index * 3 + 1;
-                        let f2 = vertex_index + index * 3 + 2;
+                    for i in 0..cluster.len {
+                        let f0 = vertex_index + i * 3;
+                        let f1 = vertex_index + i * 3 + 1;
+                        let f2 = vertex_index + i * 3 + 2;
                         writeln!(obj_writer, "f {f0} {f1} {f2}")?;
                     }
                     vertex_index += cluster.len * 3;
-                    global_clutser_index += 1;
+                    global_cluster_index += 1;
                 }
             }
 
@@ -288,14 +315,23 @@ fn clustered_point_cloud_to_obj(
 
             Ok(())
         }
-        ObjClusterWriteConfig::HashGridCells => Ok(()),
+        ObjClusterWriteConfig::HashGridCells => {
+            let mut vertex_count = 0;
+            if let Some(debug_geometry) = &clustered_point_cloud.debug_geometry {
+                for (aabb_index, aabb) in debug_geometry.hash_grid_cells.iter().enumerate() {
+                    writeln!(obj_writer, "# Bounding box of the grid cell {aabb_index}")?;
+                    vertex_count += write_bounding_box_o(&format!("hash_grid_cell_{aabb_index}"), vertex_count, &mut obj_writer, aabb)?;
+                    writeln!(obj_writer, "")?;
+                }
+            }
+            Ok(())
+        }
     }
 }
 
 struct LeafCell {
     unique_index: usize,
-    center: Vector3<f32>,
-    size: Vector3<f32>,
+    aabb: AABB,
     points: Vec<usize>,
 }
 
@@ -314,8 +350,7 @@ fn create_priority_queue(hash_grid: &ClusterHashGrid) -> Vec<LeafCell> {
             CellType::Points(points) => {
                 priority_queue.push(LeafCell {
                     unique_index: cell_content.unique_index,
-                    center: cell_content.center,
-                    size: cell_content.size,
+                    aabb: cell_content.aabb,
                     points: points.clone(),
                 });
             }
@@ -370,6 +405,8 @@ mod tests {
 
     #[test]
     fn test_sample_from_model() {
+        env_logger::builder().filter_level(jeriya_shared::log::LevelFilter::Trace).init();
+
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
         let mut point_cloud = PointCloud::sample_from_model(&model, 200.0);
         point_cloud.compute_clusters();
@@ -379,6 +416,11 @@ mod tests {
 
         let config = ObjWriteConfig::Clusters(ObjClusterWriteConfig::Points { point_size: 0.02 });
         point_cloud.to_obj_file(&config, &directory.join("point_cloud.obj")).unwrap();
+
+        let config = ObjWriteConfig::Clusters(ObjClusterWriteConfig::HashGridCells);
+        point_cloud
+            .to_obj_file(&config, &directory.join("point_cloud_hash_grid_cells.obj"))
+            .unwrap();
 
         let config = ObjWriteConfig::SimplePointCloud(simple_point_cloud::ObjWriteConfig::AABB);
         point_cloud
