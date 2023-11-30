@@ -1,20 +1,10 @@
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering::Relaxed},
 };
 
-use jeriya_shared::{
-    aabb::AABB,
-    log::trace,
-    nalgebra::Vector3,
-    plotters::{
-        backend::{DrawingBackend, SVGBackend},
-        chart::ChartBuilder,
-        drawing::DrawingAreaErrorKind,
-        prelude::*,
-    },
-};
+use jeriya_shared::{aabb::AABB, log::trace, nalgebra::Vector3};
 
 pub type CellIndex = Vector3<i32>;
 
@@ -422,8 +412,7 @@ fn compute_min_max_cell_index<'a>(
 
 #[cfg(test)]
 mod tests {
-    use jeriya_shared::{function_name, rand};
-    use jeriya_test::create_test_result_folder_for_function;
+    use jeriya_shared::rand;
 
     use super::*;
 

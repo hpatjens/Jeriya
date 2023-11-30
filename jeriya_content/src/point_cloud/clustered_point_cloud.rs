@@ -38,29 +38,20 @@ pub enum ObjClusterWriteConfig {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Cluster {
     /// Index into the `Page`'s `point_positions` and `point_colors` `Vec`s
-    index_start: u32,
+    pub index_start: u32,
     /// Number of points in the cluster
-    len: u32,
+    pub len: u32,
+    /// The bounding box of the cluster
+    pub aabb: AABB,
+    /// The center of the cluster
+    pub center: Vector3<f32>,
+    /// The radius of the cluster
+    pub radius: f32,
 }
 
 impl Cluster {
     /// The maximum number of points a cluster can have.
     pub const MAX_POINTS: usize = 128;
-
-    /// Creates a new `Cluster` with the given `index_start` and `len`.
-    pub fn new(index_start: u32, len: u32) -> Self {
-        Self { index_start, len }
-    }
-
-    /// Returns the index into the `Page`'s `point_positions` and `point_colors` where the `Cluster` starts.
-    pub fn index_start(&self) -> u32 {
-        self.index_start
-    }
-
-    /// Returns the number of points in the `Cluster`.
-    pub fn len(&self) -> u32 {
-        self.len
-    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -107,10 +98,27 @@ impl Page {
         }
 
         let index_start = self.point_positions.len() as u32;
-        self.point_positions.extend(point_positions);
+        self.point_positions.extend(point_positions.clone());
         self.point_colors.extend(point_colors);
         let len = self.point_positions.len() as u32 - index_start;
-        self.clusters.push(Cluster::new(index_start, len));
+        let aabb = AABB::from_iter(point_positions.clone());
+        let center = point_positions.clone().fold(Vector3::zeros(), |acc, position| acc + position) / len as f32;
+        let radius = point_positions.fold(0.0, |acc, position| {
+            let distance = (position - center).norm();
+            if distance > acc {
+                distance
+            } else {
+                acc
+            }
+        });
+
+        self.clusters.push(Cluster {
+            index_start,
+            len,
+            aabb,
+            center,
+            radius,
+        });
     }
 
     /// Returns `true` if the `Page` has space for another `Cluster`.
@@ -292,7 +300,7 @@ impl ClusteredPointCloud {
         let mut data = HashMap::<usize, usize>::new();
         for page in &self.pages {
             for cluster in &page.clusters {
-                data.entry(cluster.len() as usize).and_modify(|count| *count += 1).or_insert(1usize);
+                data.entry(cluster.len as usize).and_modify(|count| *count += 1).or_insert(1usize);
             }
         }
 
@@ -335,20 +343,20 @@ impl ClusteredPointCloud {
                         writeln!(obj_writer, "# Cluster {cluster_index} in page {page_index}")?;
                         writeln!(obj_writer, "o cluster_{global_cluster_index}")?;
                         writeln!(obj_writer, "usemtl cluster_{global_cluster_index}")?;
-                        for index in cluster.index_start()..cluster.index_start() + cluster.len() {
+                        for index in cluster.index_start..cluster.index_start + cluster.len {
                             let position = &page.point_positions()[index as usize];
                             let (a, b, c) = SimplePointCloud::create_triangle_for_point(position, *point_size)?;
                             writeln!(obj_writer, "v {} {} {}", a.x, a.y, a.z)?;
                             writeln!(obj_writer, "v {} {} {}", b.x, b.y, b.z)?;
                             writeln!(obj_writer, "v {} {} {}", c.x, c.y, c.z)?;
                         }
-                        for i in 0..cluster.len() {
+                        for i in 0..cluster.len {
                             let f0 = vertex_index + i * 3;
                             let f1 = vertex_index + i * 3 + 1;
                             let f2 = vertex_index + i * 3 + 2;
                             writeln!(obj_writer, "f {f0} {f1} {f2}")?;
                         }
-                        vertex_index += cluster.len() * 3;
+                        vertex_index += cluster.len * 3;
                         global_cluster_index += 1;
                     }
                 }
