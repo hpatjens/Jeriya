@@ -126,7 +126,7 @@ mod tests {
         env_logger::builder().filter_level(jeriya_shared::log::LevelFilter::Trace).init();
 
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
-        let mut point_cloud = PointCloud::sample_from_model(&model, 200.0);
+        let mut point_cloud = PointCloud::sample_from_model(&model, 10000.0);
         point_cloud.compute_clusters();
         dbg!(point_cloud.clustered_point_cloud().unwrap().pages().len());
         dbg!(point_cloud.simple_point_cloud().point_positions().len());
@@ -143,6 +143,18 @@ mod tests {
         let config = ObjWriteConfig::SimplePointCloud(simple_point_cloud::ObjWriteConfig::AABB);
         point_cloud
             .to_obj_file(&config, &directory.join("point_cloud_bounding_box.obj"))
+            .unwrap();
+
+        point_cloud
+            .clustered_point_cloud()
+            .unwrap()
+            .plot_cluster_fill_level_histogram(&directory.join("cluster_fill_level_histogram.svg"))
+            .unwrap();
+
+        point_cloud
+            .clustered_point_cloud()
+            .unwrap()
+            .write_statisics(&directory.join("statistics.json"))
             .unwrap();
     }
 }
