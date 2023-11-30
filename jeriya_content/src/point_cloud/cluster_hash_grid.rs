@@ -16,8 +16,6 @@ use jeriya_shared::{
     },
 };
 
-use crate::point_cloud::Cluster;
-
 pub type CellIndex = Vector3<i32>;
 
 pub struct CellContent {

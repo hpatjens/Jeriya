@@ -1,4 +1,5 @@
 pub mod cluster_hash_grid;
+pub mod clustered_point_cloud;
 pub mod simple_point_cloud;
 
 use std::{
@@ -23,20 +24,21 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     model::Model,
-    point_cloud::cluster_hash_grid::{BoundingBoxStrategy, CellContent, CellType, ClusterHashGrid, Context, Selection},
+    point_cloud::{
+        cluster_hash_grid::{BoundingBoxStrategy, CellContent, CellType, ClusterHashGrid, Context, Selection},
+        clustered_point_cloud::Page,
+    },
 };
 
-use self::simple_point_cloud::SimplePointCloud;
+use self::{
+    clustered_point_cloud::{ClusteredPointCloud, ObjClusterWriteConfig},
+    simple_point_cloud::SimplePointCloud,
+};
 
 /// Configuration for writing an OBJ file.
 pub enum ObjWriteConfig {
     SimplePointCloud(simple_point_cloud::ObjWriteConfig),
     Clusters(ObjClusterWriteConfig),
-}
-
-pub enum ObjClusterWriteConfig {
-    Points { point_size: f32 },
-    HashGridCells,
 }
 
 /// Determines whether the [`SimplePointCloud`] or the [`Cluster`]s are used to produce the OBJ file.
@@ -45,48 +47,9 @@ pub enum ObjWriteSource {
     Clusters,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct Page {
-    point_positions: Vec<Vector3<f32>>,
-    point_colors: Vec<ByteColor3>,
-    clusters: Vec<Cluster>,
-}
-
-impl Page {
-    /// The maximum number of clusters a page can have.
-    pub const MAX_CLUSTERS: usize = 16;
-    /// The maximum number of points a page can have.
-    pub const MAX_POINTS: usize = Cluster::MAX_POINTS * Self::MAX_CLUSTERS;
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct Cluster {
-    /// Index into the `Page`'s `point_positions` and `point_colors` `Vec`s
-    index_start: u32,
-    /// Number of points in the cluster
-    len: u32,
-}
-
-impl Cluster {
-    /// The maximum number of points a cluster can have.
-    pub const MAX_POINTS: usize = 128;
-}
-
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DebugGeometry {
     hash_grid_cells: Vec<AABB>,
-}
-
-#[derive(Default, Clone, Serialize, Deserialize)]
-pub struct ClusteredPointCloud {
-    pages: Vec<Page>,
-    debug_geometry: Option<DebugGeometry>,
-}
-
-impl std::fmt::Debug for ClusteredPointCloud {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ClusteredPointCloud").field("pages", &self.pages.len()).finish()
-    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -188,12 +151,10 @@ impl PointCloud {
         info!("Number of hash grid cells for debugging: {}", debug_hash_grid_cells.len());
         trace!("{:?}", &debug_hash_grid_cells);
 
-        self.clustered_point_cloud = Some(ClusteredPointCloud {
-            pages,
-            debug_geometry: Some(DebugGeometry {
-                hash_grid_cells: debug_hash_grid_cells,
-            }),
-        });
+        let debug_geometry = DebugGeometry {
+            hash_grid_cells: debug_hash_grid_cells,
+        };
+        self.clustered_point_cloud = Some(ClusteredPointCloud::new(pages, Some(debug_geometry)));
     }
 
     /// Returns a reference to the [`SimplePointCloud`]. The [`PointCloud`] might not
@@ -268,34 +229,34 @@ fn clustered_point_cloud_to_obj(
             // Write OBJ file
             let mut vertex_index = 1;
             let mut global_cluster_index = 0;
-            for (page_index, page) in clustered_point_cloud.pages.iter().enumerate() {
-                for (cluster_index, cluster) in page.clusters.iter().enumerate() {
+            for (page_index, page) in clustered_point_cloud.pages().iter().enumerate() {
+                for (cluster_index, cluster) in page.clusters().iter().enumerate() {
                     writeln!(obj_writer, "")?;
                     writeln!(obj_writer, "# Cluster {cluster_index} in page {page_index}")?;
                     writeln!(obj_writer, "o cluster_{global_cluster_index}")?;
                     writeln!(obj_writer, "usemtl cluster_{global_cluster_index}")?;
-                    for index in cluster.index_start..cluster.index_start + cluster.len {
-                        let position = &page.point_positions[index as usize];
+                    for index in cluster.index_start()..cluster.index_start() + cluster.len() {
+                        let position = &page.point_positions()[index as usize];
                         let (a, b, c) = SimplePointCloud::create_triangle_for_point(position, *point_size)?;
                         writeln!(obj_writer, "v {} {} {}", a.x, a.y, a.z)?;
                         writeln!(obj_writer, "v {} {} {}", b.x, b.y, b.z)?;
                         writeln!(obj_writer, "v {} {} {}", c.x, c.y, c.z)?;
                     }
-                    for i in 0..cluster.len {
+                    for i in 0..cluster.len() {
                         let f0 = vertex_index + i * 3;
                         let f1 = vertex_index + i * 3 + 1;
                         let f2 = vertex_index + i * 3 + 2;
                         writeln!(obj_writer, "f {f0} {f1} {f2}")?;
                     }
-                    vertex_index += cluster.len * 3;
+                    vertex_index += cluster.len() * 3;
                     global_cluster_index += 1;
                 }
             }
 
             // Write MTL file
             let mut global_clutser_index = 0;
-            for (page_index, page) in clustered_point_cloud.pages.iter().enumerate() {
-                for (cluster_index, _cluster) in page.clusters.iter().enumerate() {
+            for (page_index, page) in clustered_point_cloud.pages().iter().enumerate() {
+                for (cluster_index, _cluster) in page.clusters().iter().enumerate() {
                     let hue = rand::random::<f32>() * 360.0;
                     let hsv = Hsl::from(hue, 100.0, 50.0);
                     let rgb = hsv.to_rgb();
@@ -317,7 +278,7 @@ fn clustered_point_cloud_to_obj(
         }
         ObjClusterWriteConfig::HashGridCells => {
             let mut vertex_count = 0;
-            if let Some(debug_geometry) = &clustered_point_cloud.debug_geometry {
+            if let Some(debug_geometry) = &clustered_point_cloud.debug_geometry() {
                 for (aabb_index, aabb) in debug_geometry.hash_grid_cells.iter().enumerate() {
                     writeln!(obj_writer, "# Bounding box of the grid cell {aabb_index}")?;
                     vertex_count += write_bounding_box_o(&format!("hash_grid_cell_{aabb_index}"), vertex_count, &mut obj_writer, aabb)?;
@@ -379,7 +340,7 @@ fn create_priority_queue(hash_grid: &ClusterHashGrid) -> Vec<LeafCell> {
 /// Inserts the points into the page.
 fn insert_into_page(pages: &mut Vec<Page>, points: &[usize], point_positions: &[Vector3<f32>], point_colors: &[ByteColor3]) {
     // When the last page is full, a new page is created.
-    let has_space = pages.last().map_or(false, |page| page.clusters.len() + 1 < Page::MAX_CLUSTERS);
+    let has_space = pages.last().map_or(false, |page| page.has_space());
     if !has_space {
         pages.push(Page::default());
     }
@@ -388,12 +349,10 @@ fn insert_into_page(pages: &mut Vec<Page>, points: &[usize], point_positions: &[
     let Some(last_page) = pages.last_mut() else {
         panic!("Failed to get the last page");
     };
-    let index_start = last_page.point_positions.len() as u32;
-    let len = points.len() as u32;
-    let cluster = Cluster { index_start, len };
-    last_page.clusters.push(cluster);
-    last_page.point_positions.extend(points.iter().map(|&index| point_positions[index]));
-    last_page.point_colors.extend(points.iter().map(|&index| point_colors[index]));
+    last_page.push(
+        points.iter().map(|&index| &point_positions[index]),
+        points.iter().map(|&index| &point_colors[index]),
+    );
 }
 
 #[cfg(test)]
@@ -408,9 +367,9 @@ mod tests {
         env_logger::builder().filter_level(jeriya_shared::log::LevelFilter::Trace).init();
 
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
-        let mut point_cloud = PointCloud::sample_from_model(&model, 10000.0);
+        let mut point_cloud = PointCloud::sample_from_model(&model, 200.0);
         point_cloud.compute_clusters();
-        dbg!(point_cloud.clustered_point_cloud().unwrap().pages.len());
+        dbg!(point_cloud.clustered_point_cloud().unwrap().pages().len());
         dbg!(point_cloud.simple_point_cloud().point_positions().len());
         let directory = create_test_result_folder_for_function(function_name!());
 
