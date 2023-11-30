@@ -154,6 +154,12 @@ mod tests {
         point_cloud
             .clustered_point_cloud()
             .unwrap()
+            .plot_page_fill_level_histogram(&directory.join("page_fill_level_histogram.svg"))
+            .unwrap();
+
+        point_cloud
+            .clustered_point_cloud()
+            .unwrap()
             .write_statisics(&directory.join("statistics.json"))
             .unwrap();
     }
