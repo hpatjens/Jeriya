@@ -245,49 +245,74 @@ impl ClusteredPointCloud {
         Ok(())
     }
 
-    /// Plots the histogram showing how many clusters have a certain number of points.
-    pub fn plot_cluster_fill_level_histogram<'a>(
+    fn plot_histogram<'a>(
         &self,
+        data: &HashMap<usize, usize>,
         filepath: &impl AsRef<Path>,
+        title: &str,
     ) -> Result<(), DrawingAreaErrorKind<<SVGBackend<'a> as DrawingBackend>::ErrorType>> {
-        // Map from the number of points in a cluster to the number of clusters with that number of points
-        let mut data = HashMap::<u32, u32>::new();
-        for page in &self.pages {
-            for cluster in &page.clusters {
-                data.entry(cluster.len() as u32).and_modify(|count| *count += 1).or_insert(1u32);
-            }
-        }
-
         // Prepare the drawing area
         let drawing_area = SVGBackend::new(filepath, (800, 600)).into_drawing_area();
         drawing_area.fill(&WHITE)?;
 
         // Convert the data into the representation that plotters expects
-        let mut data = data.into_iter().collect::<Vec<_>>();
+        let mut data = data.into_iter().map(|(a, b)| (a.clone(), b.clone())).collect::<Vec<_>>();
         data.sort_by(|(a, _), (b, _)| a.cmp(b));
 
-        let x_max = data.iter().map(|(a, _)| a).max().cloned().unwrap_or(0u32);
-        let y_max = data.iter().map(|(_, b)| b).max().cloned().unwrap_or(0u32);
+        let x_max = data.iter().map(|(a, _)| a).max().cloned().unwrap_or(0usize);
+        let y_max = data.iter().map(|(_, b)| b).max().cloned().unwrap_or(0usize);
 
         let mut chart = ChartBuilder::on(&drawing_area)
             .x_label_area_size(35)
             .y_label_area_size(40)
             .margin(5)
-            .caption("Cluster Fill Level Histrogram", ("sans-serif", 50.0))
-            .build_cartesian_2d((0u32..x_max).into_segmented(), 0u32..y_max)?;
+            .caption(title, ("sans-serif", 50.0))
+            .build_cartesian_2d((0usize..x_max).into_segmented(), 0usize..y_max)?;
 
         chart
             .configure_mesh()
             .disable_x_mesh()
             .bold_line_style(WHITE.mix(0.3))
             .y_desc("Count")
-            .x_desc("Points per Cell")
+            .x_desc("Points")
             .axis_desc_style(("sans-serif", 15))
             .draw()?;
 
-        chart.draw_series(Histogram::vertical(&chart).margin(1).style(BLUE.mix(0.5).filled()).data(data))?;
+        chart.draw_series(Histogram::vertical(&chart).margin(0).style(BLUE.mix(0.5).filled()).data(data))?;
 
         Ok(())
+    }
+
+    /// Plots the histogram showing how many clusters have a certain number of points.
+    pub fn plot_cluster_fill_level_histogram<'a>(
+        &self,
+        filepath: &impl AsRef<Path>,
+    ) -> Result<(), DrawingAreaErrorKind<<SVGBackend<'a> as DrawingBackend>::ErrorType>> {
+        // Map from the number of points in a cluster to the number of clusters with that number of points
+        let mut data = HashMap::<usize, usize>::new();
+        for page in &self.pages {
+            for cluster in &page.clusters {
+                data.entry(cluster.len() as usize).and_modify(|count| *count += 1).or_insert(1usize);
+            }
+        }
+
+        Self::plot_histogram(self, &data, filepath, "Cluster fill level histogram")
+    }
+
+    /// Plots the histogram showing how many pages have a certain number of points.
+    pub fn plot_page_fill_level_histogram<'a>(
+        &self,
+        filepath: &impl AsRef<Path>,
+    ) -> Result<(), DrawingAreaErrorKind<<SVGBackend<'a> as DrawingBackend>::ErrorType>> {
+        // Map from the number of points in a cluster to the number of clusters with that number of points
+        let mut data = HashMap::<usize, usize>::new();
+        for page in &self.pages {
+            data.entry(page.point_positions().len() as usize)
+                .and_modify(|count| *count += 1)
+                .or_insert(1usize);
+        }
+
+        Self::plot_histogram(&self, &data, filepath, "Page fill level histogram")
     }
 
     pub fn to_obj(
