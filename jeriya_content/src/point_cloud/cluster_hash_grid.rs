@@ -176,7 +176,7 @@ impl ClusterHashGrid {
                 (grid_aabb, cell_size, cell_resolution)
             }
             BoundingBoxStrategy::Manual(aabb) => {
-                let cell_resolution = estimate_cell_resolution(&aabb, point_positions_count, target_points_per_cell);
+                let cell_resolution = estimate_cell_resolution(point_positions_count, target_points_per_cell);
                 let cell_size = aabb.size().zip_map(&cell_resolution, |a, b| a / b as f32);
                 (aabb, cell_size, cell_resolution)
             }
@@ -373,14 +373,6 @@ impl ClusterHashGrid {
         self.cells.values()
     }
 
-    /// Plots the distribution of points in the grid cells.
-    pub fn plot_point_distribution_in_cells(
-        &self,
-        filepath: &impl AsRef<Path>,
-    ) -> Result<(), DrawingAreaErrorKind<<SVGBackend as DrawingBackend>::ErrorType>> {
-        plot_point_distribution_in_cells(&self.cells, self.target_points_per_cell, filepath)
-    }
-
     /// Returns the grid cell that the given `point` is in, using the given `cell_size`.
     pub fn cell_at_point_with_cell_size(point: Vector3<f32>, cell_size: Vector3<f32>) -> CellIndex {
         let x = (point.x / cell_size.x).floor() as i32;
@@ -396,7 +388,7 @@ impl ClusterHashGrid {
 }
 
 /// Gives an estimate of the number of grid cells using the assumptions that the density of the points is uniform.
-fn estimate_cell_resolution<'a>(aabb: &AABB, point_positions_count: usize, target_points_per_cell: usize) -> Vector3<usize> {
+fn estimate_cell_resolution<'a>(point_positions_count: usize, target_points_per_cell: usize) -> Vector3<usize> {
     let point_per_dimension = (point_positions_count as f32).powf(1.0 / 3.0);
     let points_per_cell_per_dimension = (target_points_per_cell as f32).powf(1.0 / 3.0);
     let cells_per_dimension = (point_per_dimension / points_per_cell_per_dimension).ceil();
@@ -409,7 +401,7 @@ fn estimate_cell_resolution<'a>(aabb: &AABB, point_positions_count: usize, targe
 
 /// Gives an estimate of the size of a grid cell using the assumptions that the density of the points is uniform.
 fn estimate_cell_size<'a>(aabb: &AABB, point_positions_count: usize, target_points_per_cell: usize) -> Vector3<f32> {
-    let cell_resolution = estimate_cell_resolution(aabb, point_positions_count, target_points_per_cell);
+    let cell_resolution = estimate_cell_resolution(point_positions_count, target_points_per_cell);
     aabb.size().zip_map(&cell_resolution, |a, b| a / b as f32)
 }
 
@@ -426,70 +418,6 @@ fn compute_min_max_cell_index<'a>(
         max = max.zip_map(&cell_index, i32::max);
     }
     (min, max)
-}
-
-fn plot_point_distribution_in_cells<'a>(
-    map: &HashMap<CellIndex, CellContent>,
-    target_points_per_cell: usize,
-    filepath: &impl AsRef<Path>,
-) -> Result<(), DrawingAreaErrorKind<<SVGBackend<'a> as DrawingBackend>::ErrorType>> {
-    let drawing_area = SVGBackend::new(filepath, (800, 600)).into_drawing_area();
-
-    drawing_area.fill(&WHITE)?;
-
-    // Collect the data from the cells
-    let mut data = HashMap::<u32, u32>::new();
-    fn insert_points<'a>(data_to_plot: &mut HashMap<u32, u32>, cells: impl Iterator<Item = &'a CellContent>) {
-        for cell in cells {
-            match &cell.ty {
-                CellType::Points(points) => {
-                    data_to_plot
-                        .entry(points.len() as u32)
-                        .and_modify(|count| *count += 1)
-                        .or_insert(1u32);
-                }
-                CellType::Grid(grid) => insert_points(data_to_plot, grid.cells.values()),
-                CellType::XAxisHalfSplit(first, second) => {
-                    insert_points(data_to_plot, std::iter::once(first.as_ref()));
-                    insert_points(data_to_plot, std::iter::once(second.as_ref()));
-                }
-            }
-        }
-    }
-    insert_points(&mut data, map.values());
-
-    // Convert the data into the representation that plotters expects
-    let mut data = data.into_iter().collect::<Vec<_>>();
-    data.sort_by(|(a, _), (b, _)| a.cmp(b));
-
-    let x_max = data.iter().map(|(a, _)| a).max().cloned().unwrap_or(0u32);
-    let y_max = data.iter().map(|(_, b)| b).max().cloned().unwrap_or(0u32);
-
-    let mut chart = ChartBuilder::on(&drawing_area)
-        .x_label_area_size(35)
-        .y_label_area_size(40)
-        .margin(5)
-        .caption("Histogram of Points per Cell", ("sans-serif", 50.0))
-        .build_cartesian_2d((0u32..x_max).into_segmented(), 0u32..y_max)?;
-
-    chart
-        .configure_mesh()
-        .disable_x_mesh()
-        .bold_line_style(WHITE.mix(0.3))
-        .y_desc("Count")
-        .x_desc("Points per Cell")
-        .axis_desc_style(("sans-serif", 15))
-        .draw()?;
-
-    let (less, more): (Vec<_>, Vec<_>) = data
-        .into_iter()
-        .partition(|(points_per_cell, _cell_count)| *points_per_cell <= target_points_per_cell as u32);
-    let less_style = BLUE.mix(0.5).filled();
-    let more_style = RED.mix(0.5).filled();
-    chart.draw_series(Histogram::vertical(&chart).margin(1).style(less_style).data(less))?;
-    chart.draw_series(Histogram::vertical(&chart).margin(1).style(more_style).data(more))?;
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -516,11 +444,6 @@ mod tests {
         // assert_eq!(cluster_hash_grid.cell_at(Vector3::new(1.0, 0.0, 0.0)), CellIndex(1, 0, 0));
         // assert_eq!(cluster_hash_grid.cell_at(Vector3::new(0.0, 1.0, 0.0)), CellIndex(0, 1, 0));
         // assert_eq!(cluster_hash_grid.cell_at(Vector3::new(0.0, 0.0, 1.0)), CellIndex(0, 0, 1));
-
-        let directory = create_test_result_folder_for_function(function_name!());
-        cluster_hash_grid
-            .plot_point_distribution_in_cells(&directory.join("histogram_of_points_per_cell.svg"))
-            .unwrap();
     }
 
     #[test]
@@ -554,11 +477,6 @@ mod tests {
         assert_leaf_with(Vector3::new(0.7, 0.7, 0.7), 4);
         assert_leaf_with(Vector3::new(0.7, 0.7, 0.7), 5); // These can be found in the same cell
         assert_leaf_with(Vector3::new(0.7, 0.7, 0.7), 6); // These can be found in the same cell
-
-        let directory = create_test_result_folder_for_function(function_name!());
-        cluster_hash_grid
-            .plot_point_distribution_in_cells(&directory.join("histogram_of_points_per_cell.svg"))
-            .unwrap();
     }
 
     #[test]
@@ -571,10 +489,5 @@ mod tests {
             .collect::<Vec<Vector3<f32>>>();
         let cluster_hash_grid = ClusterHashGrid::new(&random_points, 80);
         assert_eq!(cluster_hash_grid.cell_resolution(), Vector3::new(11, 11, 11));
-
-        let directory = create_test_result_folder_for_function(function_name!());
-        cluster_hash_grid
-            .plot_point_distribution_in_cells(&directory.join("histogram_of_points_per_cell.svg"))
-            .unwrap();
     }
 }

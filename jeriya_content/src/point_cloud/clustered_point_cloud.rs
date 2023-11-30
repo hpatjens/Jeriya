@@ -1,17 +1,28 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     io::{self, Write},
+    path::Path,
     sync::atomic::AtomicUsize,
 };
 
 use jeriya_shared::{
     aabb::AABB,
-    colors_transform::{Color, Hsl},
+    colors_transform::Hsl,
     itertools::Itertools,
     log::info,
     nalgebra::Vector3,
     obj_writer::write_bounding_box_o,
-    rand, ByteColor3,
+    plotters::{
+        backend::{DrawingBackend, SVGBackend},
+        chart::ChartBuilder,
+        coord::ranged1d::IntoSegmentedCoord,
+        drawing::{DrawingAreaErrorKind, IntoDrawingArea},
+        prelude::*,
+        series::Histogram,
+        style::Color,
+        style::{BLUE, WHITE},
+    },
+    rand, serde_json, ByteColor3,
 };
 use serde::{Deserialize, Serialize};
 
@@ -211,6 +222,74 @@ impl ClusteredPointCloud {
         self.debug_geometry.as_ref()
     }
 
+    pub fn write_statisics(&self, filepath: &impl AsRef<Path>) -> io::Result<()> {
+        let mut file = std::fs::File::create(filepath)?;
+        #[derive(Serialize, Deserialize)]
+        struct Statistics {
+            pages: usize,
+            clusters: usize,
+            points: usize,
+        }
+        serde_json::to_writer_pretty(
+            &mut file,
+            &Statistics {
+                pages: self.pages.len(),
+                clusters: self.pages.iter().map(|page| page.clusters.len()).sum(),
+                points: self
+                    .pages
+                    .iter()
+                    .map(|page| page.clusters.iter().map(|cluster| cluster.len as usize).sum::<usize>())
+                    .sum(),
+            },
+        )?;
+        Ok(())
+    }
+
+    /// Plots the histogram showing how many clusters have a certain number of points.
+    pub fn plot_cluster_fill_level_histogram<'a>(
+        &self,
+        filepath: &impl AsRef<Path>,
+    ) -> Result<(), DrawingAreaErrorKind<<SVGBackend<'a> as DrawingBackend>::ErrorType>> {
+        // Map from the number of points in a cluster to the number of clusters with that number of points
+        let mut data = HashMap::<u32, u32>::new();
+        for page in &self.pages {
+            for cluster in &page.clusters {
+                data.entry(cluster.len() as u32).and_modify(|count| *count += 1).or_insert(1u32);
+            }
+        }
+
+        // Prepare the drawing area
+        let drawing_area = SVGBackend::new(filepath, (800, 600)).into_drawing_area();
+        drawing_area.fill(&WHITE)?;
+
+        // Convert the data into the representation that plotters expects
+        let mut data = data.into_iter().collect::<Vec<_>>();
+        data.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+        let x_max = data.iter().map(|(a, _)| a).max().cloned().unwrap_or(0u32);
+        let y_max = data.iter().map(|(_, b)| b).max().cloned().unwrap_or(0u32);
+
+        let mut chart = ChartBuilder::on(&drawing_area)
+            .x_label_area_size(35)
+            .y_label_area_size(40)
+            .margin(5)
+            .caption("Cluster Fill Level Histrogram", ("sans-serif", 50.0))
+            .build_cartesian_2d((0u32..x_max).into_segmented(), 0u32..y_max)?;
+
+        chart
+            .configure_mesh()
+            .disable_x_mesh()
+            .bold_line_style(WHITE.mix(0.3))
+            .y_desc("Count")
+            .x_desc("Points per Cell")
+            .axis_desc_style(("sans-serif", 15))
+            .draw()?;
+
+        chart.draw_series(Histogram::vertical(&chart).margin(1).style(BLUE.mix(0.5).filled()).data(data))?;
+
+        Ok(())
+    }
+
     pub fn to_obj(
         &self,
         mut obj_writer: impl Write,
@@ -253,6 +332,7 @@ impl ClusteredPointCloud {
                 let mut global_clutser_index = 0;
                 for (page_index, page) in self.pages().iter().enumerate() {
                     for (cluster_index, _cluster) in page.clusters().iter().enumerate() {
+                        use jeriya_shared::colors_transform::Color;
                         let hue = rand::random::<f32>() * 360.0;
                         let hsv = Hsl::from(hue, 100.0, 50.0);
                         let rgb = hsv.to_rgb();

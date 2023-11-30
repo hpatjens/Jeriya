@@ -44,6 +44,7 @@ pub use pathdiff;
 pub use plotters;
 pub use rand;
 pub use rayon;
+pub use serde_json;
 pub use spin_sleep;
 pub use thiserror;
 pub use thread_id;
