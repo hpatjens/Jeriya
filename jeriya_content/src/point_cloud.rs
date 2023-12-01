@@ -30,11 +30,13 @@ pub enum ObjWriteSource {
     Clusters,
 }
 
+/// Information for debugging that is recorded during the creation of the [`PointCloud`].
 #[derive(Clone, Serialize, Deserialize)]
 pub struct DebugGeometry {
     hash_grid_cells: Vec<AABB>,
 }
 
+/// A `PointCloud` is a collection of points representing the surface of objects.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PointCloud {
     simple_point_cloud: SimplePointCloud,
@@ -126,10 +128,9 @@ mod tests {
         env_logger::builder().filter_level(jeriya_shared::log::LevelFilter::Trace).init();
 
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
-        let mut point_cloud = PointCloud::sample_from_model(&model, 10000.0);
+        let mut point_cloud = PointCloud::sample_from_model(&model, 200.0);
         point_cloud.compute_clusters();
-        dbg!(point_cloud.clustered_point_cloud().unwrap().pages().len());
-        dbg!(point_cloud.simple_point_cloud().point_positions().len());
+
         let directory = create_test_result_folder_for_function(function_name!());
 
         let config = ObjWriteConfig::Clusters(ObjClusterWriteConfig::Points { point_size: 0.02 });

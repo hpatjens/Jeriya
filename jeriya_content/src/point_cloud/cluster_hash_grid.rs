@@ -8,12 +8,14 @@ use jeriya_shared::{aabb::AABB, log::trace, nalgebra::Vector3};
 
 pub type CellIndex = Vector3<i32>;
 
+/// Stores meta information of a grid cell as well as the `CellType`.
 pub struct CellContent {
     pub unique_index: usize,
     pub aabb: AABB,
     pub ty: CellType,
 }
 
+/// Describes what the grid cell contains.
 pub enum CellType {
     Points(Vec<usize>),
     Grid(Box<ClusterHashGrid>),
