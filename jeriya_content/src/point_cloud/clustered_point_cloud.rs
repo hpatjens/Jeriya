@@ -3,6 +3,7 @@ use std::{
     io::{self, Write},
     path::Path,
     sync::atomic::AtomicUsize,
+    time::Instant,
 };
 
 use jeriya_shared::{
@@ -17,7 +18,6 @@ use jeriya_shared::{
         chart::ChartBuilder,
         coord::ranged1d::IntoSegmentedCoord,
         drawing::{DrawingAreaErrorKind, IntoDrawingArea},
-        prelude::*,
         series::Histogram,
         style::Color,
         style::{BLUE, WHITE},
@@ -26,7 +26,7 @@ use jeriya_shared::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::point_cloud::cluster_hash_grid::{BoundingBoxStrategy, CellContent, CellType, ClusterHashGrid, Context, Selection};
+use crate::point_cloud::cluster_hash_grid::{CellContent, CellType, ClusterHashGrid, Context};
 
 use super::{simple_point_cloud::SimplePointCloud, DebugGeometry};
 
@@ -136,18 +136,20 @@ pub struct ClusteredPointCloud {
 impl ClusteredPointCloud {
     /// Creates a new `ClusteredPointCloud` from the given `SimplePointCloud`.
     pub fn from_simple_point_cloud(simple_point_cloud: &SimplePointCloud) -> Self {
+        let start = Instant::now();
+
         let target_points_per_cell = 256;
         let mut debug_hash_grid_cells = Vec::new();
 
-        let mut unique_index_counter = AtomicUsize::new(0);
-        let mut context = Context {
-            point_positions: simple_point_cloud.point_positions(),
-            unique_index_counter: &mut unique_index_counter,
-            plot_directory: None,
-            debug_hash_grid_cells: Some(&mut debug_hash_grid_cells),
-        };
-        let hash_grid =
-            ClusterHashGrid::with_debug_options(Selection::All, target_points_per_cell, BoundingBoxStrategy::Auto, &mut context);
+        let hash_grid = ClusterHashGrid::from_all(
+            target_points_per_cell,
+            &mut Context {
+                point_positions: simple_point_cloud.point_positions(),
+                unique_index_counter: &mut AtomicUsize::new(0),
+                plot_directory: None,
+                debug_hash_grid_cells: Some(&mut debug_hash_grid_cells),
+            },
+        );
 
         // Creates a priority queue that is used to process the cells starting from the lowest levels.
         let mut priority_queue = create_priority_queue(&hash_grid);
@@ -210,6 +212,7 @@ impl ClusteredPointCloud {
         }
 
         info!("Number of hash grid cells for debugging: {}", debug_hash_grid_cells.len());
+        info!("Computing the clusters took {} ms", start.elapsed().as_secs_f32());
 
         let debug_geometry = DebugGeometry {
             hash_grid_cells: debug_hash_grid_cells,

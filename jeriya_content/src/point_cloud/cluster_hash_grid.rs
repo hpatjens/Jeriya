@@ -15,6 +15,17 @@ pub struct CellContent {
     pub ty: CellType,
 }
 
+impl CellContent {
+    /// Returns the number of points in the grid cell and all its children.
+    pub fn len(&self) -> usize {
+        match &self.ty {
+            CellType::Points(points) => points.len(),
+            CellType::Grid(grid) => grid.cells().map(CellContent::len).sum::<usize>(),
+            CellType::XAxisHalfSplit(lower, higher) => lower.len() + higher.len(),
+        }
+    }
+}
+
 /// Describes what the grid cell contains.
 pub enum CellType {
     Points(Vec<usize>),
@@ -22,66 +33,11 @@ pub enum CellType {
     XAxisHalfSplit(Box<CellContent>, Box<CellContent>),
 }
 
-#[derive(Debug, Clone)]
-pub enum BoundingBoxStrategy {
-    Auto,
-    Manual(AABB),
-}
-
 pub struct Context<'a, 'b, 'c> {
     pub point_positions: &'a [Vector3<f32>],
     pub unique_index_counter: &'b mut AtomicUsize,
     pub plot_directory: Option<PathBuf>,
     pub debug_hash_grid_cells: Option<&'c mut Vec<AABB>>,
-}
-
-/// Determines which indices will be inserted into the `ClusterHashGrid`.
-pub enum Selection {
-    All,
-    Subset(Vec<usize>),
-}
-
-impl Selection {
-    fn into_iter<'a, 'b>(&'a self, point_positions: &'b [Vector3<f32>]) -> SelectionIter<'a, 'b> {
-        SelectionIter {
-            selection: self,
-            point_positions,
-            index: 0,
-        }
-    }
-}
-
-struct SelectionIter<'a, 'b> {
-    selection: &'a Selection,
-    point_positions: &'b [Vector3<f32>],
-    index: usize,
-}
-
-impl<'a, 'b> Iterator for SelectionIter<'a, 'b> {
-    type Item = &'b Vector3<f32>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.selection {
-            Selection::All => {
-                if self.index < self.point_positions.len() {
-                    let point = &self.point_positions[self.index];
-                    self.index += 1;
-                    Some(point)
-                } else {
-                    None
-                }
-            }
-            Selection::Subset(ref indices) => {
-                if self.index < indices.len() {
-                    let point = &self.point_positions[indices[self.index]];
-                    self.index += 1;
-                    Some(point)
-                } else {
-                    None
-                }
-            }
-        }
-    }
 }
 
 pub struct ClusterHashGrid {
@@ -101,96 +57,146 @@ impl ClusterHashGrid {
         // Every cell gets a unique index assigned to it
         let mut unique_index_counter = AtomicUsize::new(0);
 
-        let mut context = Context {
-            point_positions,
-            unique_index_counter: &mut unique_index_counter,
-            plot_directory: None,
-            debug_hash_grid_cells: None,
-        };
-
-        Self::with_debug_options(Selection::All, target_points_per_cell, BoundingBoxStrategy::Auto, &mut context)
+        Self::from_all(
+            target_points_per_cell,
+            &mut Context {
+                point_positions,
+                unique_index_counter: &mut unique_index_counter,
+                plot_directory: None,
+                debug_hash_grid_cells: None,
+            },
+        )
     }
 
     /// Creates a new `ClusterHashGrid` with the given `point_positions` and `points_per_cell`.
-    pub fn with_debug_options(
-        selection: Selection,
-        target_points_per_cell: usize,
-        bounding_box_strategy: BoundingBoxStrategy,
-        context: &mut Context,
-    ) -> Self {
-        jeriya_shared::assert! {
-            selection.into_iter(context.point_positions).count() > 0,
-             "point_positions must not be empty"
+    ///
+    /// This is used when creating the highest level of the `ClusterHashGrid` hierarchy. In that
+    /// case all points of the point cloud are used and the AABB of the grid is computed instead
+    /// of being given. (As it is the case in the `ClusterHashGrid::from_selection` method.)
+    ///
+    /// # Panics
+    ///
+    /// * Panics if `context.point_positions` is empty.
+    /// * Panics if `target_points_per_cell` is 0.
+    pub fn from_all(target_points_per_cell: usize, context: &mut Context) -> Self {
+        jeriya_shared::assert!(context.point_positions.len() > 0, "point_positions must not be empty");
+        jeriya_shared::assert!(target_points_per_cell > 0, "target_points_per_cell must be greater than 0");
+
+        let points_aabb = AABB::from_slice(context.point_positions);
+        trace!("ClusterHashGrid points AABB: {points_aabb:?}");
+
+        // Assuming that the density of the points is uniform, we can estimate the size of the grid cells.
+        let cell_size = estimate_cell_size(&points_aabb, context.point_positions.len(), target_points_per_cell);
+
+        // Compute the number of cells in each dimension. This might not be the same
+        // as the width of the bounding box divided by the cell size because the outermost
+        // cells might fall into a hash cell outside of the bounding box. If the points
+        // are between 0 and 1 and the number of points suggests a cell size of 0.5, the
+        // coordinate 1.0 would fall into the cell with index 2 even if there are only 2
+        // cells with indices 0 and 1 in the bounding box.
+        let (min_cell_index, max_cell_index) = compute_min_max_cell_index(context.point_positions.iter(), cell_size);
+        let cell_resolution = (max_cell_index - min_cell_index + Vector3::new(1, 1, 1)).map(|x| x as usize);
+        trace!("ClusterHashGrid cell resolution: {cell_resolution:?}");
+
+        // Compute the bounding box of the grid. This is the bounding box that fully
+        // contains all cells and not only the points. Consider the problem described above.
+        let aabb_min = min_cell_index.zip_map(&cell_size, |a, b| a as f32 * b);
+        let aabb_max = max_cell_index.zip_map(&cell_size, |a, b| (a + 1) as f32 * b);
+        let aabb = AABB::new(aabb_min, aabb_max);
+        trace!("ClusterHashGrid grid AABB: {aabb:?}");
+
+        jeriya_shared::assert!(aabb.contains(&points_aabb), "points AABB must be in the AABB");
+        for point_position in context.point_positions.iter() {
+            jeriya_shared::assert!(aabb.contains(point_position), "point must be in the AABB of the ClusterHashGrid");
         }
 
-        let point_positions_count = match &selection {
-            Selection::All => context.point_positions.len(),
-            Selection::Subset(indices) => indices.len(),
-        };
-
-        // Compute Bounding Box of the point cloud
-        let (aabb, cell_size, cell_resolution) = match bounding_box_strategy {
-            BoundingBoxStrategy::Auto => {
-                let points_aabb = AABB::from_iter(selection.into_iter(context.point_positions));
-                trace!("ClusterHashGrid points AABB: {points_aabb:?}");
-
-                // Assuming that the density of the points is uniform, we can estimate the size of the grid cells.
-                let cell_size = estimate_cell_size(&points_aabb, point_positions_count, target_points_per_cell);
-
-                // Compute the number of cells in each dimension. This might not be the same
-                // as the width of the bounding box divided by the cell size because the outermost
-                // cells might fall into a hash cell outside of the bounding box. If the points
-                // are between 0 and 1 and the number of points suggests a cell size of 0.5, the
-                // coordinate 1.0 would fall into the cell with index 2 even if there are only 2
-                // cells with indices 0 and 1 in the bounding box.
-                let (min_cell_index, max_cell_index) = compute_min_max_cell_index(selection.into_iter(context.point_positions), cell_size);
-                let cell_resolution = (max_cell_index - min_cell_index + Vector3::new(1, 1, 1)).map(|x| x as usize);
-                trace!("ClusterHashGrid cell resolution: {cell_resolution:?}");
-
-                // Compute the bounding box of the grid. This is the bounding box that fully
-                // contains all cells and not only the points. Regard the problem described above.
-                let aabb_min = min_cell_index.zip_map(&cell_size, |a, b| a as f32 * b);
-                let aabb_max = max_cell_index.zip_map(&cell_size, |a, b| a as f32 * b) + cell_size;
-                let grid_aabb = AABB::new(aabb_min, aabb_max);
-                trace!("ClusterHashGrid grid AABB: {grid_aabb:?}");
-
-                jeriya_shared::assert!(
-                    grid_aabb.contains(&points_aabb),
-                    "points AABB must be in the AABB of the ClusterHashGrid"
-                );
-
-                (grid_aabb, cell_size, cell_resolution)
-            }
-            BoundingBoxStrategy::Manual(aabb) => {
-                let cell_resolution = estimate_cell_resolution(point_positions_count, target_points_per_cell);
-                let cell_size = aabb.size().zip_map(&cell_resolution, |a, b| a / b as f32);
-                (aabb, cell_size, cell_resolution)
-            }
-        };
-
-        // Insert the points into cells
         let mut initial_distribution = HashMap::new();
-        match &selection {
-            Selection::All => {
-                for (index, point_position) in context.point_positions.iter().enumerate() {
-                    let cell_index = Self::cell_at_point_with_cell_size(*point_position, cell_size);
-                    jeriya_shared::assert!(aabb.contains(point_position), "point must be in the AABB of the ClusterHashGrid");
-                    initial_distribution.entry(cell_index).or_insert_with(Vec::new).push(index);
-                }
-            }
-            Selection::Subset(indices) => {
-                for &index in indices {
-                    let point_position = &context.point_positions[index];
-                    let cell_index = Self::cell_at_point_with_cell_size(*point_position, cell_size);
-                    jeriya_shared::assert!(aabb.contains(point_position), "point must be in the AABB of the ClusterHashGrid");
-                    initial_distribution.entry(cell_index).or_insert_with(Vec::new).push(index);
-                }
-            }
+        for (index, point_position) in context.point_positions.iter().enumerate() {
+            let cell_index = Self::cell_at_point_with_cell_size(*point_position, cell_size);
+            initial_distribution.entry(cell_index).or_insert_with(Vec::new).push(index);
         }
+        jeriya_shared::assert_eq!(
+            initial_distribution.values().map(Vec::len).sum::<usize>(),
+            context.point_positions.len(),
+            "all points must be in the initial distribution"
+        );
 
-        jeriya_shared::assert!(initial_distribution.values().map(|indices| indices.len()).sum::<usize>() == point_positions_count);
+        let cells = Self::build_cells_from_initial_distribution(initial_distribution, cell_size, target_points_per_cell, context);
+        jeriya_shared::assert_eq!(
+            cells.values().map(CellContent::len).sum::<usize>(),
+            context.point_positions.len(),
+            "all points must be in the cells"
+        );
 
-        // Recursively splits the cells that have too many points
+        Self {
+            cells,
+            cell_size,
+            cell_resolution,
+            aabb,
+        }
+    }
+
+    /// Creates a new `ClusterHashGrid` within a limited space with a subset of the points.
+    ///
+    /// This is used when creating `ClusterHashGrid`s as part of a `ClusterHashGrid` hierarchy. In
+    /// that case, the AABB of the grid is given by the cell of the parent grid. The points are a
+    /// subset of the points of the parent grid.
+    ///
+    /// # Panics
+    ///
+    /// * Panics if `indices` is empty.
+    /// * Panics if `target_points_per_cell` is 0.
+    /// * Panics if any of the points is not in the `aabb`.
+    /// * Panics if `aabb` is empty.
+    pub fn from_selection(indices: &Vec<usize>, aabb: &AABB, target_points_per_cell: usize, context: &mut Context) -> Self {
+        jeriya_shared::assert!(indices.len() > 0, "point_positions must not be empty");
+        jeriya_shared::assert!(target_points_per_cell > 0, "target_points_per_cell must be greater than 0");
+        jeriya_shared::assert!(!aabb.is_empty(), "aabb must not be empty");
+        jeriya_shared::assert!(
+            indices.iter().all(|&index| aabb.contains(&context.point_positions[index])),
+            "point must be in the AABB of the ClusterHashGrid"
+        );
+
+        // Estimate the size of the grid cells.
+        let cell_resolution = estimate_cell_resolution(indices.len(), target_points_per_cell);
+        let cell_size = aabb.size().zip_map(&cell_resolution, |a, b| a / b as f32);
+
+        // Find a cell for every point
+        let mut initial_distribution = HashMap::new();
+        for index in indices {
+            let point_position = context.point_positions[*index];
+            let cell_index = Self::cell_at_point_with_cell_size(point_position, cell_size);
+            initial_distribution.entry(cell_index).or_insert_with(Vec::new).push(*index);
+        }
+        jeriya_shared::assert_eq!(
+            initial_distribution.values().map(|indices| indices.len()).sum::<usize>(),
+            indices.len(),
+            "the number of points in the initial distribution must be the same as the number of points in the selection"
+        );
+
+        // Create the final cells
+        let cells = Self::build_cells_from_initial_distribution(initial_distribution, cell_size, target_points_per_cell, context);
+        jeriya_shared::assert_eq!(
+            cells.values().map(|cell| cell.len()).sum::<usize>(),
+            indices.len(),
+            "the number of points in the cells must be the same as the number of points in the selection"
+        );
+
+        Self {
+            cells,
+            cell_size,
+            cell_resolution,
+            aabb: aabb.clone(),
+        }
+    }
+
+    /// Creates the cells after the points have been assigned to the cells.
+    fn build_cells_from_initial_distribution(
+        initial_distribution: HashMap<CellIndex, Vec<usize>>,
+        cell_size: Vector3<f32>,
+        target_points_per_cell: usize,
+        context: &mut Context,
+    ) -> HashMap<CellIndex, CellContent> {
         let mut cells = HashMap::new();
         for (cell_index, indices) in initial_distribution {
             // BoundingBox
@@ -201,13 +207,7 @@ impl ClusterHashGrid {
             let cell_content = Self::build_cell(indices, aabb, target_points_per_cell, context);
             cells.insert(cell_index, cell_content);
         }
-
-        Self {
-            cells,
-            cell_size,
-            aabb,
-            cell_resolution,
-        }
+        cells
     }
 
     fn build_leaf_cell(aabb: AABB, points: Vec<usize>, context: &mut Context) -> CellContent {
@@ -224,6 +224,13 @@ impl ClusterHashGrid {
     }
 
     fn build_cell(indices: Vec<usize>, aabb: AABB, split_threshold: usize, context: &mut Context) -> CellContent {
+        for point in indices.iter().map(|&index| context.point_positions[index]) {
+            if !aabb.contains(&point) {
+                dbg!(&aabb);
+                dbg!(point);
+            }
+        }
+
         jeriya_shared::assert! {
             indices
                 .iter()
@@ -236,16 +243,10 @@ impl ClusterHashGrid {
             // When the number of points in a cell exceeds the `split_threshold` by a factor of 2,
             // the cell is split into a `ClusterHashGrid` recursively. The reasoning behind this is
             // that there are too many points in the cell and an easy way of splitting the points
-            // was needed. The smallest possible subdivision of the `ClusterHashGrid` is 2x2x2 which
-            // might result in cells with far fewer points than the `split_threshold`. So, a better
-            // way of splitting the points would be beneficial.
-
-            let grid = ClusterHashGrid::with_debug_options(
-                Selection::Subset(indices),
-                split_threshold,
-                BoundingBoxStrategy::Manual(aabb),
-                context,
-            );
+            // was needed. The smallest possible subdivision of the `ClusterHashGrid` - apart from
+            // 1x1x1 - is 2x2x2 which might result in cells with far fewer points than the
+            // `split_threshold`. So, a better way of splitting the points would be beneficial.
+            let grid = ClusterHashGrid::from_selection(&indices, &aabb, split_threshold, context);
             CellContent {
                 unique_index: context.unique_index_counter.fetch_add(1, Relaxed),
                 aabb,
