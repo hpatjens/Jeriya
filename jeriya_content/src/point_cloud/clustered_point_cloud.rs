@@ -144,7 +144,7 @@ impl ClusteredPointCloud {
             point_positions: simple_point_cloud.point_positions(),
             unique_index_counter: &mut unique_index_counter,
             plot_directory: None,
-            debug_hash_grid_cells: &mut Some(&mut debug_hash_grid_cells),
+            debug_hash_grid_cells: Some(&mut debug_hash_grid_cells),
         };
         let hash_grid =
             ClusterHashGrid::with_debug_options(Selection::All, target_points_per_cell, BoundingBoxStrategy::Auto, &mut context);

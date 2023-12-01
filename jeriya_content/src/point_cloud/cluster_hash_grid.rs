@@ -32,11 +32,7 @@ pub struct Context<'a, 'b, 'c> {
     pub point_positions: &'a [Vector3<f32>],
     pub unique_index_counter: &'b mut AtomicUsize,
     pub plot_directory: Option<PathBuf>,
-    // Workaround: a &mut Option<&mut T> is passed into the function because an Option<&mut T> doesn't
-    // implement copy and there is a loop where Option<&mut T> would be moved in the first iteration.
-    // https://github.com/rust-lang/rfcs/issues/1403
-    // https://internals.rust-lang.org/t/should-option-mut-t-implement-copy/3715
-    pub debug_hash_grid_cells: &'c mut Option<&'c mut Vec<AABB>>,
+    pub debug_hash_grid_cells: Option<&'c mut Vec<AABB>>,
 }
 
 /// Determines which indices will be inserted into the `ClusterHashGrid`.
@@ -97,8 +93,6 @@ pub struct ClusterHashGrid {
     cell_resolution: Vector3<usize>,
     /// The minimum of the bounding box of the point cloud.
     aabb: AABB,
-    /// The number of points per cluster that should not be exceeded.
-    target_points_per_cell: usize,
 }
 
 impl ClusterHashGrid {
@@ -111,7 +105,7 @@ impl ClusterHashGrid {
             point_positions,
             unique_index_counter: &mut unique_index_counter,
             plot_directory: None,
-            debug_hash_grid_cells: &mut None,
+            debug_hash_grid_cells: None,
         };
 
         Self::with_debug_options(Selection::All, target_points_per_cell, BoundingBoxStrategy::Auto, &mut context)
@@ -213,13 +207,12 @@ impl ClusterHashGrid {
             cell_size,
             aabb,
             cell_resolution,
-            target_points_per_cell,
         }
     }
 
     fn build_leaf_cell(aabb: AABB, points: Vec<usize>, context: &mut Context) -> CellContent {
         // For debugging purposes, the AABB of the leaf cells can be computed and stored.
-        if let Some(debug_hash_grid_cells) = context.debug_hash_grid_cells {
+        if let Some(debug_hash_grid_cells) = &mut context.debug_hash_grid_cells {
             debug_hash_grid_cells.push(aabb);
         }
 
