@@ -19,15 +19,30 @@ impl CellContent {
     /// Returns the number of points in the grid cell and all its children.
     pub fn len(&self) -> usize {
         match &self.ty {
+            CellType::Empty => 0,
             CellType::Points(points) => points.len(),
             CellType::Grid(grid) => grid.cells().map(CellContent::len).sum::<usize>(),
             CellType::XAxisHalfSplit(lower, higher) => lower.len() + higher.len(),
+        }
+    }
+
+    /// Calls the given function `f` for every leaf cell.
+    pub fn for_each_leaf(&self, mut f: &mut dyn FnMut(&Vec<usize>)) {
+        match &self.ty {
+            CellType::Empty => {}
+            CellType::Points(points) => f(points),
+            CellType::Grid(grid) => grid.for_each_leaf(f),
+            CellType::XAxisHalfSplit(lower, higher) => {
+                lower.for_each_leaf(&mut f);
+                higher.for_each_leaf(&mut f);
+            }
         }
     }
 }
 
 /// Describes what the grid cell contains.
 pub enum CellType {
+    Empty,
     Points(Vec<usize>),
     Grid(Box<ClusterHashGrid>),
     XAxisHalfSplit(Box<CellContent>, Box<CellContent>),
@@ -210,7 +225,14 @@ impl ClusterHashGrid {
         cells
     }
 
+    /// Creates a leaf cell with the given `points`.
+    ///
+    /// # Panics
+    ///
+    /// * Panics if `points` is empty.
     fn build_leaf_cell(aabb: AABB, points: Vec<usize>, context: &mut Context) -> CellContent {
+        jeriya_shared::assert!(points.len() > 0, "points must not be empty");
+
         // For debugging purposes, the AABB of the leaf cells can be computed and stored.
         if let Some(debug_hash_grid_cells) = &mut context.debug_hash_grid_cells {
             debug_hash_grid_cells.push(aabb);
@@ -274,8 +296,14 @@ impl ClusterHashGrid {
                 aabb,
                 ty: CellType::XAxisHalfSplit(Box::new(lower), Box::new(higher)),
             }
-        } else {
+        } else if indices.len() > 0 {
             Self::build_leaf_cell(aabb, indices, context)
+        } else {
+            CellContent {
+                unique_index: context.unique_index_counter.fetch_add(1, Relaxed),
+                aabb,
+                ty: CellType::Empty,
+            }
         }
     }
 
@@ -287,6 +315,7 @@ impl ClusterHashGrid {
     /// Returns the indices of the points in the point cloud that are in the same grid cell as the given `point`.
     pub fn get_at(&self, point: Vector3<f32>) -> Option<&CellContent> {
         self.get(self.cell_at(point)).and_then(|cell| match &cell.ty {
+            CellType::Empty => None,
             CellType::Points(_) => Some(cell),
             CellType::Grid(grid) => grid.get_at(point),
             CellType::XAxisHalfSplit(lower, higher) => {
@@ -302,6 +331,7 @@ impl ClusterHashGrid {
     /// Returns the indices of the points in the point cloud that are in the same grid cell as the given `point`.
     pub fn get_leaf(&self, point: Vector3<f32>) -> Option<(usize, &[usize])> {
         self.get_at(point).and_then(|cell| match &cell.ty {
+            CellType::Empty => None,
             CellType::Points(points) => Some((cell.unique_index, points.as_slice())),
             CellType::Grid(grid) => grid.get_leaf(point),
             CellType::XAxisHalfSplit(lower, higher) => {
@@ -317,6 +347,7 @@ impl ClusterHashGrid {
     /// Returns the indices of the points in the point cloud that are in the same grid cell as the given `point`.
     fn get_leaf_from_cell_content(cell_content: &CellContent, point: Vector3<f32>) -> Option<(usize, &[usize])> {
         match &cell_content.ty {
+            CellType::Empty => None,
             CellType::Points(points) => Some((cell_content.unique_index, points.as_slice())),
             CellType::Grid(grid) => grid.get_leaf(point),
             CellType::XAxisHalfSplit(lower, higher) => {
@@ -357,6 +388,13 @@ impl ClusterHashGrid {
     /// Returns an iterator over the grid cells.
     pub fn cells(&self) -> impl Iterator<Item = &CellContent> {
         self.cells.values()
+    }
+
+    /// Calls the given function `f` for every leaf cell.
+    pub fn for_each_leaf(&self, mut f: &mut dyn FnMut(&Vec<usize>)) {
+        for cell in self.cells() {
+            cell.for_each_leaf(&mut f);
+        }
     }
 
     /// Returns the grid cell that the given `point` is in, using the given `cell_size`.

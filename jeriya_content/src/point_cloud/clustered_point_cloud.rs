@@ -51,7 +51,7 @@ pub struct Cluster {
 
 impl Cluster {
     /// The maximum number of points a cluster can have.
-    pub const MAX_POINTS: usize = 128;
+    pub const MAX_POINTS: usize = 256;
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -87,11 +87,25 @@ impl Page {
     }
 
     /// Pushes a new `Cluster` to the `Page`.
+    ///
+    /// # Panics
+    ///
+    /// * If the `Page` is full. This can be checked with [`ClusteredPointCloud::has_space`].
+    /// * If the `point_positions` and `point_colors` `Iterator`s have different lengths.
     pub fn push<'p, 'c>(
         &mut self,
         point_positions: impl Iterator<Item = &'p Vector3<f32>> + Clone,
         point_colors: impl Iterator<Item = &'c ByteColor3> + Clone,
     ) {
+        jeriya_shared::assert!(self.has_space(), "The page is full");
+        jeriya_shared::assert!(
+            point_positions.clone().into_iter().count() <= Cluster::MAX_POINTS,
+            "The cluster has too many point positions"
+        );
+        jeriya_shared::assert!(
+            point_colors.clone().into_iter().count() <= Cluster::MAX_POINTS,
+            "The cluster has too many point colors"
+        );
         jeriya_shared::assert_eq! {
             point_positions.clone().into_iter().count(), point_colors.clone().into_iter().count(),
             "point_positions and point_colors must have the same length"
@@ -123,7 +137,12 @@ impl Page {
 
     /// Returns `true` if the `Page` has space for another `Cluster`.
     pub fn has_space(&self) -> bool {
-        self.clusters.len() + 1 < Page::MAX_CLUSTERS
+        let result = self.clusters.len() + 1 <= Page::MAX_CLUSTERS;
+        if result {
+            jeriya_shared::assert!(self.point_positions.len() + Cluster::MAX_POINTS <= Page::MAX_POINTS);
+            jeriya_shared::assert!(self.point_colors.len() + Cluster::MAX_POINTS <= Page::MAX_POINTS);
+        }
+        result
     }
 }
 
@@ -138,7 +157,7 @@ impl ClusteredPointCloud {
     pub fn from_simple_point_cloud(simple_point_cloud: &SimplePointCloud) -> Self {
         let start = Instant::now();
 
-        let target_points_per_cell = 256;
+        let target_points_per_cell = Cluster::MAX_POINTS;
         let mut debug_hash_grid_cells = Vec::new();
 
         let hash_grid = ClusterHashGrid::from_all(
@@ -153,7 +172,14 @@ impl ClusteredPointCloud {
 
         // Creates a priority queue that is used to process the cells starting from the lowest levels.
         let mut priority_queue = create_priority_queue(&hash_grid);
-        jeriya_shared::assert!(priority_queue.iter().map(|cell| cell.unique_index).all_unique());
+        jeriya_shared::assert!(
+            priority_queue.iter().all(|cell| cell.indices.len() <= Cluster::MAX_POINTS),
+            "A cell has too many points"
+        );
+        jeriya_shared::assert!(
+            priority_queue.iter().map(|cell| cell.unique_index).all_unique(),
+            "The priority queue contains duplicate cells"
+        );
 
         // When cells are inserted into a page, they have to be removed from the queue. Instead
         // of searching throught the Vec, the unique index of the cell is stored in a HashSet.
@@ -175,7 +201,7 @@ impl ClusteredPointCloud {
             // Insert the pivot cell into the page
             insert_into_page(
                 &mut pages,
-                &pivot_cell.points,
+                &pivot_cell.indices,
                 simple_point_cloud.point_positions(),
                 simple_point_cloud.point_colors(),
             );
@@ -412,7 +438,7 @@ impl std::fmt::Debug for ClusteredPointCloud {
 struct LeafCell {
     unique_index: usize,
     aabb: AABB,
-    points: Vec<usize>,
+    indices: Vec<usize>,
 }
 
 /// Creates a priority queue that is used to process the cells starting from the lowest levels.
@@ -427,11 +453,12 @@ fn create_priority_queue(hash_grid: &ClusterHashGrid) -> Vec<LeafCell> {
     let mut priority_queue = Vec::new();
     fn insert_into_queue(priority_queue: &mut Vec<LeafCell>, cell_content: &CellContent) {
         match &cell_content.ty {
+            CellType::Empty => {}
             CellType::Points(points) => {
                 priority_queue.push(LeafCell {
                     unique_index: cell_content.unique_index,
                     aabb: cell_content.aabb,
-                    points: points.clone(),
+                    indices: points.clone(),
                 });
             }
             CellType::Grid(grid) => insert_into_queue_from_grid(priority_queue, grid.cells()),
@@ -458,6 +485,8 @@ fn create_priority_queue(hash_grid: &ClusterHashGrid) -> Vec<LeafCell> {
 
 /// Inserts the points into the page.
 fn insert_into_page(pages: &mut Vec<Page>, points: &[usize], point_positions: &[Vector3<f32>], point_colors: &[ByteColor3]) {
+    jeriya_shared::assert!(points.len() <= Cluster::MAX_POINTS, "The cluster has too many points");
+
     // When the last page is full, a new page is created.
     let has_space = pages.last().map_or(false, |page| page.has_space());
     if !has_space {
