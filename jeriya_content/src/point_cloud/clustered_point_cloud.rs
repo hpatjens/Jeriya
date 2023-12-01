@@ -454,7 +454,7 @@ fn create_priority_queue(hash_grid: &ClusterHashGrid) -> Vec<LeafCell> {
     fn insert_into_queue(priority_queue: &mut Vec<LeafCell>, cell_content: &CellContent) {
         match &cell_content.ty {
             CellType::Empty => {}
-            CellType::Points(points) => {
+            CellType::Leaf(points) => {
                 priority_queue.push(LeafCell {
                     unique_index: cell_content.unique_index,
                     aabb: cell_content.aabb,

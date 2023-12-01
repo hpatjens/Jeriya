@@ -20,7 +20,7 @@ impl CellContent {
     pub fn len(&self) -> usize {
         match &self.ty {
             CellType::Empty => 0,
-            CellType::Points(points) => points.len(),
+            CellType::Leaf(points) => points.len(),
             CellType::Grid(grid) => grid.cells().map(CellContent::len).sum::<usize>(),
             CellType::XAxisHalfSplit(lower, higher) => lower.len() + higher.len(),
         }
@@ -30,7 +30,7 @@ impl CellContent {
     pub fn for_each_leaf(&self, mut f: &mut dyn FnMut(&Vec<usize>)) {
         match &self.ty {
             CellType::Empty => {}
-            CellType::Points(points) => f(points),
+            CellType::Leaf(points) => f(points),
             CellType::Grid(grid) => grid.for_each_leaf(f),
             CellType::XAxisHalfSplit(lower, higher) => {
                 lower.for_each_leaf(&mut f);
@@ -43,7 +43,7 @@ impl CellContent {
 /// Describes what the grid cell contains.
 pub enum CellType {
     Empty,
-    Points(Vec<usize>),
+    Leaf(Vec<usize>),
     Grid(Box<ClusterHashGrid>),
     XAxisHalfSplit(Box<CellContent>, Box<CellContent>),
 }
@@ -241,7 +241,7 @@ impl ClusterHashGrid {
         CellContent {
             unique_index: context.unique_index_counter.fetch_add(1, Relaxed),
             aabb,
-            ty: CellType::Points(points),
+            ty: CellType::Leaf(points),
         }
     }
 
@@ -316,7 +316,7 @@ impl ClusterHashGrid {
     pub fn get_at(&self, point: Vector3<f32>) -> Option<&CellContent> {
         self.get(self.cell_at(point)).and_then(|cell| match &cell.ty {
             CellType::Empty => None,
-            CellType::Points(_) => Some(cell),
+            CellType::Leaf(_) => Some(cell),
             CellType::Grid(grid) => grid.get_at(point),
             CellType::XAxisHalfSplit(lower, higher) => {
                 if point.x < higher.aabb.min.x {
@@ -332,7 +332,7 @@ impl ClusterHashGrid {
     pub fn get_leaf(&self, point: Vector3<f32>) -> Option<(usize, &[usize])> {
         self.get_at(point).and_then(|cell| match &cell.ty {
             CellType::Empty => None,
-            CellType::Points(points) => Some((cell.unique_index, points.as_slice())),
+            CellType::Leaf(points) => Some((cell.unique_index, points.as_slice())),
             CellType::Grid(grid) => grid.get_leaf(point),
             CellType::XAxisHalfSplit(lower, higher) => {
                 if point.x < higher.aabb.min.x {
@@ -348,7 +348,7 @@ impl ClusterHashGrid {
     fn get_leaf_from_cell_content(cell_content: &CellContent, point: Vector3<f32>) -> Option<(usize, &[usize])> {
         match &cell_content.ty {
             CellType::Empty => None,
-            CellType::Points(points) => Some((cell_content.unique_index, points.as_slice())),
+            CellType::Leaf(points) => Some((cell_content.unique_index, points.as_slice())),
             CellType::Grid(grid) => grid.get_leaf(point),
             CellType::XAxisHalfSplit(lower, higher) => {
                 if point.x < higher.aabb.min.x {
@@ -486,7 +486,7 @@ mod tests {
         dbg!(cluster_hash_grid.cell_size());
 
         let assert_leaf_with = |x: Vector3<f32>, index: usize| {
-            let CellType::Points(points) = &cluster_hash_grid.get_at(x).unwrap().ty else {
+            let CellType::Leaf(points) = &cluster_hash_grid.get_at(x).unwrap().ty else {
                 panic!("Wrong CellType");
             };
             dbg!(index);
