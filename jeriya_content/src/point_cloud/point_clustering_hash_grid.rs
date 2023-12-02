@@ -4,11 +4,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering::Relaxed},
 };
 
-use jeriya_shared::{
-    aabb::{Contains, AABB},
-    log::trace,
-    nalgebra::Vector3,
-};
+use jeriya_shared::{aabb::AABB, log::trace, nalgebra::Vector3};
 
 pub type CellIndex = Vector3<i32>;
 
