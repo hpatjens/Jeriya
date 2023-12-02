@@ -26,7 +26,7 @@ use jeriya_shared::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::point_cloud::cluster_hash_grid::{CellContent, CellType, ClusterHashGrid, Context};
+use crate::point_cloud::point_clustering_hash_grid::{CellContent, CellType, ClusterHashGrid, Context};
 
 use super::{simple_point_cloud::SimplePointCloud, DebugGeometry};
 
