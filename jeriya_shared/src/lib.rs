@@ -43,6 +43,7 @@ pub use parking_lot;
 pub use pathdiff;
 pub use plotters;
 pub use rand;
+pub use raw_window_handle;
 pub use rayon;
 pub use serde_json;
 pub use spin_sleep;
