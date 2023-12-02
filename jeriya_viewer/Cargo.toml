@@ -4,7 +4,10 @@ version = "0.4.0"
 edition = "2021"
 
 [features]
-deadlock_detection = ["jeriya_shared/deadlock_detection"]
+default = [
+    "jeriya_shared/assertions",
+    "jeriya_shared/deadlock_detection",
+]
 
 [dependencies]
 jeriya = { path = "../jeriya" }

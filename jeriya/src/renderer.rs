@@ -1,5 +1,3 @@
-use jeriya_shared::{tracy_client::Client, winit::window::WindowId, DebugInfo, RendererConfig, WindowConfig};
-
 use jeriya_backend::{
     elements::{self, point_cloud::PointCloud, rigid_mesh::RigidMesh},
     gpu_index_allocator::ProvideAllocateGpuIndex,
@@ -9,6 +7,7 @@ use jeriya_backend::{
     transactions::ProvideTransactionProcessor,
     Backend, Result,
 };
+use jeriya_shared::{features::info_log_features, tracy_client::Client, winit::window::WindowId, DebugInfo, RendererConfig, WindowConfig};
 
 use std::{
     marker::PhantomData,
@@ -28,6 +27,7 @@ where
     B: Backend,
 {
     fn new(backend: Arc<B>) -> Self {
+        info_log_features();
         Self { backend }
     }
 
