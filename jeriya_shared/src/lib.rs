@@ -52,19 +52,36 @@ pub use tracy_client;
 pub use walkdir;
 pub use winit;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum AssertLevel {
-    None,
-    Full,
-}
+pub mod features {
+    use indoc::formatdoc;
+    use log::info;
 
-pub const ASSERT_LEVEL: AssertLevel = AssertLevel::Full;
+    /// Determines whether the assertions are compiled into the code
+    ///
+    /// These assertions are not tied to the configuration (debug or release) but can be
+    /// enabled or disabled independently. The normal `assert!` and `debug_assert!`
+    /// macros are not affected by this.
+    pub const ASSERTIONS: bool = cfg!(feature = "assertions");
+
+    /// Determines whether the deadlock detection is compiled into the code
+    pub const DEADLOCK_DETECTION: bool = cfg!(feature = "deadlock_detection");
+
+    /// Prints the features of the current build to the log with info level
+    pub fn info_log_features() {
+        let message = formatdoc! {"
+            Features
+              \"assertions\": {ASSERTIONS:?}
+              \"deadlock_detection\": {DEADLOCK_DETECTION:?}"
+        };
+        info!("{message}");
+    }
+}
 
 /// Assert that can be enabled in debug and release builds
 #[macro_export]
 macro_rules! assert {
     ($($arg:tt)*) => {
-        if $crate::ASSERT_LEVEL == $crate::AssertLevel::Full {
+        if $crate::features::ASSERTIONS {
             std::assert!($($arg)*);
         }
     };
@@ -74,7 +91,7 @@ macro_rules! assert {
 #[macro_export]
 macro_rules! assert_eq {
     ($($arg:tt)*) => {
-        if $crate::ASSERT_LEVEL == $crate::AssertLevel::Full {
+        if $crate::features::ASSERTIONS {
             std::assert_eq!($($arg)*);
         }
     };
