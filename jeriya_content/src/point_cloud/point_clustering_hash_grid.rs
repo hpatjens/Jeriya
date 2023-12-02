@@ -4,7 +4,11 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering::Relaxed},
 };
 
-use jeriya_shared::{aabb::AABB, log::trace, nalgebra::Vector3};
+use jeriya_shared::{
+    aabb::{Contains, AABB},
+    log::trace,
+    nalgebra::Vector3,
+};
 
 pub type CellIndex = Vector3<i32>;
 
@@ -120,10 +124,8 @@ impl ClusterHashGrid {
         let aabb = AABB::new(aabb_min, aabb_max);
         trace!("ClusterHashGrid grid AABB: {aabb:?}");
 
-        jeriya_shared::assert!(aabb.contains(&points_aabb), "points AABB must be in the AABB");
-        for point_position in context.point_positions.iter() {
-            jeriya_shared::assert!(aabb.contains(point_position), "point must be in the AABB of the ClusterHashGrid");
-        }
+        Self::assert_aabb_contained_in_extended_aabb(&aabb, &points_aabb);
+        Self::assert_points_contained_in_extended_aabb(&aabb, context.point_positions.iter());
 
         let mut initial_distribution = HashMap::new();
         for (index, point_position) in context.point_positions.iter().enumerate() {
@@ -167,10 +169,7 @@ impl ClusterHashGrid {
         jeriya_shared::assert!(indices.len() > 0, "point_positions must not be empty");
         jeriya_shared::assert!(target_points_per_cell > 0, "target_points_per_cell must be greater than 0");
         jeriya_shared::assert!(!aabb.is_empty(), "aabb must not be empty");
-        jeriya_shared::assert!(
-            indices.iter().all(|&index| aabb.contains(&context.point_positions[index])),
-            "point must be in the AABB of the ClusterHashGrid"
-        );
+        Self::assert_points_contained_in_extended_aabb(aabb, indices.iter().map(|&index| &context.point_positions[index]));
 
         // Estimate the size of the grid cells.
         let cell_resolution = estimate_cell_resolution(indices.len(), target_points_per_cell);
@@ -245,21 +244,33 @@ impl ClusterHashGrid {
         }
     }
 
-    fn build_cell(indices: Vec<usize>, aabb: AABB, split_threshold: usize, context: &mut Context) -> CellContent {
-        for point in indices.iter().map(|&index| context.point_positions[index]) {
-            if !aabb.contains(&point) {
-                dbg!(&aabb);
-                dbg!(point);
-            }
-        }
+    /// Creates an `AABB` that is slightly larger than the given `aabb`.
+    fn extended_aabb(aabb: &AABB) -> AABB {
+        let epsilon = aabb.size() / 100_000.0;
+        let min = aabb.min.zip_map(&epsilon, |min, epsilon| min - epsilon);
+        let max = aabb.max.zip_map(&epsilon, |max, epsilon| max + epsilon);
+        AABB::new(min, max)
+    }
 
-        jeriya_shared::assert! {
-            indices
-                .iter()
-                .map(|&index| context.point_positions[index])
-                .all(|point| aabb.contains(&point)),
-            "points must be in the AABB of the cell"
+    /// Asserts that the given `aabb` after a slight extension contains all the points in the `points` iterator.
+    fn assert_points_contained_in_extended_aabb<'a>(aabb: &AABB, points: impl Iterator<Item = &'a Vector3<f32>>) {
+        let aabb = Self::extended_aabb(aabb);
+        for point in points {
+            jeriya_shared::assert!(
+                aabb.contains(point),
+                "AABB: {aabb:?} doesnt' contain point: {point:?}\nThere might be more points that are not contained in the AABB."
+            );
         }
+    }
+
+    /// Asserts that the given `aabb` after a slight extension contains the given `other` `AABB`.
+    fn assert_aabb_contained_in_extended_aabb(aabb: &AABB, other: &AABB) {
+        let aabb = Self::extended_aabb(aabb);
+        jeriya_shared::assert!(aabb.contains(other), "AABB: {aabb:?} doesnt' contain other: {other:?}");
+    }
+
+    fn build_cell(indices: Vec<usize>, aabb: AABB, split_threshold: usize, context: &mut Context) -> CellContent {
+        Self::assert_points_contained_in_extended_aabb(&aabb, indices.iter().map(|&index| &context.point_positions[index]));
 
         if indices.len() > 2 * split_threshold {
             // When the number of points in a cell exceeds the `split_threshold` by a factor of 2,
