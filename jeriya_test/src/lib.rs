@@ -33,7 +33,7 @@ macro_rules! test_context {
 
 /// Create a winit window
 pub fn create_window() -> Window {
-    let event_loop = EventLoopBuilder::new().with_any_thread(true).build();
+    let event_loop = EventLoopBuilder::new().with_any_thread(true).build().unwrap();
     WindowBuilder::new().with_visible(false).build(&event_loop).unwrap()
 }
 

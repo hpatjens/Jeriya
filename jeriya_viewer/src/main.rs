@@ -39,8 +39,9 @@ use jeriya_shared::{
     spin_sleep,
     winit::{
         dpi::LogicalSize,
-        event::{ElementState, Event, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent},
-        event_loop::EventLoop,
+        event::{ElementState, Event, MouseButton, MouseScrollDelta, WindowEvent},
+        event_loop::{ControlFlow, EventLoop},
+        keyboard::{Key, NamedKey},
         window::WindowBuilder,
     },
     FrameRate, RendererConfig, WindowConfig,
@@ -247,7 +248,8 @@ fn main() -> ey::Result<()> {
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
 
     // Create Windows
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().wrap_err("Failed to create EventLoop")?;
+    event_loop.set_control_flow(ControlFlow::Poll);
     let window1 = WindowBuilder::new()
         .with_title("Example")
         .with_inner_size(LogicalSize::new(640.0, 480.0))
@@ -492,25 +494,23 @@ fn main() -> ey::Result<()> {
     let mut mesh_count = 0;
     let mut last_mesh_insert_t = Duration::from_secs(0);
     let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(UPDATE_FRAMERATE as f64);
-    event_loop.run(move |event, _, control_flow| {
-        control_flow.set_poll();
-
-        match event {
+    event_loop
+        .run(move |event, event_loop_window_target| match event {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
-            } => control_flow.set_exit(),
+            } => event_loop_window_target.exit(),
             Event::WindowEvent { window_id, event } => {
                 if window_id == window2.id() {
                     match event {
-                        WindowEvent::CloseRequested => control_flow.set_exit(),
-                        WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
-                            Some(VirtualKeyCode::Right) => camera_controller2.set_rotating_right(input.state == ElementState::Pressed),
-                            Some(VirtualKeyCode::Left) => camera_controller2.set_rotating_left(input.state == ElementState::Pressed),
-                            Some(VirtualKeyCode::Up) => camera_controller2.set_rotating_up(input.state == ElementState::Pressed),
-                            Some(VirtualKeyCode::Down) => camera_controller2.set_rotating_down(input.state == ElementState::Pressed),
-                            Some(VirtualKeyCode::PageUp) => camera_controller2.set_zooming_in(input.state == ElementState::Pressed),
-                            Some(VirtualKeyCode::PageDown) => camera_controller2.set_zooming_out(input.state == ElementState::Pressed),
+                        WindowEvent::CloseRequested => event_loop_window_target.exit(),
+                        WindowEvent::KeyboardInput { event, .. } => match event.logical_key {
+                            Key::Named(NamedKey::ArrowRight) => camera_controller2.set_rotating_right(event.state == ElementState::Pressed),
+                            Key::Named(NamedKey::ArrowLeft) => camera_controller2.set_rotating_left(event.state == ElementState::Pressed),
+                            Key::Named(NamedKey::ArrowUp) => camera_controller2.set_rotating_up(event.state == ElementState::Pressed),
+                            Key::Named(NamedKey::ArrowDown) => camera_controller2.set_rotating_down(event.state == ElementState::Pressed),
+                            Key::Named(NamedKey::PageUp) => camera_controller2.set_zooming_in(event.state == ElementState::Pressed),
+                            Key::Named(NamedKey::PageDown) => camera_controller2.set_zooming_out(event.state == ElementState::Pressed),
                             _ => {}
                         },
                         WindowEvent::CursorMoved { position, .. } => {
@@ -531,7 +531,7 @@ fn main() -> ey::Result<()> {
                     }
                 }
             }
-            Event::MainEventsCleared => {
+            Event::AboutToWait => {
                 loop_helper.loop_start();
                 let frame_start_time = Instant::now();
                 let t = frame_start_time - loop_start_time;
@@ -569,7 +569,7 @@ fn main() -> ey::Result<()> {
 
                 if let Err(err) = immediate_rendering(&renderer, update_loop_frame_index, UPDATE_FRAMERATE as f64, t, dt) {
                     error!("Failed to do immediate rendering: {}", err);
-                    control_flow.set_exit();
+                    event_loop_window_target.exit();
                     return;
                 }
 
@@ -578,6 +578,8 @@ fn main() -> ey::Result<()> {
                 loop_helper.loop_sleep();
             }
             _ => (),
-        }
-    });
+        })
+        .wrap_err("Running the EventLoop failed")?;
+
+    Ok(())
 }

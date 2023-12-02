@@ -5,7 +5,6 @@ use ash::{
     vk,
 };
 
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use winapi::um::libloaderapi::GetModuleHandleW;
 
 use crate::{entry::Entry, instance::Instance, AsRawVulkan, Error};
@@ -48,8 +47,14 @@ impl Drop for Surface {
 
 #[cfg(target_os = "windows")]
 unsafe fn create_surface_khr(entry: &Entry, instance: &Instance, window: &winit::window::Window) -> crate::Result<vk::SurfaceKHR> {
-    let hwnd = if let RawWindowHandle::Win32(windows_handle) = window.raw_window_handle() {
-        windows_handle.hwnd
+    use jeriya_shared::{raw_window_handle::RawWindowHandle, winit::raw_window_handle::HasWindowHandle};
+
+    let Ok(window_handle) = window.window_handle() else {
+        return Err(Error::WrongPlatform);
+    };
+
+    let hwnd = if let RawWindowHandle::Win32(windows_handle) = window_handle.as_raw() {
+        &*(windows_handle.hwnd.get() as *const c_void)
     } else {
         return Err(Error::WrongPlatform);
     };

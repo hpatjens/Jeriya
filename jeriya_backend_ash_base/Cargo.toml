@@ -15,4 +15,3 @@ jeriya_macros = { path = "../jeriya_macros" }
 jeriya_content = { path = "../jeriya_content" }
 ash = "0.37"
 lazy_static = "1.4.0"
-raw-window-handle = "0.5"
