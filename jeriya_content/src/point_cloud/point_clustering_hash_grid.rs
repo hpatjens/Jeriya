@@ -466,7 +466,7 @@ mod tests {
             Vector3::new(0.0, 0.0, 1.0),
         ];
         let cluster_hash_grid = ClusterHashGrid::new(&point_positions, 2);
-        assert_eq!(cluster_hash_grid.cell_resolution(), Vector3::new(2, 2, 2));
+        assert_eq!(cluster_hash_grid.cell_resolution(), Vector3::new(3, 3, 3));
         assert_eq!(cluster_hash_grid.cell_size(), Vector3::new(0.5, 0.5, 0.5));
         assert_eq!(cluster_hash_grid.len(), 4);
 
@@ -488,7 +488,7 @@ mod tests {
             Vector3::new(0.9, 0.9, 0.9),
         ];
         let cluster_hash_grid = ClusterHashGrid::new(&point_positions, 4);
-        assert_eq!(cluster_hash_grid.cell_resolution(), Vector3::new(2, 2, 2));
+        assert_eq!(cluster_hash_grid.cell_resolution(), Vector3::new(3, 3, 3));
         assert_eq!(cluster_hash_grid.len(), 5);
         dbg!(cluster_hash_grid.cell_size());
 
@@ -518,6 +518,6 @@ mod tests {
             .map(|_| Vector3::new(rand::random(), rand::random(), rand::random()))
             .collect::<Vec<Vector3<f32>>>();
         let cluster_hash_grid = ClusterHashGrid::new(&random_points, 80);
-        assert_eq!(cluster_hash_grid.cell_resolution(), Vector3::new(11, 11, 11));
+        assert_eq!(cluster_hash_grid.cell_resolution(), Vector3::new(12, 12, 12));
     }
 }
