@@ -258,7 +258,7 @@ impl Frame {
         rendering_complete_command_buffer: &mut Option<Arc<CommandBuffer>>,
     ) -> jeriya_backend::Result<()> {
         // Wait for the previous work for the currently occupied frame to finish
-        let wait_span = span!("wait for rendering complete");
+        let wait_span = jeriya_shared::span!("wait for rendering complete");
         if let Some(command_buffer) = rendering_complete_command_buffer.take() {
             command_buffer.wait_for_completion()?;
         }
@@ -275,7 +275,7 @@ impl Frame {
         self.process_transactions()?;
 
         // Update Buffers
-        let span = span!("update per frame data buffer");
+        let span = jeriya_shared::span!("update per frame data buffer");
         let per_frame_data = shader_interface::PerFrameData {
             active_camera: presenter_shared.active_camera_instance.map(|c| c.index() as i32).unwrap_or(-1),
             mesh_attributes_count: self.mesh_attributes_active_buffer.high_water_mark() as u32,
@@ -290,7 +290,7 @@ impl Frame {
         let cull_compute_shader_group_count = (self.rigid_mesh_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
 
         // Create a CommandPool
-        let command_pool_span = span!("create commnad pool");
+        let command_pool_span = jeriya_shared::span!("create commnad pool");
         let mut queues = backend_shared.queue_scheduler.queues();
         let command_pool = CommandPool::new(
             &backend_shared.device,
@@ -302,9 +302,9 @@ impl Frame {
         drop(command_pool_span);
 
         // Build CommandBuffer
-        let command_buffer_span = span!("build command buffer");
+        let command_buffer_span = jeriya_shared::span!("build command buffer");
 
-        let creation_span = span!("command buffer creation");
+        let creation_span = jeriya_shared::span!("command buffer creation");
         let mut command_buffer = CommandBuffer::new(
             &backend_shared.device,
             &command_pool,
@@ -313,7 +313,7 @@ impl Frame {
         let mut builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
         drop(creation_span);
 
-        let begin_span = span!("begin command buffer");
+        let begin_span = jeriya_shared::span!("begin command buffer");
         builder.begin_command_buffer_for_one_time_submit()?;
         drop(begin_span);
 
@@ -342,7 +342,7 @@ impl Frame {
         //    buffer.
 
         // 1. Cull RigidMeshInstances
-        let cull_rigid_mesh_instances_span = span!("cull rigid mesh instances");
+        let cull_rigid_mesh_instances_span = jeriya_shared::span!("cull rigid mesh instances");
         builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_rigid_mesh_instances_compute_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Compute,
@@ -390,7 +390,7 @@ impl Frame {
         // }
 
         // Cull Meshlets
-        let cull_meshlets_span = span!("cull meshlets");
+        let cull_meshlets_span = jeriya_shared::span!("cull meshlets");
         builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_rigid_mesh_meshlets_compute_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Compute,
@@ -435,7 +435,7 @@ impl Frame {
         // culled by a compute shader that writes the indices of the visible point cloud instances
         // to the `visible_point_cloud_instances` buffer. The number of visible point cloud instances
         // is written to the front of the buffer as in the culling of the rigid mesh instances.
-        let cull_point_cloud_instances_span = span!("cull point cloud instances");
+        let cull_point_cloud_instances_span = jeriya_shared::span!("cull point cloud instances");
         builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_point_cloud_instances_compute_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Compute,
@@ -484,7 +484,7 @@ impl Frame {
         )?;
 
         // Render with IndirectSimpleGraphicsPipeline
-        let indirect_simple_span = span!("record indirect simple commands");
+        let indirect_simple_span = jeriya_shared::span!("record indirect simple commands");
         builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.indirect_simple_graphics_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -505,7 +505,7 @@ impl Frame {
         drop(indirect_simple_span);
 
         // Render with IndirectMeshletGraphicsPipeline
-        let indirect_meshlet_span = span!("record indirect meshlet commands");
+        let indirect_meshlet_span = jeriya_shared::span!("record indirect meshlet commands");
         builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.indirect_meshlet_graphics_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -526,7 +526,7 @@ impl Frame {
         drop(indirect_meshlet_span);
 
         // Render Point Clouds
-        let point_cloud_span = span!("record point cloud commands");
+        let point_cloud_span = jeriya_shared::span!("record point cloud commands");
         builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.point_cloud_graphics_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -547,7 +547,7 @@ impl Frame {
         drop(point_cloud_span);
 
         // Render with SimpleGraphicsPipeline
-        let simple_span = span!("record simple commands");
+        let simple_span = jeriya_shared::span!("record simple commands");
         builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.simple_graphics_pipeline);
         self.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -576,7 +576,7 @@ impl Frame {
             .expect("not image available semaphore assigned for the frame");
 
         // Insert into Queue
-        let submit_span = span!("submit command buffer commands");
+        let submit_span = jeriya_shared::span!("submit command buffer commands");
         let mut queues = backend_shared.queue_scheduler.queues();
         queues.presentation_queue(*window_id).submit_for_rendering_complete(
             command_buffer,

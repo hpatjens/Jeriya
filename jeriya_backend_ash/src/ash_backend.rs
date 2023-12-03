@@ -351,7 +351,7 @@ fn run_resource_thread(resource_event_receiver: Receiver<ResourceEvent>, backend
 
         let backend_shared = &backend.backend_shared;
 
-        let queue_poll_span = span!("Poll queues");
+        let queue_poll_span = jeriya_shared::span!("Poll queues");
         let mut queues = backend_shared.queue_scheduler.queues();
         queues.transfer_queue().poll_completed_fences()?;
         drop(queues);
@@ -374,8 +374,6 @@ fn handle_point_cloud_attributes_events(
     backend: &Arc<AshBackend>,
     point_cloud_attributes_events: Vec<PointCloudAttributesEvent>,
 ) -> jeriya_backend::Result<()> {
-    let _span = span!("Handle point cloud attributes events");
-
     let backend_shared = &backend.backend_shared;
 
     info!("Creating CommandPool");
@@ -404,7 +402,7 @@ fn handle_point_cloud_attributes_events(
                 handle,
                 point_cloud_attributes,
             } => {
-                let _span = span!("Insert point cloud attributes");
+                let _span = jeriya_shared::span!("Insert point cloud attributes");
 
                 // Upload the point positions to the GPU
                 let point_positions4 = point_cloud_attributes
@@ -482,7 +480,7 @@ fn handle_mesh_attributes_events(
     backend: &Arc<AshBackend>,
     mesh_attributes_events: Vec<MeshAttributesEvent>,
 ) -> jeriya_backend::Result<()> {
-    let _span = span!("Handle mesh attributes events");
+    let _span = jeriya_shared::span!("Handle mesh attributes events");
 
     let backend_shared = &backend.backend_shared;
 
@@ -509,7 +507,7 @@ fn handle_mesh_attributes_events(
     for mesh_attributes_event in mesh_attributes_events {
         match mesh_attributes_event {
             MeshAttributesEvent::Insert { handle, mesh_attributes } => {
-                let _span = span!("Insert mesh attributes");
+                let _span = jeriya_shared::span!("Insert mesh attributes");
 
                 // Upload the vertex positions to the GPU
                 let vertex_positions4 = mesh_attributes
