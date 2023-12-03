@@ -107,11 +107,8 @@ impl<T: Clone + 'static + Default + Send + Sync> StagedPushOnlyBuffer<T> {
             BufferUsageFlags::TRANSFER_DST_BIT,
             debug_info!("PushOnlyBuffer"),
         )?));
-        command_buffer_builder.copy_buffer_range_from_device_to_host(
-            &self.device_visible_buffer,
-            self.len * mem::size_of::<T>(),
-            &host_visible_buffer,
-        );
+        let byte_size = self.len * mem::size_of::<T>();
+        command_buffer_builder.copy_buffer_range_from_device_to_host(&self.device_visible_buffer, 0, &host_visible_buffer, 0, byte_size);
 
         // Enqueue finished operation to get the data from the host visible buffer.
         let len = self.len;

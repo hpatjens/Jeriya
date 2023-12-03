@@ -249,22 +249,24 @@ impl<'buf> CommandBufferBuilder<'buf> {
     pub fn copy_buffer_range_from_device_to_host<T: Clone + 'static + Send + Sync>(
         &mut self,
         src: &Arc<DeviceVisibleBuffer<T>>,
-        byte_size: usize,
+        src_offset: usize,
         dst: &Arc<Mutex<HostVisibleBuffer<T>>>,
+        dst_offset: usize,
+        byte_size: usize,
     ) -> &mut Self {
         let dst_guard = dst.lock();
-        assert!(
+        jeriya_shared::assert!(
             byte_size <= src.byte_size(),
             "can't copy more bytes than the source buffer contains"
         );
-        assert!(
+        jeriya_shared::assert!(
             byte_size <= dst_guard.byte_size(),
             "can't copy more bytes than the destination buffer contains"
         );
         unsafe {
             let copy_region = vk::BufferCopy {
-                src_offset: 0,
-                dst_offset: 0,
+                src_offset: src_offset as u64,
+                dst_offset: dst_offset as u64,
                 size: byte_size as u64,
             };
             let copy_regions = [copy_region];
