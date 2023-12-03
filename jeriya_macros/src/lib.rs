@@ -32,6 +32,7 @@ fn profile_method(impl_item_fn: ImplItemFn, ty: Option<&Ident>) -> TokenStream {
 
     let result = quote! {
         #vis #sig {
+            #[cfg(feature = "profile")]
             let _span = span!(#ident);
             #block
         }
@@ -48,6 +49,7 @@ fn profile_fn(item_fn: ItemFn) -> TokenStream {
     let ident = item_fn.sig.ident.to_string();
     let result = quote! {
         #vis #sig {
+            #[cfg(feature = "profile")]
             let _span = span!(#ident);
             #block
         }
