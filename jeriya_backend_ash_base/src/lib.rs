@@ -24,6 +24,7 @@ pub mod frame_local_buffer;
 pub mod graphics_pipeline;
 pub mod host_visible_buffer;
 pub mod instance;
+pub mod page_buffer;
 pub mod physical_device;
 pub mod push_descriptors;
 pub mod queue;
@@ -158,6 +159,8 @@ pub enum Error {
     FailedToAllocate(&'static str),
     #[error("BufferOverflow")]
     WouldOverflow,
+    #[error("Element was not found")]
+    NotFound,
 }
 
 impl From<Error> for jeriya_backend::Error {

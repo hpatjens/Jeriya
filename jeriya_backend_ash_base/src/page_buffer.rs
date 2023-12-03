@@ -1,7 +1,7 @@
 use std::sync::{mpsc::Receiver, Arc};
 
 use ash::vk;
-use jeriya_shared::{debug_info, DebugInfo};
+use jeriya_shared::{debug_info, parking_lot::Mutex, DebugInfo};
 
 use crate::{
     buffer::BufferUsageFlags, command_buffer_builder::CommandBufferBuilder, device::Device, device_visible_buffer::DeviceVisibleBuffer,
@@ -25,8 +25,12 @@ pub struct PageBuffer<P> {
 impl<P: Clone + Send + Sync + 'static> PageBuffer<P> {
     /// Creates a new [`PageBuffer`] with the given `capacity` and `buffer_usage_flags`. Capacity is not measured in bytes but in the number of pages of type `P`.
     pub fn new(device: &Arc<Device>, capacity: usize, buffer_usage_flags: BufferUsageFlags, debug_info: DebugInfo) -> crate::Result<Self> {
-        let device_visible_buffer =
-            DeviceVisibleBuffer::new(device, capacity * std::mem::size_of::<P>(), buffer_usage_flags, debug_info.clone())?;
+        let device_visible_buffer = DeviceVisibleBuffer::new(
+            device,
+            capacity * std::mem::size_of::<P>(),
+            buffer_usage_flags | BufferUsageFlags::TRANSFER_DST_BIT | BufferUsageFlags::TRANSFER_SRC_BIT,
+            debug_info.clone(),
+        )?;
         Ok(Self {
             device_visible_buffer,
             device: device.clone(),
@@ -58,7 +62,6 @@ impl<P: Clone + Send + Sync + 'static> PageBuffer<P> {
         jeriya_shared::assert!(self.len <= self.capacity, "len must not exceed capacity");
 
         // Create staging buffer
-        let byte_size = pages.len() * std::mem::size_of::<P>();
         let host_visible_buffer = Arc::new(HostVisibleBuffer::<P>::new(
             &self.device,
             pages.as_slice(),
@@ -76,7 +79,7 @@ impl<P: Clone + Send + Sync + 'static> PageBuffer<P> {
                 let copy_region = vk::BufferCopy {
                     src_offset: src_offset as u64,
                     dst_offset: dst_offset as u64,
-                    size: byte_size as u64,
+                    size: std::mem::size_of::<P>() as u64,
                 };
                 let copy_regions = [copy_region];
                 let command_buffer = command_buffer_builder.command_buffer();
@@ -148,8 +151,49 @@ impl<P: Clone + Send + Sync + 'static> PageBuffer<P> {
 }
 
 impl<P: Clone + Send + Sync + Default + 'static> PageBuffer<P> {
+    /// Reads all pages from the buffer and returns them in a [`Receiver`]
+    ///
+    /// This should only be used for debugging purposes since it is very slow.
     pub fn read_all(&mut self, command_buffer_builder: &mut CommandBufferBuilder) -> crate::Result<Receiver<Vec<P>>> {
-        todo!()
+        let host_visible_buffer = Arc::new(Mutex::new(HostVisibleBuffer::<P>::new(
+            &self.device,
+            &vec![Default::default(); self.capacity],
+            BufferUsageFlags::TRANSFER_DST_BIT,
+            debug_info!("HostVisibleBuffer-for-PageBuffer"),
+        )?));
+        let byte_size = self.capacity * std::mem::size_of::<P>();
+        command_buffer_builder.copy_buffer_range_from_device_to_host(&self.device_visible_buffer, 0, &host_visible_buffer, 0, byte_size);
+
+        // Since there might be holes in the page table, we need to filter out the indices that are actually occupied.
+        let indices = self
+            .page_table
+            .iter()
+            .enumerate()
+            .filter(|(_, occupied)| **occupied)
+            .map(|(i, _)| i)
+            .collect::<Vec<_>>();
+
+        // Enqueue finished operation to get the data from the host visible buffer.
+        let len = self.capacity;
+        let (sender, receiver) = std::sync::mpsc::channel();
+        command_buffer_builder.push_finished_operation(Box::new(move || {
+            // Copy the data from the host visible buffer into a temporary buffer
+            let mut temp_data = vec![Default::default(); len];
+            let host_visible_buffer = host_visible_buffer.lock();
+            host_visible_buffer.get_memory_unaligned(&mut temp_data)?;
+
+            // Copy only the occupied pages into the final buffer
+            let mut data = vec![Default::default(); len];
+            for index in &indices {
+                data[*index] = temp_data[*index].clone();
+            }
+
+            sender
+                .send(temp_data)
+                .expect("Failed to send data from PageBuffer to receiver in finished operation.");
+            Ok(())
+        }));
+        Ok(receiver)
     }
 }
 
@@ -273,63 +317,66 @@ mod tests {
         assert!(buffer.is_empty());
     }
 
-    // #[test]
-    // fn read_memory() {
-    //     // Fixtures
-    //     let test_fixture_device = TestFixtureDevice::new().unwrap();
-    //     let mut test_fixture_command_buffer = TestFixtureCommandBuffer::new(&test_fixture_device).unwrap();
+    #[test]
+    fn read_memory() {
+        // Fixtures
+        let test_fixture_device = TestFixtureDevice::new().unwrap();
+        let mut test_fixture_command_buffer = TestFixtureCommandBuffer::new(&test_fixture_device).unwrap();
 
-    //     // Create buffer
-    //     let mut buffer = PageBuffer::<Page>::new(
-    //         &test_fixture_device.device,
-    //         5,
-    //         BufferUsageFlags::STORAGE_BUFFER,
-    //         debug_info!("my_host_visible_buffer"),
-    //     )
-    //     .unwrap();
+        // Create buffer
+        let mut buffer = PageBuffer::<Page>::new(
+            &test_fixture_device.device,
+            5,
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!("my_host_visible_buffer"),
+        )
+        .unwrap();
 
-    //     // Command Buffer 1
-    //     let mut command_buffer_builder =
-    //         CommandBufferBuilder::new(&test_fixture_device.device, &mut test_fixture_command_buffer.command_buffer).unwrap();
-    //     command_buffer_builder.begin_command_buffer().unwrap();
-    //     buffer.insert(vec![Page::one(), Page::two()], &mut command_buffer_builder).unwrap();
-    //     command_buffer_builder.end_command_buffer().unwrap();
+        // Command Buffer 1
+        let mut command_buffer_builder =
+            CommandBufferBuilder::new(&test_fixture_device.device, &mut test_fixture_command_buffer.command_buffer).unwrap();
+        command_buffer_builder.begin_command_buffer().unwrap();
+        buffer.insert(vec![Page::one(), Page::two()], &mut command_buffer_builder).unwrap();
+        command_buffer_builder.end_command_buffer().unwrap();
 
-    //     // Submit
-    //     test_fixture_command_buffer
-    //         .queue
-    //         .submit(test_fixture_command_buffer.command_buffer)
-    //         .unwrap();
-    //     test_fixture_device.device.wait_for_idle().unwrap();
+        // Submit
+        test_fixture_command_buffer
+            .queue
+            .submit(test_fixture_command_buffer.command_buffer)
+            .unwrap();
+        test_fixture_device.device.wait_for_idle().unwrap();
 
-    //     // Command Buffer 2
-    //     let mut command_buffer = CommandBuffer::new(
-    //         &test_fixture_device.device,
-    //         &test_fixture_command_buffer.command_pool,
-    //         debug_info!("my_command_buffer"),
-    //     )
-    //     .unwrap();
-    //     let mut command_buffer_builder = CommandBufferBuilder::new(&test_fixture_device.device, &mut command_buffer).unwrap();
-    //     command_buffer_builder.begin_command_buffer().unwrap();
-    //     buffer.insert(vec![Page::one(), Page::two()], &mut command_buffer_builder).unwrap();
-    //     command_buffer_builder.end_command_buffer().unwrap();
+        // Command Buffer 2
+        let mut command_buffer = CommandBuffer::new(
+            &test_fixture_device.device,
+            &test_fixture_command_buffer.command_pool,
+            debug_info!("my_command_buffer"),
+        )
+        .unwrap();
+        let mut command_buffer_builder = CommandBufferBuilder::new(&test_fixture_device.device, &mut command_buffer).unwrap();
+        command_buffer_builder.begin_command_buffer().unwrap();
+        buffer.insert(vec![Page::one(), Page::two()], &mut command_buffer_builder).unwrap();
+        command_buffer_builder.end_command_buffer().unwrap();
 
-    //     // Read memory back
-    //     command_buffer_builder.begin_command_buffer().unwrap();
-    //     let receiver = buffer.read_all(&mut command_buffer_builder).unwrap();
-    //     command_buffer_builder.end_command_buffer().unwrap();
+        // Read memory back
+        command_buffer_builder.begin_command_buffer().unwrap();
+        let receiver = buffer.read_all(&mut command_buffer_builder).unwrap();
+        command_buffer_builder.end_command_buffer().unwrap();
 
-    //     // Submit
-    //     test_fixture_command_buffer.queue.submit(command_buffer).unwrap();
+        // Submit
+        test_fixture_command_buffer.queue.submit(command_buffer).unwrap();
 
-    //     // Wait for GPU
-    //     test_fixture_device.device.wait_for_idle().unwrap();
-    //     test_fixture_command_buffer.queue.poll_completed_fences().unwrap();
+        // Wait for GPU
+        test_fixture_device.device.wait_for_idle().unwrap();
+        test_fixture_command_buffer.queue.poll_completed_fences().unwrap();
 
-    //     // Check result
-    //     let pages = receiver.recv().unwrap();
-    //     assert_eq!(pages.len(), 2);
-    //     assert_eq!(pages[0], Page::one());
-    //     assert_eq!(pages[1], Page::two());
-    // }
+        // Check result
+        let pages = receiver.recv().unwrap();
+        assert_eq!(pages.len(), 5);
+        assert_eq!(pages[0], Page::one());
+        assert_eq!(pages[1], Page::two());
+        assert_eq!(pages[2], Page::default());
+        assert_eq!(pages[3], Page::default());
+        assert_eq!(pages[4], Page::default());
+    }
 }
