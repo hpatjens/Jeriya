@@ -1,8 +1,5 @@
 use ash::{extensions::khr, prelude::VkResult, vk};
-use jeriya_shared::{
-    log::{info, warn},
-    tracy_client::span,
-};
+use jeriya_shared::log::{info, warn};
 
 use std::{ops::Drop, sync::Arc};
 

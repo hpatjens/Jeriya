@@ -5,7 +5,7 @@ use jeriya_shared::parking_lot::Mutex;
 
 use crate::{
     buffer::{Buffer, VertexBuffer},
-    command_buffer::{CommandBuffer, CommandBufferState, FinishedOperation},
+    command_buffer::{CommandBuffer, FinishedOperation},
     compute_pipeline::ComputePipeline,
     device::Device,
     device_visible_buffer::DeviceVisibleBuffer,

@@ -95,11 +95,6 @@ impl CommandBuffer {
         self.state
     }
 
-    /// Sets the state of the `CommandBuffer`.
-    pub(crate) fn set_state(&mut self, state: CommandBufferState) {
-        self.state = state;
-    }
-
     /// Returns the finished operations of the `CommandBuffer`.
     pub(crate) fn finished_operations(&self) -> &Vec<FinishedOperation> {
         &self.finished_operations

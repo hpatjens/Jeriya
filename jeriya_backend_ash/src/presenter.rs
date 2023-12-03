@@ -18,13 +18,7 @@ use jeriya_backend::{
 use jeriya_backend_ash_base::{semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_macros::profile;
 use jeriya_shared::{
-    debug_info,
-    log::info,
-    parking_lot::Mutex,
-    spin_sleep,
-    tracy_client::{span, Client},
-    winit::window::WindowId,
-    EventQueue, FrameRate,
+    debug_info, log::info, parking_lot::Mutex, spin_sleep, tracy_client::Client, winit::window::WindowId, EventQueue, FrameRate,
 };
 
 pub enum PresenterEvent {
