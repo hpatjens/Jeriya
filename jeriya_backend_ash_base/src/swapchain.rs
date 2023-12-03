@@ -256,7 +256,7 @@ mod tests {
 
             let new_width = size.width + 2;
             let new_height = size.height + 2;
-            window.set_inner_size(PhysicalSize::new(new_width, new_height));
+            window.set_min_inner_size(Some(PhysicalSize::new(new_width, new_height)));
             swapchain = Swapchain::new(&device, &surface, 2, Some(&swapchain)).unwrap();
             assert_eq!(swapchain.extent().width, new_width);
             assert_eq!(swapchain.extent().height, new_height);
