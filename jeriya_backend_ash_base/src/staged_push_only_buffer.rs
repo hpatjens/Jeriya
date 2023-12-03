@@ -104,7 +104,7 @@ impl<T: Clone + 'static + Default + Send + Sync> StagedPushOnlyBuffer<T> {
         let host_visible_buffer = Arc::new(Mutex::new(HostVisibleBuffer::<T>::new(
             &self.device,
             &vec![Default::default(); self.len],
-            BufferUsageFlags::TRANSFER_SRC_BIT,
+            BufferUsageFlags::TRANSFER_DST_BIT,
             debug_info!("PushOnlyBuffer"),
         )?));
         command_buffer_builder.copy_buffer_range_from_device_to_host(

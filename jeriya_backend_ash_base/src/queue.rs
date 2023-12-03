@@ -140,7 +140,7 @@ impl Queue {
 
     /// Polls the fences that signal the completion of the submitted [`CommandBuffer`]s and executes the finished operations of the [`CommandBuffer`]s that have finished executing.s
     pub fn poll_completed_fences(&mut self) -> crate::Result<()> {
-        let _span = span!("poll_completed_fences");
+        let _span = jeriya_shared::span!("poll_completed_fences");
         loop {
             let result = self
                 .submitted_command_buffers

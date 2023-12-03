@@ -206,7 +206,7 @@ fn run_presenter_thread(
         drop(queues);
 
         // Acquire the next swapchain image
-        let acquire_span = span!("acquire swapchain image");
+        let acquire_span = jeriya_shared::span!("acquire swapchain image");
         let image_available_semaphore = Arc::new(Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?);
         let frame_index = loop {
             match presenter_shared

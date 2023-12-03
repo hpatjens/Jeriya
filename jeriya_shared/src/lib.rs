@@ -98,6 +98,35 @@ macro_rules! assert_eq {
     };
 }
 
+/// Type that is used instead of tracer::Span when the feature "profile" is not enabled
+pub struct SpanDummy;
+
+/// Profiling span that gets enabled with the features "profile"
+#[macro_export]
+macro_rules! span {
+    () => {{
+        #[cfg(feature = "profile")]
+        let span = $crate::tracy_client::span!();
+        #[cfg(not(feature = "profile"))]
+        let span = $crate::SpanDummy;
+        span
+    }};
+    ($name: expr) => {{
+        #[cfg(feature = "profile")]
+        let span = $crate::tracy_client::span!($name);
+        #[cfg(not(feature = "profile"))]
+        let span = $crate::SpanDummy;
+        span
+    }};
+    ($name: expr, $callstack_depth: expr) => {{
+        #[cfg(feature = "profile")]
+        let span = $crate::tracy_client::span!($name, $callstack_depth);
+        #[cfg(not(feature = "profile"))]
+        let span = $crate::SpanDummy;
+        span
+    }};
+}
+
 /// Color with the components red, green and blue.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]

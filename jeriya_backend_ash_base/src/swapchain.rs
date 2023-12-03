@@ -157,7 +157,7 @@ impl Swapchain {
     }
 
     pub fn acquire_next_image(&self, frame_index: &FrameIndex, semaphore_to_signal: &Semaphore) -> crate::Result<FrameIndex> {
-        let _span = span!("acquire_next_image");
+        let _span = jeriya_shared::span!("acquire_next_image");
 
         let (present_index, is_suboptimal) = unsafe {
             self.swapchain.acquire_next_image(
@@ -179,7 +179,7 @@ impl Swapchain {
         rendering_complete_semaphore: &Arc<Semaphore>,
         present_queue: &Queue,
     ) -> crate::Result<bool> {
-        let _span = span!("Swapchain::present");
+        let _span = jeriya_shared::span!("Swapchain::present");
         let wait_semaphores = [*rendering_complete_semaphore.as_raw_vulkan()];
         let swapchains = [self.swapchain_khr];
         let image_indices = [frame_index.swapchain_index() as u32];
