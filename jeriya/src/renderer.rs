@@ -46,7 +46,7 @@ where
     /// #     }
     /// # };
     /// # use jeriya_backend_ash::AshBackend;
-    /// let event_loop = EventLoop::new();
+    /// let event_loop = EventLoop::new().unwrap();
     /// let window = WindowBuilder::new()
     ///     # .with_visible(false)
     ///     .with_title("Example")

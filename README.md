@@ -24,8 +24,9 @@ use jeriya_shared::{
     winit::{
         dpi::LogicalSize,
         event::{Event, WindowEvent},
-        event_loop::EventLoop,
+        event_loop::{ControlFlow, EventLoop},
         window::WindowBuilder,
+
     },
     FrameRate, RendererConfig, WindowConfig, debug_info,
 };
@@ -47,7 +48,8 @@ use jeriya_backend::{
 use jeriya_content::model::Model;
 
 // Create Window
-let event_loop = EventLoop::new();
+let event_loop = EventLoop::new().unwrap();
+event_loop.set_control_flow(ControlFlow::Poll);
 let window = WindowBuilder::new()
     .with_title("Example")
     .with_inner_size(LogicalSize::new(640.0, 480.0))
@@ -145,12 +147,11 @@ transaction.finish();
 // Returning here so that this code doesn't run indefinitely in the tests.
 return;
 
-event_loop.run(move |event, _, control_flow| {
-    control_flow.set_poll();
+event_loop.run(move |event, target| {
     match event {
         Event::WindowEvent { event: WindowEvent::CloseRequested, window_id } => {
             if window_id == window.id() { 
-                control_flow.set_exit();
+                target.exit();
             }
         },
         _ => (),
