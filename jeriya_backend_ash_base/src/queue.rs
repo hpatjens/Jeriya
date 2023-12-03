@@ -109,6 +109,12 @@ impl Queue {
         Ok(())
     }
 
+    /// Submits the given [`CommandBuffer`] to the `Queue` and waits for the `Queue` to be idle.
+    pub fn submit_and_wait_idle(&mut self, command_buffer: CommandBuffer) -> crate::Result<()> {
+        self.submit(command_buffer)?;
+        self.wait_idle()
+    }
+
     /// Submits the given [`CommandBuffer`] to the `Queue` and waits for the given [`Semaphore`] to be signalled.
     pub fn submit_for_rendering_complete(
         &mut self,

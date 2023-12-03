@@ -214,6 +214,10 @@ mod tests {
     }
 
     impl Page {
+        pub fn with(value: i32) -> Self {
+            Self { data: [value; 4] }
+        }
+
         pub fn one() -> Self {
             Self { data: [1; 4] }
         }
@@ -223,16 +227,20 @@ mod tests {
         }
     }
 
-    #[test]
-    fn empty() {
-        let test_fixture_device = TestFixtureDevice::new().unwrap();
-        let buffer = PageBuffer::<f32>::new(
+    fn new_5_page_buffer(test_fixture_device: &TestFixtureDevice) -> PageBuffer<Page> {
+        PageBuffer::<Page>::new(
             &test_fixture_device.device,
             5,
             BufferUsageFlags::STORAGE_BUFFER,
             debug_info!("my_host_visible_buffer"),
         )
-        .unwrap();
+        .unwrap()
+    }
+
+    #[test]
+    fn empty() {
+        let test_fixture_device = TestFixtureDevice::new().unwrap();
+        let buffer = new_5_page_buffer(&test_fixture_device);
 
         assert_eq!(buffer.len(), 0);
         assert_eq!(buffer.capacity(), 5);
@@ -245,23 +253,21 @@ mod tests {
         // Fixtures
         let test_fixture_device = TestFixtureDevice::new().unwrap();
         let mut test_fixture_command_buffer = TestFixtureCommandBuffer::new(&test_fixture_device).unwrap();
-
-        // Create buffer
-        let mut buffer = PageBuffer::<Page>::new(
-            &test_fixture_device.device,
-            5,
-            BufferUsageFlags::STORAGE_BUFFER,
-            debug_info!("my_host_visible_buffer"),
-        )
-        .unwrap();
+        let mut buffer = new_5_page_buffer(&test_fixture_device);
 
         // Create CommandBuffer
         let mut command_buffer_builder =
             CommandBufferBuilder::new(&test_fixture_device.device, &mut test_fixture_command_buffer.command_buffer).unwrap();
-        command_buffer_builder.begin_command_buffer().unwrap();
 
-        // Insert pages which are just floats for the test
+        command_buffer_builder.begin_command_buffer().unwrap();
         let indices = buffer.insert(vec![Page::one(), Page::two()], &mut command_buffer_builder).unwrap();
+        command_buffer_builder.end_command_buffer().unwrap();
+
+        // Submit
+        test_fixture_command_buffer
+            .queue
+            .submit_and_wait_idle(test_fixture_command_buffer.command_buffer)
+            .unwrap();
 
         // Assertions
         assert_eq!(indices.len(), 2);
@@ -271,15 +277,30 @@ mod tests {
         assert_eq!(buffer.len(), 2);
         assert_eq!(buffer.free_pages(), 3);
         assert!(!buffer.is_empty());
+    }
 
+    #[test]
+    fn insert_too_many() {
+        // Fixtures
+        let test_fixture_device = TestFixtureDevice::new().unwrap();
+        let mut test_fixture_command_buffer = TestFixtureCommandBuffer::new(&test_fixture_device).unwrap();
+        let mut buffer = new_5_page_buffer(&test_fixture_device);
+
+        // Create CommandBuffer
+        let mut command_buffer_builder =
+            CommandBufferBuilder::new(&test_fixture_device.device, &mut test_fixture_command_buffer.command_buffer).unwrap();
+
+        command_buffer_builder.begin_command_buffer().unwrap();
+        buffer
+            .insert(vec![Page::with(0), Page::with(1), Page::with(2)], &mut command_buffer_builder)
+            .unwrap();
+        let err = buffer
+            .insert(vec![Page::with(3), Page::with(4), Page::with(5)], &mut command_buffer_builder)
+            .unwrap_err();
         command_buffer_builder.end_command_buffer().unwrap();
 
-        // Submit
-        test_fixture_command_buffer
-            .queue
-            .submit(test_fixture_command_buffer.command_buffer)
-            .unwrap();
-        test_fixture_device.device.wait_for_idle().unwrap();
+        // Assertions
+        assert!(matches!(err, Error::WouldOverflow));
     }
 
     #[test]
@@ -287,24 +308,14 @@ mod tests {
         // Fixtures
         let test_fixture_device = TestFixtureDevice::new().unwrap();
         let mut test_fixture_command_buffer = TestFixtureCommandBuffer::new(&test_fixture_device).unwrap();
-
-        // Create buffer
-        let mut buffer = PageBuffer::<Page>::new(
-            &test_fixture_device.device,
-            5,
-            BufferUsageFlags::STORAGE_BUFFER,
-            debug_info!("my_host_visible_buffer"),
-        )
-        .unwrap();
+        let mut buffer = new_5_page_buffer(&test_fixture_device);
 
         // Create CommandBuffer
         let mut command_buffer_builder =
             CommandBufferBuilder::new(&test_fixture_device.device, &mut test_fixture_command_buffer.command_buffer).unwrap();
+
         command_buffer_builder.begin_command_buffer().unwrap();
-
-        // Insert pages which are just floats for the test
         let indices = buffer.insert(vec![Page::one(), Page::two()], &mut command_buffer_builder).unwrap();
-
         command_buffer_builder.end_command_buffer().unwrap();
 
         // Free pages
@@ -322,19 +333,12 @@ mod tests {
         // Fixtures
         let test_fixture_device = TestFixtureDevice::new().unwrap();
         let mut test_fixture_command_buffer = TestFixtureCommandBuffer::new(&test_fixture_device).unwrap();
-
-        // Create buffer
-        let mut buffer = PageBuffer::<Page>::new(
-            &test_fixture_device.device,
-            5,
-            BufferUsageFlags::STORAGE_BUFFER,
-            debug_info!("my_host_visible_buffer"),
-        )
-        .unwrap();
+        let mut buffer = new_5_page_buffer(&test_fixture_device);
 
         // Command Buffer 1
         let mut command_buffer_builder =
             CommandBufferBuilder::new(&test_fixture_device.device, &mut test_fixture_command_buffer.command_buffer).unwrap();
+
         command_buffer_builder.begin_command_buffer().unwrap();
         buffer.insert(vec![Page::one(), Page::two()], &mut command_buffer_builder).unwrap();
         command_buffer_builder.end_command_buffer().unwrap();
@@ -342,9 +346,8 @@ mod tests {
         // Submit
         test_fixture_command_buffer
             .queue
-            .submit(test_fixture_command_buffer.command_buffer)
+            .submit_and_wait_idle(test_fixture_command_buffer.command_buffer)
             .unwrap();
-        test_fixture_device.device.wait_for_idle().unwrap();
 
         // Command Buffer 2
         let mut command_buffer = CommandBuffer::new(
@@ -354,6 +357,7 @@ mod tests {
         )
         .unwrap();
         let mut command_buffer_builder = CommandBufferBuilder::new(&test_fixture_device.device, &mut command_buffer).unwrap();
+
         command_buffer_builder.begin_command_buffer().unwrap();
         buffer.insert(vec![Page::one(), Page::two()], &mut command_buffer_builder).unwrap();
         command_buffer_builder.end_command_buffer().unwrap();
