@@ -51,7 +51,7 @@ use jeriya_shared::{
     debug_info,
     log::{error, info},
     nalgebra::Vector4,
-    tracy_client::{span, Client},
+    tracy_client::Client,
     winit::window::WindowId,
     AsDebugInfo, DebugInfo, RendererConfig, WindowConfig,
 };
