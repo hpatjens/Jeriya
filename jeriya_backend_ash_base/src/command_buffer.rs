@@ -9,7 +9,17 @@ pub trait CommandBufferDependency: Send + Sync {}
 
 pub type FinishedOperation = Box<dyn Fn() -> crate::Result<()> + 'static + Send + Sync>;
 
+/// The state of a [`CommandBuffer`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CommandBufferState {
+    Initial,
+    Recording,
+    Executable,
+    // The other states are not modeled yet.
+}
+
 pub struct CommandBuffer {
+    state: CommandBufferState,
     completed_fence: Fence,
     command_buffer: vk::CommandBuffer,
     command_pool: Arc<CommandPool>,
@@ -29,6 +39,7 @@ impl CommandBuffer {
         let completed_fence = Fence::new(device, debug_info!("CommandBuffer-completed-Fence"))?;
         let debug_info = debug_info.with_vulkan_ptr(command_buffer);
         Ok(Self {
+            state: CommandBufferState::Initial,
             completed_fence,
             command_buffer,
             command_pool: command_pool.clone(),
@@ -37,6 +48,56 @@ impl CommandBuffer {
             device: device.clone(),
             debug_info,
         })
+    }
+
+    /// Moves the given `CommandBuffer` into `CommandBufferState::Recording`.
+    ///
+    /// The `CommandBuffer` must be in `CommandBufferState::Initial`.
+    ///
+    /// # Panics
+    ///
+    /// * Panics if the `CommandBuffer` is not in `CommandBufferState::Initial`.
+    pub fn begin(&mut self) -> crate::Result<&mut Self> {
+        jeriya_shared::assert!(self.state == CommandBufferState::Initial, "command buffer must be in initial state");
+
+        let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        unsafe {
+            self.device
+                .as_raw_vulkan()
+                .begin_command_buffer(self.command_buffer, &command_buffer_begin_info)?;
+        }
+        self.state = CommandBufferState::Recording;
+        Ok(self)
+    }
+
+    /// Moves the given `CommandBuffer` into `CommandBufferState::Executable`.
+    ///
+    /// The `CommandBuffer` must be in `CommandBufferState::Recording`.
+    ///
+    /// # Panics
+    ///
+    /// * Panics if the `CommandBuffer` is not in `CommandBufferState::Recording`.
+    pub fn end(&mut self) -> crate::Result<()> {
+        jeriya_shared::assert!(
+            self.state == CommandBufferState::Recording,
+            "command buffer must be in recording state"
+        );
+
+        unsafe {
+            self.device.as_raw_vulkan().end_command_buffer(self.command_buffer)?;
+        }
+        self.state = CommandBufferState::Executable;
+        Ok(())
+    }
+
+    /// Returns the state of the `CommandBuffer`.
+    pub fn state(&self) -> CommandBufferState {
+        self.state
+    }
+
+    /// Sets the state of the `CommandBuffer`.
+    pub(crate) fn set_state(&mut self, state: CommandBufferState) {
+        self.state = state;
     }
 
     /// Returns the finished operations of the `CommandBuffer`.

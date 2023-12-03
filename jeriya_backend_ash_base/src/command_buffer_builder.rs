@@ -5,7 +5,7 @@ use jeriya_shared::parking_lot::Mutex;
 
 use crate::{
     buffer::{Buffer, VertexBuffer},
-    command_buffer::{CommandBuffer, FinishedOperation},
+    command_buffer::{CommandBuffer, CommandBufferState, FinishedOperation},
     compute_pipeline::ComputePipeline,
     device::Device,
     device_visible_buffer::DeviceVisibleBuffer,
@@ -43,12 +43,22 @@ pub struct CommandBufferBuilder<'buf> {
 }
 
 impl<'buf> CommandBufferBuilder<'buf> {
+    /// Creates a new `CommandBufferBuilder` with state `CommandBufferState::Initial`.
     pub fn new(device: &Arc<Device>, command_buffer: &'buf mut CommandBuffer) -> crate::Result<Self> {
         Ok(Self {
             command_buffer,
             device: device.clone(),
             bound_pipeline_layout: None,
         })
+    }
+
+    /// Creates a new `CommandBufferBuilder` with state `CommandBufferState::Recording`.
+    ///
+    /// After calling this the command buffer can be used to record commands immediately.
+    pub fn begin(device: &Arc<Device>, command_buffer: &'buf mut CommandBuffer) -> crate::Result<Self> {
+        let mut this = Self::new(device, command_buffer)?;
+        this.begin_command_buffer()?;
+        Ok(this)
     }
 }
 
@@ -58,21 +68,12 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
 
     pub fn begin_command_buffer(&mut self) -> crate::Result<&mut Self> {
-        let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-        unsafe {
-            self.device
-                .as_raw_vulkan()
-                .begin_command_buffer(*self.command_buffer.as_raw_vulkan(), &command_buffer_begin_info)?;
-        }
+        self.command_buffer.begin()?;
         Ok(self)
     }
 
     pub fn end_command_buffer(&mut self) -> crate::Result<()> {
-        unsafe {
-            self.device
-                .as_raw_vulkan()
-                .end_command_buffer(*self.command_buffer.as_raw_vulkan())?;
-        }
+        self.command_buffer.end()?;
         Ok(())
     }
 

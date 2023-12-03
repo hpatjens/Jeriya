@@ -1,11 +1,15 @@
 use std::{collections::VecDeque, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::{log::info, tracy_client::span, AsDebugInfo, DebugInfo};
+use jeriya_shared::{log::info, AsDebugInfo, DebugInfo};
 
 use crate::{
-    command_buffer::CommandBuffer, device::Device, fence::Fence, queue_plan::QueueSelection, semaphore::Semaphore, AsRawVulkan,
-    DebugInfoAshExtension,
+    command_buffer::{CommandBuffer, CommandBufferState},
+    device::Device,
+    fence::Fence,
+    queue_plan::QueueSelection,
+    semaphore::Semaphore,
+    AsRawVulkan, DebugInfoAshExtension,
 };
 
 pub enum SubmittedCommandBuffer {
@@ -96,7 +100,12 @@ impl Queue {
     }
 
     /// Submits the given [`CommandBuffer`] to the `Queue`.
-    pub fn submit(&mut self, command_buffer: CommandBuffer) -> crate::Result<()> {
+    pub fn submit(&mut self, mut command_buffer: CommandBuffer) -> crate::Result<()> {
+        // In case the command buffer was not ended explicitly
+        if command_buffer.state() == CommandBufferState::Recording {
+            command_buffer.end()?;
+        }
+
         let command_buffers = [*command_buffer.as_raw_vulkan()];
         let submit_infos = [vk::SubmitInfo::builder().command_buffers(&command_buffers).build()];
         unsafe {
@@ -154,8 +163,8 @@ impl Queue {
                 .map(|first| first.completed_fence().get_fence_status())
                 .unwrap_or(Ok(false))?;
             if result {
-                let finished_command_buffer = self.submitted_command_buffers.pop_front();
-                if let Some(finished_command_buffer) = &finished_command_buffer {
+                let mut finished_command_buffer = self.submitted_command_buffers.pop_front();
+                if let Some(finished_command_buffer) = finished_command_buffer.as_mut() {
                     for finished_operation in finished_command_buffer.command_buffer().finished_operations() {
                         finished_operation()?;
                     }
