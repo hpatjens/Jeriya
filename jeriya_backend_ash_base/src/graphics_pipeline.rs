@@ -11,7 +11,7 @@ use std::{ffi::CString, io::Cursor, marker::PhantomData, mem, sync::Arc};
 use crate::{
     descriptor_set_layout::DescriptorSetLayout,
     device::Device,
-    shader_interface::{self, Camera, CameraInstance, MeshAttributes, PerFrameData, RigidMesh, RigidMeshInstance},
+    shader_interface::{self, Camera, CameraInstance, MeshAttributes, PerFrameData, PointCloudPage, RigidMesh, RigidMeshInstance},
     shader_module::ShaderModule,
     specialization_constants::SpecializationConstants,
     swapchain::Swapchain,
@@ -201,6 +201,7 @@ where
                 .push_storage_buffer::<shader_interface::PointCloudAttributes>(19, 1)
                 .push_storage_buffer::<Vector4<f32>>(20, 1)
                 .push_storage_buffer::<Vector4<f32>>(21, 1)
+                .push_storage_buffer::<PointCloudPage>(22, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];
