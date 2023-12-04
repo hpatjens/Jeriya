@@ -40,6 +40,10 @@ struct VkDispatchIndirectCommand {
 const uint MESH_REPRESENTATION_MESHLETS = 0;
 const uint MESH_REPRESENTATION_SIMPLE = 1;
 
+// `PointCloudRepresentation` enum in `shader_interface.rs
+const uint POINT_CLOUD_REPRESENTATION_CLUSTERED = 0;
+const uint POINT_CLOUD_REPRESENTATION_SIMPLE = 1;
+
 const uint MESHLET_MAX_VERTICES = 64;
 const uint MESHLET_MAX_TRIANGLES = 126;
 
@@ -82,6 +86,7 @@ struct RigidMeshInstance {
 
 struct PointCloud {
     int point_cloud_attributes_index;
+    uint preferred_point_cloud_representation;
 };
 
 struct PointCloudInstance {

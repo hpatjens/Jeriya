@@ -5,7 +5,7 @@ use jeriya_shared::parking_lot::Mutex;
 
 use crate::{
     buffer::{Buffer, VertexBuffer},
-    command_buffer::{CommandBuffer, FinishedOperation},
+    command_buffer::{CommandBuffer, CommandBufferState, FinishedOperation},
     compute_pipeline::ComputePipeline,
     device::Device,
     device_visible_buffer::DeviceVisibleBuffer,
@@ -125,6 +125,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
 
     pub fn begin_command_buffer_for_one_time_submit(&mut self) -> crate::Result<&mut Self> {
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        self.command_buffer.set_state(CommandBufferState::Recording);
         unsafe {
             self.device
                 .as_raw_vulkan()

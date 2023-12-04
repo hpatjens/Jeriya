@@ -20,10 +20,19 @@ pub enum Event {
     Insert(PointCloud),
 }
 
+/// The representation of a [`PointCloud`]
+#[derive(Default, Clone, Copy, Debug)]
+pub enum PointCloudRepresentation {
+    Simple,
+    #[default]
+    Clustered,
+}
+
 #[derive(Debug, Clone)]
 pub struct PointCloud {
     debug_info: DebugInfo,
     point_cloud_attributes: Arc<PointCloudAttributes>,
+    preferred_point_cloud_representation: PointCloudRepresentation,
     handle: Handle<PointCloud>,
     gpu_index_allocation: GpuIndexAllocation<PointCloud>,
 }
@@ -37,6 +46,11 @@ impl PointCloud {
     /// Returns the [`PointCloudAttributes`] of the [`PointCloud`]
     pub fn point_cloud_attributes(&self) -> &Arc<PointCloudAttributes> {
         &self.point_cloud_attributes
+    }
+
+    /// Returns the preferred [`PointCloudRepresentation`] of the [`PointCloud`]
+    pub fn preferred_point_cloud_representation(&self) -> &PointCloudRepresentation {
+        &self.preferred_point_cloud_representation
     }
 
     /// Returns the [`Handle`] of the [`PointCloud`].
@@ -59,12 +73,19 @@ impl PointCloud {
 pub struct PointCloudBuilder {
     debug_info: Option<DebugInfo>,
     point_cloud_attributes: Option<Arc<PointCloudAttributes>>,
+    preferred_point_cloud_representation: Option<PointCloudRepresentation>,
 }
 
 impl PointCloudBuilder {
     /// Sets the [`PointCloudAttributes`] of the [`PointCloud`]
     pub fn with_point_cloud_attributes(mut self, point_cloud_attributes: Arc<PointCloudAttributes>) -> Self {
         self.point_cloud_attributes = Some(point_cloud_attributes);
+        self
+    }
+
+    /// Sets the preferred [`PointCloudRepresentation`] of the [`PointCloud`]
+    pub fn with_preferred_point_cloud_representation(mut self, preferred_point_cloud_representation: PointCloudRepresentation) -> Self {
+        self.preferred_point_cloud_representation = Some(preferred_point_cloud_representation);
         self
     }
 
@@ -80,6 +101,7 @@ impl PointCloudBuilder {
         Ok(PointCloud {
             debug_info: self.debug_info.unwrap_or_else(|| debug_info!("Anonymous PointCloud")),
             point_cloud_attributes,
+            preferred_point_cloud_representation: self.preferred_point_cloud_representation.unwrap_or_default(),
             handle,
             gpu_index_allocation,
         })

@@ -644,6 +644,7 @@ impl Frame {
                     point_cloud.gpu_index_allocation(),
                     &shader_interface::PointCloud {
                         point_cloud_attributes_index: point_cloud.point_cloud_attributes().gpu_index_allocation().index() as i32,
+                        preferred_point_cloud_representation: (*point_cloud.preferred_point_cloud_representation()).into(),
                     },
                 )?;
             }
