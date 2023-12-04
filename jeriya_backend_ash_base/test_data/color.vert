@@ -207,6 +207,9 @@ layout (set = 0, binding = 21) buffer StaticPointColorBuffer {
     vec4 point_colors[];
 };
 
+layout (set = 0, binding = 22) buffer PointCloudPagesBuffer {
+    PointCloudPage point_cloud_pages[MAX_POINT_CLOUD_PAGES];
+};
 
 
 
