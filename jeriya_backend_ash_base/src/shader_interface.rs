@@ -160,10 +160,31 @@ impl Default for RigidMeshInstance {
     }
 }
 
+#[repr(u32)]
+#[derive(Default, Debug, Clone, Copy)]
+pub enum PointCloudRepresentation {
+    /// When the point cloud has a point cloud attributes, it will be rendered with the point cloud attributes.
+    #[default]
+    Clustered = 0,
+    /// When the point cloud has a reference to a point cloud page, it will be rendered with the point cloud page.
+    Simple = 1,
+}
+
+impl From<elements::point_cloud::PointCloudRepresentation> for PointCloudRepresentation {
+    fn from(point_cloud_representation: elements::point_cloud::PointCloudRepresentation) -> Self {
+        match point_cloud_representation {
+            elements::point_cloud::PointCloudRepresentation::Clustered => Self::Clustered,
+            elements::point_cloud::PointCloudRepresentation::Simple => Self::Simple,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct PointCloud {
     pub point_cloud_attributes_index: i32,
+    /// Determines how the point cloud will be rendered.
+    pub preferred_point_cloud_representation: PointCloudRepresentation,
 }
 
 impl Represents<elements::point_cloud::PointCloud> for PointCloud {}
@@ -172,6 +193,7 @@ impl Default for PointCloud {
     fn default() -> Self {
         Self {
             point_cloud_attributes_index: -1,
+            preferred_point_cloud_representation: PointCloudRepresentation::default(),
         }
     }
 }
