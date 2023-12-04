@@ -42,6 +42,8 @@ pub struct Frame {
 
     mesh_attributes_active_buffer: FrameLocalBuffer<u32>, // every u32 represents a bool
     point_cloud_attributes_active_buffer: FrameLocalBuffer<u32>, // every u32 represents a bool
+    point_cloud_pages_active_buffer: FrameLocalBuffer<u32>, // every u32 represents a bool
+
     camera_buffer: FrameLocalBuffer<shader_interface::Camera>,
     camera_instance_buffer: FrameLocalBuffer<shader_interface::CameraInstance>,
     rigid_mesh_buffer: FrameLocalBuffer<shader_interface::RigidMesh>,
@@ -105,6 +107,14 @@ impl Frame {
             &backend_shared.device,
             len,
             debug_info!(format!("PointCloudAttributesActiveBuffer-for-Window{:?}", window_id)),
+        )?;
+
+        let len = backend_shared.renderer_config.maximum_number_of_point_cloud_pages;
+        info!("Create point cloud pages active buffer with length: {len}");
+        let point_cloud_pages_active_buffer = FrameLocalBuffer::new(
+            &backend_shared.device,
+            len,
+            debug_info!(format!("PointCloudPagesActiveBuffer-for-Window{:?}", window_id)),
         )?;
 
         let len = backend_shared.renderer_config.maximum_number_of_rigid_meshes;
@@ -213,6 +223,7 @@ impl Frame {
             per_frame_data_buffer,
             mesh_attributes_active_buffer,
             point_cloud_attributes_active_buffer,
+            point_cloud_pages_active_buffer,
             camera_buffer,
             camera_instance_buffer,
             rigid_mesh_buffer,
@@ -773,6 +784,8 @@ impl Frame {
             .push_storage_buffer(19, &*backend_shared.point_cloud_attributes_buffer.lock())
             .push_storage_buffer(20, &*backend_shared.static_point_positions_buffer.lock())
             .push_storage_buffer(21, &*backend_shared.static_point_colors_buffer.lock())
+            .push_storage_buffer(22, &*backend_shared.point_cloud_page_buffer.lock())
+            .push_storage_buffer(23, &self.point_cloud_pages_active_buffer)
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())
