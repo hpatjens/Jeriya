@@ -4,8 +4,12 @@ use ash::vk;
 use jeriya_shared::{debug_info, parking_lot::Mutex, DebugInfo};
 
 use crate::{
-    buffer::BufferUsageFlags, command_buffer_builder::CommandBufferBuilder, device::Device, device_visible_buffer::DeviceVisibleBuffer,
-    host_visible_buffer::HostVisibleBuffer, AsRawVulkan, Error,
+    buffer::{Buffer, BufferUsageFlags, GeneralBuffer},
+    command_buffer_builder::CommandBufferBuilder,
+    device::Device,
+    device_visible_buffer::DeviceVisibleBuffer,
+    host_visible_buffer::HostVisibleBuffer,
+    AsRawVulkan, Error,
 };
 
 /// Buffer that stores pages of data
@@ -196,6 +200,16 @@ impl<P: Clone + Send + Sync + Default + 'static> PageBuffer<P> {
         Ok(receiver)
     }
 }
+
+impl<P> AsRawVulkan for PageBuffer<P> {
+    type Output = vk::Buffer;
+    fn as_raw_vulkan(&self) -> &Self::Output {
+        self.device_visible_buffer.as_raw_vulkan()
+    }
+}
+
+impl<T> GeneralBuffer for PageBuffer<T> {}
+impl<T> Buffer<T> for PageBuffer<T> {}
 
 #[cfg(test)]
 mod tests {

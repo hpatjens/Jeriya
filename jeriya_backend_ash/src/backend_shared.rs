@@ -43,7 +43,7 @@ pub struct BackendShared {
     pub static_point_positions_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_point_colors_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
 
-    pub point_cloud_cluster_page_buffer: Mutex<PageBuffer<shader_interface::PointCloudPage>>,
+    pub point_cloud_page_buffer: Mutex<PageBuffer<shader_interface::PointCloudPage>>,
 
     pub mesh_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<MeshAttributes>>>,
     pub point_cloud_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<PointCloudAttributes>>>,
@@ -169,7 +169,7 @@ impl BackendShared {
             static_meshlet_buffer,
             static_point_positions_buffer,
             static_point_colors_buffer,
-            point_cloud_cluster_page_buffer,
+            point_cloud_page_buffer: point_cloud_cluster_page_buffer,
             mesh_attributes_gpu_index_allocator,
             point_cloud_attributes_gpu_index_allocator,
             camera_gpu_index_allocator,
