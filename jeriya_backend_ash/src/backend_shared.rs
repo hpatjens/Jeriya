@@ -14,7 +14,7 @@ use jeriya_backend::{
     },
 };
 use jeriya_backend_ash_base::{
-    buffer::BufferUsageFlags, device::Device, host_visible_buffer::HostVisibleBuffer, shader_interface,
+    buffer::BufferUsageFlags, device::Device, host_visible_buffer::HostVisibleBuffer, page_buffer::PageBuffer, shader_interface,
     staged_push_only_buffer::StagedPushOnlyBuffer,
 };
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, Handle, RendererConfig};
@@ -42,6 +42,8 @@ pub struct BackendShared {
     pub static_meshlet_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::Meshlet>>,
     pub static_point_positions_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_point_colors_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
+
+    pub point_cloud_cluster_page_buffer: Mutex<PageBuffer<shader_interface::PointCloudPage>>,
 
     pub mesh_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<MeshAttributes>>>,
     pub point_cloud_attributes_gpu_index_allocator: Arc<Mutex<GpuIndexAllocator<PointCloudAttributes>>>,
@@ -128,6 +130,14 @@ impl BackendShared {
             debug_info!("static_meshlet_buffer"),
         )?);
 
+        info!("Creating point cloud cluster page buffer");
+        let point_cloud_cluster_page_buffer = Mutex::new(PageBuffer::new(
+            device,
+            renderer_config.maximum_number_of_point_cloud_pages,
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!("point_cloud_cluster_page_buffer"),
+        )?);
+
         info!("Creating the QueueScheduler");
         let queue_scheduler = QueueScheduler::new(device)?;
 
@@ -159,6 +169,7 @@ impl BackendShared {
             static_meshlet_buffer,
             static_point_positions_buffer,
             static_point_colors_buffer,
+            point_cloud_cluster_page_buffer,
             mesh_attributes_gpu_index_allocator,
             point_cloud_attributes_gpu_index_allocator,
             camera_gpu_index_allocator,

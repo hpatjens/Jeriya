@@ -1,5 +1,6 @@
 use jeriya_backend::{elements, instances, resources};
-use jeriya_shared::nalgebra::Matrix4;
+use jeriya_content::point_cloud::clustered_point_cloud::Page;
+use jeriya_shared::nalgebra::{Matrix4, Vector4};
 
 pub trait Represents<T> {}
 
@@ -177,6 +178,27 @@ impl From<elements::point_cloud::PointCloudRepresentation> for PointCloudReprese
             elements::point_cloud::PointCloudRepresentation::Simple => Self::Simple,
         }
     }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct PointCloudCluster {
+    /// Index of the first point belonging to this cluster in the `PointCloudPage`
+    pub points_start_offset: u32,
+    /// Number of points belonging to this cluster in the `PointCloudPage`
+    pub points_len: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct PointCloudPage {
+    /// Number of points in this page. The `point_positions` array must only have this many elements.
+    pub points_len: u32,
+    /// Number of clusters in this page. The `clusters` array must only have this many elements.
+    pub clusters_len: u32,
+    pub point_positions: [Vector4<f32>; Page::MAX_POINTS],
+    pub point_colors: [Vector4<f32>; Page::MAX_POINTS],
+    pub clusters: [PointCloudCluster; Page::MAX_CLUSTERS],
 }
 
 #[repr(C)]

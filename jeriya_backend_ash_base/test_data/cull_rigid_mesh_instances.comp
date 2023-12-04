@@ -13,6 +13,9 @@ layout (constant_id = 7) const uint MAX_VISIBLE_RIGID_MESH_INSTANCES = 1024;
 layout (constant_id = 8) const uint MAX_VISIBLE_RIGID_MESH_MESHLETS = 1048576;
 layout (constant_id = 9) const uint MAX_POINT_CLOUDS = 1024;
 layout (constant_id = 10) const uint MAX_POINT_CLOUD_INSTANCES = 1024;
+layout (constant_id = 11) const uint MAX_POINT_CLOUD_PAGES = 16384;
+layout (constant_id = 12) const uint MAX_POINT_CLOUD_PAGE_POINTS = 256;
+layout (constant_id = 13) const uint MAX_POINT_CLOUD_PAGE_CLUSTERS = 16;
 
 struct Camera {
     mat4 projection_matrix;
