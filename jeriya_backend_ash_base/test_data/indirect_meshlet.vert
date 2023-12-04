@@ -98,6 +98,19 @@ struct PointCloudInstance {
     mat4 transform;
 };
 
+struct PointCloudCluster {
+    uint points_start_offet;
+    uint points_len;
+};
+
+struct PointCloudPage {
+    uint points_len;
+    uint clusters_len;
+    vec4 point_positions[MAX_POINT_CLOUD_PAGE_POINTS];
+    vec4 point_colors[MAX_POINT_CLOUD_PAGE_POINTS];
+    PointCloudCluster clusters[MAX_POINT_CLOUD_PAGE_CLUSTERS];
+};
+
 layout (set = 0, binding = 0) uniform PerFrameData { 
     int active_camera_instance; // -1 means no active camera
     uint mesh_attributes_count;
