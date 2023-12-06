@@ -131,7 +131,7 @@ impl BackendShared {
         )?);
 
         info!("Creating point cloud cluster page buffer");
-        let point_cloud_cluster_page_buffer = Mutex::new(PageBuffer::new(
+        let point_cloud_page_buffer = Mutex::new(PageBuffer::new(
             device,
             renderer_config.maximum_number_of_point_cloud_pages,
             BufferUsageFlags::STORAGE_BUFFER,
@@ -169,7 +169,7 @@ impl BackendShared {
             static_meshlet_buffer,
             static_point_positions_buffer,
             static_point_colors_buffer,
-            point_cloud_page_buffer: point_cloud_cluster_page_buffer,
+            point_cloud_page_buffer,
             mesh_attributes_gpu_index_allocator,
             point_cloud_attributes_gpu_index_allocator,
             camera_gpu_index_allocator,

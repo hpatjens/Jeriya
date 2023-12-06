@@ -52,9 +52,10 @@ impl PointCloud {
     /// Creates a new [`PointCloud`] from the given [`Model`].
     pub fn sample_from_model(model: &Model, points_per_square_unit: f32) -> Self {
         let simple_point_cloud = SimplePointCloud::sample_from_model(model, points_per_square_unit);
+        let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
         Self {
             simple_point_cloud,
-            clustered_point_cloud: None,
+            clustered_point_cloud: Some(clustered_point_cloud),
         }
     }
 
