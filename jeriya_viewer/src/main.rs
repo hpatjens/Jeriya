@@ -263,7 +263,7 @@ fn main() -> ey::Result<()> {
 
     // Create Renderer
     let renderer = jeriya::Renderer::<AshBackend>::builder()
-        .add_renderer_config(RendererConfig::default())
+        .add_renderer_config(RendererConfig::normal())
         .add_windows(&[
             WindowConfig {
                 window: &window1,
