@@ -64,6 +64,9 @@ pub struct Frame {
     /// Contains the indices of the visible point cloud instances as well as the indirect
     /// rendering commands preceded with a counter that contains the number of visible instances.
     visible_point_cloud_instances_simple: Arc<DeviceVisibleBuffer<u32>>,
+    /// Contains the indices of the visible point cloud instances that will be rendered with
+    /// the clusters. This buffer contains the count and the indices of the visible point clouds.
+    visible_point_cloud_instances: Arc<DeviceVisibleBuffer<u32>>,
 
     transactions: VecDeque<Transaction>,
 }
@@ -218,6 +221,22 @@ impl Frame {
             debug_info!(format!("VisiblePointCloudInstancesBuffer-for-Window{:?}", window_id)),
         )?;
 
+        info!("Create visible point cloud instances buffer");
+        let byte_size_dispatch_indirect_command = mem::size_of::<DispatchIndirectCommand>();
+        let byte_size_count = mem::size_of::<u32>();
+        let byte_size_point_cloud_instance_indices =
+            backend_shared.renderer_config.maximum_number_of_point_cloud_instances * mem::size_of::<u32>();
+        let visible_point_cloud_instances = DeviceVisibleBuffer::new(
+            &backend_shared.device,
+            byte_size_dispatch_indirect_command + byte_size_count + byte_size_point_cloud_instance_indices,
+            // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
+            BufferUsageFlags::STORAGE_BUFFER
+                | BufferUsageFlags::INDIRECT_BUFFER
+                | BufferUsageFlags::TRANSFER_DST_BIT
+                | BufferUsageFlags::TRANSFER_SRC_BIT,
+            debug_info!(format!("VisiblePointCloudInstancesBuffer-for-Window{:?}", window_id)),
+        )?;
+
         Ok(Self {
             presenter_index,
             image_available_semaphore: None,
@@ -236,6 +255,7 @@ impl Frame {
             visible_rigid_mesh_instances,
             visible_rigid_mesh_meshlets,
             visible_point_cloud_instances_simple,
+            visible_point_cloud_instances,
             transactions: VecDeque::new(),
         })
     }
@@ -453,8 +473,13 @@ impl Frame {
             &mut builder,
         )?;
 
-        // Clear counter for the visible point cloud instances
+        // Clear counter for the visible point cloud instances without clusters
         builder.fill_buffer(&self.visible_point_cloud_instances_simple, 0, mem::size_of::<u32>() as u64, 0);
+        builder.transfer_to_compute_pipeline_barrier();
+
+        // Clear counter for the visible point cloud instances with clusters
+        builder.fill_buffer(&self.visible_point_cloud_instances, 0, mem::size_of::<u32>() as u64, 0);
+        builder.transfer_to_compute_pipeline_barrier();
 
         // Dispatch
         let cull_point_cloud_instances_group_count = {
@@ -789,6 +814,7 @@ impl Frame {
             .push_storage_buffer(22, &*backend_shared.point_cloud_page_buffer.lock())
             .push_storage_buffer(23, &self.point_cloud_pages_active_buffer)
             .push_storage_buffer(24, &*backend_shared.static_point_cloud_pages_buffer.lock())
+            .push_storage_buffer(25, &self.visible_point_cloud_instances)
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())

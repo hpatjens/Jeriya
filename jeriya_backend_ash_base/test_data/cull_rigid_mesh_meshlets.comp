@@ -221,6 +221,12 @@ layout (set = 0, binding = 24) buffer StaticPointCloudPagesBuffer {
     bool static_point_cloud_pages[MAX_POINT_CLOUD_PAGES];
 };
 
+layout (set = 0, binding = 25) buffer VisiblePointCloudInstancesBuffer {
+    VkDispatchIndirectCommand dispatch_indirect_command;
+    uint count;
+    uint instance_indices[MAX_POINT_CLOUD_INSTANCES];
+} visible_point_cloud_instances;
+
 
 
 
