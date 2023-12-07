@@ -179,11 +179,11 @@ mod tests {
                 CommandBufferBuilder::new(&test_fixture_device.device, &mut test_fixture_command_buffer.command_buffer).unwrap();
             command_buffer_builder.begin_command_buffer().unwrap();
 
-            let offset1 = buffer.push(&[0.0, 0.0], &mut command_buffer_builder).unwrap();
+            let offset1 = buffer.push(&[0.0, 0.0], &mut command_buffer_builder).unwrap().unwrap();
             assert_eq!(offset1, 0);
             assert_eq!(buffer.len(), 2);
 
-            let offset2 = buffer.push(&[1.0, 1.0], &mut command_buffer_builder).unwrap();
+            let offset2 = buffer.push(&[1.0, 1.0], &mut command_buffer_builder).unwrap().unwrap();
             assert_eq!(offset2, 2);
             assert_eq!(buffer.len(), 4);
 
