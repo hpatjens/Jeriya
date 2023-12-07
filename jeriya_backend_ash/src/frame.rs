@@ -786,6 +786,7 @@ impl Frame {
             .push_storage_buffer(21, &*backend_shared.static_point_colors_buffer.lock())
             .push_storage_buffer(22, &*backend_shared.point_cloud_page_buffer.lock())
             .push_storage_buffer(23, &self.point_cloud_pages_active_buffer)
+            .push_storage_buffer(24, &*backend_shared.static_point_cloud_pages_buffer.lock())
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())

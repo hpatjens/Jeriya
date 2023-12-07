@@ -217,6 +217,10 @@ layout (set = 0, binding = 23) buffer PointCloudPagesActiveBuffer {
     bool point_cloud_pages_active[MAX_POINT_CLOUD_PAGES];
 };
 
+layout (set = 0, binding = 24) buffer StaticPointCloudPagesBuffer {
+    bool static_point_cloud_pages[MAX_POINT_CLOUD_PAGES];
+};
+
 
 
 layout (location = 0) in vec3 inPosition;

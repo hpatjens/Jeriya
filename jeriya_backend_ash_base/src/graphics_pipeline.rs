@@ -203,6 +203,7 @@ where
                 .push_storage_buffer::<Vector4<f32>>(21, 1)
                 .push_storage_buffer::<PointCloudPage>(22, 1)
                 .push_storage_buffer::<u32>(23, 1)
+                .push_storage_buffer::<PointCloudPage>(24, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];
