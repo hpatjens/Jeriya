@@ -221,10 +221,32 @@ layout (set = 0, binding = 24) buffer StaticPointCloudPagesBuffer {
     bool static_point_cloud_pages[MAX_POINT_CLOUD_PAGES];
 };
 
+/// Appends the given point cloud instance to the array of visible point cloud 
+/// instances for rendering with the simple point cloud representation.
+void append_visible_point_cloud_instance_simple(
+    uint point_cloud_instance_index,
+    uint point_cloud_attributes_index
+) {
+    PointCloudAttributes point_cloud_attributes = point_cloud_attributes[point_cloud_attributes_index];
 
+    // Ignore this instance if it doesn't contain any points
+    // in the simple representation (versus clustered).
+    if (point_cloud_attributes.points_len == 0) {
+        return;
+    }
 
+    uint vertex_count = 3 * point_cloud_attributes.points_len;
 
+    VkDrawIndirectCommand draw_indirect_command;
+    draw_indirect_command.vertex_count = vertex_count;
+    draw_indirect_command.instance_count = 1;
+    draw_indirect_command.first_vertex = 0;
+    draw_indirect_command.first_instance = 0;
 
+    uint allocated_index = atomicAdd(visible_point_cloud_instances_simple.count, 1);
+    visible_point_cloud_instances_simple.indirect_draw_commands[allocated_index] = draw_indirect_command;
+    visible_point_cloud_instances_simple.instance_indices[allocated_index] = point_cloud_instance_index;
+}
 
 void main() {
     uint index = gl_GlobalInvocationID.x;
@@ -245,16 +267,9 @@ void main() {
         return;
     }
 
-    PointCloudAttributes point_cloud_attributes = point_cloud_attributes[index];
-    uint vertex_count = 3 * point_cloud_attributes.points_len;
-
-    VkDrawIndirectCommand draw_indirect_command;
-    draw_indirect_command.vertex_count = vertex_count;
-    draw_indirect_command.instance_count = 1;
-    draw_indirect_command.first_vertex = 0;
-    draw_indirect_command.first_instance = 0;
-
-    uint allocated_index = atomicAdd(visible_point_cloud_instances_simple.count, 1);
-    visible_point_cloud_instances_simple.indirect_draw_commands[allocated_index] = draw_indirect_command;
-    visible_point_cloud_instances_simple.instance_indices[allocated_index] = index;
+    if (point_cloud.preferred_point_cloud_representation == POINT_CLOUD_REPRESENTATION_CLUSTERED) {
+        return;
+    } else {
+        append_visible_point_cloud_instance_simple(index, point_cloud.point_cloud_attributes_index);
+    }
 }
