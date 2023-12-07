@@ -261,7 +261,7 @@ impl Default for RendererConfig {
             maximum_number_of_rigid_meshes: 2usize.pow(10),
             maximum_number_of_point_clouds: 2usize.pow(10),
             maximum_number_of_point_cloud_instances: 2usize.pow(10),
-            maximum_number_of_point_cloud_pages: 2usize.pow(14),
+            maximum_number_of_point_cloud_pages: 2usize.pow(3),
             maximum_number_of_rigid_mesh_instances: 2usize.pow(10),
             maximum_meshlets: 2usize.pow(20),
             maximum_visible_rigid_mesh_instances: 2usize.pow(10),
