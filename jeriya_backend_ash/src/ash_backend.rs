@@ -45,7 +45,7 @@ use jeriya_backend_ash_base::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_content::model::Meshlet;
+use jeriya_content::{model::Meshlet, point_cloud::clustered_point_cloud::Page};
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
@@ -413,7 +413,8 @@ fn handle_point_cloud_attributes_events(
                 let point_positions_start_offset = backend_shared
                     .static_point_positions_buffer
                     .lock()
-                    .push(&point_positions4, &mut command_buffer_builder)?;
+                    .push(&point_positions4, &mut command_buffer_builder)?
+                    .unwrap_or(0);
 
                 // Upload the point colors to the GPU
                 let point_colors4 = point_cloud_attributes
@@ -424,16 +425,71 @@ fn handle_point_cloud_attributes_events(
                 let point_colors_start_offset = backend_shared
                     .static_point_colors_buffer
                     .lock()
-                    .push(&point_colors4, &mut command_buffer_builder)?;
+                    .push(&point_colors4, &mut command_buffer_builder)?
+                    .unwrap_or(0);
+
+                // Upload the pages to the GPU
+                let point_cloud_pages = point_cloud_attributes
+                    .pages()
+                    .iter()
+                    .map(|page| {
+                        let point_positions = page
+                            .point_positions()
+                            .iter()
+                            .map(|v| Vector4::new(v.x, v.y, v.z, 0.0))
+                            .chain(std::iter::repeat(Vector4::zeros()).take(Page::MAX_POINTS - page.point_positions().len()))
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .expect("point positions have wrong length");
+                        let point_colors = page
+                            .point_colors()
+                            .iter()
+                            .map(|v| v.as_vector4())
+                            .chain(std::iter::repeat(Vector4::zeros()).take(Page::MAX_POINTS - page.point_colors().len()))
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .expect("point colors have wrong length");
+                        let padding = std::iter::repeat(shader_interface::PointCloudCluster::default())
+                            .take(Page::MAX_CLUSTERS - page.clusters().len());
+                        let clusters = page
+                            .clusters()
+                            .iter()
+                            .map(|cluster| shader_interface::PointCloudCluster {
+                                points_start_offset: cluster.index_start as u32,
+                                points_len: cluster.len as u32,
+                            })
+                            .chain(padding)
+                            .collect::<Vec<_>>()
+                            .try_into()
+                            .expect("clusters have wrong length");
+                        shader_interface::PointCloudPage {
+                            points_len: page.point_positions().len() as u32,
+                            clusters_len: page.clusters().len() as u32,
+                            point_positions,
+                            point_colors,
+                            clusters,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let pages_start_offset = backend_shared
+                    .static_point_cloud_pages_buffer
+                    .lock()
+                    .push(&point_cloud_pages, &mut command_buffer_builder)?
+                    .unwrap_or(0);
 
                 // Upload the PointCloudAttributes to the GPU
                 let points_len = point_cloud_attributes.point_positions().len() as u32;
                 let point_positions_start_offset = point_positions_start_offset as u32;
                 let point_colors_start_offset = point_colors_start_offset as u32;
+                let pages_len = point_cloud_attributes.pages().len() as u32;
+                let pages_start_offset = pages_start_offset as u32;
+
                 let point_cloud_attributes_gpu = shader_interface::PointCloudAttributes {
                     points_len,
                     point_positions_start_offset,
                     point_colors_start_offset,
+                    pages_len,
+                    pages_start_offset,
                 };
                 info!("Inserting a new PointCloudAttributes: {point_cloud_attributes_gpu:#?}",);
                 backend_shared
@@ -518,7 +574,8 @@ fn handle_mesh_attributes_events(
                 let vertex_positions_start_offset = backend_shared
                     .static_vertex_position_buffer
                     .lock()
-                    .push(&vertex_positions4, &mut command_buffer_builder)?;
+                    .push(&vertex_positions4, &mut command_buffer_builder)?
+                    .unwrap_or(0);
 
                 // Upload the vertex normals to the GPU
                 let vertex_normals4 = mesh_attributes
@@ -529,7 +586,8 @@ fn handle_mesh_attributes_events(
                 let vertex_normals_start_offset = backend_shared
                     .static_vertex_normals_buffer
                     .lock()
-                    .push(&vertex_normals4, &mut command_buffer_builder)?;
+                    .push(&vertex_normals4, &mut command_buffer_builder)?
+                    .unwrap_or(0);
 
                 // Upload the indices to the GPU
                 let indices_start_offset = if let Some(indices) = &mesh_attributes.indices() {
@@ -537,6 +595,7 @@ fn handle_mesh_attributes_events(
                         .static_indices_buffer
                         .lock()
                         .push(indices, &mut command_buffer_builder)?
+                        .unwrap_or(0)
                 } else {
                     0
                 };
@@ -579,7 +638,7 @@ fn handle_mesh_attributes_events(
                             }
                         })
                         .collect::<Vec<_>>();
-                    static_meshlet_buffer.push(&meshlets, &mut command_buffer_builder)?
+                    static_meshlet_buffer.push(&meshlets, &mut command_buffer_builder)?.unwrap_or(0)
                 } else {
                     0
                 };

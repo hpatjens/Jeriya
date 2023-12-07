@@ -47,7 +47,10 @@ impl<T: Clone + 'static + Send + Sync> StagedPushOnlyBuffer<T> {
     }
 
     /// Copies the `data` into a newly constructed [`HostVisibleBuffer`] and issues a copy command to the [`CommandBufferBuilder`] to copy the data from the [`HostVisibleBuffer`] to the [`DeviceVisibleBuffer`].
-    pub fn push(&mut self, data: &[T], command_buffer_builder: &mut CommandBufferBuilder) -> crate::Result<usize> {
+    pub fn push(&mut self, data: &[T], command_buffer_builder: &mut CommandBufferBuilder) -> crate::Result<Option<usize>> {
+        if data.is_empty() {
+            return Ok(None);
+        }
         if self.len + data.len() > self.capacity {
             return Err(Error::WouldOverflow);
         }
@@ -79,7 +82,7 @@ impl<T: Clone + 'static + Send + Sync> StagedPushOnlyBuffer<T> {
         }
         let offset = self.len;
         self.len += data.len();
-        Ok(offset)
+        Ok(Some(offset))
     }
 
     /// Returns the length of the buffer.

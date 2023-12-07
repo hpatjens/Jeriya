@@ -77,6 +77,8 @@ pub struct PointCloudAttributes {
     pub points_len: u32,
     pub point_positions_start_offset: u32,
     pub point_colors_start_offset: u32,
+    pub pages_len: u32,
+    pub pages_start_offset: u32,
 }
 
 impl Represents<resources::point_cloud_attributes::PointCloudAttributes> for PointCloudAttributes {}
@@ -181,7 +183,7 @@ impl From<elements::point_cloud::PointCloudRepresentation> for PointCloudReprese
 }
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct PointCloudCluster {
     /// Index of the first point belonging to this cluster in the `PointCloudPage`
     pub points_start_offset: u32,
