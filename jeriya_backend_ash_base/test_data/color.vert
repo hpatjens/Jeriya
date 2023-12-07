@@ -191,11 +191,11 @@ layout (set = 0, binding = 17) buffer PointCloudInstanceBuffer {
     PointCloudInstance point_cloud_instances[MAX_POINT_CLOUD_INSTANCES];
 };
 
-layout (set = 0, binding = 18) buffer VisiblePointCloudInstanceBuffer {
+layout (set = 0, binding = 18) buffer VisiblePointCloudInstanceSimpleBuffer {
     uint count;
     VkDrawIndirectCommand indirect_draw_commands[MAX_POINT_CLOUD_INSTANCES];
     uint instance_indices[MAX_POINT_CLOUD_INSTANCES];
-} visible_point_cloud_instances;
+} visible_point_cloud_instances_simple;
 
 layout (set = 0, binding = 19) buffer PointCloudAttributesBuffer {
     PointCloudAttributes point_cloud_attributes[MAX_POINT_CLOUD_ATTRIBUTES];

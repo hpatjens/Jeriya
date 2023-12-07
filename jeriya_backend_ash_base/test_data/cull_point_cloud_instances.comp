@@ -191,11 +191,11 @@ layout (set = 0, binding = 17) buffer PointCloudInstanceBuffer {
     PointCloudInstance point_cloud_instances[MAX_POINT_CLOUD_INSTANCES];
 };
 
-layout (set = 0, binding = 18) buffer VisiblePointCloudInstanceBuffer {
+layout (set = 0, binding = 18) buffer VisiblePointCloudInstanceSimpleBuffer {
     uint count;
     VkDrawIndirectCommand indirect_draw_commands[MAX_POINT_CLOUD_INSTANCES];
     uint instance_indices[MAX_POINT_CLOUD_INSTANCES];
-} visible_point_cloud_instances;
+} visible_point_cloud_instances_simple;
 
 layout (set = 0, binding = 19) buffer PointCloudAttributesBuffer {
     PointCloudAttributes point_cloud_attributes[MAX_POINT_CLOUD_ATTRIBUTES];
@@ -254,7 +254,7 @@ void main() {
     draw_indirect_command.first_vertex = 0;
     draw_indirect_command.first_instance = 0;
 
-    uint allocated_index = atomicAdd(visible_point_cloud_instances.count, 1);
-    visible_point_cloud_instances.indirect_draw_commands[allocated_index] = draw_indirect_command;
-    visible_point_cloud_instances.instance_indices[allocated_index] = index;
+    uint allocated_index = atomicAdd(visible_point_cloud_instances_simple.count, 1);
+    visible_point_cloud_instances_simple.indirect_draw_commands[allocated_index] = draw_indirect_command;
+    visible_point_cloud_instances_simple.instance_indices[allocated_index] = index;
 }
