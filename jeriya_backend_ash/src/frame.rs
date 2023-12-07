@@ -60,9 +60,11 @@ pub struct Frame {
     /// Contains the indices of the visible meshlets of the visible rigid mesh instances.
     /// At the front of the buffer is a counter that contains the number of visible meshlets.
     visible_rigid_mesh_meshlets: Arc<DeviceVisibleBuffer<u32>>,
+
     /// Contains the indices of the visible point cloud instances as well as the indirect
     /// rendering commands preceded with a counter that contains the number of visible instances.
-    visible_point_cloud_instances_buffer: Arc<DeviceVisibleBuffer<u32>>,
+    visible_point_cloud_instances_simple: Arc<DeviceVisibleBuffer<u32>>,
+
     transactions: VecDeque<Transaction>,
 }
 
@@ -205,7 +207,7 @@ impl Frame {
             backend_shared.renderer_config.maximum_number_of_point_cloud_instances * mem::size_of::<DrawIndirectCommand>();
         let byte_size_point_cloud_instance_indices =
             backend_shared.renderer_config.maximum_number_of_point_cloud_instances * mem::size_of::<u32>();
-        let visible_point_cloud_instances_buffer = DeviceVisibleBuffer::new(
+        let visible_point_cloud_instances_simple = DeviceVisibleBuffer::new(
             &backend_shared.device,
             byte_size_count + byte_size_draw_indirect_commands + byte_size_point_cloud_instance_indices,
             // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
@@ -233,7 +235,7 @@ impl Frame {
             visible_rigid_mesh_instances_simple_buffer,
             visible_rigid_mesh_instances,
             visible_rigid_mesh_meshlets,
-            visible_point_cloud_instances_buffer,
+            visible_point_cloud_instances_simple,
             transactions: VecDeque::new(),
         })
     }
@@ -452,7 +454,7 @@ impl Frame {
         )?;
 
         // Clear counter for the visible point cloud instances
-        builder.fill_buffer(&self.visible_point_cloud_instances_buffer, 0, mem::size_of::<u32>() as u64, 0);
+        builder.fill_buffer(&self.visible_point_cloud_instances_simple, 0, mem::size_of::<u32>() as u64, 0);
 
         // Dispatch
         let cull_point_cloud_instances_group_count = {
@@ -542,9 +544,9 @@ impl Frame {
             &mut builder,
         )?;
         builder.draw_indirect_count(
-            &self.visible_point_cloud_instances_buffer,
+            &self.visible_point_cloud_instances_simple,
             mem::size_of::<u32>() as u64,
-            &self.visible_point_cloud_instances_buffer,
+            &self.visible_point_cloud_instances_simple,
             0,
             self.point_cloud_instance_buffer.high_water_mark(),
         );
@@ -780,7 +782,7 @@ impl Frame {
             .push_storage_buffer(15, &self.point_cloud_attributes_active_buffer)
             .push_storage_buffer(16, &self.point_cloud_buffer)
             .push_storage_buffer(17, &self.point_cloud_instance_buffer)
-            .push_storage_buffer(18, &self.visible_point_cloud_instances_buffer)
+            .push_storage_buffer(18, &self.visible_point_cloud_instances_simple)
             .push_storage_buffer(19, &*backend_shared.point_cloud_attributes_buffer.lock())
             .push_storage_buffer(20, &*backend_shared.static_point_positions_buffer.lock())
             .push_storage_buffer(21, &*backend_shared.static_point_colors_buffer.lock())

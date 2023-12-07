@@ -192,11 +192,11 @@ layout (set = 0, binding = 17) buffer PointCloudInstanceBuffer {
     PointCloudInstance point_cloud_instances[MAX_POINT_CLOUD_INSTANCES];
 };
 
-layout (set = 0, binding = 18) buffer VisiblePointCloudInstanceBuffer {
+layout (set = 0, binding = 18) buffer VisiblePointCloudInstanceSimpleBuffer {
     uint count;
     VkDrawIndirectCommand indirect_draw_commands[MAX_POINT_CLOUD_INSTANCES];
     uint instance_indices[MAX_POINT_CLOUD_INSTANCES];
-} visible_point_cloud_instances;
+} visible_point_cloud_instances_simple;
 
 layout (set = 0, binding = 19) buffer PointCloudAttributesBuffer {
     PointCloudAttributes point_cloud_attributes[MAX_POINT_CLOUD_ATTRIBUTES];
@@ -236,7 +236,7 @@ layout (location = 0) out vec4 out_point_color;
 layout (location = 1) out vec2 out_texcoord;
 
 void main() {
-    uint point_cloud_instance_index = visible_point_cloud_instances.instance_indices[gl_DrawIDARB];
+    uint point_cloud_instance_index = visible_point_cloud_instances_simple.instance_indices[gl_DrawIDARB];
 
     PointCloudInstance point_cloud_instance = point_cloud_instances[point_cloud_instance_index];
     PointCloud point_cloud = point_clouds[uint(point_cloud_instance.point_cloud_index)];
