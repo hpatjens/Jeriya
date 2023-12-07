@@ -42,6 +42,7 @@ pub struct BackendShared {
     pub static_meshlet_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::Meshlet>>,
     pub static_point_positions_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
     pub static_point_colors_buffer: Mutex<StagedPushOnlyBuffer<Vector4<f32>>>,
+    pub static_point_cloud_pages_buffer: Mutex<StagedPushOnlyBuffer<shader_interface::PointCloudPage>>,
 
     pub point_cloud_page_buffer: Mutex<PageBuffer<shader_interface::PointCloudPage>>,
 
@@ -130,12 +131,20 @@ impl BackendShared {
             debug_info!("static_meshlet_buffer"),
         )?);
 
+        info!("Creating static point cloud pages buffer");
+        let static_point_cloud_pages_buffer = Mutex::new(StagedPushOnlyBuffer::new(
+            device,
+            renderer_config.maximum_number_of_point_cloud_pages,
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!("static_point_cloud_pages_buffer"),
+        )?);
+
         info!("Creating point cloud cluster page buffer");
         let point_cloud_page_buffer = Mutex::new(PageBuffer::new(
             device,
             renderer_config.maximum_number_of_point_cloud_pages,
             BufferUsageFlags::STORAGE_BUFFER,
-            debug_info!("point_cloud_cluster_page_buffer"),
+            debug_info!("point_cloud_page_buffer"),
         )?);
 
         info!("Creating the QueueScheduler");
@@ -169,6 +178,7 @@ impl BackendShared {
             static_meshlet_buffer,
             static_point_positions_buffer,
             static_point_colors_buffer,
+            static_point_cloud_pages_buffer,
             point_cloud_page_buffer,
             mesh_attributes_gpu_index_allocator,
             point_cloud_attributes_gpu_index_allocator,

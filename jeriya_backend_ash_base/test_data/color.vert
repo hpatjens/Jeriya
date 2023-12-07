@@ -75,6 +75,8 @@ struct PointCloudAttributes {
     uint points_len;
     uint point_positions_start_offset;
     uint point_colors_start_offset;
+    uint pages_len;
+    uint pages_start_offset;
 };
 
 struct RigidMesh {
