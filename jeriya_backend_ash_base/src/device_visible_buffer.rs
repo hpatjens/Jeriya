@@ -36,7 +36,7 @@ impl<T: Clone + 'static + Send + Sync> DeviceVisibleBuffer<T> {
                 vk::SharingMode::CONCURRENT,
                 debug_info,
             )?;
-            buffer.allocate_memory(vk::MemoryPropertyFlags::HOST_VISIBLE)?;
+            buffer.allocate_memory(vk::MemoryPropertyFlags::DEVICE_LOCAL)?;
             buffer
         };
         Ok(Arc::new(Self {
