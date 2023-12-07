@@ -229,8 +229,12 @@ layout (set = 0, binding = 25) buffer VisiblePointCloudInstancesBuffer {
 
 
 
-
-
+/// Appends the given point cloud instance to the array of visible point cloud
+/// instances for rendering with the clustered point cloud representation.
+void append_visible_point_cloud_instance(uint point_cloud_instance_index) {
+    uint allocated_index = atomicAdd(visible_point_cloud_instances.count, 1);
+    visible_point_cloud_instances.instance_indices[allocated_index] = point_cloud_instance_index;
+}
 
 /// Appends the given point cloud instance to the array of visible point cloud 
 /// instances for rendering with the simple point cloud representation.
@@ -239,12 +243,6 @@ void append_visible_point_cloud_instance_simple(
     uint point_cloud_attributes_index
 ) {
     PointCloudAttributes point_cloud_attributes = point_cloud_attributes[point_cloud_attributes_index];
-
-    // Ignore this instance if it doesn't contain any points
-    // in the simple representation (versus clustered).
-    if (point_cloud_attributes.points_len == 0) {
-        return;
-    }
 
     uint vertex_count = 3 * point_cloud_attributes.points_len;
 
@@ -279,8 +277,12 @@ void main() {
     }
 
     if (point_cloud.preferred_point_cloud_representation == POINT_CLOUD_REPRESENTATION_CLUSTERED) {
-        return;
-    } else {
-        append_visible_point_cloud_instance_simple(index, point_cloud.point_cloud_attributes_index);
+        if (point_cloud_attributes.pages_len > 0) {
+            append_visible_point_cloud_instance(index);
+        }
+    } else if (point_cloud.preferred_point_cloud_representation == POINT_CLOUD_REPRESENTATION_SIMPLE) {
+        if (point_cloud_attributes.points_len > 0) {
+            append_visible_point_cloud_instance_simple(index, point_cloud.point_cloud_attributes_index);
+        }
     }
 }
