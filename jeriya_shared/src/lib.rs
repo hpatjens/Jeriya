@@ -249,8 +249,27 @@ pub struct RendererConfig {
     pub maximum_visible_rigid_mesh_meshlets: usize,
 }
 
-impl Default for RendererConfig {
-    fn default() -> Self {
+impl RendererConfig {
+    pub fn minimal() -> Self {
+        Self {
+            application_name: None,
+            default_desired_swapchain_length: 2,
+            maximum_number_of_mesh_attributes: 32,
+            maximum_number_of_point_cloud_attributes: 32,
+            maximum_number_of_cameras: 4,
+            maximum_number_of_camera_instances: 4,
+            maximum_number_of_rigid_meshes: 32,
+            maximum_number_of_point_clouds: 8,
+            maximum_number_of_point_cloud_instances: 8,
+            maximum_number_of_point_cloud_pages: 16,
+            maximum_number_of_rigid_mesh_instances: 32,
+            maximum_meshlets: 64,
+            maximum_visible_rigid_mesh_instances: 32,
+            maximum_visible_rigid_mesh_meshlets: 64,
+        }
+    }
+
+    pub fn normal() -> Self {
         Self {
             application_name: None,
             default_desired_swapchain_length: 2,
@@ -261,12 +280,18 @@ impl Default for RendererConfig {
             maximum_number_of_rigid_meshes: 2usize.pow(10),
             maximum_number_of_point_clouds: 2usize.pow(10),
             maximum_number_of_point_cloud_instances: 2usize.pow(10),
-            maximum_number_of_point_cloud_pages: 2usize.pow(3),
+            maximum_number_of_point_cloud_pages: 2usize.pow(5),
             maximum_number_of_rigid_mesh_instances: 2usize.pow(10),
             maximum_meshlets: 2usize.pow(20),
             maximum_visible_rigid_mesh_instances: 2usize.pow(10),
             maximum_visible_rigid_mesh_meshlets: 2usize.pow(20),
         }
+    }
+}
+
+impl Default for RendererConfig {
+    fn default() -> Self {
+        Self::minimal()
     }
 }
 
