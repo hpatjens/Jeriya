@@ -67,6 +67,9 @@ pub struct Frame {
     /// Contains the indices of the visible point cloud instances that will be rendered with
     /// the clusters. This buffer contains the count and the indices of the visible point clouds.
     visible_point_cloud_instances: Arc<DeviceVisibleBuffer<u32>>,
+    /// Contains the indices of the visible point cloud clusters. This buffer contains the count
+    /// and the indices of the visible point cloud clusters.
+    visible_point_cloud_clusters: Arc<DeviceVisibleBuffer<u32>>,
 
     transactions: VecDeque<Transaction>,
 }
@@ -237,6 +240,22 @@ impl Frame {
             debug_info!(format!("VisiblePointCloudInstancesBuffer-for-Window{:?}", window_id)),
         )?;
 
+        info!("Create visible point cloud clusters buffer");
+        let byte_size_dispatch_indirect_command = mem::size_of::<DrawIndirectCommand>();
+        let byte_size_count = mem::size_of::<u32>();
+        let byte_size_point_cloud_cluster_indices =
+            backend_shared.renderer_config.maximum_number_of_visible_point_cloud_clusters * mem::size_of::<u32>();
+        let visible_point_cloud_clusters = DeviceVisibleBuffer::new(
+            &backend_shared.device,
+            byte_size_dispatch_indirect_command + byte_size_count + byte_size_point_cloud_cluster_indices,
+            // BufferUsageFlags::TRANSFER_SRC_BIT is only needed for debugging
+            BufferUsageFlags::STORAGE_BUFFER
+                | BufferUsageFlags::INDIRECT_BUFFER
+                | BufferUsageFlags::TRANSFER_DST_BIT
+                | BufferUsageFlags::TRANSFER_SRC_BIT,
+            debug_info!(format!("VisiblePointCloudClustersBuffer-for-Window{:?}", window_id)),
+        )?;
+
         Ok(Self {
             presenter_index,
             image_available_semaphore: None,
@@ -256,6 +275,7 @@ impl Frame {
             visible_rigid_mesh_meshlets,
             visible_point_cloud_instances_simple,
             visible_point_cloud_instances,
+            visible_point_cloud_clusters,
             transactions: VecDeque::new(),
         })
     }
