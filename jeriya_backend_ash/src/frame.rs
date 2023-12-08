@@ -835,6 +835,7 @@ impl Frame {
             .push_storage_buffer(23, &self.point_cloud_pages_active_buffer)
             .push_storage_buffer(24, &*backend_shared.static_point_cloud_pages_buffer.lock())
             .push_storage_buffer(25, &self.visible_point_cloud_instances)
+            .push_storage_buffer(26, &self.visible_point_cloud_clusters)
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())

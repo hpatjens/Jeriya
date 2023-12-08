@@ -228,6 +228,12 @@ layout (set = 0, binding = 25) buffer VisiblePointCloudInstancesBuffer {
     uint instance_indices[MAX_POINT_CLOUD_INSTANCES];
 } visible_point_cloud_instances;
 
+layout (set = 0, binding = 26) buffer VisiblePointCloudClustersBuffer {
+    VkDrawIndirectCommand draw_indirect_command;
+    uint count;
+    uint instance_indices[MAX_VISIBLE_POINT_CLOUD_CLUSTERS];
+} visible_point_cloud_clusters;
+
 
 
 layout (location = 0) in vec3 inPosition;
