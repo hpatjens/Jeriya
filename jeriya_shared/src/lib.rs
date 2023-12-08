@@ -67,12 +67,16 @@ pub mod features {
     /// Determines whether the deadlock detection is compiled into the code
     pub const DEADLOCK_DETECTION: bool = cfg!(feature = "deadlock_detection");
 
+    /// Determines whether the profiling is compiled into the code
+    pub const PROFILE: bool = cfg!(feature = "profile");
+
     /// Prints the features of the current build to the log with info level
     pub fn info_log_features() {
         let message = formatdoc! {"
             Features
               \"assertions\": {ASSERTIONS:?}
-              \"deadlock_detection\": {DEADLOCK_DETECTION:?}"
+              \"deadlock_detection\": {DEADLOCK_DETECTION:?}
+              \"profile\": {PROFILE:?}"
         };
         info!("{message}");
     }
@@ -101,30 +105,34 @@ macro_rules! assert_eq {
 /// Type that is used instead of tracer::Span when the feature "profile" is not enabled
 pub struct SpanDummy;
 
-/// Profiling span that gets enabled with the features "profile"
+/// Profiling span that gets enabled with the feature "profile"
+#[cfg(feature = "profile")]
 #[macro_export]
 macro_rules! span {
-    () => {{
-        #[cfg(feature = "profile")]
-        let span = $crate::tracy_client::span!();
-        #[cfg(not(feature = "profile"))]
-        let span = $crate::SpanDummy;
-        span
-    }};
-    ($name: expr) => {{
-        #[cfg(feature = "profile")]
-        let span = $crate::tracy_client::span!($name);
-        #[cfg(not(feature = "profile"))]
-        let span = $crate::SpanDummy;
-        span
-    }};
-    ($name: expr, $callstack_depth: expr) => {{
-        #[cfg(feature = "profile")]
-        let span = $crate::tracy_client::span!($name, $callstack_depth);
-        #[cfg(not(feature = "profile"))]
-        let span = $crate::SpanDummy;
-        span
-    }};
+    () => {
+        $crate::tracy_client::span!()
+    };
+    ($name: expr) => {
+        $crate::tracy_client::span!($name)
+    };
+    ($name: expr, $callstack_depth: expr) => {
+        $crate::tracy_client::span!($name, $callstack_depth)
+    };
+}
+
+/// Profiling span that gets enabled then feature "profile" is not enabled
+#[cfg(not(feature = "profile"))]
+#[macro_export]
+macro_rules! span {
+    () => {
+        $crate::SpanDummy
+    };
+    ($name: expr) => {
+        $crate::SpanDummy
+    };
+    ($name: expr, $callstack_depth: expr) => {
+        $crate::SpanDummy
+    };
 }
 
 /// Color with the components red, green and blue.
