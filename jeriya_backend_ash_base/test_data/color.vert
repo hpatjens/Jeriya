@@ -16,6 +16,7 @@ layout (constant_id = 10) const uint MAX_POINT_CLOUD_INSTANCES = 1024;
 layout (constant_id = 11) const uint MAX_POINT_CLOUD_PAGES = 16384;
 layout (constant_id = 12) const uint MAX_POINT_CLOUD_PAGE_POINTS = 256;
 layout (constant_id = 13) const uint MAX_POINT_CLOUD_PAGE_CLUSTERS = 16;
+layout (constant_id = 14) const uint MAX_VISIBLE_POINT_CLOUD_CLUSTERS = 16384;
 
 struct Camera {
     mat4 projection_matrix;
