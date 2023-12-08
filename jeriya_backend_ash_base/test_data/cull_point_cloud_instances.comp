@@ -276,6 +276,7 @@ void main() {
         return;
     }
 
+    PointCloudAttributes point_cloud_attributes = point_cloud_attributes[point_cloud.point_cloud_attributes_index];
     if (point_cloud.preferred_point_cloud_representation == POINT_CLOUD_REPRESENTATION_CLUSTERED) {
         if (point_cloud_attributes.pages_len > 0) {
             append_visible_point_cloud_instance(index);
