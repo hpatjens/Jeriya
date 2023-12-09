@@ -1,4 +1,5 @@
 use ash::vk;
+use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
     log::info,
@@ -125,6 +126,7 @@ where
     }
 }
 
+#[profile]
 impl<I> GenericGraphicsPipeline<I>
 where
     I: GraphicsPipelineInterface,

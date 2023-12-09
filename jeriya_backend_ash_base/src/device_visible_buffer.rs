@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use ash::vk;
+use jeriya_macros::profile;
 use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
 
 use crate::{
@@ -20,6 +21,7 @@ pub struct DeviceVisibleBuffer<T> {
     device: Arc<Device>,
 }
 
+#[profile]
 impl<T: Clone + 'static + Send + Sync> DeviceVisibleBuffer<T> {
     /// Creates a new `DeviceVisibleBuffer`.
     pub fn new(
