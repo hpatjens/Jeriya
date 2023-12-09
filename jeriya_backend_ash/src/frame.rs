@@ -527,6 +527,25 @@ impl Frame {
         //     eprintln!("point_clouds: {count} -> {list:?}");
         // }
 
+        let cull_point_cloud_clusters_span = jeriya_shared::span!("cull point cloud clusters");
+        builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.cull_point_cloud_clusters_compute_pipeline);
+        self.push_descriptors(
+            PipelineBindPoint::Compute,
+            &presenter_shared
+                .graphics_pipelines
+                .cull_point_cloud_clusters_compute_pipeline
+                .descriptor_set_layout,
+            backend_shared,
+            &mut builder,
+        )?;
+
+        // Clear counter for the visible point cloud clusters
+        let offset = mem::size_of::<DrawIndirectCommand>() as u64;
+        builder.fill_buffer(&self.visible_point_cloud_clusters, offset, mem::size_of::<u32>() as u64, 0);
+        builder.transfer_to_compute_pipeline_barrier();
+
+        drop(cull_point_cloud_clusters_span);
+
         // Render Pass
         builder.begin_render_pass(
             presenter_shared.swapchain(),
