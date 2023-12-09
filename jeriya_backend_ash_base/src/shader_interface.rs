@@ -9,6 +9,36 @@ impl Represents<resources::point_cloud_attributes::PointCloudAttributes> for u32
 
 #[repr(C)]
 #[derive(Debug, Clone, Default)]
+pub struct FrameTelemetry {
+    max_cameras: u32,
+    max_camera_instances: u32,
+
+    max_mesh_attributes: u32,
+    max_point_cloud_attributes: u32,
+
+    max_rigid_meshes: u32,
+    max_rigid_mesh_instances: u32,
+    max_meshlets: u32,
+    max_visible_rigid_mesh_instances: u32,
+    max_visible_rigid_mesh_meshlets: u32,
+
+    max_point_clouds: u32,
+    max_point_cloud_instances: u32,
+    max_point_cloud_pages: u32,
+    max_point_cloud_page_clusters: u32,
+    max_visible_point_cloud_clusters: u32,
+
+    visible_rigid_mesh_instances: u32,
+    visible_rigid_mesh_instances_simple: u32,
+    visible_rigid_mesh_meshlets: u32,
+
+    visible_point_cloud_instances: u32,
+    visible_point_cloud_instances_simple: u32,
+    visible_point_cloud_clusters: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Default)]
 pub struct PerFrameData {
     pub active_camera: i32,
     pub mesh_attributes_count: u32,

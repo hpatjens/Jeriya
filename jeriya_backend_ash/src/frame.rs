@@ -25,6 +25,7 @@ use jeriya_backend_ash_base::{
     shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
 };
 use jeriya_macros::profile;
+use jeriya_shared::log::trace;
 use jeriya_shared::{debug_info, log::info, nalgebra::Matrix4, plot_with_index, tracy_client::plot, winit::window::WindowId};
 
 use crate::ash_immediate::ImmediateRenderingFrameTask;
@@ -38,7 +39,9 @@ pub struct Frame {
     presenter_index: usize,
     image_available_semaphore: Option<Arc<Semaphore>>,
     rendering_complete_semaphore: Option<Arc<Semaphore>>,
+
     per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
+    frame_telemetry_buffer: HostVisibleBuffer<shader_interface::FrameTelemetry>,
 
     mesh_attributes_active_buffer: FrameLocalBuffer<u32>, // every u32 represents a bool
     point_cloud_attributes_active_buffer: FrameLocalBuffer<u32>, // every u32 represents a bool
@@ -82,6 +85,13 @@ impl Frame {
             &[shader_interface::PerFrameData::default(); 1],
             BufferUsageFlags::UNIFORM_BUFFER,
             debug_info!(format!("PerFrameDataBuffer-for-Window{:?}", window_id)),
+        )?;
+
+        let frame_telemetry_buffer = HostVisibleBuffer::new(
+            &backend_shared.device,
+            &[shader_interface::FrameTelemetry::default(); 1],
+            BufferUsageFlags::STORAGE_BUFFER,
+            debug_info!(format!("FrameTelemetryBuffer-for-Window{:?}", window_id)),
         )?;
 
         // Create camera buffer
@@ -261,6 +271,7 @@ impl Frame {
             image_available_semaphore: None,
             rendering_complete_semaphore: None,
             per_frame_data_buffer,
+            frame_telemetry_buffer,
             mesh_attributes_active_buffer,
             point_cloud_attributes_active_buffer,
             point_cloud_pages_active_buffer,
@@ -331,6 +342,12 @@ impl Frame {
         };
         self.per_frame_data_buffer.set_memory_unaligned(&[per_frame_data])?;
         drop(span);
+
+        trace!("Frame telemetry: {:#?}", {
+            self.frame_telemetry_buffer
+                .get_memory_unaligned_index(0)
+                .expect("frame telemetry not available")
+        });
 
         const LOCAL_SIZE_X: u32 = 128;
         let cull_compute_shader_group_count = (self.rigid_mesh_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
