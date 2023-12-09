@@ -60,6 +60,7 @@ pub struct GraphicsPipelines {
     pub cull_rigid_mesh_meshlets_compute_pipeline: GenericComputePipeline,
     pub cull_point_cloud_instances_compute_pipeline: GenericComputePipeline,
     pub cull_point_cloud_clusters_compute_pipeline: GenericComputePipeline,
+    pub frame_telemetry_compute_pipeline: GenericComputePipeline,
     pub indirect_simple_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
     pub indirect_meshlet_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
     pub point_cloud_graphics_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
@@ -208,6 +209,16 @@ impl GraphicsPipelines {
             GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
         };
 
+        info!("Create Frame Telemetry Compute Pipeline");
+        let frame_telemetry_compute_pipeline = GenericComputePipeline::new(
+            device,
+            &GenericComputePipelineConfig {
+                shader_spirv: spirv!("frame_telemetry.comp.spv"),
+                debug_info: debug_info!(format!("Frame-Telemetry-ComputePipeline-for-Window{:?}", window_id)),
+            },
+            &specialization_constants,
+        )?;
+
         Ok(Self {
             simple_graphics_pipeline,
             immediate_graphics_pipeline_line_list,
@@ -218,6 +229,7 @@ impl GraphicsPipelines {
             cull_rigid_mesh_meshlets_compute_pipeline,
             cull_point_cloud_instances_compute_pipeline,
             cull_point_cloud_clusters_compute_pipeline,
+            frame_telemetry_compute_pipeline,
             indirect_simple_graphics_pipeline,
             indirect_meshlet_graphics_pipeline,
             point_cloud_graphics_pipeline,

@@ -18,6 +18,35 @@ layout (constant_id = 12) const uint MAX_POINT_CLOUD_PAGE_POINTS = 256;
 layout (constant_id = 13) const uint MAX_POINT_CLOUD_PAGE_CLUSTERS = 16;
 layout (constant_id = 14) const uint MAX_VISIBLE_POINT_CLOUD_CLUSTERS = 16384;
 
+struct FrameTelemetry {
+    uint max_cameras;
+    uint max_camera_instances;
+
+    uint max_mesh_attributes;
+    uint max_point_cloud_attributes;
+
+    uint max_rigid_meshes;
+    uint max_rigid_mesh_instances;
+    uint max_meshlets;
+    uint max_visible_rigid_mesh_instances;
+    uint max_visible_rigid_mesh_meshlets;
+
+    uint max_point_clouds;
+    uint max_point_cloud_instances;
+    uint max_point_cloud_pages;
+    uint max_point_cloud_page_clusters;
+    uint max_visible_point_cloud_clusters;
+
+    uint visible_rigid_mesh_instances;
+    uint visible_rigid_mesh_instances_simple;
+    uint visible_rigid_mesh_meshlets;
+    uint visible_rigid_mesh_meshlet_vertices;
+
+    uint visible_point_cloud_instances;
+    uint visible_point_cloud_instances_simple;
+    uint visible_point_cloud_clusters;
+};
+
 struct Camera {
     mat4 projection_matrix;
 };
@@ -233,6 +262,10 @@ layout (set = 0, binding = 26) buffer VisiblePointCloudClustersBuffer {
     uint count;
     uint instance_indices[MAX_VISIBLE_POINT_CLOUD_CLUSTERS];
 } visible_point_cloud_clusters;
+
+layout (set = 0, binding = 27) buffer FrameTelemetryBuffer {
+    FrameTelemetry frame_telemetry;
+};
 
 
 

@@ -206,6 +206,7 @@ where
                 .push_storage_buffer::<PointCloudPage>(24, 1)
                 .push_storage_buffer::<u32>(25, 1)
                 .push_storage_buffer::<u32>(26, 1)
+                .push_storage_buffer::<shader_interface::FrameTelemetry>(27, 1)
                 .build(device)?,
         );
         let descriptor_set_layouts = [*descriptor_set_layout.as_raw_vulkan()];

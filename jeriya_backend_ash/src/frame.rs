@@ -658,6 +658,12 @@ impl Frame {
         self.append_immediate_rendering_commands(backend_shared, presenter_shared, &mut builder, immediate_rendering_frames)?;
 
         builder.end_render_pass()?;
+
+        // Write the frame telemetry data to the buffer
+        builder.bind_compute_pipeline(&presenter_shared.graphics_pipelines.frame_telemetry_compute_pipeline);
+        builder.bottom_to_top_pipeline_barrier();
+        builder.dispatch(1, 1, 1);
+
         builder.end_command_buffer()?;
 
         drop(command_buffer_span);
@@ -882,6 +888,7 @@ impl Frame {
             .push_storage_buffer(24, &*backend_shared.static_point_cloud_pages_buffer.lock())
             .push_storage_buffer(25, &self.visible_point_cloud_instances)
             .push_storage_buffer(26, &self.visible_point_cloud_clusters)
+            .push_storage_buffer(27, &self.frame_telemetry_buffer)
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())

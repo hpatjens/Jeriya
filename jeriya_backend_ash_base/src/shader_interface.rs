@@ -31,6 +31,8 @@ pub struct FrameTelemetry {
     visible_rigid_mesh_instances: u32,
     visible_rigid_mesh_instances_simple: u32,
     visible_rigid_mesh_meshlets: u32,
+    /// Number of vertices in the visible meshlets. This is not the number of vertices stored in the visible meshlets but the number of indices referencing vertices and therefore the number of rendered vertices.
+    visible_rigid_mesh_meshlet_vertices: u32,
 
     visible_point_cloud_instances: u32,
     visible_point_cloud_instances_simple: u32,
