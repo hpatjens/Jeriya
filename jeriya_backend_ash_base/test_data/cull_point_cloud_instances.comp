@@ -248,10 +248,10 @@ void append_visible_point_cloud_instance(uint point_cloud_instance_index) {
     const uint POINT_CLOUD_CLUSTER_CULLING_GROUP_SIZE_X = 32;
 
     // Number of required work groups in dimension x of the compute shader for culling clusters
-    uint required_cluster_culling_work_groups_x = (occupied_count + MESHLET_CULLING_GROUP_SIZE_X - 1) / MESHLET_CULLING_GROUP_SIZE_X;
+    uint required_cluster_culling_work_groups_x = (occupied_count + POINT_CLOUD_CLUSTER_CULLING_GROUP_SIZE_X - 1) / POINT_CLOUD_CLUSTER_CULLING_GROUP_SIZE_X;
 
     // Update the dispatch indirect command for the compute shader for culling clusters
-    atomixMax(visible_point_cloud_instances.dispatch_indirect_command.x, required_cluster_culling_work_groups_x)
+    atomicMax(visible_point_cloud_instances.dispatch_indirect_command.x, required_cluster_culling_work_groups_x);
     visible_point_cloud_instances.dispatch_indirect_command.y = 1;
     visible_point_cloud_instances.dispatch_indirect_command.z = 1;
 }
