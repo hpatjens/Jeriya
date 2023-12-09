@@ -498,7 +498,8 @@ impl Frame {
         builder.transfer_to_compute_pipeline_barrier();
 
         // Clear counter for the visible point cloud instances with clusters
-        builder.fill_buffer(&self.visible_point_cloud_instances, 0, mem::size_of::<u32>() as u64, 0);
+        let offset = mem::size_of::<DispatchIndirectCommand>() as u64;
+        builder.fill_buffer(&self.visible_point_cloud_instances, offset, mem::size_of::<u32>() as u64, 0);
         builder.transfer_to_compute_pipeline_barrier();
 
         // Dispatch
@@ -542,7 +543,16 @@ impl Frame {
         // Clear counter for the visible point cloud clusters
         let offset = mem::size_of::<DrawIndirectCommand>() as u64;
         builder.fill_buffer(&self.visible_point_cloud_clusters, offset, mem::size_of::<u32>() as u64, 0);
+
+        // Dispatch
         builder.transfer_to_compute_pipeline_barrier();
+        builder.transfer_to_indirect_command_barrier();
+        builder.compute_to_indirect_command_pipeline_barrier();
+        builder.compute_to_compute_pipeline_barrier();
+
+        // Dispatch compute shader for culling the point cloud clusters
+        builder.dispatch_indirect(&self.visible_point_cloud_instances, 0);
+        builder.compute_to_indirect_command_pipeline_barrier();
 
         drop(cull_point_cloud_clusters_span);
 
