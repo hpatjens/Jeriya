@@ -267,7 +267,7 @@ fn main() -> ey::Result<()> {
         .add_windows(&[
             WindowConfig {
                 window: &window1,
-                frame_rate: FrameRate::Unlimited,
+                frame_rate: FrameRate::Limited(60),
             },
             WindowConfig {
                 window: &window2,

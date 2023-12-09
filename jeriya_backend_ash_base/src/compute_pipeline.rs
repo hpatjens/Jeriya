@@ -1,6 +1,7 @@
 use std::{ffi::CString, io::Cursor, sync::Arc};
 
 use ash::vk;
+use jeriya_macros::profile;
 use jeriya_shared::{debug_info, nalgebra::Vector4, AsDebugInfo, DebugInfo};
 
 use crate::{
@@ -31,6 +32,7 @@ pub struct GenericComputePipeline {
     device: Arc<Device>,
 }
 
+#[profile]
 impl GenericComputePipeline {
     pub fn new(
         device: &Arc<Device>,
