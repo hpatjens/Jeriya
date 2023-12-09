@@ -271,61 +271,39 @@ layout (set = 0, binding = 27) buffer FrameTelemetryBuffer {
 
 
 
-
-
-const uint WORK_GROUP_SIZE_X = 32; // Maps to the visible `RigidMeshInstance`s
-const uint WORK_GROUP_SIZE_Y = 32; // Maps meshlets per instance
-layout (
-    local_size_x = WORK_GROUP_SIZE_X, 
-    local_size_y = WORK_GROUP_SIZE_Y, 
-    local_size_z = 1
-) in;
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
 void main() {
-    // Index into the array of visible rigid mesh instances
-    uint instance_index = gl_GlobalInvocationID.x;
-    if (instance_index >= visible_rigid_mesh_instances.count) {
-        return;
+
+    uint visible_rigid_mesh_meshlet_vertices = 0;
+    for (uint i = 0; i < visible_rigid_mesh_meshlets.count; ++i) {
+        visible_rigid_mesh_meshlet_vertices += visible_rigid_mesh_meshlets.indirect_draw_commands[i].vertex_count;
     }
 
-    uint rigid_mesh_instance_index = visible_rigid_mesh_instances.instance_indices[instance_index];
+    frame_telemetry.max_cameras = MAX_CAMERAS;
+    frame_telemetry.max_camera_instances = MAX_CAMERA_INSTANCES;
 
-    RigidMeshInstance rigid_mesh_instance = rigid_mesh_instances[rigid_mesh_instance_index];
-    RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_instance.rigid_mesh_index)];
-    MeshAttributes mesh_attributes = mesh_attributes[uint(rigid_mesh.mesh_attributes_index)];
+    frame_telemetry.max_mesh_attributes = MAX_MESH_ATTRIBUTES;
+    frame_telemetry.max_point_cloud_attributes = MAX_POINT_CLOUD_ATTRIBUTES;
 
-    // We assume that the mesh attributes are active if the instance was inserted into the visible list
+    frame_telemetry.max_rigid_meshes = MAX_RIGID_MESHES;
+    frame_telemetry.max_rigid_mesh_instances = MAX_RIGID_MESH_INSTANCES;
+    frame_telemetry.max_meshlets = MAX_MESHLETS;
+    frame_telemetry.max_visible_rigid_mesh_instances = MAX_VISIBLE_RIGID_MESH_INSTANCES;
+    frame_telemetry.max_visible_rigid_mesh_meshlets = MAX_VISIBLE_RIGID_MESH_MESHLETS;
 
-    uint batch_index = 0;
-    for (;;) {
-        // Index of the meshlet within the RigidMesh the current invocation is processing
-        uint local_meshlet_index = batch_index + gl_GlobalInvocationID.y;
-        if (local_meshlet_index >= uint(mesh_attributes.meshlets_len)) {
-            return;
-        }
+    frame_telemetry.max_point_clouds = MAX_POINT_CLOUDS;
+    frame_telemetry.max_point_cloud_instances = MAX_POINT_CLOUD_INSTANCES;
+    frame_telemetry.max_point_cloud_pages = MAX_POINT_CLOUD_PAGES;
+    frame_telemetry.max_point_cloud_page_clusters = MAX_POINT_CLOUD_PAGE_CLUSTERS;
+    frame_telemetry.max_visible_point_cloud_clusters = MAX_VISIBLE_POINT_CLOUD_CLUSTERS;
 
-        // Index of the meshlet within the global array of meshlets
-        uint global_meshlet_index = uint(mesh_attributes.meshlets_start_offset) + local_meshlet_index;
+    frame_telemetry.visible_rigid_mesh_instances = visible_rigid_mesh_instances.count;
+    frame_telemetry.visible_rigid_mesh_instances_simple = visible_rigid_mesh_instances_simple.count;
+    frame_telemetry.visible_rigid_mesh_meshlets = visible_rigid_mesh_meshlets.count;
+    frame_telemetry.visible_rigid_mesh_meshlet_vertices = visible_rigid_mesh_meshlet_vertices;
 
-        bool isVisible = true;
-        if (!isVisible) {
-            continue;
-        }
-
-        Meshlet meshlet = meshlets[global_meshlet_index];
-
-        VkDrawIndirectCommand draw_indirect_command;
-        draw_indirect_command.vertex_count = meshlet.triangle_count * 3;
-        draw_indirect_command.instance_count = 1;
-        draw_indirect_command.first_vertex = 0;
-        draw_indirect_command.first_instance = 0;
-
-        // Allocate a new index for the visible meshlet
-        uint allocated_index = atomicAdd(visible_rigid_mesh_meshlets.count, 1);
-        visible_rigid_mesh_meshlets.meshlet_indices[allocated_index] = global_meshlet_index;
-        visible_rigid_mesh_meshlets.rigid_mesh_instance_indices[allocated_index] = rigid_mesh_instance_index;
-        visible_rigid_mesh_meshlets.indirect_draw_commands[allocated_index] = draw_indirect_command;
-
-        batch_index += WORK_GROUP_SIZE_Y;
-    }
+    frame_telemetry.visible_point_cloud_instances = visible_point_cloud_instances.count;
+    frame_telemetry.visible_point_cloud_instances_simple = visible_point_cloud_instances_simple.count;
+    frame_telemetry.visible_point_cloud_clusters = visible_point_cloud_clusters.count;
 }
