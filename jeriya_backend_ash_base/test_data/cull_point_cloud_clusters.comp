@@ -296,6 +296,12 @@ void main() {
 
     PointCloudInstance point_cloud_instance = point_cloud_instances[point_cloud_instance_index];
     PointCloud point_cloud = point_clouds[uint(point_cloud_instance.point_cloud_index)];
+
+    bool is_active = point_cloud_attributes_active[point_cloud.point_cloud_attributes_index];
+    if (!is_active) {
+        return;
+    }
+    
     PointCloudAttributes point_cloud_attributes = point_cloud_attributes[point_cloud.point_cloud_attributes_index];
 
     for (uint page_index = 0; page_index < point_cloud_attributes.pages_len; page_index++) {
