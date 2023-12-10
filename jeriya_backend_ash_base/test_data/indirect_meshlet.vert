@@ -290,7 +290,6 @@ layout (location = 1) flat out uint out_meshlet_index;
 
 void main() {
     uint meshlet_index = visible_rigid_mesh_meshlets.meshlet_indices[gl_DrawIDARB];
-    Meshlet meshlet = meshlets[meshlet_index];
     // ASSERT: VkDrawIndirectCommand has a vertex count that matches the meshlet.
 
     uint rigid_mesh_instance_index = visible_rigid_mesh_meshlets.rigid_mesh_instance_indices[gl_DrawIDARB];
@@ -299,8 +298,8 @@ void main() {
     MeshAttributes mesh_attributes = mesh_attributes[uint(rigid_mesh.mesh_attributes_index)];
     // ASSERT: MeshAttributes are active.
 
-    uint local_index = meshlet.local_indices[gl_VertexIndex];
-    uint global_index = meshlet.global_indices[local_index]; // Index relative to the mesh, not the meshlet.
+    uint local_index = meshlets[meshlet_index].local_indices[gl_VertexIndex];
+    uint global_index = meshlets[meshlet_index].global_indices[local_index]; // Index relative to the mesh, not the meshlet.
 
     uint positions_offset = uint(mesh_attributes.vertex_positions_start_offset);
     vec3 vertex_position = vertex_positions[positions_offset + global_index].xyz;
