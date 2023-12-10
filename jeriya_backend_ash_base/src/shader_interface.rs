@@ -273,3 +273,10 @@ impl Default for PointCloudInstance {
         }
     }
 }
+
+#[repr(C)]
+#[derive(Default, Debug, Clone)]
+pub struct PointCloudClusterId {
+    pub page_index: u32,
+    pub cluster_index: u32,
+}

@@ -23,8 +23,8 @@ pub enum Event {
 /// The representation of a [`PointCloud`]
 #[derive(Default, Clone, Copy, Debug)]
 pub enum PointCloudRepresentation {
-    #[default]
     Simple,
+    #[default]
     Clustered,
 }
 
