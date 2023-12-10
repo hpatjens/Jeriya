@@ -285,14 +285,13 @@ layout (push_constant) uniform PushConstants {
     uint _non_zero;
 } push_constants;
 
-layout (location = 0) flat out PointCloudClusterId out_cluster_id;
-layout (location = 3) out vec4 out_point_color;
-layout (location = 4) out vec2 out_texcoord;
+layout (location = 0) flat out uint out_cluster_index;
+layout (location = 1) out vec4 out_point_color;
+layout (location = 2) out vec2 out_texcoord;
 
 void main() {
     PointCloudClusterId cluster_id = visible_point_cloud_clusters.cluster_ids[gl_DrawIDARB];
-    PointCloudPage page = static_point_cloud_pages[cluster_id.page_index];
-    PointCloudCluster cluster = page.clusters[cluster_id.cluster_index];
+    PointCloudCluster cluster = static_point_cloud_pages[cluster_id.page_index].clusters[cluster_id.cluster_index];
 
     // ASSERT: VkDrawIndirectCommand has a vertex count that matches the cluster.
 
@@ -302,8 +301,8 @@ void main() {
     PointCloudAttributes point_cloud_attributes = point_cloud_attributes[uint(point_cloud.point_cloud_attributes_index)];
 
     uint point_index = cluster.points_start_offet + gl_VertexIndex / 3;
-    vec3 point_position = page.point_positions[point_index].xyz;
-    vec4 point_color = page.point_colors[point_index];
+    vec3 point_position = static_point_cloud_pages[cluster_id.page_index].point_positions[point_index].xyz;
+    vec4 point_color = static_point_cloud_pages[cluster_id.page_index].point_colors[point_index];
 
     mat4 model_matrix = point_cloud_instance.transform;
     mat4 view_matrix;
@@ -318,7 +317,7 @@ void main() {
         projection_matrix = mat4(1.0);
     }
 
-    float triangle_size = 0.1;
+    float triangle_size = 0.01;
     const float triangle_height = 0.8660254; // h = sin(pi / 3)
     const float extent_down = 0.288675; // e = h / 3
     const float extent_up = triangle_height - extent_down;
@@ -331,8 +330,24 @@ void main() {
 
     vec4 view_position = view_matrix * model_matrix * vec4(point_position, 1.0);
 
-    out_cluster_id = cluster_id;
+    out_cluster_index = cluster_id.cluster_index;
     out_point_color = point_color;
     out_texcoord = factor;
     gl_Position = projection_matrix * view_position + vec4(triangle_size * factor, 0.0, 0.0);
+
+
+    // vec4 pos = vec4(0.0, 0.0, 0.0, 1.0);
+    // float height = cluster_id.cluster_index;
+    // switch (gl_VertexIndex % 3) {
+    //     case 0:
+    //         pos = vec4(-0.5, height + 0.0, 0.0, 1.0);
+    //         break;
+    //     case 1:
+    //         pos = vec4(0.5, height + 0.0, 0.0, 1.0);
+    //         break;
+    //     case 2:
+    //         pos = vec4(0.0, height + 1.0, 0.0, 1.0);
+    //         break;
+    // }
+    // gl_Position = projection_matrix * view_matrix * pos;
 }

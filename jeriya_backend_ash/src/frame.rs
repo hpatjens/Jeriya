@@ -251,7 +251,8 @@ impl Frame {
         )?;
 
         info!("Create visible point cloud clusters buffer");
-        let byte_size_dispatch_indirect_command = mem::size_of::<DrawIndirectCommand>();
+        let byte_size_dispatch_indirect_command =
+            backend_shared.renderer_config.maximum_number_of_visible_point_cloud_clusters * mem::size_of::<DrawIndirectCommand>();
         let byte_size_count = mem::size_of::<u32>();
         let byte_size_point_cloud_cluster_indices = backend_shared.renderer_config.maximum_number_of_visible_point_cloud_clusters
             * mem::size_of::<shader_interface::PointCloudClusterId>();
@@ -534,12 +535,12 @@ impl Frame {
         // {
         //     let mut queues = backend_shared.queue_scheduler.queues();
         //     let buffer = self
-        //         .visible_point_cloud_instances_buffer
+        //         .visible_point_cloud_clusters
         //         .read_into_new_buffer_and_wait(queues.presentation_queue(*window_id), &command_pool)
         //         .unwrap();
         //     let count = buffer.get_memory_unaligned_index(0).unwrap();
-        //     let offset = 1;
-        //     let list = (0..10)
+        //     let offset = 4 * backend_shared.renderer_config.maximum_number_of_visible_point_cloud_clusters;
+        //     let list = (0..32)
         //         .map(|i| buffer.get_memory_unaligned_index(offset + i).unwrap())
         //         .collect::<Vec<_>>();
         //     eprintln!("point_clouds: {count} -> {list:?}");
@@ -652,6 +653,27 @@ impl Frame {
             &mut builder,
         )?;
         drop(simple_span);
+
+        // Render with PointCloudClusterGraphicsPipeline
+        let indirect_meshlet_span = jeriya_shared::span!("record point cloud cluster commands");
+        builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.point_cloud_clusters_graphics_pipeline);
+        self.push_descriptors(
+            PipelineBindPoint::Graphics,
+            &presenter_shared
+                .graphics_pipelines
+                .point_cloud_clusters_graphics_pipeline
+                .descriptor_set_layout,
+            backend_shared,
+            &mut builder,
+        )?;
+        builder.draw_indirect_count(
+            &self.visible_point_cloud_clusters,
+            std::mem::size_of::<u32>() as u64,
+            &self.visible_point_cloud_clusters,
+            0,
+            backend_shared.renderer_config.maximum_number_of_visible_point_cloud_clusters,
+        );
+        drop(indirect_meshlet_span);
 
         // Render with ImmediateRenderingPipeline
         self.append_immediate_rendering_commands(backend_shared, presenter_shared, &mut builder, immediate_rendering_frames)?;

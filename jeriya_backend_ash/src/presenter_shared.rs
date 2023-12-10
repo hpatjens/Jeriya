@@ -64,6 +64,7 @@ pub struct GraphicsPipelines {
     pub indirect_simple_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
     pub indirect_meshlet_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
     pub point_cloud_graphics_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
+    pub point_cloud_clusters_graphics_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
 }
 
 impl GraphicsPipelines {
@@ -219,6 +220,18 @@ impl GraphicsPipelines {
             &specialization_constants,
         )?;
 
+        info!("Create Point Cloud Clusters Graphics Pipeline");
+        let point_cloud_clusters_graphics_pipeline = {
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("point_cloud_cluster.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("point_cloud_cluster.frag.spv")),
+                primitive_topology: PrimitiveTopology::TriangleList,
+                debug_info: debug_info!(format!("Point-Cloud-Clusters-GraphicsPipeline-for-Window{:?}", window_id)),
+                ..Default::default()
+            };
+            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
+        };
+
         Ok(Self {
             simple_graphics_pipeline,
             immediate_graphics_pipeline_line_list,
@@ -233,6 +246,7 @@ impl GraphicsPipelines {
             indirect_simple_graphics_pipeline,
             indirect_meshlet_graphics_pipeline,
             point_cloud_graphics_pipeline,
+            point_cloud_clusters_graphics_pipeline,
         })
     }
 }
