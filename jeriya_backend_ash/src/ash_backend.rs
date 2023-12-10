@@ -465,7 +465,6 @@ fn handle_point_cloud_attributes_events(
                         shader_interface::PointCloudPage {
                             points_len: page.point_positions().len() as u32,
                             clusters_len: page.clusters().len() as u32,
-                            _padding: [0; 2],
                             point_positions,
                             point_colors,
                             clusters,

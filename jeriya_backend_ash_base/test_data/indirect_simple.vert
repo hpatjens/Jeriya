@@ -135,7 +135,7 @@ struct PointCloudCluster {
     uint points_len;
 };
 
-const uint MAX_POINT_CLOUD_PAGE_POINTS = 256;
+const uint MAX_POINT_CLOUD_PAGE_POINTS = 16 * 256;
 const uint MAX_POINT_CLOUD_PAGE_CLUSTERS = 16;
 
 struct PointCloudPage {

@@ -134,7 +134,7 @@ struct PointCloudCluster {
     uint points_len;
 };
 
-const uint MAX_POINT_CLOUD_PAGE_POINTS = 256;
+const uint MAX_POINT_CLOUD_PAGE_POINTS = 16 * 256;
 const uint MAX_POINT_CLOUD_PAGE_CLUSTERS = 16;
 
 struct PointCloudPage {
@@ -301,33 +301,36 @@ void main() {
     if (!is_active) {
         return;
     }
-    
+
     PointCloudAttributes point_cloud_attributes = point_cloud_attributes[point_cloud.point_cloud_attributes_index];
 
-    for (uint page_index = 0; page_index < point_cloud_attributes.pages_len; page_index++) {
+    for (uint page_index = 1; page_index < point_cloud_attributes.pages_len; page_index++) {
         uint global_page_index = point_cloud_attributes.pages_start_offset + page_index;
         PointCloudPage page = static_point_cloud_pages[global_page_index];
 
-        for (uint cluster_index = 0; cluster_index < page.clusters_len; cluster_index++) {
-            PointCloudCluster cluster = page.clusters[cluster_index];
+        atomicAdd(visible_point_cloud_clusters.count, page.points_len);
+        return;
 
-            uint allocated_index = atomicAdd(visible_point_cloud_clusters.count, 1);
-            if (allocated_index >= MAX_VISIBLE_POINT_CLOUD_CLUSTERS) {
-                return;
-            }
+        // for (uint cluster_index = 0; cluster_index < page.clusters_len; cluster_index++) {
+        //     PointCloudCluster cluster = page.clusters[cluster_index];
 
-            VkDrawIndirectCommand draw_indirect_command;
-            draw_indirect_command.vertex_count = cluster.points_len * 3;
-            draw_indirect_command.instance_count = 1;
-            draw_indirect_command.first_vertex = 0;
-            draw_indirect_command.first_instance = 0;
+        //     uint allocated_index = atomicAdd(visible_point_cloud_clusters.count, 1);
+        //     if (allocated_index >= MAX_VISIBLE_POINT_CLOUD_CLUSTERS) {
+        //         return;
+        //     }
 
-            PointCloudClusterId cluster_id;
-            cluster_id.page_index = point_cloud_attributes.pages_start_offset + page_index;
-            cluster_id.cluster_index = cluster_index;
+        //     VkDrawIndirectCommand draw_indirect_command;
+        //     draw_indirect_command.vertex_count = cluster.points_len * 3;
+        //     draw_indirect_command.instance_count = 1;
+        //     draw_indirect_command.first_vertex = 0;
+        //     draw_indirect_command.first_instance = 0;
 
-            visible_point_cloud_clusters.draw_indirect_command = draw_indirect_command;
-            visible_point_cloud_clusters.cluster_ids[allocated_index] = cluster_id;
-        }
+        //     PointCloudClusterId cluster_id;
+        //     cluster_id.page_index = point_cloud_attributes.pages_start_offset + page_index;
+        //     cluster_id.cluster_index = cluster_index;
+
+        //     visible_point_cloud_clusters.draw_indirect_command = draw_indirect_command;
+        //     visible_point_cloud_clusters.cluster_ids[allocated_index] = cluster_id;
+        // }
     }
 }
