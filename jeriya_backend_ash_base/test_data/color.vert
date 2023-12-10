@@ -268,7 +268,7 @@ layout (set = 0, binding = 25) buffer VisiblePointCloudInstancesBuffer {
 
 layout (set = 0, binding = 26) buffer VisiblePointCloudClustersBuffer {
     uint count;
-    VkDrawIndirectCommand draw_indirect_command;
+    VkDrawIndirectCommand draw_indirect_command[MAX_VISIBLE_POINT_CLOUD_CLUSTERS];
     PointCloudClusterId cluster_ids[MAX_VISIBLE_POINT_CLOUD_CLUSTERS];
 } visible_point_cloud_clusters;
 
