@@ -440,10 +440,13 @@ fn main() -> ey::Result<()> {
                 let mut instance_group = instance_group2.lock();
 
                 // Create PointCloudAttributes
-                let point_cloud_attributes_builder = PointCloudAttributes::builder()
+                let mut point_cloud_attributes_builder = PointCloudAttributes::builder()
                     .with_point_positions(point_cloud.simple_point_cloud().point_positions().to_vec())
                     .with_point_colors(point_cloud.simple_point_cloud().point_colors().to_vec())
                     .with_debug_info(debug_info!("my_point_cloud_attributes"));
+                if let Some(clustered_point_cloud) = point_cloud.clustered_point_cloud() {
+                    point_cloud_attributes_builder = point_cloud_attributes_builder.with_pages(clustered_point_cloud.pages().to_vec());
+                }
                 let point_cloud_attributes = resource_group
                     .point_cloud_attributes()
                     .insert_with(point_cloud_attributes_builder)
