@@ -15,8 +15,8 @@ layout (constant_id = 8) const uint MAX_VISIBLE_RIGID_MESH_MESHLETS = 1048576;
 layout (constant_id = 9) const uint MAX_POINT_CLOUDS = 1024;
 layout (constant_id = 10) const uint MAX_POINT_CLOUD_INSTANCES = 1024;
 layout (constant_id = 11) const uint MAX_POINT_CLOUD_PAGES = 16384;
-layout (constant_id = 12) const uint MAX_POINT_CLOUD_PAGE_POINTS = 256;
-layout (constant_id = 13) const uint MAX_POINT_CLOUD_PAGE_CLUSTERS = 16;
+// layout (constant_id = 12)
+// layout (constant_id = 13)
 layout (constant_id = 14) const uint MAX_VISIBLE_POINT_CLOUD_CLUSTERS = 16384;
 
 struct FrameTelemetry {
@@ -135,12 +135,20 @@ struct PointCloudCluster {
     uint points_len;
 };
 
+const uint MAX_POINT_CLOUD_PAGE_POINTS = 256;
+const uint MAX_POINT_CLOUD_PAGE_CLUSTERS = 16;
+
 struct PointCloudPage {
     uint points_len;
     uint clusters_len;
     vec4 point_positions[MAX_POINT_CLOUD_PAGE_POINTS];
     vec4 point_colors[MAX_POINT_CLOUD_PAGE_POINTS];
     PointCloudCluster clusters[MAX_POINT_CLOUD_PAGE_CLUSTERS];
+};
+
+struct PointCloudClusterId {
+    uint page_index;
+    uint cluster_index;
 };
 
 layout (set = 0, binding = 0) uniform PerFrameData { 
@@ -261,7 +269,7 @@ layout (set = 0, binding = 25) buffer VisiblePointCloudInstancesBuffer {
 layout (set = 0, binding = 26) buffer VisiblePointCloudClustersBuffer {
     VkDrawIndirectCommand draw_indirect_command;
     uint count;
-    uint instance_indices[MAX_VISIBLE_POINT_CLOUD_CLUSTERS];
+    PointCloudClusterId cluster_ids[MAX_VISIBLE_POINT_CLOUD_CLUSTERS];
 } visible_point_cloud_clusters;
 
 layout (set = 0, binding = 27) buffer FrameTelemetryBuffer {

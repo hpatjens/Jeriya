@@ -253,8 +253,8 @@ impl Frame {
         info!("Create visible point cloud clusters buffer");
         let byte_size_dispatch_indirect_command = mem::size_of::<DrawIndirectCommand>();
         let byte_size_count = mem::size_of::<u32>();
-        let byte_size_point_cloud_cluster_indices =
-            backend_shared.renderer_config.maximum_number_of_visible_point_cloud_clusters * mem::size_of::<u32>();
+        let byte_size_point_cloud_cluster_indices = backend_shared.renderer_config.maximum_number_of_visible_point_cloud_clusters
+            * mem::size_of::<shader_interface::PointCloudClusterId>();
         let visible_point_cloud_clusters = DeviceVisibleBuffer::new(
             &backend_shared.device,
             byte_size_dispatch_indirect_command + byte_size_count + byte_size_point_cloud_cluster_indices,

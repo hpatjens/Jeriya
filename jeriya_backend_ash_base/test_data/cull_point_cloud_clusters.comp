@@ -14,8 +14,8 @@ layout (constant_id = 8) const uint MAX_VISIBLE_RIGID_MESH_MESHLETS = 1048576;
 layout (constant_id = 9) const uint MAX_POINT_CLOUDS = 1024;
 layout (constant_id = 10) const uint MAX_POINT_CLOUD_INSTANCES = 1024;
 layout (constant_id = 11) const uint MAX_POINT_CLOUD_PAGES = 16384;
-layout (constant_id = 12) const uint MAX_POINT_CLOUD_PAGE_POINTS = 256;
-layout (constant_id = 13) const uint MAX_POINT_CLOUD_PAGE_CLUSTERS = 16;
+// layout (constant_id = 12)
+// layout (constant_id = 13)
 layout (constant_id = 14) const uint MAX_VISIBLE_POINT_CLOUD_CLUSTERS = 16384;
 
 struct FrameTelemetry {
@@ -134,12 +134,20 @@ struct PointCloudCluster {
     uint points_len;
 };
 
+const uint MAX_POINT_CLOUD_PAGE_POINTS = 256;
+const uint MAX_POINT_CLOUD_PAGE_CLUSTERS = 16;
+
 struct PointCloudPage {
     uint points_len;
     uint clusters_len;
     vec4 point_positions[MAX_POINT_CLOUD_PAGE_POINTS];
     vec4 point_colors[MAX_POINT_CLOUD_PAGE_POINTS];
     PointCloudCluster clusters[MAX_POINT_CLOUD_PAGE_CLUSTERS];
+};
+
+struct PointCloudClusterId {
+    uint page_index;
+    uint cluster_index;
 };
 
 layout (set = 0, binding = 0) uniform PerFrameData { 
@@ -260,7 +268,7 @@ layout (set = 0, binding = 25) buffer VisiblePointCloudInstancesBuffer {
 layout (set = 0, binding = 26) buffer VisiblePointCloudClustersBuffer {
     VkDrawIndirectCommand draw_indirect_command;
     uint count;
-    uint instance_indices[MAX_VISIBLE_POINT_CLOUD_CLUSTERS];
+    PointCloudClusterId cluster_ids[MAX_VISIBLE_POINT_CLOUD_CLUSTERS];
 } visible_point_cloud_clusters;
 
 layout (set = 0, binding = 27) buffer FrameTelemetryBuffer {
@@ -271,7 +279,49 @@ layout (set = 0, binding = 27) buffer FrameTelemetryBuffer {
 
 
 
+const uint WORK_GROUP_SIZE_X = 32;
+layout (
+    local_size_x = WORK_GROUP_SIZE_X, 
+    local_size_y = 1, 
+    local_size_z = 1
+) in;
 
 void main() {
-    
+    uint instance_index = gl_GlobalInvocationID.x;
+    if (instance_index >= visible_point_cloud_instances.count) {
+        return;
+    }
+
+    uint point_cloud_instance_index = visible_point_cloud_instances.instance_indices[instance_index];
+
+    PointCloudInstance point_cloud_instance = point_cloud_instances[point_cloud_instance_index];
+    PointCloud point_cloud = point_clouds[uint(point_cloud_instance.point_cloud_index)];
+    PointCloudAttributes point_cloud_attributes = point_cloud_attributes[point_cloud.point_cloud_attributes_index];
+
+    for (uint page_index = 0; page_index < point_cloud_attributes.pages_len; page_index++) {
+        uint global_page_index = point_cloud_attributes.pages_start_offset + page_index;
+        PointCloudPage page = point_cloud_pages[global_page_index];
+
+        for (uint cluster_index = 0; cluster_index < page.clusters_len; cluster_index++) {
+            PointCloudCluster cluster = page.clusters[cluster_index];
+
+            uint allocated_index = atomicAdd(visible_point_cloud_clusters.count, 1);
+            if (allocated_index >= MAX_VISIBLE_POINT_CLOUD_CLUSTERS) {
+                return;
+            }
+
+            VkDrawIndirectCommand draw_indirect_command;
+            draw_indirect_command.vertex_count = cluster.points_len * 3;
+            draw_indirect_command.instance_count = 1;
+            draw_indirect_command.first_vertex = 0;
+            draw_indirect_command.first_instance = 0;
+
+            PointCloudClusterId cluster_id;
+            cluster_id.page_index = point_cloud_attributes.pages_start_offset + page_index;
+            cluster_id.cluster_index = cluster_index;
+
+            visible_point_cloud_clusters.draw_indirect_command = draw_indirect_command;
+            visible_point_cloud_clusters.cluster_ids[allocated_index] = cluster_id;
+        }
+    }
 }
