@@ -257,7 +257,7 @@ layout (set = 0, binding = 23) buffer PointCloudPagesActiveBuffer {
 };
 
 layout (set = 0, binding = 24) buffer StaticPointCloudPagesBuffer {
-    bool static_point_cloud_pages[MAX_POINT_CLOUD_PAGES];
+    PointCloudPage static_point_cloud_pages[MAX_POINT_CLOUD_PAGES];
 };
 
 layout (set = 0, binding = 25) buffer VisiblePointCloudInstancesBuffer {
