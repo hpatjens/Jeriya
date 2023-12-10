@@ -42,12 +42,12 @@ def write_image(colors):
 
 # Generate with https://mycolor.space/
 initial_colors = [
-    Color("#E6F800"),
-    Color("#71E05A"),
-    Color("#00BE84"),
-    Color("#009794"),
-    Color("#006F83"),
-    Color("#2F4858"),
+    Color("#DE17A2"),
+    Color("#FF3981"),
+    Color("#FF6C63"),
+    Color("#FF9E4F"),
+    Color("#FFCD51"),
+    Color("#F9F871"),
 ];
 
 STEPS = 10

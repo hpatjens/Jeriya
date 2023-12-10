@@ -337,6 +337,7 @@ where
             .layout(graphics_pipeline_layout)
             .render_pass(*renderpass.as_raw_vulkan());
 
+        info!("Create pipeline for GenericGraphicsPipeline \"{}\"", config.debug_info.name());
         let graphics_pipeline = unsafe {
             device
                 .as_raw_vulkan()
@@ -348,6 +349,8 @@ where
             debug_info: config.debug_info.clone().with_vulkan_ptr(graphics_pipeline),
             ..config.clone()
         };
+
+        info!("Done creating GenericGraphicsPipeline \"{}\"", config.debug_info.name());
         Ok(Self {
             config,
             _vertex_shader: vertex_shader,
