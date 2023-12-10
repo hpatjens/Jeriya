@@ -300,7 +300,7 @@ void main() {
 
     for (uint page_index = 0; page_index < point_cloud_attributes.pages_len; page_index++) {
         uint global_page_index = point_cloud_attributes.pages_start_offset + page_index;
-        PointCloudPage page = point_cloud_pages[global_page_index];
+        PointCloudPage page = static_point_cloud_pages[global_page_index];
 
         for (uint cluster_index = 0; cluster_index < page.clusters_len; cluster_index++) {
             PointCloudCluster cluster = page.clusters[cluster_index];
