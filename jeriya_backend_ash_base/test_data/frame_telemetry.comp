@@ -146,6 +146,7 @@ struct PointCloudPage {
 };
 
 struct PointCloudClusterId {
+    uint point_cloud_instance;
     uint page_index;
     uint cluster_index;
 };

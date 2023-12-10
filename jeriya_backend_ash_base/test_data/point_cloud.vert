@@ -147,6 +147,7 @@ struct PointCloudPage {
 };
 
 struct PointCloudClusterId {
+    uint point_cloud_instance;
     uint page_index;
     uint cluster_index;
 };
@@ -319,7 +320,6 @@ void main() {
     vec4 point_color = point_colors[global_point_color_index];
 
     float triangle_size = 0.1;
-
     const float triangle_height = 0.8660254; // h = sin(pi / 3)
     const float extent_down = 0.288675; // e = h / 3
     const float extent_up = triangle_height - extent_down;

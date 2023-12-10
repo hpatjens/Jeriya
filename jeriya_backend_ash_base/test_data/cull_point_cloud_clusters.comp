@@ -146,6 +146,7 @@ struct PointCloudPage {
 };
 
 struct PointCloudClusterId {
+    uint point_cloud_instance;
     uint page_index;
     uint cluster_index;
 };
@@ -323,6 +324,7 @@ void main() {
             draw_indirect_command.first_instance = 0;
 
             PointCloudClusterId cluster_id;
+            cluster_id.point_cloud_instance = point_cloud_instance_index;
             cluster_id.page_index = point_cloud_attributes.pages_start_offset + page_index;
             cluster_id.cluster_index = cluster_index;
 

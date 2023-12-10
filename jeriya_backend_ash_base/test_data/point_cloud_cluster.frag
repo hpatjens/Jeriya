@@ -1,6 +1,7 @@
 #version 450
 
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_ARB_shader_draw_parameters : enable
 
 layout (constant_id = 0) const uint MAX_CAMERAS = 16;
 layout (constant_id = 1) const uint MAX_CAMERA_INSTANCES = 64;
@@ -193,8 +194,8 @@ layout (set = 0, binding = 9) buffer RigidMeshes {
     RigidMesh rigid_meshes[MAX_RIGID_MESHES];
 };
 
-layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {
-    bool mesh_attributes_active[MAX_MESH_ATTRIBUTES];
+layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {  
+    bool mesh_attributes_active[MAX_MESH_ATTRIBUTES]; // bool has an alignment of 4 bytes
 };
 
 layout (set = 0, binding = 11) buffer RigidMeshInstancesBuffer {
@@ -277,83 +278,77 @@ layout (set = 0, binding = 27) buffer FrameTelemetryBuffer {
 };
 
 
+layout (location = 0) flat in PointCloudClusterId in_cluster_id;
+layout (location = 3) in vec4 in_point_color;
+layout (location = 4) in vec2 in_texcoord;
 
+layout (location = 0) out vec4 outputColor;
 
+const vec3 COLORS[] = {
+    vec3(0.9020, 0.9725, 0.0000),
+    vec3(0.8314, 0.9843, 0.0196),
+    vec3(0.7490, 0.9647, 0.0627),
+    vec3(0.6784, 0.9490, 0.1098),
+    vec3(0.6157, 0.9373, 0.1529),
+    vec3(0.5647, 0.9216, 0.1922),
+    vec3(0.5216, 0.9098, 0.2353),
+    vec3(0.4863, 0.8980, 0.2745),
+    vec3(0.4627, 0.8863, 0.3137),
+    vec3(0.4431, 0.8784, 0.3529),
+    vec3(0.4431, 0.8784, 0.3529),
+    vec3(0.3373, 0.8863, 0.2941),
+    vec3(0.2314, 0.8902, 0.2431),
+    vec3(0.1686, 0.9020, 0.2549),
+    vec3(0.1020, 0.9137, 0.2745),
+    vec3(0.0667, 0.8941, 0.3216),
+    vec3(0.0471, 0.8588, 0.3765),
+    vec3(0.0314, 0.8235, 0.4275),
+    vec3(0.0157, 0.7843, 0.4745),
+    vec3(0.0000, 0.7451, 0.5176),
+    vec3(0.0000, 0.7451, 0.5176),
+    vec3(0.0000, 0.7294, 0.5294),
+    vec3(0.0000, 0.7098, 0.5373),
+    vec3(0.0000, 0.6941, 0.5490),
+    vec3(0.0000, 0.6784, 0.5569),
+    vec3(0.0000, 0.6588, 0.5647),
+    vec3(0.0000, 0.6431, 0.5686),
+    vec3(0.0000, 0.6275, 0.5725),
+    vec3(0.0000, 0.6078, 0.5765),
+    vec3(0.0000, 0.5922, 0.5804),
+    vec3(0.0000, 0.5922, 0.5804),
+    vec3(0.0000, 0.5843, 0.5843),
+    vec3(0.0000, 0.5647, 0.5765),
+    vec3(0.0000, 0.5451, 0.5647),
+    vec3(0.0000, 0.5255, 0.5569),
+    vec3(0.0000, 0.5059, 0.5490),
+    vec3(0.0000, 0.4902, 0.5412),
+    vec3(0.0000, 0.4706, 0.5294),
+    vec3(0.0000, 0.4510, 0.5216),
+    vec3(0.0000, 0.4353, 0.5137),
+    vec3(0.0000, 0.4353, 0.5137),
+    vec3(0.0196, 0.4118, 0.4941),
+    vec3(0.0392, 0.3882, 0.4784),
+    vec3(0.0588, 0.3647, 0.4588),
+    vec3(0.0824, 0.3490, 0.4392),
+    vec3(0.1020, 0.3294, 0.4196),
+    vec3(0.1216, 0.3137, 0.4039),
+    vec3(0.1412, 0.3020, 0.3843),
+    vec3(0.1647, 0.2902, 0.3647),
+    vec3(0.1843, 0.2824, 0.3451),
+};
 
-
-
-layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
-
-/// Appends the given rigid mesh instance to the array of visible rigid mesh 
-/// instances for rendering the meshlet representation.
-void append_visible_rigid_mesh_instance(uint rigid_mesh_instance_index) {
-    uint visible_index = atomicAdd(visible_rigid_mesh_instances.count, 1);
-    uint occupied_count = visible_index + 1;
-
-    visible_rigid_mesh_instances.instance_indices[visible_index] = rigid_mesh_instance_index;
-
-    // Group size in dimension x of the compute shader for meshlet culling
-    const uint MESHLET_CULLING_GROUP_SIZE_X = 32;
-
-    // Number of required work groups in dimension x of the compute shader for meshlet culling
-    uint required_meshlet_culling_work_groups_x = (occupied_count + MESHLET_CULLING_GROUP_SIZE_X - 1) / MESHLET_CULLING_GROUP_SIZE_X;
-
-    // Update the dispatch indirect command for meshlet culling
-    atomicMax(visible_rigid_mesh_instances.dispatch_indirect_command.x, required_meshlet_culling_work_groups_x);
-    visible_rigid_mesh_instances.dispatch_indirect_command.y = 1;
-    visible_rigid_mesh_instances.dispatch_indirect_command.z = 1;
-}
-
-/// Appends the given rigid mesh instance to the array of visible rigid 
-/// mesh instances for rendering the simple mesh representation.
-void append_visible_rigid_mesh_instance_simple(
-    uint rigid_mesh_instance_index,
-    uint mesh_attributes_index
-) {
-    MeshAttributes mesh_attributes = mesh_attributes[mesh_attributes_index];
-
-    // When the mesh has indices, there must be a shader invocation 
-    // for each index instead of for each vertex.
-    uint vertex_count;
-    if (mesh_attributes.indices_len > 0) {
-        vertex_count = uint(mesh_attributes.indices_len);
-    } else {
-        vertex_count = uint(mesh_attributes.vertex_positions_len);
-    }
-
-    VkDrawIndirectCommand draw_indirect_command;
-    draw_indirect_command.vertex_count = vertex_count;
-    draw_indirect_command.instance_count = 1;
-    draw_indirect_command.first_vertex = 0;
-    draw_indirect_command.first_instance = 0;
-
-    uint allocated_index = atomicAdd(visible_rigid_mesh_instances_simple.count, 1);
-    visible_rigid_mesh_instances_simple.indirect_draw_commands[allocated_index] = draw_indirect_command;
-    visible_rigid_mesh_instances_simple.rigid_mesh_instance_indices[allocated_index] = rigid_mesh_instance_index;
+uint esgtsa(uint s) {
+    s = (s ^ 2747636419u) * 2654435769u;// % 4294967296u;
+    s = (s ^ (s >> 16u)) * 2654435769u;// % 4294967296u;
+    s = (s ^ (s >> 16u)) * 2654435769u;// % 4294967296u;
+    return s;
 }
 
 void main() {
-    uint index = gl_GlobalInvocationID.x;
-    if (index >= per_frame_data.rigid_mesh_instance_count) {
+    const float extent_down = 0.288675;
+    if (length(in_texcoord) > extent_down) {
+        discard;
         return;
     }
-
-    RigidMeshInstance rigid_mesh_instance = rigid_mesh_instances[index];
-    RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_instance.rigid_mesh_index)];
-    
-    // Ignore this instance if it's not active
-    if (!mesh_attributes_active[uint(rigid_mesh.mesh_attributes_index)]) {
-        return;
-    }
-
-    bool isVisible = true;
-    if (!isVisible) {
-        return;
-    }
-
-    if (rigid_mesh.preferred_mesh_representation == MESH_REPRESENTATION_MESHLETS) {
-        append_visible_rigid_mesh_instance(index);
-    } else if (rigid_mesh.preferred_mesh_representation == MESH_REPRESENTATION_SIMPLE) {
-        append_visible_rigid_mesh_instance_simple(index, uint(rigid_mesh.mesh_attributes_index));
-    }
+    outputColor = in_point_color;
 }

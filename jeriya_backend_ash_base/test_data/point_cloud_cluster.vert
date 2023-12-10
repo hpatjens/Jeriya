@@ -1,6 +1,7 @@
 #version 450
 
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_ARB_shader_draw_parameters : enable
 
 layout (constant_id = 0) const uint MAX_CAMERAS = 16;
 layout (constant_id = 1) const uint MAX_CAMERA_INSTANCES = 64;
@@ -193,8 +194,8 @@ layout (set = 0, binding = 9) buffer RigidMeshes {
     RigidMesh rigid_meshes[MAX_RIGID_MESHES];
 };
 
-layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {
-    bool mesh_attributes_active[MAX_MESH_ATTRIBUTES];
+layout (set = 0, binding = 10) buffer MeshAttributesActiveBuffer {  
+    bool mesh_attributes_active[MAX_MESH_ATTRIBUTES]; // bool has an alignment of 4 bytes
 };
 
 layout (set = 0, binding = 11) buffer RigidMeshInstancesBuffer {
@@ -280,80 +281,58 @@ layout (set = 0, binding = 27) buffer FrameTelemetryBuffer {
 
 
 
+layout (push_constant) uniform PushConstants {
+    uint _non_zero;
+} push_constants;
 
-
-layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
-
-/// Appends the given rigid mesh instance to the array of visible rigid mesh 
-/// instances for rendering the meshlet representation.
-void append_visible_rigid_mesh_instance(uint rigid_mesh_instance_index) {
-    uint visible_index = atomicAdd(visible_rigid_mesh_instances.count, 1);
-    uint occupied_count = visible_index + 1;
-
-    visible_rigid_mesh_instances.instance_indices[visible_index] = rigid_mesh_instance_index;
-
-    // Group size in dimension x of the compute shader for meshlet culling
-    const uint MESHLET_CULLING_GROUP_SIZE_X = 32;
-
-    // Number of required work groups in dimension x of the compute shader for meshlet culling
-    uint required_meshlet_culling_work_groups_x = (occupied_count + MESHLET_CULLING_GROUP_SIZE_X - 1) / MESHLET_CULLING_GROUP_SIZE_X;
-
-    // Update the dispatch indirect command for meshlet culling
-    atomicMax(visible_rigid_mesh_instances.dispatch_indirect_command.x, required_meshlet_culling_work_groups_x);
-    visible_rigid_mesh_instances.dispatch_indirect_command.y = 1;
-    visible_rigid_mesh_instances.dispatch_indirect_command.z = 1;
-}
-
-/// Appends the given rigid mesh instance to the array of visible rigid 
-/// mesh instances for rendering the simple mesh representation.
-void append_visible_rigid_mesh_instance_simple(
-    uint rigid_mesh_instance_index,
-    uint mesh_attributes_index
-) {
-    MeshAttributes mesh_attributes = mesh_attributes[mesh_attributes_index];
-
-    // When the mesh has indices, there must be a shader invocation 
-    // for each index instead of for each vertex.
-    uint vertex_count;
-    if (mesh_attributes.indices_len > 0) {
-        vertex_count = uint(mesh_attributes.indices_len);
-    } else {
-        vertex_count = uint(mesh_attributes.vertex_positions_len);
-    }
-
-    VkDrawIndirectCommand draw_indirect_command;
-    draw_indirect_command.vertex_count = vertex_count;
-    draw_indirect_command.instance_count = 1;
-    draw_indirect_command.first_vertex = 0;
-    draw_indirect_command.first_instance = 0;
-
-    uint allocated_index = atomicAdd(visible_rigid_mesh_instances_simple.count, 1);
-    visible_rigid_mesh_instances_simple.indirect_draw_commands[allocated_index] = draw_indirect_command;
-    visible_rigid_mesh_instances_simple.rigid_mesh_instance_indices[allocated_index] = rigid_mesh_instance_index;
-}
+layout (location = 0) flat out PointCloudClusterId out_cluster_id;
+layout (location = 3) out vec4 out_point_color;
+layout (location = 4) out vec2 out_texcoord;
 
 void main() {
-    uint index = gl_GlobalInvocationID.x;
-    if (index >= per_frame_data.rigid_mesh_instance_count) {
-        return;
+    PointCloudClusterId cluster_id = visible_point_cloud_clusters.cluster_ids[gl_DrawIDARB];
+    PointCloudPage page = static_point_cloud_pages[cluster_id.page_index];
+    PointCloudCluster cluster = page.clusters[cluster_id.cluster_index];
+
+    // ASSERT: VkDrawIndirectCommand has a vertex count that matches the cluster.
+
+    PointCloudInstance point_cloud_instance = point_cloud_instances[cluster_id.point_cloud_instance];
+    PointCloud point_cloud = point_clouds[uint(point_cloud_instance.point_cloud_index)];
+    // ASSERT: PointCloudAttributes are active.
+    PointCloudAttributes point_cloud_attributes = point_cloud_attributes[uint(point_cloud.point_cloud_attributes_index)];
+
+    uint point_index = cluster.points_start_offet + gl_VertexIndex / 3;
+    vec3 point_position = page.point_positions[point_index].xyz;
+    vec4 point_color = page.point_colors[point_index];
+
+    mat4 model_matrix = point_cloud_instance.transform;
+    mat4 view_matrix;
+    mat4 projection_matrix;
+    if (per_frame_data.active_camera_instance >= 0) {
+        CameraInstance camera_instance = camera_instances[per_frame_data.active_camera_instance];
+        Camera camera = cameras[uint(camera_instance.camera_index)];
+        view_matrix = camera_instance.view_matrix;
+        projection_matrix = camera.projection_matrix;
+    } else {
+        view_matrix = mat4(1.0);
+        projection_matrix = mat4(1.0);
     }
 
-    RigidMeshInstance rigid_mesh_instance = rigid_mesh_instances[index];
-    RigidMesh rigid_mesh = rigid_meshes[uint(rigid_mesh_instance.rigid_mesh_index)];
-    
-    // Ignore this instance if it's not active
-    if (!mesh_attributes_active[uint(rigid_mesh.mesh_attributes_index)]) {
-        return;
-    }
+    float triangle_size = 0.1;
+    const float triangle_height = 0.8660254; // h = sin(pi / 3)
+    const float extent_down = 0.288675; // e = h / 3
+    const float extent_up = triangle_height - extent_down;
+    const vec2 factors[3] = {
+        vec2(-0.5, -extent_down),
+        vec2(0.5, -extent_down),
+        vec2(0.0, extent_up),
+    };
+    vec2 factor = factors[gl_VertexIndex % 3];
 
-    bool isVisible = true;
-    if (!isVisible) {
-        return;
-    }
+    vec4 view_position = view_matrix * model_matrix * vec4(point_position, 1.0);
 
-    if (rigid_mesh.preferred_mesh_representation == MESH_REPRESENTATION_MESHLETS) {
-        append_visible_rigid_mesh_instance(index);
-    } else if (rigid_mesh.preferred_mesh_representation == MESH_REPRESENTATION_SIMPLE) {
-        append_visible_rigid_mesh_instance_simple(index, uint(rigid_mesh.mesh_attributes_index));
-    }
+    out_cluster_id = cluster_id;
+    out_point_color = point_color;
+    out_texcoord = factor;
+    gl_Position = projection_matrix * view_position + vec4(triangle_size * factor, 0.0, 0.0);
 }
