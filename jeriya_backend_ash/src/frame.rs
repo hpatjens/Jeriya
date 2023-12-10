@@ -558,8 +558,7 @@ impl Frame {
         )?;
 
         // Clear counter for the visible point cloud clusters
-        let offset = mem::size_of::<DrawIndirectCommand>() as u64;
-        builder.fill_buffer(&self.visible_point_cloud_clusters, offset, mem::size_of::<u32>() as u64, 0);
+        builder.fill_buffer(&self.visible_point_cloud_clusters, 0, mem::size_of::<u32>() as u64, 0);
 
         // Dispatch
         builder.transfer_to_compute_pipeline_barrier();
