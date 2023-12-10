@@ -230,7 +230,6 @@ pub struct PointCloudPage {
     pub points_len: u32,
     /// Number of clusters in this page. The `clusters` array must only have this many elements.
     pub clusters_len: u32,
-    pub _padding: [u32; 2],
     pub point_positions: [Vector4<f32>; Page::MAX_POINTS],
     pub point_colors: [Vector4<f32>; Page::MAX_POINTS],
     pub clusters: [PointCloudCluster; Page::MAX_CLUSTERS],
