@@ -309,7 +309,9 @@ impl ClusteredPointCloud {
                                 // neigbors as neighbors.
                                 continue;
                             }
-                            neighboring_cells.push(unique_index);
+                            if !neighboring_cells.contains(&unique_index) {
+                                neighboring_cells.push(unique_index);
+                            }
                         }
                     }
                 }
@@ -322,7 +324,7 @@ impl ClusteredPointCloud {
         // they are their neighbors. Therefore, we have to create bidirectional connections.
         cluster_graph.create_bidirectional_connections();
 
-        jeriya_shared::assert!(cluster_graph.validate(), "failed to validate ClusterGraph");
+        jeriya_shared::assert!(cluster_graph.validate_bidirectional(), "failed to validate ClusterGraph");
         if let Some(debug_directory) = debug_directory {
             let dot = cluster_graph.to_dot();
             std::fs::write(debug_directory.join("cluster_graph.dot"), dot).expect("failed to write cluster graph to file");
