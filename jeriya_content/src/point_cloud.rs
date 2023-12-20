@@ -51,18 +51,13 @@ impl PointCloud {
     }
 
     /// Creates a new [`PointCloud`] from the given [`Model`].
-    pub fn sample_from_model(model: &Model, points_per_square_unit: f32) -> Self {
+    pub fn sample_from_model(model: &Model, points_per_square_unit: f32, debug_directory: Option<&Path>) -> Self {
         let simple_point_cloud = SimplePointCloud::sample_from_model(model, points_per_square_unit);
-        let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
+        let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud, debug_directory);
         Self {
             simple_point_cloud,
             clustered_point_cloud: Some(clustered_point_cloud),
         }
-    }
-
-    /// Computes the cluster for the [`PointCloud`].
-    pub fn compute_clusters(&mut self) {
-        self.clustered_point_cloud = Some(ClusteredPointCloud::from_simple_point_cloud(&self.simple_point_cloud));
     }
 
     /// Returns a reference to the [`SimplePointCloud`]. The [`PointCloud`] might not
@@ -129,11 +124,10 @@ mod tests {
     fn test_sample_from_model() {
         env_logger::builder().filter_level(jeriya_shared::log::LevelFilter::Trace).init();
 
-        let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
-        let mut point_cloud = PointCloud::sample_from_model(&model, 200.0);
-        point_cloud.compute_clusters();
-
         let directory = create_test_result_folder_for_function(function_name!());
+
+        let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
+        let point_cloud = PointCloud::sample_from_model(&model, 200.0, Some(&directory));
 
         let config = ObjWriteConfig::Clusters(ObjClusterWriteConfig::Points { point_size: 0.02 });
         point_cloud.to_obj_file(&config, &directory.join("point_cloud.obj")).unwrap();
