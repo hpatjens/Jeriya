@@ -254,7 +254,7 @@ impl ClusteredPointCloud {
     }
 
     /// Creates a new `ClusteredPointCloud` from the given `SimplePointCloud`.
-    pub fn from_simple_point_cloud(simple_point_cloud: &SimplePointCloud) -> Self {
+    pub fn from_simple_point_cloud(simple_point_cloud: &SimplePointCloud, debug_directory: Option<&Path>) -> Self {
         let start = Instant::now();
 
         let target_points_per_cell = Cluster::MAX_POINTS;
@@ -265,7 +265,7 @@ impl ClusteredPointCloud {
             &mut Context {
                 point_positions: simple_point_cloud.point_positions(),
                 unique_index_counter: &mut AtomicUsize::new(0),
-                plot_directory: None,
+                plot_directory: debug_directory.map(Path::to_path_buf),
                 debug_hash_grid_cells: Some(&mut debug_hash_grid_cells),
             },
         );
@@ -281,11 +281,52 @@ impl ClusteredPointCloud {
             "The priority queue contains duplicate cells"
         );
 
+        // The cells are processed from the lowest levels to the highest levels. When a cell is
+        // processed, it is inserted into this HashSet so that larger cells in it's proximity
+        // don't identify this cell as a neighbor. This is likely because for larger cells, the
+        // step size for finding the neighbor might be so large that directly neighboring cells
+        // are skipped.
+        let mut processed_cells_indices = HashSet::new();
+
         let mut cluster_graph = ClusterGraph::new();
         for leaf in &priority_queue {
-            cluster_graph.push_cluster(leaf.unique_index, leaf.indices.clone(), Vec::new());
+            let mut neighboring_cells = Vec::new();
+            for x in -1..=1 {
+                for y in -1..=1 {
+                    for z in -1..=1 {
+                        if x == 0 && y == 0 && z == 0 {
+                            continue;
+                        }
+                        let neighbor_sample = Vector3::new(
+                            leaf.aabb.center().x + x as f32 * leaf.aabb.size().x,
+                            leaf.aabb.center().y + y as f32 * leaf.aabb.size().y,
+                            leaf.aabb.center().z + z as f32 * leaf.aabb.size().z,
+                        );
+                        if let Some((unique_index, _)) = hash_grid.get_leaf(neighbor_sample) {
+                            jeriya_shared::assert!(leaf.unique_index != unique_index);
+                            if processed_cells_indices.contains(&unique_index) {
+                                // We don't want to consider smaller cells that are not direct
+                                // neigbors as neighbors.
+                                continue;
+                            }
+                            neighboring_cells.push(unique_index);
+                        }
+                    }
+                }
+            }
+            processed_cells_indices.insert(leaf.unique_index);
+            cluster_graph.push_cluster(leaf.unique_index, leaf.indices.clone(), neighboring_cells);
         }
+
+        // Smaller nodes know their neighbors but larger nodes don't know smaller nodes when
+        // they are their neighbors. Therefore, we have to create bidirectional connections.
+        cluster_graph.create_bidirectional_connections();
+
         jeriya_shared::assert!(cluster_graph.validate(), "failed to validate ClusterGraph");
+        if let Some(debug_directory) = debug_directory {
+            let dot = cluster_graph.to_dot();
+            std::fs::write(debug_directory.join("cluster_graph.dot"), dot).expect("failed to write cluster graph to file");
+        }
 
         // The information from the cells is collected into the last page and when it is full,
         // a new page is created.
