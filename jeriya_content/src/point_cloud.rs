@@ -1,3 +1,4 @@
+pub mod cluster_graph;
 pub mod clustered_point_cloud;
 pub mod point_clustering_hash_grid;
 pub mod simple_point_cloud;
