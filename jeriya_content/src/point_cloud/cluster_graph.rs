@@ -75,8 +75,8 @@ impl ClusterGraph {
         }
     }
 
-    /// Returns true when all neighbors are in the graph.
-    pub fn validate(&self) -> bool {
+    /// Returns true when node a is a neighbor of node b and vice versa.
+    pub fn validate_bidirectional(&self) -> bool {
         for node in &self.nodes {
             for neighbor_unique_index in &node.neighbor_unique_indices {
                 if !self.has_node_neighbor(*neighbor_unique_index, node.unique_index).unwrap_or(false) {
@@ -90,6 +90,29 @@ impl ClusterGraph {
             }
         }
         true
+    }
+
+    /// Returns true when no node has duplicate neighbors.
+    pub fn validate_duplicates(&self) -> bool {
+        fn has_duplicate<T: PartialEq>(slice: &[T]) -> bool {
+            for i in 1..slice.len() {
+                if slice[i..].contains(&slice[i - 1]) {
+                    return true;
+                }
+            }
+            false
+        }
+        for node in &self.nodes {
+            if has_duplicate(node.neighbor_unique_indices.as_slice()) {
+                trace!("Node {} has duplicate neighbors.", node.unique_index);
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn validate(&self) -> bool {
+        self.validate_bidirectional() && self.validate_duplicates()
     }
 
     pub fn to_dot(&self) -> String {
@@ -131,7 +154,7 @@ mod tests {
         cluster_graph.push_cluster(502, vec![5], vec![500]);
 
         cluster_graph.create_bidirectional_connections();
-        assert!(cluster_graph.validate());
+        assert!(cluster_graph.validate_bidirectional());
 
         assert!(cluster_graph.has_node_neighbor(500, 501).unwrap());
         assert!(cluster_graph.has_node_neighbor(500, 502).unwrap());
