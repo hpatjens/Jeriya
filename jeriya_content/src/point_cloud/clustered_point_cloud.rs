@@ -26,7 +26,10 @@ use jeriya_shared::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::point_cloud::point_clustering_hash_grid::{CellContent, CellType, ClusterHashGrid, Context};
+use crate::point_cloud::{
+    cluster_graph::ClusterGraph,
+    point_clustering_hash_grid::{CellContent, CellType, ClusterHashGrid, Context},
+};
 
 use super::{simple_point_cloud::SimplePointCloud, DebugGeometry};
 
@@ -154,7 +157,8 @@ pub struct ClusteredPointCloud {
 
 impl ClusteredPointCloud {
     /// Creates a new `ClusteredPointCloud` from the given `SimplePointCloud`.
-    pub fn from_simple_point_cloud(simple_point_cloud: &SimplePointCloud) -> Self {
+    #[deprecated(note = "please use `from_simple_point_cloud` instead")]
+    pub fn from_simple_point_cloud_flat(simple_point_cloud: &SimplePointCloud) -> Self {
         let start = Instant::now();
 
         let target_points_per_cell = Cluster::MAX_POINTS;
@@ -237,6 +241,56 @@ impl ClusteredPointCloud {
             }
         }
 
+        info!("Number of hash grid cells for debugging: {}", debug_hash_grid_cells.len());
+        info!("Computing the clusters took {} ms", start.elapsed().as_secs_f32());
+
+        let debug_geometry = DebugGeometry {
+            hash_grid_cells: debug_hash_grid_cells,
+        };
+        Self {
+            pages,
+            debug_geometry: Some(debug_geometry),
+        }
+    }
+
+    /// Creates a new `ClusteredPointCloud` from the given `SimplePointCloud`.
+    pub fn from_simple_point_cloud(simple_point_cloud: &SimplePointCloud) -> Self {
+        let start = Instant::now();
+
+        let target_points_per_cell = Cluster::MAX_POINTS;
+        let mut debug_hash_grid_cells = Vec::new();
+
+        let hash_grid = ClusterHashGrid::from_all(
+            target_points_per_cell,
+            &mut Context {
+                point_positions: simple_point_cloud.point_positions(),
+                unique_index_counter: &mut AtomicUsize::new(0),
+                plot_directory: None,
+                debug_hash_grid_cells: Some(&mut debug_hash_grid_cells),
+            },
+        );
+
+        // Creates a priority queue that is used to process the cells starting from the lowest levels.
+        let mut priority_queue = create_priority_queue(&hash_grid);
+        jeriya_shared::assert!(
+            priority_queue.iter().all(|cell| cell.indices.len() <= Cluster::MAX_POINTS),
+            "A cell has too many points"
+        );
+        jeriya_shared::assert!(
+            priority_queue.iter().map(|cell| cell.unique_index).all_unique(),
+            "The priority queue contains duplicate cells"
+        );
+
+        let mut cluster_graph = ClusterGraph::new();
+        for leaf in &priority_queue {
+            cluster_graph.push_cluster(leaf.unique_index, leaf.indices.clone(), Vec::new());
+        }
+        jeriya_shared::assert!(cluster_graph.validate(), "failed to validate ClusterGraph");
+
+        // The information from the cells is collected into the last page and when it is full,
+        // a new page is created.
+        let mut pages = vec![Page::default()];
+        info!("Number of pages: {}", pages.len());
         info!("Number of hash grid cells for debugging: {}", debug_hash_grid_cells.len());
         info!("Computing the clusters took {} ms", start.elapsed().as_secs_f32());
 

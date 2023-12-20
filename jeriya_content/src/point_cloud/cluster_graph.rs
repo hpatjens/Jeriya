@@ -51,6 +51,21 @@ impl ClusterGraph {
         }
         true
     }
+
+    pub fn to_dot(&self) -> String {
+        let mut dot = String::new();
+        dot.push_str("graph {\n");
+        for node in &self.nodes {
+            dot.push_str(&format!("  {};\n", node.unique_index));
+        }
+        for node in &self.nodes {
+            for neighbor_unique_index in &node.neighbor_unique_indices {
+                dot.push_str(&format!("  {} -- {};\n", node.unique_index, neighbor_unique_index));
+            }
+        }
+        dot.push_str("}\n");
+        dot
+    }
 }
 
 pub struct Node {
@@ -61,6 +76,9 @@ pub struct Node {
 
 #[cfg(test)]
 mod tests {
+    use jeriya_shared::function_name;
+    use jeriya_test::create_test_result_folder_for_function;
+
     use super::*;
 
     #[test]
@@ -74,5 +92,10 @@ mod tests {
         assert!(cluster_graph.has_node_neighbor(500, 502).unwrap());
         assert!(cluster_graph.has_node_neighbor(501, 500).unwrap());
         assert!(cluster_graph.has_node_neighbor(502, 500).unwrap());
+
+        // Write dot file
+        let dot = cluster_graph.to_dot();
+        let directory = create_test_result_folder_for_function(function_name!());
+        std::fs::write(directory.join("cluster_graph.dot"), dot).unwrap();
     }
 }
