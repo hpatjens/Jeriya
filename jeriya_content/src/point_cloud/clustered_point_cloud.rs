@@ -10,7 +10,7 @@ use jeriya_shared::{
     aabb::AABB,
     colors_transform::Hsl,
     itertools::Itertools,
-    log::info,
+    log::{info, trace},
     nalgebra::Vector3,
     obj_writer::write_bounding_box_o,
     plotters::{
@@ -31,10 +31,14 @@ use crate::point_cloud::{
     point_clustering_hash_grid::{CellContent, CellType, ClusterHashGrid, Context},
 };
 
-use super::{simple_point_cloud::SimplePointCloud, DebugGeometry};
+use super::{
+    point_clustering_octree::{BuildContext, PointClusteringOctree},
+    simple_point_cloud::SimplePointCloud,
+    DebugGeometry,
+};
 
 pub enum ObjClusterWriteConfig {
-    Points { point_size: f32 },
+    Points { point_size: f32, depth: usize },
     HashGridCells,
 }
 
@@ -50,6 +54,8 @@ pub struct Cluster {
     pub center: Vector3<f32>,
     /// The radius of the cluster
     pub radius: f32,
+    /// The depth of the cluster in the tree. The root node has a depth of 0.
+    pub depth: usize,
 }
 
 impl Cluster {
@@ -99,6 +105,7 @@ impl Page {
         &mut self,
         point_positions: impl Iterator<Item = &'p Vector3<f32>> + Clone,
         point_colors: impl Iterator<Item = &'c ByteColor3> + Clone,
+        depth: usize,
     ) {
         jeriya_shared::assert!(self.has_space(), "The page is full");
         jeriya_shared::assert!(
@@ -135,6 +142,7 @@ impl Page {
             aabb,
             center,
             radius,
+            depth,
         });
     }
 
@@ -152,6 +160,7 @@ impl Page {
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct ClusteredPointCloud {
     pages: Vec<Page>,
+    max_cluster_depth: usize,
     debug_geometry: Option<DebugGeometry>,
 }
 
@@ -208,6 +217,7 @@ impl ClusteredPointCloud {
                 &pivot_cell.indices,
                 simple_point_cloud.point_positions(),
                 simple_point_cloud.point_colors(),
+                0,
             );
             processed_cells_indices.insert(pivot_cell.unique_index);
 
@@ -233,6 +243,7 @@ impl ClusteredPointCloud {
                                 points,
                                 simple_point_cloud.point_positions(),
                                 simple_point_cloud.point_colors(),
+                                0,
                             );
                             processed_cells_indices.insert(unique_index);
                         }
@@ -249,12 +260,14 @@ impl ClusteredPointCloud {
         };
         Self {
             pages,
+            max_cluster_depth: 0,
             debug_geometry: Some(debug_geometry),
         }
     }
 
     /// Creates a new `ClusteredPointCloud` from the given `SimplePointCloud`.
-    pub fn from_simple_point_cloud(simple_point_cloud: &SimplePointCloud, debug_directory: Option<&Path>) -> Self {
+    #[deprecated(note = "please use `from_simple_point_cloud` instead")]
+    pub fn from_simple_point_cloud_cluster_graph(simple_point_cloud: &SimplePointCloud, debug_directory: Option<&Path>) -> Self {
         let start = Instant::now();
 
         let target_points_per_cell = Cluster::MAX_POINTS;
@@ -342,6 +355,55 @@ impl ClusteredPointCloud {
         };
         Self {
             pages,
+            max_cluster_depth: 0,
+            debug_geometry: Some(debug_geometry),
+        }
+    }
+
+    pub fn from_simple_point_cloud(simple_point_cloud: &SimplePointCloud, debug_directory: Option<&Path>) -> Self {
+        let start = Instant::now();
+
+        let target_points_per_cell = Cluster::MAX_POINTS;
+        let mut debug_hash_grid_cells = Vec::new();
+
+        let build_parameters = &BuildContext {
+            cluster_point_count: Cluster::MAX_POINTS,
+            point_positions: simple_point_cloud.point_positions(),
+        };
+        let octree = PointClusteringOctree::new(build_parameters);
+
+        let mut cluster_counter = 0;
+        let mut pages = vec![Page::default()];
+        octree.visit_proto_clusters_breadth_first(|depth, proto_cluster| {
+            // Either take the last page or create a new one if the last page is full.
+            let has_space = pages.last().map(|page| page.has_space()).unwrap_or(false);
+            if !has_space {
+                pages.push(Page::new());
+            }
+            let page = pages.last_mut().expect("failed to get last page");
+
+            // Create and insert a new cluster into the page.
+            let positions = simple_point_cloud.point_positions();
+            let colors = simple_point_cloud.point_colors();
+            let point_positions = proto_cluster.indices.iter().map(|index| &positions[*index]);
+            let point_colors = proto_cluster.indices.iter().map(|index| &colors[*index]);
+
+            trace!("Pushing cluster with {} points", proto_cluster.indices.len());
+            page.push(point_positions, point_colors, depth);
+
+            cluster_counter += 1;
+        });
+        trace!("Number of clusters: {}", cluster_counter);
+
+        let debug_geometry = DebugGeometry {
+            hash_grid_cells: debug_hash_grid_cells,
+        };
+
+        info!("Computing the clusters took {} ms", start.elapsed().as_secs_f32());
+
+        Self {
+            pages,
+            max_cluster_depth: octree.max_proto_cluster_depth(),
             debug_geometry: Some(debug_geometry),
         }
     }
@@ -356,14 +418,30 @@ impl ClusteredPointCloud {
         self.debug_geometry.as_ref()
     }
 
+    /// Returns the maximum depth of the clusters in the `ClusteredPointCloud`.
+    pub fn max_cluster_depth(&self) -> usize {
+        self.max_cluster_depth
+    }
+
     pub fn write_statisics(&self, filepath: &impl AsRef<Path>) -> io::Result<()> {
-        let mut file = std::fs::File::create(filepath)?;
+        let cluster_count_at_depth = (0..=self.max_cluster_depth)
+            .map(|depth| {
+                self.pages
+                    .iter()
+                    .map(|page| page.clusters.iter().filter(|cluster| cluster.depth == depth).count())
+                    .sum::<usize>()
+            })
+            .collect::<Vec<_>>();
+
         #[derive(Serialize, Deserialize)]
         struct Statistics {
             pages: usize,
             clusters: usize,
             points: usize,
+            cluster_count_at_depth: Vec<usize>,
         }
+
+        let mut file = std::fs::File::create(filepath)?;
         serde_json::to_writer_pretty(
             &mut file,
             &Statistics {
@@ -374,6 +452,7 @@ impl ClusteredPointCloud {
                     .iter()
                     .map(|page| page.clusters.iter().map(|cluster| cluster.len as usize).sum::<usize>())
                     .sum(),
+                cluster_count_at_depth,
             },
         )?;
         Ok(())
@@ -457,14 +536,14 @@ impl ClusteredPointCloud {
         config: &ObjClusterWriteConfig,
     ) -> io::Result<()> {
         match config {
-            ObjClusterWriteConfig::Points { point_size } => {
+            ObjClusterWriteConfig::Points { point_size, depth } => {
                 writeln!(obj_writer, "mtllib {mtl_filename}")?;
 
                 // Write OBJ file
                 let mut vertex_index = 1;
                 let mut global_cluster_index = 0;
                 for (page_index, page) in self.pages().iter().enumerate() {
-                    for (cluster_index, cluster) in page.clusters().iter().enumerate() {
+                    for (cluster_index, cluster) in page.clusters().iter().filter(|cluster| cluster.depth == *depth).enumerate() {
                         writeln!(obj_writer, "")?;
                         writeln!(obj_writer, "# Cluster {cluster_index} in page {page_index}")?;
                         writeln!(obj_writer, "o cluster_{global_cluster_index}")?;
@@ -490,7 +569,7 @@ impl ClusteredPointCloud {
                 // Write MTL file
                 let mut global_clutser_index = 0;
                 for (page_index, page) in self.pages().iter().enumerate() {
-                    for (cluster_index, _cluster) in page.clusters().iter().enumerate() {
+                    for (cluster_index, _cluster) in page.clusters().iter().filter(|cluster| cluster.depth == *depth).enumerate() {
                         use jeriya_shared::colors_transform::Color;
                         let hue = rand::random::<f32>() * 360.0;
                         let hsv = Hsl::from(hue, 100.0, 50.0);
@@ -581,7 +660,7 @@ fn create_priority_queue(hash_grid: &ClusterHashGrid) -> Vec<LeafCell> {
 }
 
 /// Inserts the points into the page.
-fn insert_into_page(pages: &mut Vec<Page>, points: &[usize], point_positions: &[Vector3<f32>], point_colors: &[ByteColor3]) {
+fn insert_into_page(pages: &mut Vec<Page>, points: &[usize], point_positions: &[Vector3<f32>], point_colors: &[ByteColor3], depth: usize) {
     jeriya_shared::assert!(points.len() <= Cluster::MAX_POINTS, "The cluster has too many points");
 
     // When the last page is full, a new page is created.
@@ -597,5 +676,6 @@ fn insert_into_page(pages: &mut Vec<Page>, points: &[usize], point_positions: &[
     last_page.push(
         points.iter().map(|&index| &point_positions[index]),
         points.iter().map(|&index| &point_colors[index]),
+        depth,
     );
 }

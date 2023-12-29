@@ -41,6 +41,10 @@ enum ConvertType {
         /// Size of the points in the point cloud
         #[clap(short, long, default_value = "0.01")]
         point_size: f32,
+
+        /// Depth of the clusters that will be writtens
+        #[clap(short, long, default_value = "0")]
+        depth: usize,
     },
 }
 
@@ -78,14 +82,14 @@ fn main() -> ey::Result<()> {
                     .serialize_to_file(&convert.destination_filepath)
                     .wrap_err("Failed to serialize point cloud")?;
             }
-            ConvertType::PointCloudToObj { point_size } => {
+            ConvertType::PointCloudToObj { point_size, depth } => {
                 info!("Deserializing point cloud");
                 let point_cloud =
                     PointCloud::deserialize_from_file(&convert.source_filepath).wrap_err("Failed to deserialize point cloud")?;
 
                 info!("Writing point cloud to OBJ");
                 let config = if point_cloud.clustered_point_cloud().is_some() {
-                    point_cloud::ObjWriteConfig::Clusters(ObjClusterWriteConfig::Points { point_size })
+                    point_cloud::ObjWriteConfig::Clusters(ObjClusterWriteConfig::Points { point_size, depth })
                 } else {
                     point_cloud::ObjWriteConfig::SimplePointCloud(simple_point_cloud::ObjWriteConfig::Points { point_size })
                 };

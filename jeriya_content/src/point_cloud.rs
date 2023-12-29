@@ -1,6 +1,7 @@
 pub mod cluster_graph;
 pub mod clustered_point_cloud;
 pub mod point_clustering_hash_grid;
+pub mod point_clustering_octree;
 pub mod simple_point_cloud;
 
 use jeriya_shared::aabb::AABB;
@@ -127,10 +128,16 @@ mod tests {
         let directory = create_test_result_folder_for_function(function_name!());
 
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
-        let point_cloud = PointCloud::sample_from_model(&model, 200.0, Some(&directory));
+        let point_cloud = PointCloud::sample_from_model(&model, 2000.0, Some(&directory));
 
-        let config = ObjWriteConfig::Clusters(ObjClusterWriteConfig::Points { point_size: 0.02 });
-        point_cloud.to_obj_file(&config, &directory.join("point_cloud.obj")).unwrap();
+        if let Some(clustered_point_cloud) = point_cloud.clustered_point_cloud() {
+            for depth in 0..clustered_point_cloud.max_cluster_depth() {
+                let config = ObjWriteConfig::Clusters(ObjClusterWriteConfig::Points { point_size: 0.02, depth });
+                point_cloud
+                    .to_obj_file(&config, &directory.join(format!("point_cloud_depth{depth}.obj")))
+                    .unwrap();
+            }
+        }
 
         let config = ObjWriteConfig::Clusters(ObjClusterWriteConfig::HashGridCells);
         point_cloud
