@@ -222,6 +222,40 @@ impl AABB {
         other.expand_aabb(self);
     }
 
+    /// Returns the union of the given `AABB` and other value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use jeriya_shared::nalgebra::Vector3;
+    /// # use jeriya_shared::aabb::AABB;
+    /// # use jeriya_shared::float_cmp::assert_approx_eq;
+    /// let mut bounding_box1 = AABB::from_slice(&[
+    ///    Vector3::new(0.0, 0.0, 0.0),
+    ///    Vector3::new(1.0, 2.0, 3.0),
+    ///    Vector3::new(-4.0, -5.0, -6.0),
+    /// ]);
+    /// let mut bounding_box2 = AABB::from_slice(&[
+    ///    Vector3::new(0.0, 0.0, 0.0),
+    ///    Vector3::new(2.0, 3.0, 4.0),
+    ///    Vector3::new(-5.0, -6.0, -7.0),
+    /// ]);
+    ///
+    /// // Creating a new AABB from the union of two AABBs.
+    /// let result = bounding_box1.union(&bounding_box2);
+    /// assert_approx_eq!(f32, result.min.x, -5.0, ulps = 1);
+    /// assert_approx_eq!(f32, result.min.y, -6.0, ulps = 1);
+    /// assert_approx_eq!(f32, result.min.z, -7.0, ulps = 1);
+    /// assert_approx_eq!(f32, result.max.x, 2.0, ulps = 1);
+    /// assert_approx_eq!(f32, result.max.y, 3.0, ulps = 1);
+    /// assert_approx_eq!(f32, result.max.z, 4.0, ulps = 1);
+    /// ```
+    pub fn union(&self, other: &impl Include) -> AABB {
+        let mut aabb = *self;
+        aabb.include(other);
+        aabb
+    }
+
     /// Checks whether the given point in contained in the `AABB`
     ///
     /// # Examples
