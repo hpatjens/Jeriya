@@ -131,7 +131,7 @@ mod tests {
         let point_cloud = PointCloud::sample_from_model(&model, 2000.0, Some(&directory));
 
         if let Some(clustered_point_cloud) = point_cloud.clustered_point_cloud() {
-            for depth in 0..clustered_point_cloud.max_cluster_depth() {
+            for depth in 0..=clustered_point_cloud.max_cluster_depth() {
                 let config = ObjWriteConfig::Clusters(ObjClusterWriteConfig::Points { point_size: 0.02, depth });
                 point_cloud
                     .to_obj_file(&config, &directory.join(format!("point_cloud_depth{depth}.obj")))

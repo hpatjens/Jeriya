@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
 use jeriya_shared::{
     aabb::AABB,
+    itertools::Itertools,
     nalgebra::Vector3,
     rayon::iter::{IntoParallelRefIterator, ParallelIterator},
 };
@@ -12,42 +11,27 @@ pub struct BuildContext<'c> {
 }
 
 pub struct PointClusteringOctree {
-    root_node: Node,
-    node_count: usize,
+    root_proto_cluster: ProtoCluster,
     proto_cluster_count: usize,
     max_cluster_depth: usize,
 }
 
 impl PointClusteringOctree {
     pub fn new(build_context: &BuildContext) -> Self {
-        let bounds = Self::bound(&build_context.point_positions);
+        let aabb = Self::bound(&build_context.point_positions);
         let indices = (0..build_context.point_positions.len()).collect::<Vec<_>>(); // TODO: There should be a special function to build a node on all indices
-        let root_node = Self::build_node(build_context, indices, &bounds);
-        let node_count = Self::count_nodes(&root_node);
-        let proto_cluster_count = Self::count_proto_clusters(&root_node);
-        let max_cluster_depth = Self::find_max_proto_cluster_depth(&root_node);
-        let result = Self {
-            root_node,
-            node_count,
+        let root_proto_cluster = Self::build_clusters_in_aabb(build_context, indices, &aabb);
+        let proto_cluster_count = Self::count_proto_clusters(&root_proto_cluster);
+        let max_cluster_depth = Self::find_max_proto_cluster_depth(&root_proto_cluster);
+        assert_eq!(
+            max_cluster_depth, root_proto_cluster.level,
+            "mismatch between cluster depth and level"
+        );
+        Self {
+            root_proto_cluster,
             proto_cluster_count,
             max_cluster_depth,
-        };
-
-        // let mut nodes_per_depth = Vec::new();
-        // result.visit_nodes_breadth_first(|depth, _node| {
-        //     if depth >= nodes_per_depth.len() {
-        //         nodes_per_depth.push(0);
-        //     }
-        //     nodes_per_depth[depth] += 1;
-        // });
-        // info!("nodes_per_depth: {:?}", nodes_per_depth);
-
-        result
-    }
-
-    /// Returns the number of `Node`s in the `PointClusteringOctree`.
-    pub fn node_count(&self) -> usize {
-        self.node_count
+        }
     }
 
     /// Returns the number of `ProtoCluster`s in the `PointClusteringOctree`.
@@ -60,24 +44,6 @@ impl PointClusteringOctree {
         self.max_cluster_depth
     }
 
-    /// Visits all the `Node`s in the `PointClusteringOctree` in a breadth first order.
-    pub fn visit_nodes_breadth_first(&self, mut f: impl FnMut(usize, &Node)) {
-        fn visit(node: &Node, depth: usize, f: &mut impl FnMut(usize, &Node)) {
-            f(depth, node);
-            match node {
-                Node::Leaf(_) => {}
-                Node::Inner(inner_node) => {
-                    for child in &inner_node.children {
-                        if let Some(child) = child.as_ref() {
-                            visit(child, depth + 1, f);
-                        }
-                    }
-                }
-            }
-        }
-        visit(&self.root_node, 0, &mut f);
-    }
-
     /// Visits all the `ProtoCluster`s in the `PointClusteringOctree`.
     pub fn visit_proto_clusters_breadth_first(&self, mut f: impl FnMut(usize, &ProtoCluster)) {
         fn visit(proto_cluster: &ProtoCluster, depth: usize, f: &mut impl FnMut(usize, &ProtoCluster)) {
@@ -86,55 +52,25 @@ impl PointClusteringOctree {
                 visit(child, depth + 1, f);
             }
         }
-        match &self.root_node {
-            Node::Leaf(proto_cluster) => visit(proto_cluster, 0, &mut f),
-            Node::Inner(inner_node) => visit(&inner_node.root_proto_cluster, 0, &mut f),
-        }
+        visit(&self.root_proto_cluster, 0, &mut f);
     }
 
-    fn find_max_proto_cluster_depth(node: &Node) -> usize {
-        fn depth(proto_cluster: &ProtoCluster) -> usize {
-            1 + proto_cluster.children.iter().map(|child| depth(child)).max().unwrap_or(0)
-        }
-        match node {
-            Node::Leaf(proto_cluster) => depth(proto_cluster),
-            Node::Inner(inner_node) => depth(&inner_node.root_proto_cluster),
-        }
-    }
-
-    /// Returns the number of nodes in the octree.
-    fn count_nodes(node: &Node) -> usize {
-        match node {
-            Node::Leaf(_) => 1,
-            Node::Inner(inner_node) => {
-                let children_count = inner_node
-                    .children
-                    .iter()
-                    .filter_map(|child| child.as_ref())
-                    .map(|node| Self::count_nodes(&*node))
-                    .sum::<usize>();
-                1 + children_count
-            }
-        }
+    fn find_max_proto_cluster_depth(proto_cluster: &ProtoCluster) -> usize {
+        proto_cluster
+            .children
+            .iter()
+            .map(|child| 1 + Self::find_max_proto_cluster_depth(child))
+            .max()
+            .unwrap_or(0)
     }
 
     /// Returns the number of proto clusters in the octree.
-    fn count_proto_clusters(node: &Node) -> usize {
-        // The `Node` is only used as the entry point into the `ProtoCluster`s. The counting
-        // is done on the tree of `ProtoCluster`s. The number of references from the `Node`s
-        // to the `ProtoCluster`s are ignored.
-        fn count(proto_cluster: &ProtoCluster) -> usize {
-            let children_count = proto_cluster
-                .children
-                .iter()
-                .map(|proto_cluster| count(proto_cluster))
-                .sum::<usize>();
-            1 + children_count
-        }
-        match node {
-            Node::Leaf(proto_cluster) => count(proto_cluster),
-            Node::Inner(inner_node) => count(&inner_node.root_proto_cluster),
-        }
+    fn count_proto_clusters(proto_cluster: &ProtoCluster) -> usize {
+        1 + proto_cluster
+            .children
+            .iter()
+            .map(|proto_cluster| Self::count_proto_clusters(proto_cluster))
+            .sum::<usize>()
     }
 
     /// Returns the `AABB` that bounds all the points in the given `point_positions`.
@@ -187,32 +123,91 @@ impl PointClusteringOctree {
         result
     }
 
-    fn build_leaf_cluster(indices: Vec<usize>, aabb: &AABB) -> Node {
-        Node::Leaf(Arc::new(ProtoCluster {
+    fn build_leaf_cluster(indices: Vec<usize>, aabb: &AABB) -> ProtoCluster {
+        ProtoCluster {
             aabb: *aabb,
             indices,
+            level: 0,
             children: Vec::new(),
-        }))
+        }
+    }
+
+    fn merge_two_clusters(
+        build_context: &BuildContext,
+        proto_cluster_a: ProtoCluster,
+        proto_cluster_b: ProtoCluster,
+        octree_quadrant_aabb: &AABB,
+    ) -> ProtoCluster {
+        let mut indices = proto_cluster_a
+            .indices
+            .iter()
+            .chain(proto_cluster_b.indices.iter())
+            .copied()
+            .collect::<Vec<_>>();
+
+        let mut i = 0;
+        while indices.len() > build_context.cluster_point_count {
+            indices.remove(i);
+            i += 2;
+            if i >= indices.len() {
+                i = 0;
+            }
+        }
+
+        let level = 1 + proto_cluster_a.level.max(proto_cluster_b.level);
+        ProtoCluster {
+            aabb: *octree_quadrant_aabb,
+            indices,
+            level,
+            children: vec![proto_cluster_a, proto_cluster_b],
+        }
+    }
+
+    fn merge_cluster_pairs(
+        build_context: &BuildContext,
+        mut children: Vec<Option<ProtoCluster>>,
+        outer_aabb: &AABB,
+    ) -> Vec<Option<ProtoCluster>> {
+        let mut new_children = Vec::new();
+        for i in (0..children.len()).step_by(2) {
+            if i + 1 < children.len() {
+                let child_a = children[i].take().expect("failed to get some");
+                let child_b = children[i + 1].take().expect("failed to get some");
+                let merged_cluster = Self::merge_two_clusters(build_context, child_a, child_b, &outer_aabb);
+                new_children.push(Some(merged_cluster));
+            } else {
+                new_children.push(children[i].take());
+            }
+        }
+        new_children
     }
 
     /// Combines the given `nodes` into clusters.
-    fn combine_into_clusters(build_context: &BuildContext, outer_aabb: &AABB, nodes: &[Option<Box<Node>>]) -> Arc<ProtoCluster> {
+    fn combine_into_clusters(
+        build_context: &BuildContext,
+        outer_aabb: &AABB,
+        child_quadrant_clusters: [Option<ProtoCluster>; 8],
+    ) -> ProtoCluster {
+        let mut children = child_quadrant_clusters.into_iter().filter(Option::is_some).collect::<Vec<_>>();
+
+        while children.len() > 1 {
+            children = Self::merge_cluster_pairs(build_context, children, outer_aabb);
+        }
+
+        children
+            .into_iter()
+            .next()
+            .expect("failed to get first")
+            .expect("failed to get some")
+    }
+
+    /// Combines the given `nodes` into clusters.
+    fn combine_into_clusters2(build_context: &BuildContext, outer_aabb: &AABB, proto_clusters: Vec<Option<ProtoCluster>>) -> ProtoCluster {
         let mut children = Vec::new();
         let mut indices = Vec::new();
-        for node in nodes.iter().filter_map(|node| node.as_ref()).map(|node| &**node) {
-            // match node {
-            //     Node::Leaf(_) => info!("--> leaf"), // -> 770
-            //     Node::Inner(_) => {},
-            // }
-
-            children.push(match node {
-                Node::Leaf(proto_cluster) => Arc::clone(proto_cluster),
-                Node::Inner(InnerNode { root_proto_cluster, .. }) => Arc::clone(root_proto_cluster),
-            });
-            indices.extend(match node {
-                Node::Leaf(proto_cluster) => &proto_cluster.indices,
-                Node::Inner(InnerNode { root_proto_cluster, .. }) => &root_proto_cluster.indices,
-            });
+        for proto_cluster in proto_clusters.into_iter().flatten() {
+            indices.extend(&proto_cluster.indices);
+            children.push(proto_cluster);
         }
 
         // Remove every second point until the number of points is less than the cluster point count.
@@ -225,73 +220,64 @@ impl PointClusteringOctree {
             }
         }
 
-        Arc::new(ProtoCluster {
+        let level = 1 + children.iter().map(|child| child.level).max().unwrap_or(0);
+
+        ProtoCluster {
             aabb: outer_aabb.clone(),
             indices,
+            level,
             children,
-        })
+        }
     }
 
     /// Creates a node from the given points.
-    fn build_node(build_context: &BuildContext, indices: Vec<usize>, aabb: &AABB) -> Node {
+    fn build_clusters_in_aabb(build_context: &BuildContext, indices: Vec<usize>, aabb: &AABB) -> ProtoCluster {
         // When the number of points is less than the cluster point count, create a leaf cluster directly.
         if indices.len() <= build_context.cluster_point_count {
-            // trace!("--> leaf"); -> 761
-            return Self::build_leaf_cluster(indices.to_vec(), aabb);
+            return Self::build_leaf_cluster(indices, aabb);
         }
 
-        // // Sort the points into 8 groups based on the quadrant they are in
-        // let quadrants_indices = indices
-        //     .par_iter()
-        //     .fold(Self::empty_quadrants, |mut children, index| {
-        //         let point_position = &build_context.point_positions[*index];
-        //         let quadrant_index = Self::quadrant_index(point_position, &aabb);
-        //         let child = &mut children[quadrant_index];
-        //         child.push(*index);
-        //         children
-        //     })
-        //     .reduce(Self::empty_quadrants, |mut children1, children2| {
-        //         for (child1, child2) in children1.iter_mut().zip(children2.iter()) {
-        //             child1.extend(child2.iter());
-        //         }
-        //         children1
-        //     });
-        // jeriya_shared::assert_eq!(quadrants_indices.len(), 8, "there should be 8 quadrants");
-        // jeriya_shared::assert_eq!(
-        //     quadrants_indices.iter().map(|quadrant| quadrant.len()).sum::<usize>(),
-        //     indices.len(),
-        //     "the number of points in the quadrants should be equal to the number of points in the node"
-        // );
-
-        let quadrants_indices = indices.iter().fold(Self::empty_quadrants(), |mut children, index| {
-            let point_position = &build_context.point_positions[*index];
-            let quadrant_index = Self::quadrant_index(point_position, &aabb);
-            let child = &mut children[quadrant_index];
-            child.push(*index);
-            children
-        });
+        // Sort the points into 8 groups based on the quadrant they are in
+        let quadrants_indices = indices
+            .par_iter()
+            .fold(Self::empty_quadrants, |mut children, index| {
+                let point_position = &build_context.point_positions[*index];
+                let quadrant_index = Self::quadrant_index(point_position, &aabb);
+                let child = &mut children[quadrant_index];
+                child.push(*index);
+                children
+            })
+            .reduce(Self::empty_quadrants, |mut children1, children2| {
+                for (child1, child2) in children1.iter_mut().zip(children2.iter()) {
+                    child1.extend(child2.iter());
+                }
+                children1
+            });
+        jeriya_shared::assert_eq!(quadrants_indices.len(), 8, "there should be 8 quadrants");
+        jeriya_shared::assert_eq!(
+            quadrants_indices.iter().map(|quadrant| quadrant.len()).sum::<usize>(),
+            indices.len(),
+            "the number of points in the quadrants should be equal to the number of points in the node"
+        );
 
         // Create a node for each quadrant and continue recursively
-        let children_nodes = quadrants_indices
+        let child_quadrant_clusters: [Option<ProtoCluster>; 8] = quadrants_indices
             .into_iter()
             .enumerate()
-            .map(|(quadrant_index, quadrant)| {
+            .map(|(quadrant_index, quadrant_indices)| {
                 let quadrant_aabb = Self::quadrant_aabb(&aabb, quadrant_index);
-                if quadrant.is_empty() {
+                if quadrant_indices.is_empty() {
                     None
                 } else {
-                    Some(Box::new(Self::build_node(build_context, quadrant, &quadrant_aabb)))
+                    Some(Self::build_clusters_in_aabb(build_context, quadrant_indices, &quadrant_aabb))
                 }
             })
-            .collect::<Vec<_>>();
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("failed to convert quadrants into array");
 
         // Combine the nodes into a single cluster
-        let root_proto_cluster = Self::combine_into_clusters(build_context, aabb, &children_nodes);
-
-        Node::Inner(InnerNode {
-            children: children_nodes.try_into().expect("failed to convert children into array"),
-            root_proto_cluster,
-        })
+        Self::combine_into_clusters(build_context, aabb, child_quadrant_clusters)
     }
 }
 
@@ -299,19 +285,10 @@ impl PointClusteringOctree {
 pub struct ProtoCluster {
     pub aabb: AABB,
     pub indices: Vec<usize>,
-    children: Vec<Arc<ProtoCluster>>,
-}
-
-#[derive(Debug)]
-pub enum Node {
-    Leaf(Arc<ProtoCluster>),
-    Inner(InnerNode),
-}
-
-#[derive(Debug)]
-pub struct InnerNode {
-    children: [Option<Box<Node>>; 8],
-    root_proto_cluster: Arc<ProtoCluster>,
+    /// Level is 0 for the leaf clusters and the max of all children + 1 for the other clusters. This
+    /// means that it is not guaranteed that all clusters with the level 0 have the same depth.
+    pub level: usize,
+    children: Vec<ProtoCluster>,
 }
 
 #[cfg(test)]
