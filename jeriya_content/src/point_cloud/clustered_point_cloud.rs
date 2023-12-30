@@ -56,6 +56,8 @@ pub struct Cluster {
     pub radius: f32,
     /// The depth of the cluster in the tree. The root node has a depth of 0.
     pub depth: usize,
+    /// The level of the cluster in the tree. The leaf node has a level of 0.
+    pub level: usize,
 }
 
 impl Cluster {
@@ -106,6 +108,7 @@ impl Page {
         point_positions: impl Iterator<Item = &'p Vector3<f32>> + Clone,
         point_colors: impl Iterator<Item = &'c ByteColor3> + Clone,
         depth: usize,
+        level: usize,
     ) {
         jeriya_shared::assert!(self.has_space(), "The page is full");
         jeriya_shared::assert!(
@@ -143,6 +146,7 @@ impl Page {
             center,
             radius,
             depth,
+            level,
         });
     }
 
@@ -218,6 +222,7 @@ impl ClusteredPointCloud {
                 simple_point_cloud.point_positions(),
                 simple_point_cloud.point_colors(),
                 0,
+                0,
             );
             processed_cells_indices.insert(pivot_cell.unique_index);
 
@@ -243,6 +248,7 @@ impl ClusteredPointCloud {
                                 points,
                                 simple_point_cloud.point_positions(),
                                 simple_point_cloud.point_colors(),
+                                0,
                                 0,
                             );
                             processed_cells_indices.insert(unique_index);
@@ -389,7 +395,7 @@ impl ClusteredPointCloud {
             let point_colors = proto_cluster.indices.iter().map(|index| &colors[*index]);
 
             trace!("Pushing cluster with {} points", proto_cluster.indices.len());
-            page.push(point_positions, point_colors, depth);
+            page.push(point_positions, point_colors, depth, proto_cluster.level);
 
             cluster_counter += 1;
         });
@@ -660,7 +666,14 @@ fn create_priority_queue(hash_grid: &ClusterHashGrid) -> Vec<LeafCell> {
 }
 
 /// Inserts the points into the page.
-fn insert_into_page(pages: &mut Vec<Page>, points: &[usize], point_positions: &[Vector3<f32>], point_colors: &[ByteColor3], depth: usize) {
+fn insert_into_page(
+    pages: &mut Vec<Page>,
+    points: &[usize],
+    point_positions: &[Vector3<f32>],
+    point_colors: &[ByteColor3],
+    depth: usize,
+    level: usize,
+) {
     jeriya_shared::assert!(points.len() <= Cluster::MAX_POINTS, "The cluster has too many points");
 
     // When the last page is full, a new page is created.
@@ -677,5 +690,6 @@ fn insert_into_page(pages: &mut Vec<Page>, points: &[usize], point_positions: &[
         points.iter().map(|&index| &point_positions[index]),
         points.iter().map(|&index| &point_colors[index]),
         depth,
+        level,
     );
 }
