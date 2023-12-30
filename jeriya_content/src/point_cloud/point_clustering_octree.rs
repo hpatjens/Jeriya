@@ -4,9 +4,25 @@ use jeriya_shared::{
     rayon::iter::{IntoParallelRefIterator, ParallelIterator},
 };
 
+/// Information for creating the `PointClusteringOctree`.
 pub struct BuildContext<'c> {
     pub cluster_point_count: usize,
     pub point_positions: &'c [Vector3<f32>],
+}
+
+/// A `ProtoCluster` is a cluster that is not yet part of a `Page`. It contains its indices and
+/// the `AABB` of the quadrant of the octree node in which it was created.
+#[derive(Debug)]
+pub struct ProtoCluster {
+    /// The `AABB` of the quadrant of the octree node in which this cluster was created.
+    pub quadrant_aabb: AABB,
+    /// Indices of the points in the cluster. These indices point into the `point_positions` slice of the `BuildContext`.
+    pub indices: Vec<usize>,
+    /// Level is 0 for the leaf clusters and the max of all children + 1 for the other clusters. This
+    /// means that it is not guaranteed that all clusters with the level 0 have the same depth.
+    pub level: usize,
+
+    children: Vec<ProtoCluster>,
 }
 
 pub struct PointClusteringOctree {
@@ -124,7 +140,7 @@ impl PointClusteringOctree {
 
     fn build_leaf_cluster(indices: Vec<usize>, aabb: &AABB) -> ProtoCluster {
         ProtoCluster {
-            aabb: *aabb,
+            quadrant_aabb: *aabb,
             indices,
             level: 0,
             children: Vec::new(),
@@ -155,7 +171,7 @@ impl PointClusteringOctree {
 
         let level = 1 + proto_cluster_a.level.max(proto_cluster_b.level);
         ProtoCluster {
-            aabb: *octree_quadrant_aabb,
+            quadrant_aabb: *octree_quadrant_aabb,
             indices,
             level,
             children: vec![proto_cluster_a, proto_cluster_b],
@@ -249,16 +265,6 @@ impl PointClusteringOctree {
         // Combine the nodes into a single cluster
         Self::combine_into_clusters(build_context, aabb, child_quadrant_clusters)
     }
-}
-
-#[derive(Debug)]
-pub struct ProtoCluster {
-    pub aabb: AABB,
-    pub indices: Vec<usize>,
-    /// Level is 0 for the leaf clusters and the max of all children + 1 for the other clusters. This
-    /// means that it is not guaranteed that all clusters with the level 0 have the same depth.
-    pub level: usize,
-    children: Vec<ProtoCluster>,
 }
 
 #[cfg(test)]
