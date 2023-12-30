@@ -1,6 +1,5 @@
 use jeriya_shared::{
     aabb::AABB,
-    itertools::Itertools,
     nalgebra::Vector3,
     rayon::iter::{IntoParallelRefIterator, ParallelIterator},
 };
@@ -199,35 +198,6 @@ impl PointClusteringOctree {
             .next()
             .expect("failed to get first")
             .expect("failed to get some")
-    }
-
-    /// Combines the given `nodes` into clusters.
-    fn combine_into_clusters2(build_context: &BuildContext, outer_aabb: &AABB, proto_clusters: Vec<Option<ProtoCluster>>) -> ProtoCluster {
-        let mut children = Vec::new();
-        let mut indices = Vec::new();
-        for proto_cluster in proto_clusters.into_iter().flatten() {
-            indices.extend(&proto_cluster.indices);
-            children.push(proto_cluster);
-        }
-
-        // Remove every second point until the number of points is less than the cluster point count.
-        let mut i = 0;
-        while indices.len() > build_context.cluster_point_count {
-            indices.remove(i);
-            i += 2;
-            if i >= indices.len() {
-                i = 0;
-            }
-        }
-
-        let level = 1 + children.iter().map(|child| child.level).max().unwrap_or(0);
-
-        ProtoCluster {
-            aabb: outer_aabb.clone(),
-            indices,
-            level,
-            children,
-        }
     }
 
     /// Creates a node from the given points.
