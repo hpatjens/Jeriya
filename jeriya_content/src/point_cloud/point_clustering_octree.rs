@@ -147,6 +147,7 @@ impl PointClusteringOctree {
         result
     }
 
+    /// Creates a leaf cluster from the given `indices` and `aabb`.
     fn build_leaf_cluster(indices: Vec<usize>, aabb: &AABB) -> ProtoCluster {
         ProtoCluster {
             quadrant_aabb: *aabb,
@@ -156,6 +157,7 @@ impl PointClusteringOctree {
         }
     }
 
+    /// Merges the points of the two given clusters into a single cluster.
     fn merge_two_clusters(
         build_context: &BuildContext,
         proto_cluster_a: ProtoCluster,
@@ -187,6 +189,8 @@ impl PointClusteringOctree {
         }
     }
 
+    /// Merges pairs of clusters from the given `children` into single clusters.
+    /// The resulting Vec contains half as many elements as the given Vec.
     fn merge_cluster_pairs(
         build_context: &BuildContext,
         mut children: Vec<Option<ProtoCluster>>,
