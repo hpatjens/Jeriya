@@ -1,5 +1,6 @@
 use jeriya_shared::{
     aabb::AABB,
+    log::{info, trace},
     nalgebra::Vector3,
     rayon::iter::{IntoParallelRefIterator, ParallelIterator},
 };
@@ -21,10 +22,11 @@ pub struct ProtoCluster {
     /// Level is 0 for the leaf clusters and the max of all children + 1 for the other clusters. This
     /// means that it is not guaranteed that all clusters with the level 0 have the same depth.
     pub level: usize,
-
+    /// There is either one or two children per cluster
     children: Vec<ProtoCluster>,
 }
 
+/// Octree that is used for creating clusters for a point cloud.
 pub struct PointClusteringOctree {
     root_proto_cluster: ProtoCluster,
     proto_cluster_count: usize,
@@ -32,11 +34,18 @@ pub struct PointClusteringOctree {
 }
 
 impl PointClusteringOctree {
+    /// Creates a new `PointClusteringOctree` from the given `BuildContext`.
     pub fn new(build_context: &BuildContext) -> Self {
+        info!(
+            "Creating a PointClusteringOctree for {} points",
+            build_context.point_positions.len()
+        );
         let aabb = Self::bound(&build_context.point_positions);
-        let indices = (0..build_context.point_positions.len()).collect::<Vec<_>>(); // TODO: There should be a special function to build a node on all indices
+        trace!("Outer AABB of the octree: {:?}", aabb);
+        let indices = (0..build_context.point_positions.len()).collect::<Vec<_>>();
         let root_proto_cluster = Self::build_clusters_in_aabb(build_context, indices, &aabb);
         let proto_cluster_count = Self::count_proto_clusters(&root_proto_cluster);
+        info!("Created a PointClusteringOctree with {} clusters", proto_cluster_count);
         let max_cluster_depth = Self::find_max_proto_cluster_depth(&root_proto_cluster);
         assert_eq!(
             max_cluster_depth, root_proto_cluster.level,
