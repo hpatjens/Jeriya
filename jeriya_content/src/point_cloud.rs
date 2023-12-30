@@ -128,7 +128,7 @@ mod tests {
         let directory = create_test_result_folder_for_function(function_name!());
 
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
-        let point_cloud = PointCloud::sample_from_model(&model, 2000.0, Some(&directory));
+        let point_cloud = PointCloud::sample_from_model(&model, 200.0, Some(&directory));
 
         if let Some(clustered_point_cloud) = point_cloud.clustered_point_cloud() {
             for depth in 0..=clustered_point_cloud.max_cluster_depth() {
