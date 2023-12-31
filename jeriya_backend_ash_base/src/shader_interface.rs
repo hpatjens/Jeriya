@@ -221,6 +221,12 @@ pub struct PointCloudCluster {
     pub points_start_offset: u32,
     /// Number of points belonging to this cluster in the `PointCloudPage`
     pub points_len: u32,
+    /// Number of children of this cluster.
+    pub children_count: u32,
+    /// Indices of the pages containing the children of this cluster.
+    pub children_page_indices: [u32; 2],
+    /// Indices of the clusters inside the pages containing the children of this cluster.
+    pub children_cluster_indices: [u32; 2],
 }
 
 #[repr(C)]

@@ -457,6 +457,23 @@ fn handle_point_cloud_attributes_events(
                             .map(|cluster| shader_interface::PointCloudCluster {
                                 points_start_offset: cluster.index_start as u32,
                                 points_len: cluster.len as u32,
+                                children_count: cluster.children.len() as u32,
+                                children_page_indices: cluster
+                                    .children
+                                    .iter()
+                                    .map(|child| child.page_index as u32)
+                                    .chain(std::iter::repeat(u32::MAX).take(2 - cluster.children.len()))
+                                    .collect::<Vec<_>>()
+                                    .try_into()
+                                    .expect("clusters have wrong length"),
+                                children_cluster_indices: cluster
+                                    .children
+                                    .iter()
+                                    .map(|child| child.cluster_index as u32)
+                                    .chain(std::iter::repeat(u32::MAX).take(2 - cluster.children.len()))
+                                    .collect::<Vec<_>>()
+                                    .try_into()
+                                    .expect("clusters have wrong length"),
                             })
                             .chain(padding)
                             .collect::<Vec<_>>()
