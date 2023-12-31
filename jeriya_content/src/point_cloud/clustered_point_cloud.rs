@@ -43,6 +43,15 @@ pub enum ObjClusterWriteConfig {
     HashGridCells,
 }
 
+/// Index of the `Cluster` in the `ClusteredPointCloud`.
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct ClusterIndex {
+    /// Index into the `Page`s
+    pub page_index: usize,
+    /// Index into the `Cluster`s of the `Page`
+    pub cluster_index: usize,
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Cluster {
     /// Index into the `Page`'s `point_positions` and `point_colors` `Vec`s
@@ -59,6 +68,8 @@ pub struct Cluster {
     pub depth: usize,
     /// The level of the cluster in the tree. The leaf node has a level of 0.
     pub level: usize,
+    /// The children of the cluster
+    pub children: Vec<ClusterIndex>,
 }
 
 impl Cluster {
@@ -110,8 +121,10 @@ impl Page {
         point_colors: impl Iterator<Item = &'c ByteColor3> + Clone,
         depth: usize,
         level: usize,
+        children: Vec<ClusterIndex>,
     ) -> usize {
         jeriya_shared::assert!(self.has_space(), "The page is full");
+        jeriya_shared::assert!(children.len() <= 2, "too many children");
         jeriya_shared::assert!(
             point_positions.clone().into_iter().count() <= Cluster::MAX_POINTS,
             "The cluster has too many point positions"
@@ -149,6 +162,7 @@ impl Page {
             radius,
             depth,
             level,
+            children,
         });
         index
     }
@@ -226,6 +240,7 @@ impl ClusteredPointCloud {
                 simple_point_cloud.point_colors(),
                 0,
                 0,
+                Vec::new(),
             );
             processed_cells_indices.insert(pivot_cell.unique_index);
 
@@ -253,6 +268,7 @@ impl ClusteredPointCloud {
                                 simple_point_cloud.point_colors(),
                                 0,
                                 0,
+                                Vec::new(),
                             );
                             processed_cells_indices.insert(unique_index);
                         }
@@ -384,20 +400,14 @@ impl ClusteredPointCloud {
         let mut pages = vec![Page::default()];
 
         /// Packs the proto clusters into pages and returns the (page, cluster) indices of the packed cluster.
-        fn visit(
-            proto_cluster: &ProtoCluster,
-            depth: usize,
-            pages: &mut Vec<Page>,
-            simple_point_cloud: &SimplePointCloud,
-        ) -> (usize, usize) {
+        fn visit(proto_cluster: &ProtoCluster, depth: usize, pages: &mut Vec<Page>, simple_point_cloud: &SimplePointCloud) -> ClusterIndex {
             // Pack the children into pages and collect the (page, cluster) indices of the packed clusters.
             // The children have to be packed first, so that the indices of the children are known.
-            let child_page_and_cluster_indices = &proto_cluster
+            let children = proto_cluster
                 .children
                 .iter()
                 .map(|child| visit(child, depth + 1, pages, simple_point_cloud))
                 .collect_vec();
-            assert!(child_page_and_cluster_indices.len() <= 2, "more than two children");
 
             // Either take the last page or create a new one if the last page is full.
             let has_space = pages.last().map(|page| page.has_space()).unwrap_or(false);
@@ -414,9 +424,10 @@ impl ClusteredPointCloud {
             let point_colors = proto_cluster.indices.iter().map(|index| &colors[*index]);
 
             trace!("Pushing cluster with {} points", proto_cluster.indices.len());
-            let cluster_index = page.push(point_positions, point_colors, depth, proto_cluster.level);
 
-            (page_index, cluster_index)
+            let cluster_index = page.push(point_positions, point_colors, depth, proto_cluster.level, children);
+
+            ClusterIndex { page_index, cluster_index }
         }
         visit(octree.root(), 0, &mut pages, &simple_point_cloud);
 
@@ -692,6 +703,7 @@ fn insert_into_page(
     point_colors: &[ByteColor3],
     depth: usize,
     level: usize,
+    children: Vec<ClusterIndex>,
 ) {
     jeriya_shared::assert!(points.len() <= Cluster::MAX_POINTS, "The cluster has too many points");
 
@@ -710,5 +722,6 @@ fn insert_into_page(
         points.iter().map(|&index| &point_colors[index]),
         depth,
         level,
+        children,
     );
 }
