@@ -133,6 +133,9 @@ struct PointCloudInstance {
 struct PointCloudCluster {
     uint points_start_offet;
     uint points_len;
+    uint children_count;
+    uint children_page_indices[2];
+    uint children_cluster_indices[2];
 };
 
 const uint MAX_POINT_CLOUD_PAGE_POINTS = 16 * 256;
