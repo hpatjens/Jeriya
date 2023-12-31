@@ -29,6 +29,7 @@ use serde::{Deserialize, Serialize};
 use crate::point_cloud::{
     cluster_graph::ClusterGraph,
     point_clustering_hash_grid::{CellContent, CellType, ClusterHashGrid, Context},
+    point_clustering_octree::ProtoCluster,
 };
 
 use super::{
@@ -97,7 +98,7 @@ impl Page {
         &self.clusters
     }
 
-    /// Pushes a new `Cluster` to the `Page`.
+    /// Pushes a new `Cluster` to the `Page` and return the index of the cluster in the `Page`.
     ///
     /// # Panics
     ///
@@ -109,7 +110,7 @@ impl Page {
         point_colors: impl Iterator<Item = &'c ByteColor3> + Clone,
         depth: usize,
         level: usize,
-    ) {
+    ) -> usize {
         jeriya_shared::assert!(self.has_space(), "The page is full");
         jeriya_shared::assert!(
             point_positions.clone().into_iter().count() <= Cluster::MAX_POINTS,
@@ -139,6 +140,7 @@ impl Page {
             }
         });
 
+        let index = self.clusters.len();
         self.clusters.push(Cluster {
             index_start,
             len,
@@ -148,6 +150,7 @@ impl Page {
             depth,
             level,
         });
+        index
     }
 
     /// Returns `true` if the `Page` has space for another `Cluster`.
@@ -378,14 +381,30 @@ impl ClusteredPointCloud {
         };
         let octree = PointClusteringOctree::new(build_parameters);
 
-        let mut cluster_counter = 0;
         let mut pages = vec![Page::default()];
-        octree.visit_proto_clusters_breadth_first(|depth, proto_cluster| {
+
+        /// Packs the proto clusters into pages and returns the (page, cluster) indices of the packed cluster.
+        fn visit(
+            proto_cluster: &ProtoCluster,
+            depth: usize,
+            pages: &mut Vec<Page>,
+            simple_point_cloud: &SimplePointCloud,
+        ) -> (usize, usize) {
+            // Pack the children into pages and collect the (page, cluster) indices of the packed clusters.
+            // The children have to be packed first, so that the indices of the children are known.
+            let child_page_and_cluster_indices = &proto_cluster
+                .children
+                .iter()
+                .map(|child| visit(child, depth + 1, pages, simple_point_cloud))
+                .collect_vec();
+            assert!(child_page_and_cluster_indices.len() <= 2, "more than two children");
+
             // Either take the last page or create a new one if the last page is full.
             let has_space = pages.last().map(|page| page.has_space()).unwrap_or(false);
             if !has_space {
                 pages.push(Page::new());
             }
+            let page_index = pages.len() - 1;
             let page = pages.last_mut().expect("failed to get last page");
 
             // Create and insert a new cluster into the page.
@@ -395,11 +414,11 @@ impl ClusteredPointCloud {
             let point_colors = proto_cluster.indices.iter().map(|index| &colors[*index]);
 
             trace!("Pushing cluster with {} points", proto_cluster.indices.len());
-            page.push(point_positions, point_colors, depth, proto_cluster.level);
+            let cluster_index = page.push(point_positions, point_colors, depth, proto_cluster.level);
 
-            cluster_counter += 1;
-        });
-        trace!("Number of clusters: {}", cluster_counter);
+            (page_index, cluster_index)
+        }
+        visit(octree.root(), 0, &mut pages, &simple_point_cloud);
 
         let debug_geometry = DebugGeometry {
             hash_grid_cells: debug_hash_grid_cells,
