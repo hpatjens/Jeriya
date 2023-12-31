@@ -23,7 +23,7 @@ pub struct ProtoCluster {
     /// means that it is not guaranteed that all clusters with the level 0 have the same depth.
     pub level: usize,
     /// There is either one or two children per cluster
-    children: Vec<ProtoCluster>,
+    pub children: Vec<ProtoCluster>,
 }
 
 /// Octree that is used for creating clusters for a point cloud.
@@ -58,6 +58,11 @@ impl PointClusteringOctree {
         }
     }
 
+    /// Returns the root `ProtoCluster` of the `PointClusteringOctree`.
+    pub fn root(&self) -> &ProtoCluster {
+        &self.root_proto_cluster
+    }
+
     /// Returns the number of `ProtoCluster`s in the `PointClusteringOctree`.
     pub fn proto_cluster_count(&self) -> usize {
         self.proto_cluster_count
@@ -70,11 +75,12 @@ impl PointClusteringOctree {
 
     /// Visits all the `ProtoCluster`s in the `PointClusteringOctree`.
     pub fn visit_proto_clusters_breadth_first(&self, mut f: impl FnMut(usize, &ProtoCluster)) {
+        // TODO: Make this breadth first
         fn visit(proto_cluster: &ProtoCluster, depth: usize, f: &mut impl FnMut(usize, &ProtoCluster)) {
-            f(depth, proto_cluster);
             for child in &proto_cluster.children {
                 visit(child, depth + 1, f);
             }
+            f(depth, proto_cluster);
         }
         visit(&self.root_proto_cluster, 0, &mut f);
     }
