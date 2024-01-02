@@ -440,12 +440,11 @@ impl ClusteredPointCloud {
         }
         visit(octree.root(), 0, &mut pages, &simple_point_cloud);
 
-        // The clusters are collected from the octree into pages by starting the
-        // traversal at the root. Therefore, the root cluster index is (0, 0).
         let root_cluster_index = ClusterIndex {
-            page_index: 0,
-            cluster_index: 0,
+            page_index: pages.len() - 1,
+            cluster_index: pages.last().expect("failed to get last page").clusters.len() - 1,
         };
+        trace!("Root cluster index: {:?}", root_cluster_index);
 
         let debug_geometry = DebugGeometry {
             hash_grid_cells: debug_hash_grid_cells,
@@ -464,6 +463,11 @@ impl ClusteredPointCloud {
     /// Returns the `Page`s of the `ClusteredPointCloud`.
     pub fn pages(&self) -> &[Page] {
         &self.pages
+    }
+
+    /// Returns the index of the root `Cluster` in the `ClusteredPointCloud`.
+    pub fn root_cluster_index(&self) -> ClusterIndex {
+        self.root_cluster_index.clone()
     }
 
     /// Returns the `DebugGeometry` of the `ClusteredPointCloud`.

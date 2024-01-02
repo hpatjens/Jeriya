@@ -445,7 +445,9 @@ fn main() -> ey::Result<()> {
                     .with_point_colors(point_cloud.simple_point_cloud().point_colors().to_vec())
                     .with_debug_info(debug_info!("my_point_cloud_attributes"));
                 if let Some(clustered_point_cloud) = point_cloud.clustered_point_cloud() {
+                    let root_index = clustered_point_cloud.root_cluster_index();
                     point_cloud_attributes_builder = point_cloud_attributes_builder.with_pages(clustered_point_cloud.pages().to_vec());
+                    point_cloud_attributes_builder = point_cloud_attributes_builder.with_root_cluster_index(root_index);
                 }
                 let point_cloud_attributes = resource_group
                     .point_cloud_attributes()
