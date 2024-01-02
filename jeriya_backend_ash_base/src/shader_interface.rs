@@ -222,6 +222,8 @@ impl From<elements::point_cloud::PointCloudRepresentation> for PointCloudReprese
 #[repr(C)]
 #[derive(Default, Debug, Clone)]
 pub struct PointCloudCluster {
+    /// Center in xyz and radius in w
+    pub center_radius: Vector4<f32>,
     /// Index of the first point belonging to this cluster in the `PointCloudPage`
     pub points_start_offset: u32,
     /// Number of points belonging to this cluster in the `PointCloudPage`
@@ -236,6 +238,8 @@ pub struct PointCloudCluster {
     pub children_page_indices: [u32; 2],
     /// Indices of the clusters inside the pages containing the children of this cluster.
     pub children_cluster_indices: [u32; 2],
+    /// Padding to achieve 16 bytes alignment. Because the largest member in GLSL is vec4 leading to 16 bytes alignment.
+    pub padding: [u32; 3],
 }
 
 #[repr(C)]
