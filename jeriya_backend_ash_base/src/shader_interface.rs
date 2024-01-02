@@ -111,6 +111,11 @@ pub struct PointCloudAttributes {
     pub point_colors_start_offset: u32,
     pub pages_len: u32,
     pub pages_start_offset: u32,
+
+    /// Index of the page in which the root cluster is located.
+    pub root_cluster_page_index: u32,
+    /// Index of the root cluster in the page in which it is located.
+    pub root_cluster_cluster_index: u32,
 }
 
 impl Represents<resources::point_cloud_attributes::PointCloudAttributes> for PointCloudAttributes {}
