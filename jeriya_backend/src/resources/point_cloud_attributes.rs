@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use jeriya_content::point_cloud::clustered_point_cloud::Page;
+use jeriya_content::point_cloud::clustered_point_cloud::{ClusterIndex, Page};
 use jeriya_shared::{debug_info, nalgebra::Vector3, thiserror, ByteColor3, DebugInfo, Handle};
 
 use crate::gpu_index_allocator::GpuIndexAllocation;
@@ -25,6 +25,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub struct PointCloudAttributes {
     point_positions: Vec<Vector3<f32>>,
     point_colors: Vec<ByteColor3>,
+    root_cluster_index: ClusterIndex,
     pages: Vec<Page>,
     handle: Handle<Arc<PointCloudAttributes>>,
     gpu_index_allocation: GpuIndexAllocation<PointCloudAttributes>,
@@ -50,6 +51,11 @@ impl PointCloudAttributes {
     /// Returns the pages of the `PointCloudAttributes`
     pub fn pages(&self) -> &[Page] {
         &self.pages
+    }
+
+    /// Returns the root cluster index of the `PointCloudAttributes`
+    pub fn root_cluster_index(&self) -> ClusterIndex {
+        self.root_cluster_index.clone()
     }
 
     /// Returns the [`Handle`] of the `PointCloudAttributes`
@@ -82,6 +88,7 @@ pub struct PointCloudAttributesBuilder {
     point_positions: Option<Vec<Vector3<f32>>>,
     point_colors: Option<Vec<ByteColor3>>,
     pages: Option<Vec<Page>>,
+    root_cluster_index: Option<ClusterIndex>,
     debug_info: Option<DebugInfo>,
 }
 
@@ -101,6 +108,12 @@ impl PointCloudAttributesBuilder {
     /// Sets the pages of the [`PointCloudAttributes`]
     pub fn with_pages(mut self, pages: Vec<Page>) -> Self {
         self.pages = Some(pages);
+        self
+    }
+
+    /// Sets the root cluster index of the [`PointCloudAttributes`]
+    pub fn with_root_cluster_index(mut self, root_cluster_index: ClusterIndex) -> Self {
+        self.root_cluster_index = Some(root_cluster_index);
         self
     }
 
@@ -125,6 +138,7 @@ impl PointCloudAttributesBuilder {
         Ok(PointCloudAttributes {
             point_positions,
             point_colors,
+            root_cluster_index: self.root_cluster_index.unwrap_or_default(),
             pages: self.pages.unwrap_or_default(),
             handle,
             gpu_index_allocation,

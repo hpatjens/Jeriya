@@ -508,6 +508,8 @@ fn handle_point_cloud_attributes_events(
                     point_colors_start_offset,
                     pages_len,
                     pages_start_offset,
+                    root_cluster_page_index: point_cloud_attributes.root_cluster_index().page_index as u32,
+                    root_cluster_cluster_index: point_cloud_attributes.root_cluster_index().cluster_index as u32,
                 };
                 info!("Inserting a new PointCloudAttributes: {point_cloud_attributes_gpu:#?}",);
                 backend_shared

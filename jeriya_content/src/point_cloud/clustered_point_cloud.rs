@@ -180,6 +180,7 @@ impl Page {
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct ClusteredPointCloud {
+    root_cluster_index: ClusterIndex,
     pages: Vec<Page>,
     max_cluster_depth: usize,
     debug_geometry: Option<DebugGeometry>,
@@ -284,6 +285,10 @@ impl ClusteredPointCloud {
             hash_grid_cells: debug_hash_grid_cells,
         };
         Self {
+            root_cluster_index: ClusterIndex {
+                page_index: 0,
+                cluster_index: 0,
+            },
             pages,
             max_cluster_depth: 0,
             debug_geometry: Some(debug_geometry),
@@ -379,6 +384,10 @@ impl ClusteredPointCloud {
             hash_grid_cells: debug_hash_grid_cells,
         };
         Self {
+            root_cluster_index: ClusterIndex {
+                page_index: 0,
+                cluster_index: 0,
+            },
             pages,
             max_cluster_depth: 0,
             debug_geometry: Some(debug_geometry),
@@ -399,7 +408,7 @@ impl ClusteredPointCloud {
 
         let mut pages = vec![Page::default()];
 
-        /// Packs the proto clusters into pages and returns the (page, cluster) indices of the packed cluster.
+        // Packs the proto clusters into pages and returns the (page, cluster) indices of the packed cluster.
         fn visit(proto_cluster: &ProtoCluster, depth: usize, pages: &mut Vec<Page>, simple_point_cloud: &SimplePointCloud) -> ClusterIndex {
             // Pack the children into pages and collect the (page, cluster) indices of the packed clusters.
             // The children have to be packed first, so that the indices of the children are known.
@@ -431,6 +440,13 @@ impl ClusteredPointCloud {
         }
         visit(octree.root(), 0, &mut pages, &simple_point_cloud);
 
+        // The clusters are collected from the octree into pages by starting the
+        // traversal at the root. Therefore, the root cluster index is (0, 0).
+        let root_cluster_index = ClusterIndex {
+            page_index: 0,
+            cluster_index: 0,
+        };
+
         let debug_geometry = DebugGeometry {
             hash_grid_cells: debug_hash_grid_cells,
         };
@@ -438,6 +454,7 @@ impl ClusteredPointCloud {
         info!("Computing the clusters took {} ms", start.elapsed().as_secs_f32());
 
         Self {
+            root_cluster_index,
             pages,
             max_cluster_depth: octree.max_proto_cluster_depth(),
             debug_geometry: Some(debug_geometry),
