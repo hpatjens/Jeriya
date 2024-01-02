@@ -131,14 +131,17 @@ struct PointCloudInstance {
     mat4 transform;
 };
 
+// alignment of 16 bytes
 struct PointCloudCluster {
-    uint points_start_offet;
-    uint points_len;
-    uint level;
-    uint depth;
-    uint children_count;
-    uint children_page_indices[2];
-    uint children_cluster_indices[2];
+    vec4 center_radius;                     // 16 bytes     0-15
+    uint points_start_offet;                // 4 bytes      16-19
+    uint points_len;                        // 4 bytes      20-23
+    uint level;                             // 4 bytes      24-27
+    uint depth;                             // 4 bytes      28-31
+    uint children_count;                    // 4 bytes      32-35
+    uint children_page_indices[2];          // 8 bytes      36-43
+    uint children_cluster_indices[2];       // 8 bytes      44-51
+    uint padding[3];                        // 12 bytes     52-63
 };
 
 const uint MAX_POINT_CLOUD_PAGE_POINTS = 16 * 256;

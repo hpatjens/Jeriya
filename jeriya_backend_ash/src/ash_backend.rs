@@ -455,6 +455,7 @@ fn handle_point_cloud_attributes_events(
                             .clusters()
                             .iter()
                             .map(|cluster| shader_interface::PointCloudCluster {
+                                center_radius: Vector4::new(cluster.center.x, cluster.center.y, cluster.center.z, cluster.radius),
                                 points_start_offset: cluster.index_start as u32,
                                 points_len: cluster.len as u32,
                                 level: cluster.level as u32,
@@ -476,6 +477,7 @@ fn handle_point_cloud_attributes_events(
                                     .collect::<Vec<_>>()
                                     .try_into()
                                     .expect("clusters have wrong length"),
+                                padding: [0; 3],
                             })
                             .chain(padding)
                             .collect::<Vec<_>>()
