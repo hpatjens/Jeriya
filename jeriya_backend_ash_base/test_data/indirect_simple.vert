@@ -135,6 +135,8 @@ struct PointCloudInstance {
 struct PointCloudCluster {
     uint points_start_offet;
     uint points_len;
+    uint level;
+    uint depth;
     uint children_count;
     uint children_page_indices[2];
     uint children_cluster_indices[2];

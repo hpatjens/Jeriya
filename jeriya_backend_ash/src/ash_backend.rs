@@ -49,7 +49,7 @@ use jeriya_content::{model::Meshlet, point_cloud::clustered_point_cloud::Page};
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
-    log::{error, info},
+    log::{error, info, trace},
     nalgebra::Vector4,
     tracy_client::Client,
     winit::window::WindowId,
@@ -457,6 +457,8 @@ fn handle_point_cloud_attributes_events(
                             .map(|cluster| shader_interface::PointCloudCluster {
                                 points_start_offset: cluster.index_start as u32,
                                 points_len: cluster.len as u32,
+                                level: cluster.level as u32,
+                                depth: cluster.depth as u32,
                                 children_count: cluster.children.len() as u32,
                                 children_page_indices: cluster
                                     .children
@@ -511,6 +513,12 @@ fn handle_point_cloud_attributes_events(
                     root_cluster_page_index: point_cloud_attributes.root_cluster_index().page_index as u32,
                     root_cluster_cluster_index: point_cloud_attributes.root_cluster_index().cluster_index as u32,
                 };
+                trace!("Root cluster page index: {}", point_cloud_attributes_gpu.root_cluster_page_index);
+                trace!(
+                    "Root cluster cluster index: {}",
+                    point_cloud_attributes_gpu.root_cluster_cluster_index
+                );
+
                 info!("Inserting a new PointCloudAttributes: {point_cloud_attributes_gpu:#?}",);
                 backend_shared
                     .point_cloud_attributes_buffer
