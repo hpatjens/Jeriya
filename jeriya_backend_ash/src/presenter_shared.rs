@@ -65,6 +65,7 @@ pub struct GraphicsPipelines {
     pub indirect_meshlet_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
     pub point_cloud_graphics_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
     pub point_cloud_clusters_graphics_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
+    pub device_local_debug_lines_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
 }
 
 impl GraphicsPipelines {
@@ -232,6 +233,18 @@ impl GraphicsPipelines {
             GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
         };
 
+        info!("Create Device Local Debug Line Pipeline");
+        let device_local_debug_line_pipeline = {
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("device_local_debug_line.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("device_local_debug_line.frag.spv")),
+                primitive_topology: PrimitiveTopology::LineList,
+                debug_info: debug_info!(format!("Device-Local-Debug-Line-Pipeline-for-Window{:?}", window_id)),
+                ..Default::default()
+            };
+            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
+        };
+
         Ok(Self {
             simple_graphics_pipeline,
             immediate_graphics_pipeline_line_list,
@@ -247,6 +260,7 @@ impl GraphicsPipelines {
             indirect_meshlet_graphics_pipeline,
             point_cloud_graphics_pipeline,
             point_cloud_clusters_graphics_pipeline,
+            device_local_debug_lines_pipeline: device_local_debug_line_pipeline,
         })
     }
 }
