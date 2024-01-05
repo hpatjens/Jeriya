@@ -74,6 +74,10 @@ pub struct Frame {
     /// and the indices of the visible point cloud clusters.
     visible_point_cloud_clusters: Arc<DeviceVisibleBuffer<u32>>,
 
+    /// Buffer to which lines for debugging are written.
+    /// Layout: [line1_start, line1_end, line1_color, line2_start, ...]
+    device_local_debug_lines_buffer: Arc<DeviceVisibleBuffer<f32>>,
+
     transactions: VecDeque<Transaction>,
 }
 
@@ -267,6 +271,19 @@ impl Frame {
             debug_info!(format!("VisiblePointCloudClustersBuffer-for-Window{:?}", window_id)),
         )?;
 
+        info!("Create device local debug lines buffer");
+        let component_count = 3 + 3 + 4; // start, end, color
+        let byte_size_line = component_count * mem::size_of::<f32>();
+        let byte_size_count = mem::size_of::<u32>();
+        let byte_size_debug_lines =
+            byte_size_count + backend_shared.renderer_config.maximum_number_of_device_local_debug_lines * byte_size_line;
+        let device_local_debug_lines_buffer = DeviceVisibleBuffer::new(
+            &backend_shared.device,
+            byte_size_debug_lines,
+            BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT,
+            debug_info!(format!("DeviceLocalDebugLinesBuffer-for-Window{:?}", window_id)),
+        )?;
+
         Ok(Self {
             presenter_index,
             image_available_semaphore: None,
@@ -288,6 +305,7 @@ impl Frame {
             visible_point_cloud_instances_simple,
             visible_point_cloud_instances,
             visible_point_cloud_clusters,
+            device_local_debug_lines_buffer,
             transactions: VecDeque::new(),
         })
     }
@@ -386,6 +404,10 @@ impl Frame {
 
         // Image transition to optimal layout
         builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(&presenter_shared.frame_index))?;
+
+        // Reset device local debug lines buffer
+        builder.fill_buffer(&self.device_local_debug_lines_buffer, 0, mem::size_of::<u32>() as u64, 0);
+        builder.bottom_to_top_pipeline_barrier();
 
         // Rigid Mesh Culling
         //
@@ -910,6 +932,7 @@ impl Frame {
             .push_storage_buffer(25, &self.visible_point_cloud_instances)
             .push_storage_buffer(26, &self.visible_point_cloud_clusters)
             .push_storage_buffer(27, &self.frame_telemetry_buffer)
+            .push_storage_buffer(28, &self.device_local_debug_lines_buffer)
             .build();
         command_buffer_builder.push_descriptors(0, pipeline_bind_point, push_descriptors)?;
         Ok(())
