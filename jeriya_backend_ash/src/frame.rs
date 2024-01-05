@@ -275,12 +275,13 @@ impl Frame {
         let component_count = 3 + 3 + 4; // start, end, color
         let byte_size_line = component_count * mem::size_of::<f32>();
         let byte_size_count = mem::size_of::<u32>();
-        let byte_size_debug_lines =
-            byte_size_count + backend_shared.renderer_config.maximum_number_of_device_local_debug_lines * byte_size_line;
+        let byte_size_draw_indirect_command = mem::size_of::<DrawIndirectCommand>();
+        let byte_size_debug_lines = backend_shared.renderer_config.maximum_number_of_device_local_debug_lines * byte_size_line;
+        let byte_size = byte_size_draw_indirect_command + byte_size_count + byte_size_debug_lines;
         let device_local_debug_lines_buffer = DeviceVisibleBuffer::new(
             &backend_shared.device,
-            byte_size_debug_lines,
-            BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT,
+            byte_size,
+            BufferUsageFlags::STORAGE_BUFFER | BufferUsageFlags::TRANSFER_DST_BIT | BufferUsageFlags::INDIRECT_BUFFER,
             debug_info!(format!("DeviceLocalDebugLinesBuffer-for-Window{:?}", window_id)),
         )?;
 
@@ -595,6 +596,10 @@ impl Frame {
 
         drop(cull_point_cloud_clusters_span);
 
+        // This barrier exists because the device local debug lines buffer is used
+        // in the render pass. The barrier shouldn't be active in production code.
+        builder.bottom_to_top_pipeline_barrier();
+
         // Render Pass
         builder.begin_render_pass(
             presenter_shared.swapchain(),
@@ -699,6 +704,27 @@ impl Frame {
 
         // Render with ImmediateRenderingPipeline
         self.append_immediate_rendering_commands(backend_shared, presenter_shared, &mut builder, immediate_rendering_frames)?;
+
+        // Render device local debug lines
+        let device_local_debug_lines_span = jeriya_shared::span!("record device local debug lines commands");
+        builder.bind_graphics_pipeline(&presenter_shared.graphics_pipelines.device_local_debug_lines_pipeline);
+        self.push_descriptors(
+            PipelineBindPoint::Graphics,
+            &presenter_shared
+                .graphics_pipelines
+                .device_local_debug_lines_pipeline
+                .descriptor_set_layout,
+            backend_shared,
+            &mut builder,
+        )?;
+        builder.draw_indirect_count(
+            &self.device_local_debug_lines_buffer,
+            mem::size_of::<u32>() as u64,
+            &self.device_local_debug_lines_buffer,
+            0,
+            backend_shared.renderer_config.maximum_number_of_device_local_debug_lines,
+        );
+        drop(device_local_debug_lines_span);
 
         builder.end_render_pass()?;
 

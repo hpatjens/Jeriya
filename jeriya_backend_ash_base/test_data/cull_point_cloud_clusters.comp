@@ -288,7 +288,8 @@ layout (set = 0, binding = 27) buffer FrameTelemetryBuffer {
 };
 
 layout (set = 0, binding = 28) buffer DeviceLocalDebugLineBuffer {
-    uint count;
+    uint count; // this is the requested number of lines which might be higher than the actually draw number
+    VkDrawIndirectCommand draw_indirect_command;
     float lines[MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT];
 } device_local_debug_lines;
 
@@ -299,6 +300,12 @@ void push_debug_line(vec3 start, vec3 end, vec4 color) {
         atomicMax(device_local_debug_lines.count, MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT);
         return;
     }
+
+    device_local_debug_lines.draw_indirect_command.vertex_count = atomicAdd(device_local_debug_lines.count, 2);
+    device_local_debug_lines.draw_indirect_command.instance_count = 1;
+    device_local_debug_lines.draw_indirect_command.first_vertex = 0;
+    device_local_debug_lines.draw_indirect_command.first_instance = 0;
+
     const uint COMPONENTS_PER_LINE = 10; // 3 start, 3 end, 4 color
     device_local_debug_lines.lines[index + 0] = start.x;
     device_local_debug_lines.lines[index + 1] = start.y;
@@ -371,7 +378,7 @@ void main() {
     visible_point_cloud_clusters.cluster_ids[allocated_index] = cluster_id;
 
 
-
+    
 
     // for (uint page_index = 1; page_index < point_cloud_attributes.pages_len; page_index++) {
     //     uint global_page_index = point_cloud_attributes.pages_start_offset + page_index;
