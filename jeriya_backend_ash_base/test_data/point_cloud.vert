@@ -176,6 +176,8 @@ layout (set = 0, binding = 0) uniform PerFrameData {
     uint rigid_mesh_count;
     uint rigid_mesh_instance_count;
     uint point_cloud_instance_count;
+    uint framebuffer_width;
+    uint framebuffer_height;
 } per_frame_data;
 
 layout (set = 0, binding = 1) buffer Cameras { 

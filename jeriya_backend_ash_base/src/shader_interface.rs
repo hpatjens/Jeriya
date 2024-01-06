@@ -47,6 +47,8 @@ pub struct PerFrameData {
     pub rigid_mesh_count: u32,
     pub rigid_mesh_instance_count: u32,
     pub point_cloud_instance_count: u32,
+    pub framebuffer_width: u32,
+    pub framebuffer_height: u32,
 }
 
 #[repr(C)]
