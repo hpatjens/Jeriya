@@ -51,6 +51,9 @@ struct FrameTelemetry {
 
 struct Camera {
     mat4 projection_matrix;
+    float znear;
+    float zfar;
+    float padding[14];
 };
 
 struct CameraInstance {
