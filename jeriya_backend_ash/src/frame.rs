@@ -717,13 +717,7 @@ impl Frame {
             backend_shared,
             &mut builder,
         )?;
-        builder.draw_indirect_count(
-            &self.device_local_debug_lines_buffer,
-            mem::size_of::<u32>() as u64,
-            &self.device_local_debug_lines_buffer,
-            0,
-            backend_shared.renderer_config.maximum_number_of_device_local_debug_lines,
-        );
+        builder.draw_indirect(&self.device_local_debug_lines_buffer, mem::size_of::<u32>() as u64, 1);
         drop(device_local_debug_lines_span);
 
         builder.end_render_pass()?;
