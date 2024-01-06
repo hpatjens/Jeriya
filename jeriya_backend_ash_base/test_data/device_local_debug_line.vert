@@ -20,6 +20,7 @@ layout (constant_id = 11) const uint MAX_POINT_CLOUD_PAGES = 16384;
 layout (constant_id = 14) const uint MAX_VISIBLE_POINT_CLOUD_CLUSTERS = 16384;
 layout (constant_id = 15) const uint MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT = 1024;
 
+
 struct FrameTelemetry {
     uint max_cameras;
     uint max_camera_instances;
@@ -294,6 +295,8 @@ layout (set = 0, binding = 28) buffer DeviceLocalDebugLineBuffer {
     float lines[MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT];
 } device_local_debug_lines;
 
+const uint DEVICE_LOCAL_DEBUG_LINES_COMPONENTS_PER_LINE = 10; // 3 start, 3 end, 4 color
+
 void push_debug_line(vec3 start, vec3 end, vec4 color) {
     uint index = atomicAdd(device_local_debug_lines.count, 1);
     if (index >= MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT) {
@@ -307,17 +310,17 @@ void push_debug_line(vec3 start, vec3 end, vec4 color) {
     device_local_debug_lines.draw_indirect_command.first_vertex = 0;
     device_local_debug_lines.draw_indirect_command.first_instance = 0;
 
-    const uint COMPONENTS_PER_LINE = 10; // 3 start, 3 end, 4 color
-    device_local_debug_lines.lines[index + 0] = start.x;
-    device_local_debug_lines.lines[index + 1] = start.y;
-    device_local_debug_lines.lines[index + 2] = start.z;
-    device_local_debug_lines.lines[index + 3] = end.x;
-    device_local_debug_lines.lines[index + 4] = end.y;
-    device_local_debug_lines.lines[index + 5] = end.z;
-    device_local_debug_lines.lines[index + 6] = color.r;
-    device_local_debug_lines.lines[index + 7] = color.g;
-    device_local_debug_lines.lines[index + 8] = color.b;
-    device_local_debug_lines.lines[index + 9] = color.a;
+    const uint C = DEVICE_LOCAL_DEBUG_LINES_COMPONENTS_PER_LINE;
+    device_local_debug_lines.lines[C * index + 0] = start.x;
+    device_local_debug_lines.lines[C * index + 1] = start.y;
+    device_local_debug_lines.lines[C * index + 2] = start.z;
+    device_local_debug_lines.lines[C * index + 3] = end.x;
+    device_local_debug_lines.lines[C * index + 4] = end.y;
+    device_local_debug_lines.lines[C * index + 5] = end.z;
+    device_local_debug_lines.lines[C * index + 6] = color.r;
+    device_local_debug_lines.lines[C * index + 7] = color.g;
+    device_local_debug_lines.lines[C * index + 8] = color.b;
+    device_local_debug_lines.lines[C * index + 9] = color.a;
 }
 
 
@@ -333,4 +336,5 @@ layout (push_constant) uniform PushConstants {
 
 void main() {
     
+
 }
