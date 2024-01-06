@@ -20,6 +20,10 @@ layout (constant_id = 11) const uint MAX_POINT_CLOUD_PAGES = 16384;
 layout (constant_id = 14) const uint MAX_VISIBLE_POINT_CLOUD_CLUSTERS = 16384;
 layout (constant_id = 15) const uint MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT = 1024;
 
+const float TAU = 6.283184;
+const float PI = 3.141592;
+
+
 
 struct FrameTelemetry {
     uint max_cameras;
@@ -315,7 +319,7 @@ void push_debug_line(vec3 start, vec3 end, vec4 color) {
         return;
     }
 
-    device_local_debug_lines.draw_indirect_command.vertex_count = atomicAdd(device_local_debug_lines.count, 2);
+    atomicAdd(device_local_debug_lines.draw_indirect_command.vertex_count, 2);
     device_local_debug_lines.draw_indirect_command.instance_count = 1;
     device_local_debug_lines.draw_indirect_command.first_vertex = 0;
     device_local_debug_lines.draw_indirect_command.first_instance = 0;
@@ -331,6 +335,24 @@ void push_debug_line(vec3 start, vec3 end, vec4 color) {
     device_local_debug_lines.lines[C * index + 7] = color.g;
     device_local_debug_lines.lines[C * index + 8] = color.b;
     device_local_debug_lines.lines[C * index + 9] = color.a;
+}
+
+/// Pushes a rectangle in ndc on the xy plane with z = 0.0 to the debug line buffer.
+void push_debug_ndc_aabb2(AABB2 aabb, vec4 min_color, vec4 max_color) {
+    vec3 ll = vec3(aabb.min.x, aabb.min.y, 0.0); // lower left
+    vec3 ul = vec3(aabb.min.x, aabb.max.y, 0.0);
+    vec3 lr = vec3(aabb.max.x, aabb.min.y, 0.0);
+    vec3 ur = vec3(aabb.max.x, aabb.max.y, 0.0);
+    push_debug_line(ll, lr, min_color);
+    push_debug_line(lr, ur, max_color);
+    push_debug_line(ur, ul, max_color);
+    push_debug_line(ul, ll, min_color);
+}
+
+/// Pushes a diagonal cross in ndc on the xy plane with z = 0.0 to the debug line buffer.
+void push_debug_ndc_cross(vec3 position, float size, vec4 color) {
+    push_debug_line(position + vec3(-size, -size, 0.0), position + vec3(size, size, 0.0), color);
+    push_debug_line(position + vec3(-size, size, 0.0), position + vec3(size, -size, 0.0), color);
 }
 
 /// Returns the view projection matrix of the active camera or the identity matrix if there is no active camera.
