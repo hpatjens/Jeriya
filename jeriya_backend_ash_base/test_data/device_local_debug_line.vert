@@ -302,6 +302,11 @@ const uint DEVICE_LOCAL_DEBUG_LINES_COMPONENTS_PER_LINE = 10; // 3 start, 3 end,
 
 /// Pushes a debug line to the device local debug line buffer. These lines will be rendered at the end of the frame.
 /// It might not be possible to draw lines from all shaders with correct synchronization.
+struct AABB2 {
+    vec2 min;
+    vec2 max;
+};
+
 void push_debug_line(vec3 start, vec3 end, vec4 color) {
     uint index = atomicAdd(device_local_debug_lines.count, 1);
     if (index >= MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT) {
@@ -357,6 +362,16 @@ mat4 active_camera_projection_matrix() {
     return mat4(1.0);
 }
 
+/// Returns the near plane of the active camera or -1.0 if there is no active camera.
+float active_camera_znear() {
+    if (per_frame_data.active_camera_instance >= 0) {
+        CameraInstance camera_instance = camera_instances[per_frame_data.active_camera_instance];
+        Camera camera = cameras[uint(camera_instance.camera_index)];
+        return camera.znear;
+    }
+    return -1.0;
+}
+
 
 
 
@@ -371,7 +386,7 @@ void main() {
     const uint C = DEVICE_LOCAL_DEBUG_LINES_COMPONENTS_PER_LINE;
 
     bool is_start_vertex = gl_VertexIndex % 2 == 0;
-    uint line_index = is_start_vertex ? gl_VertexIndex : gl_VertexIndex - 1;
+    uint line_index = is_start_vertex ? gl_VertexIndex / 2 : (gl_VertexIndex - 1) / 2;
 
     // Set vertex position
     if (is_start_vertex) {
