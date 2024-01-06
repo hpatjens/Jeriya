@@ -53,6 +53,9 @@ pub struct PerFrameData {
 #[derive(Debug, Clone)]
 pub struct Camera {
     pub projection_matrix: Matrix4<f32>,
+    pub znear: f32,
+    pub zfar: f32,
+    pub _padding: [f32; 14], // required because the largest member determines the alignment in arrays in GLSL
 }
 
 impl Represents<elements::camera::Camera> for Camera {}
@@ -61,6 +64,9 @@ impl Default for Camera {
     fn default() -> Self {
         Self {
             projection_matrix: Matrix4::identity(),
+            znear: -1.0,
+            zfar: 1.0,
+            _padding: [0.0; 14],
         }
     }
 }

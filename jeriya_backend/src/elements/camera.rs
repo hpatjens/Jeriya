@@ -17,7 +17,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Event {
     Noop,
     Insert(Camera),
-    UpdateProjectionMatrix(GpuIndexAllocation<Camera>, Matrix4<f32>),
+    UpdateProjection(GpuIndexAllocation<Camera>, CameraProjection),
 }
 
 /// Type of projection for a camera.
@@ -52,6 +52,22 @@ impl CameraProjection {
                 far,
             } => nalgebra_glm::ortho_rh_zo(left, right, bottom, top, near, far),
             CameraProjection::Perspective { fov, aspect, near, far } => nalgebra_glm::perspective_rh_zo(aspect, fov, near, far),
+        }
+    }
+
+    /// Returns the value of the near plane for `CameraProjection`.
+    pub fn znear(&self) -> f32 {
+        match *self {
+            CameraProjection::Orthographic { near, .. } => near,
+            CameraProjection::Perspective { near, .. } => near,
+        }
+    }
+
+    /// Returns the value of the far plane for `CameraProjection`.
+    pub fn zfar(&self) -> f32 {
+        match *self {
+            CameraProjection::Orthographic { far, .. } => far,
+            CameraProjection::Perspective { far, .. } => far,
         }
     }
 }
@@ -119,11 +135,10 @@ impl<'g, 't, P: PushEvent> CameraAccessMut<'g, 't, P> {
     /// Sets the [`CameraProjection`] of the [`Camera`].
     pub fn set_projection(&mut self, projection: CameraProjection) {
         self.camera.projection = projection;
-        self.transaction
-            .push_event(transactions::Event::Camera(Event::UpdateProjectionMatrix(
-                self.camera.gpu_index_allocation,
-                self.camera.projection().projection_matrix(),
-            )))
+        self.transaction.push_event(transactions::Event::Camera(Event::UpdateProjection(
+            self.camera.gpu_index_allocation,
+            self.camera.projection.clone(),
+        )))
     }
 }
 

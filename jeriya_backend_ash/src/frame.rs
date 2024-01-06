@@ -875,12 +875,22 @@ impl Frame {
                     camera.gpu_index_allocation(),
                     &shader_interface::Camera {
                         projection_matrix: camera.projection().projection_matrix(),
+                        znear: camera.projection().znear(),
+                        zfar: camera.projection().zfar(),
+                        _padding: [0.0; 14],
                     },
                 )?;
             }
-            Event::UpdateProjectionMatrix(gpu_index_allocation, matrix) => {
-                self.camera_buffer
-                    .set(&gpu_index_allocation, &shader_interface::Camera { projection_matrix: matrix })?;
+            Event::UpdateProjection(gpu_index_allocation, projection) => {
+                self.camera_buffer.set(
+                    &gpu_index_allocation,
+                    &shader_interface::Camera {
+                        projection_matrix: projection.projection_matrix(),
+                        znear: projection.znear(),
+                        zfar: projection.zfar(),
+                        _padding: [0.0; 14],
+                    },
+                )?;
             }
         }
         Ok(())
