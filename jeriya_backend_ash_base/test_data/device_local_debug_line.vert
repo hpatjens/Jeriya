@@ -331,10 +331,36 @@ layout (push_constant) uniform PushConstants {
     uint _non_zero;
 } push_constants;
 
-// layout (location = 0) out vec3 out_vertex_normal;
-// layout (location = 1) flat out uint out_meshlet_index;
+layout (location = 0) out vec4 out_color;
 
 void main() {
-    
+    const uint C = DEVICE_LOCAL_DEBUG_LINES_COMPONENTS_PER_LINE;
 
+    bool is_start_vertex = gl_VertexIndex % 2 == 0;
+    uint line_index = is_start_vertex ? gl_VertexIndex : gl_VertexIndex - 1;
+
+    // Set vertex position
+    if (is_start_vertex) {
+        gl_Position = vec4(
+            device_local_debug_lines.lines[C * line_index + 0],
+            device_local_debug_lines.lines[C * line_index + 1],
+            device_local_debug_lines.lines[C * line_index + 2],
+            1
+        );
+    } else {
+        gl_Position = vec4(
+            device_local_debug_lines.lines[C * line_index + 3],
+            device_local_debug_lines.lines[C * line_index + 4],
+            device_local_debug_lines.lines[C * line_index + 5],
+            1
+        );
+    }
+
+    // Set vertex color
+    out_color = vec4(
+        device_local_debug_lines.lines[C * line_index + 6],
+        device_local_debug_lines.lines[C * line_index + 7],
+        device_local_debug_lines.lines[C * line_index + 8],
+        device_local_debug_lines.lines[C * line_index + 9]
+    );
 }
