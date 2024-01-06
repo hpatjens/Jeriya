@@ -19,6 +19,9 @@ layout (constant_id = 11) const uint MAX_POINT_CLOUD_PAGES = 16384;
 layout (constant_id = 14) const uint MAX_VISIBLE_POINT_CLOUD_CLUSTERS = 16384;
 layout (constant_id = 15) const uint MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT = 1024;
 
+const float TAU = 6.283184;
+const float PI = 3.141592;
+
 struct FrameTelemetry {
     uint max_cameras;
     uint max_camera_instances;
@@ -298,6 +301,11 @@ layout (set = 0, binding = 28) buffer DeviceLocalDebugLineBuffer {
 
 const uint DEVICE_LOCAL_DEBUG_LINES_COMPONENTS_PER_LINE = 10; // 3 start, 3 end, 4 color
 
+struct AABB2 {
+    vec2 min;
+    vec2 max;
+};
+
 void push_debug_line(vec3 start, vec3 end, vec4 color) {
     uint index = atomicAdd(device_local_debug_lines.count, 1);
     if (index >= MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT) {
@@ -324,6 +332,107 @@ void push_debug_line(vec3 start, vec3 end, vec4 color) {
     device_local_debug_lines.lines[C * index + 9] = color.a;
 }
 
+/// Pushes a rectangle in ndc on the xy plane with z = 0.0 to the debug line buffer.
+void push_debug_ndc_aabb2(AABB2 aabb, vec4 min_color, vec4 max_color) {
+    vec3 ll = vec3(aabb.min.x, aabb.min.y, 0.0); // lower left
+    vec3 ul = vec3(aabb.min.x, aabb.max.y, 0.0);
+    vec3 lr = vec3(aabb.max.x, aabb.min.y, 0.0);
+    vec3 ur = vec3(aabb.max.x, aabb.max.y, 0.0);
+    push_debug_line(ll, lr, min_color);
+    push_debug_line(lr, ur, max_color);
+    push_debug_line(ur, ul, max_color);
+    push_debug_line(ul, ll, min_color);
+}
+
+/// Pushes a diagonal cross in ndc on the xy plane with z = 0.0 to the debug line buffer.
+void push_debug_ndc_cross(vec3 position, float size, vec4 color) {
+    push_debug_line(position + vec3(-size, -size, 0.0), position + vec3(size, size, 0.0), color);
+    push_debug_line(position + vec3(-size, size, 0.0), position + vec3(size, -size, 0.0), color);
+}
+
+/// Returns the view projection matrix of the active camera or the identity matrix if there is no active camera.
+mat4 active_camera_view_projection_matrix() {
+    if (per_frame_data.active_camera_instance >= 0) {
+        CameraInstance camera_instance = camera_instances[per_frame_data.active_camera_instance];
+        Camera camera = cameras[uint(camera_instance.camera_index)];
+        return camera.projection_matrix * camera_instance.view_matrix;
+    }
+    return mat4(1.0);
+}
+
+/// Returns the view matrix of the active camera or the identity matrix if there is no active camera.
+mat4 active_camera_view_matrix() {
+    if (per_frame_data.active_camera_instance >= 0) {
+        CameraInstance camera_instance = camera_instances[per_frame_data.active_camera_instance];
+        return camera_instance.view_matrix;
+    }
+    return mat4(1.0);
+}
+
+/// Returns the projection matrix of the active camera or the identity matrix if there is no active camera.
+mat4 active_camera_projection_matrix() {
+    if (per_frame_data.active_camera_instance >= 0) {
+        CameraInstance camera_instance = camera_instances[per_frame_data.active_camera_instance];
+        Camera camera = cameras[uint(camera_instance.camera_index)];
+        return camera.projection_matrix;
+    }
+    return mat4(1.0);
+}
+
+/// Returns the near plane of the active camera or -1.0 if there is no active camera.
+float active_camera_znear() {
+    if (per_frame_data.active_camera_instance >= 0) {
+        CameraInstance camera_instance = camera_instances[per_frame_data.active_camera_instance];
+        Camera camera = cameras[uint(camera_instance.camera_index)];
+        return camera.znear;
+    }
+    return -1.0;
+}
+
+/// Projects a sphere into ndc space on the xy axis but returns a slightly too small AABB.
+///
+/// `view_space_center` is expected to be negative in the z component.
+/// `radius` is expected to be positive.
+/// `znear` is expected to be positive.
+/// 
+/// Four points parallel to the xy plane are projected into ndc space.
+/// 
+/// This function doesn't take into account that the points must be parallel to the projection direction
+/// and not the xy axis. In practice, this means that the AABB is too little in general and becomes
+/// smaller with increasing distance from the origin on the xy plane.
+///
+/// Look into 
+/// 1) https://jcgt.org/published/0002/02/05/ or
+/// 2) https://github.com/zeux/niagara/blob/master/src/shaders/math.h
+/// for a better implementation.
+AABB2 project_sphere_badly(vec3 view_space_center, float radius, in mat4 projection_matrix) {
+    vec3 c = view_space_center;
+    float r = radius;
+
+    float m00 = projection_matrix[0][0];
+    float m11 = projection_matrix[1][1];
+    float m22 = projection_matrix[2][2];
+
+    // multiply projection matrix
+    AABB2 aabb;
+    aabb.min.x = m00 * (c.x - r);
+    aabb.max.x = m00 * (c.x + r);
+    aabb.min.y = m11 * (c.y - r);
+    aabb.max.y = m11 * (c.y + r);
+
+    // wdiv
+    aabb.min.x /= m22 * c.z;
+    aabb.min.y /= m22 * c.z;
+    aabb.max.x /= m22 * c.z;
+    aabb.max.y /= m22 * c.z;
+
+    return aabb;
+}
+
+/// Culls a sphere against the near plane of the active camera.
+bool cull_sphere_near_plane(float view_space_center_z, float radius, float znear) {
+    return -view_space_center_z + radius >= znear;
+}
 
 
 
@@ -382,7 +491,24 @@ void main() {
     visible_point_cloud_clusters.draw_indirect_commands[allocated_index] = draw_indirect_command;
     visible_point_cloud_clusters.cluster_ids[allocated_index] = cluster_id;
 
-    
+
+    float znear = active_camera_znear();
+
+    mat4 model_matrix = point_cloud_instance.transform;
+    mat4 view_matrix = active_camera_view_matrix();
+    mat4 projection_matrix = active_camera_projection_matrix();
+
+    vec3 view_space_center = (view_matrix * model_matrix * vec4(cluster.center_radius.xyz, 1.0)).xyz;
+
+    bool visible = cull_sphere_near_plane(view_space_center.z, cluster.center_radius.w, znear);
+    AABB2 aabb = project_sphere_badly(view_space_center, cluster.center_radius.w, projection_matrix);
+
+    // Debug Rendering
+    vec4 ndc_center = projection_matrix * vec4(view_space_center, 1.0);
+    push_debug_ndc_cross(ndc_center.xyz / ndc_center.w, 0.01, vec4(1.0, 0.5, 0.0, 1.0));
+    push_debug_ndc_aabb2(aabb, vec4(1.0, 0.0, 0.0, 1.0), vec4(0.0, 1.0, 0.0, 1.0));
+
+
 
     // for (uint page_index = 1; page_index < point_cloud_attributes.pages_len; page_index++) {
     //     uint global_page_index = point_cloud_attributes.pages_start_offset + page_index;
