@@ -5,7 +5,7 @@ layout (location = 0) flat in uint in_cluster_index;
 layout (location = 1) in vec4 in_point_color;
 layout (location = 2) in vec2 in_texcoord;
 
-layout (location = 0) out vec4 outputColor;
+layout (location = 0) out vec4 output_color;
 
 const vec3 COLORS[] = {
     vec3(0.9020, 0.9725, 0.0000),
@@ -76,5 +76,5 @@ void main() {
         return;
     }
 
-    outputColor = vec4(color, 1.0);
+    output_color = vec4(color, 1.0);
 }

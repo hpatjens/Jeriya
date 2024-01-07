@@ -409,7 +409,8 @@ impl Frame {
         builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(&presenter_shared.frame_index))?;
 
         // Reset device local debug lines buffer
-        builder.fill_buffer(&self.device_local_debug_lines_buffer, 0, mem::size_of::<u32>() as u64, 0);
+        let byte_size = mem::size_of::<u32>() as u64 + mem::size_of::<DrawIndirectCommand>() as u64;
+        builder.fill_buffer(&self.device_local_debug_lines_buffer, 0, byte_size, 0);
         builder.bottom_to_top_pipeline_barrier();
 
         // Rigid Mesh Culling
