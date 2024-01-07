@@ -17,7 +17,7 @@ layout (constant_id = 11) const uint MAX_POINT_CLOUD_PAGES = 16384;
 // layout (constant_id = 12)
 // layout (constant_id = 13)
 layout (constant_id = 14) const uint MAX_VISIBLE_POINT_CLOUD_CLUSTERS = 16384;
-layout (constant_id = 15) const uint MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT = 1024;
+layout (constant_id = 15) const uint MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT = 16384;
 
 const float TAU = 6.283184;
 const float PI = 3.141592;
@@ -469,74 +469,88 @@ void main() {
     PointCloudAttributes point_cloud_attributes = point_cloud_attributes[point_cloud.point_cloud_attributes_index];
 
 
-    
-    uint global_page_index = point_cloud_attributes.pages_start_offset + point_cloud_attributes.root_cluster_page_index;
-    uint cluster_index = point_cloud_attributes.root_cluster_cluster_index;
-    PointCloudCluster cluster = static_point_cloud_pages[global_page_index].clusters[cluster_index];
-
-    uint allocated_index = atomicAdd(visible_point_cloud_clusters.count, 1);
-    if (allocated_index >= MAX_VISIBLE_POINT_CLOUD_CLUSTERS) {
-        return;
-    }
-
-    VkDrawIndirectCommand draw_indirect_command;
-    draw_indirect_command.vertex_count = cluster.points_len * 3;
-    draw_indirect_command.instance_count = 1;
-    draw_indirect_command.first_vertex = 0;
-    draw_indirect_command.first_instance = 0;
-
-    PointCloudClusterId cluster_id;
-    cluster_id.point_cloud_instance = point_cloud_instance_index;
-    cluster_id.page_index = global_page_index;
-    cluster_id.cluster_index = cluster_index;
-
-    visible_point_cloud_clusters.draw_indirect_commands[allocated_index] = draw_indirect_command;
-    visible_point_cloud_clusters.cluster_ids[allocated_index] = cluster_id;
-
+    float density_threshold = 5000.0;
 
     float znear = active_camera_znear();
-
     mat4 model_matrix = point_cloud_instance.transform;
     mat4 view_matrix = active_camera_view_matrix();
     mat4 projection_matrix = active_camera_projection_matrix();
 
+    // Density estimation for root cluster
+    uint global_page_index = point_cloud_attributes.pages_start_offset + point_cloud_attributes.root_cluster_page_index;
+    uint cluster_index = point_cloud_attributes.root_cluster_cluster_index;
+    PointCloudCluster cluster = static_point_cloud_pages[global_page_index].clusters[cluster_index];
     vec3 view_space_center = (view_matrix * model_matrix * vec4(cluster.center_radius.xyz, 1.0)).xyz;
-
     bool visible = cull_sphere_near_plane(view_space_center.z, cluster.center_radius.w, znear);
+    if (!visible) {
+        return;
+    }
     AABB2 aabb = project_sphere_badly(view_space_center, cluster.center_radius.w, projection_matrix);
+    float area = (aabb.max.x - aabb.min.x) * (aabb.max.y - aabb.min.y);
+    float density = float(cluster.points_len) / area;
 
-    // Debug Rendering
-    vec4 ndc_center = projection_matrix * vec4(view_space_center, 1.0);
-    push_debug_ndc_cross(ndc_center.xyz / ndc_center.w, 0.01, vec4(1.0, 0.5, 0.0, 1.0));
-    push_debug_ndc_aabb2(aabb, vec4(1.0, 0.0, 0.0, 1.0), vec4(0.0, 1.0, 0.0, 1.0));
+    uint stack_len = 1;
 
+    float density_stack[128];
+    density_stack[0] = density;
 
+    PointCloudClusterId id_stack[128];
+    id_stack[0].cluster_index = point_cloud_attributes.root_cluster_cluster_index;
+    id_stack[0].page_index = point_cloud_attributes.root_cluster_page_index;
 
-    // for (uint page_index = 1; page_index < point_cloud_attributes.pages_len; page_index++) {
-    //     uint global_page_index = point_cloud_attributes.pages_start_offset + page_index;
-    //     uint clusters_len = static_point_cloud_pages[global_page_index].clusters_len;
+    do {
+        float parent_density = density_stack[stack_len - 1];
+        PointCloudClusterId cluster_id = id_stack[stack_len - 1];
+        stack_len -= 1;
 
-    //     for (uint cluster_index = 0; cluster_index < clusters_len; cluster_index++) {
-    //         PointCloudCluster cluster = static_point_cloud_pages[global_page_index].clusters[cluster_index];
+        uint global_page_index = point_cloud_attributes.pages_start_offset + cluster_id.page_index;
+        uint cluster_index = cluster_id.cluster_index;
+        PointCloudCluster cluster = static_point_cloud_pages[global_page_index].clusters[cluster_index];
+        vec3 view_space_center = (view_matrix * model_matrix * vec4(cluster.center_radius.xyz, 1.0)).xyz;
 
-    //         uint allocated_index = atomicAdd(visible_point_cloud_clusters.count, 1);
-    //         if (allocated_index >= MAX_VISIBLE_POINT_CLOUD_CLUSTERS) {
-    //             return;
-    //         }
+        // bool visible = cull_sphere_near_plane(view_space_center.z, cluster.center_radius.w, znear);
+        // if (!visible) {
+        //     continue;
+        // }
 
-    //         VkDrawIndirectCommand draw_indirect_command;
-    //         draw_indirect_command.vertex_count = cluster.points_len * 3;
-    //         draw_indirect_command.instance_count = 1;
-    //         draw_indirect_command.first_vertex = 0;
-    //         draw_indirect_command.first_instance = 0;
+        AABB2 aabb = project_sphere_badly(view_space_center, cluster.center_radius.w, projection_matrix);
+        float area = (aabb.max.x - aabb.min.x) * (aabb.max.y - aabb.min.y);
+        float density = float(cluster.points_len) / area;
 
-    //         PointCloudClusterId cluster_id;
-    //         cluster_id.point_cloud_instance = point_cloud_instance_index;
-    //         cluster_id.page_index = point_cloud_attributes.pages_start_offset + page_index;
-    //         cluster_id.cluster_index = cluster_index;
+        // Debug Rendering
+        vec4 ndc_center = projection_matrix * vec4(view_space_center, 1.0);
+        push_debug_ndc_cross(ndc_center.xyz / ndc_center.w, 0.01, vec4(1.0, 0.5, 0.0, 1.0));
+        push_debug_ndc_aabb2(aabb, vec4(1.0, 0.0, 0.0, 1.0), vec4(0.0, 1.0, 0.0, 1.0));
 
-    //         visible_point_cloud_clusters.draw_indirect_commands[allocated_index] = draw_indirect_command;
-    //         visible_point_cloud_clusters.cluster_ids[allocated_index] = cluster_id;
-    //     }
-    // }
+        bool is_correct_density = parent_density < density_threshold && density > density_threshold;
+        bool has_no_children = cluster.children_count == 0;
+
+        if (is_correct_density || has_no_children) {
+            uint allocated_index = atomicAdd(visible_point_cloud_clusters.count, 1);
+            if (allocated_index >= MAX_VISIBLE_POINT_CLOUD_CLUSTERS) {
+                return;
+            }
+
+            VkDrawIndirectCommand draw_indirect_command;
+            draw_indirect_command.vertex_count = cluster.points_len * 3;
+            draw_indirect_command.instance_count = 1;
+            draw_indirect_command.first_vertex = 0;
+            draw_indirect_command.first_instance = 0;
+
+            PointCloudClusterId cluster_id;
+            cluster_id.point_cloud_instance = point_cloud_instance_index;
+            cluster_id.page_index = global_page_index;
+            cluster_id.cluster_index = cluster_index;
+
+            visible_point_cloud_clusters.draw_indirect_commands[allocated_index] = draw_indirect_command;
+            visible_point_cloud_clusters.cluster_ids[allocated_index] = cluster_id;
+        } else {
+            for (uint i = 0; i < cluster.children_count; i++) {
+                density_stack[stack_len] = density;
+                id_stack[stack_len].page_index = cluster.children_page_indices[i];
+                id_stack[stack_len].cluster_index = cluster.children_cluster_indices[i];
+                stack_len += 1;
+            }
+        }
+    } while (stack_len > 0);
 }

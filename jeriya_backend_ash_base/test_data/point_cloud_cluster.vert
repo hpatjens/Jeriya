@@ -18,7 +18,7 @@ layout (constant_id = 11) const uint MAX_POINT_CLOUD_PAGES = 16384;
 // layout (constant_id = 12)
 // layout (constant_id = 13)
 layout (constant_id = 14) const uint MAX_VISIBLE_POINT_CLOUD_CLUSTERS = 16384;
-layout (constant_id = 15) const uint MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT = 1024;
+layout (constant_id = 15) const uint MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT = 16384;
 
 const float TAU = 6.283184;
 const float PI = 3.141592;
@@ -438,25 +438,12 @@ void main() {
     vec2 factor = factors[gl_VertexIndex % 3];
 
     vec4 view_position = view_matrix * model_matrix * vec4(point_position, 1.0);
+    vec4 ndc_position = projection_matrix * view_position;
+    ndc_position.xyz /= ndc_position.w;
+    ndc_position.w = 1.0;
 
     out_cluster_index = cluster_id.cluster_index;
     out_point_color = point_color;
     out_texcoord = factor;
-    gl_Position = projection_matrix * view_position + vec4(triangle_size * factor, 0.0, 0.0);
-
-
-    // vec4 pos = vec4(0.0, 0.0, 0.0, 1.0);
-    // float height = cluster_id.cluster_index;
-    // switch (gl_VertexIndex % 3) {
-    //     case 0:
-    //         pos = vec4(-0.5, height + 0.0, 0.0, 1.0);
-    //         break;
-    //     case 1:
-    //         pos = vec4(0.5, height + 0.0, 0.0, 1.0);
-    //         break;
-    //     case 2:
-    //         pos = vec4(0.0, height + 1.0, 0.0, 1.0);
-    //         break;
-    // }
-    // gl_Position = projection_matrix * view_matrix * pos;
+    gl_Position = ndc_position + vec4(triangle_size * factor, 0.0, 0.0);
 }

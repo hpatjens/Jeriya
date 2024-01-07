@@ -298,7 +298,7 @@ impl RendererConfig {
             maximum_meshlets: 2usize.pow(20),
             maximum_visible_rigid_mesh_instances: 2usize.pow(10),
             maximum_visible_rigid_mesh_meshlets: 2usize.pow(20),
-            maximum_number_of_device_local_debug_lines: 2usize.pow(10),
+            maximum_number_of_device_local_debug_lines: 2usize.pow(14),
         }
     }
 }

@@ -213,6 +213,10 @@ impl PointClusteringOctree {
                 new_children.push(children[i].take());
             }
         }
+        jeriya_shared::assert!(
+            (children.len() + 1) / 2 == new_children.len(),
+            "the number of children should be halved"
+        );
         new_children
     }
 
