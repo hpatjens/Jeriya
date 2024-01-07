@@ -1,6 +1,4 @@
-pub mod cluster_graph;
 pub mod clustered_point_cloud;
-pub mod point_clustering_hash_grid;
 pub mod point_clustering_octree;
 pub mod simple_point_cloud;
 
@@ -52,9 +50,9 @@ impl PointCloud {
     }
 
     /// Creates a new [`PointCloud`] from the given [`Model`].
-    pub fn sample_from_model(model: &Model, points_per_square_unit: f32, debug_directory: Option<&Path>) -> Self {
+    pub fn sample_from_model(model: &Model, points_per_square_unit: f32) -> Self {
         let simple_point_cloud = SimplePointCloud::sample_from_model(model, points_per_square_unit);
-        let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud, debug_directory);
+        let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
         Self {
             simple_point_cloud,
             clustered_point_cloud: Some(clustered_point_cloud),
@@ -128,7 +126,7 @@ mod tests {
         let directory = create_test_result_folder_for_function(function_name!());
 
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
-        let point_cloud = PointCloud::sample_from_model(&model, 200.0, Some(&directory));
+        let point_cloud = PointCloud::sample_from_model(&model, 200.0);
 
         if let Some(clustered_point_cloud) = point_cloud.clustered_point_cloud() {
             for depth in 0..=clustered_point_cloud.max_cluster_depth() {
@@ -138,11 +136,6 @@ mod tests {
                     .unwrap();
             }
         }
-
-        let config = ObjWriteConfig::Clusters(ObjClusterWriteConfig::HashGridCells);
-        point_cloud
-            .to_obj_file(&config, &directory.join("point_cloud_hash_grid_cells.obj"))
-            .unwrap();
 
         let config = ObjWriteConfig::SimplePointCloud(simple_point_cloud::ObjWriteConfig::AABB);
         point_cloud

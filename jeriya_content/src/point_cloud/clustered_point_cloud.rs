@@ -1,8 +1,7 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     io::{self, Write},
     path::Path,
-    sync::atomic::AtomicUsize,
     time::Instant,
 };
 
@@ -12,7 +11,6 @@ use jeriya_shared::{
     itertools::Itertools,
     log::{info, trace},
     nalgebra::Vector3,
-    obj_writer::write_bounding_box_o,
     plotters::{
         backend::{DrawingBackend, SVGBackend},
         chart::ChartBuilder,
@@ -26,21 +24,15 @@ use jeriya_shared::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::point_cloud::{
-    cluster_graph::ClusterGraph,
-    point_clustering_hash_grid::{CellContent, CellType, ClusterHashGrid, Context},
-    point_clustering_octree::ProtoCluster,
-};
+use crate::point_cloud::point_clustering_octree::ProtoCluster;
 
 use super::{
     point_clustering_octree::{BuildContext, PointClusteringOctree},
     simple_point_cloud::SimplePointCloud,
-    DebugGeometry,
 };
 
 pub enum ObjClusterWriteConfig {
     Points { point_size: f32, depth: usize },
-    HashGridCells,
 }
 
 /// Index of the `Cluster` in the `ClusteredPointCloud`.
@@ -183,222 +175,11 @@ pub struct ClusteredPointCloud {
     root_cluster_index: ClusterIndex,
     pages: Vec<Page>,
     max_cluster_depth: usize,
-    debug_geometry: Option<DebugGeometry>,
 }
 
 impl ClusteredPointCloud {
-    /// Creates a new `ClusteredPointCloud` from the given `SimplePointCloud`.
-    #[deprecated(note = "please use `from_simple_point_cloud` instead")]
-    pub fn from_simple_point_cloud_flat(simple_point_cloud: &SimplePointCloud) -> Self {
+    pub fn from_simple_point_cloud(simple_point_cloud: &SimplePointCloud) -> Self {
         let start = Instant::now();
-
-        let target_points_per_cell = Cluster::MAX_POINTS;
-        let mut debug_hash_grid_cells = Vec::new();
-
-        let hash_grid = ClusterHashGrid::from_all(
-            target_points_per_cell,
-            &mut Context {
-                point_positions: simple_point_cloud.point_positions(),
-                unique_index_counter: &mut AtomicUsize::new(0),
-                plot_directory: None,
-                debug_hash_grid_cells: Some(&mut debug_hash_grid_cells),
-            },
-        );
-
-        // Creates a priority queue that is used to process the cells starting from the lowest levels.
-        let mut priority_queue = create_priority_queue(&hash_grid);
-        jeriya_shared::assert!(
-            priority_queue.iter().all(|cell| cell.indices.len() <= Cluster::MAX_POINTS),
-            "A cell has too many points"
-        );
-        jeriya_shared::assert!(
-            priority_queue.iter().map(|cell| cell.unique_index).all_unique(),
-            "The priority queue contains duplicate cells"
-        );
-
-        // When cells are inserted into a page, they have to be removed from the queue. Instead
-        // of searching throught the Vec, the unique index of the cell is stored in a HashSet.
-        // Every time a cell is popped from the queue, the HashSet can be used to look up whether
-        // the cell still needs processing.
-        let mut processed_cells_indices = HashSet::new();
-
-        // The information from the cells is collected into the last page and when it is full,
-        // a new page is created.
-        let mut pages = vec![Page::default()];
-
-        // Take the cells from the queue and collect them into pages by sampling the neighboring
-        // cells until the page is full.
-        while let Some(pivot_cell) = priority_queue.pop() {
-            if processed_cells_indices.contains(&pivot_cell.unique_index) {
-                continue;
-            }
-
-            // Insert the pivot cell into the page
-            insert_into_page(
-                &mut pages,
-                &pivot_cell.indices,
-                simple_point_cloud.point_positions(),
-                simple_point_cloud.point_colors(),
-                0,
-                0,
-                Vec::new(),
-            );
-            processed_cells_indices.insert(pivot_cell.unique_index);
-
-            // Sample the neighboring cells and insert them into the page
-            for x in -1..=1 {
-                for y in -1..=1 {
-                    for z in -1..=1 {
-                        if x == 0 && y == 0 && z == 0 {
-                            continue;
-                        }
-                        let neighbor_sample = Vector3::new(
-                            pivot_cell.aabb.center().x + x as f32 * pivot_cell.aabb.size().x,
-                            pivot_cell.aabb.center().y + y as f32 * pivot_cell.aabb.size().y,
-                            pivot_cell.aabb.center().z + z as f32 * pivot_cell.aabb.size().z,
-                        );
-                        if let Some((unique_index, points)) = hash_grid.get_leaf(neighbor_sample) {
-                            jeriya_shared::assert!(pivot_cell.unique_index != unique_index);
-                            if processed_cells_indices.contains(&unique_index) {
-                                continue;
-                            }
-                            insert_into_page(
-                                &mut pages,
-                                points,
-                                simple_point_cloud.point_positions(),
-                                simple_point_cloud.point_colors(),
-                                0,
-                                0,
-                                Vec::new(),
-                            );
-                            processed_cells_indices.insert(unique_index);
-                        }
-                    }
-                }
-            }
-        }
-
-        info!("Number of hash grid cells for debugging: {}", debug_hash_grid_cells.len());
-        info!("Computing the clusters took {} ms", start.elapsed().as_secs_f32());
-
-        let debug_geometry = DebugGeometry {
-            hash_grid_cells: debug_hash_grid_cells,
-        };
-        Self {
-            root_cluster_index: ClusterIndex {
-                page_index: 0,
-                cluster_index: 0,
-            },
-            pages,
-            max_cluster_depth: 0,
-            debug_geometry: Some(debug_geometry),
-        }
-    }
-
-    /// Creates a new `ClusteredPointCloud` from the given `SimplePointCloud`.
-    #[deprecated(note = "please use `from_simple_point_cloud` instead")]
-    pub fn from_simple_point_cloud_cluster_graph(simple_point_cloud: &SimplePointCloud, debug_directory: Option<&Path>) -> Self {
-        let start = Instant::now();
-
-        let target_points_per_cell = Cluster::MAX_POINTS;
-        let mut debug_hash_grid_cells = Vec::new();
-
-        let hash_grid = ClusterHashGrid::from_all(
-            target_points_per_cell,
-            &mut Context {
-                point_positions: simple_point_cloud.point_positions(),
-                unique_index_counter: &mut AtomicUsize::new(0),
-                plot_directory: debug_directory.map(Path::to_path_buf),
-                debug_hash_grid_cells: Some(&mut debug_hash_grid_cells),
-            },
-        );
-
-        // Creates a priority queue that is used to process the cells starting from the lowest levels.
-        let mut priority_queue = create_priority_queue(&hash_grid);
-        jeriya_shared::assert!(
-            priority_queue.iter().all(|cell| cell.indices.len() <= Cluster::MAX_POINTS),
-            "A cell has too many points"
-        );
-        jeriya_shared::assert!(
-            priority_queue.iter().map(|cell| cell.unique_index).all_unique(),
-            "The priority queue contains duplicate cells"
-        );
-
-        // The cells are processed from the lowest levels to the highest levels. When a cell is
-        // processed, it is inserted into this HashSet so that larger cells in it's proximity
-        // don't identify this cell as a neighbor. This is likely because for larger cells, the
-        // step size for finding the neighbor might be so large that directly neighboring cells
-        // are skipped.
-        let mut processed_cells_indices = HashSet::new();
-
-        let mut cluster_graph = ClusterGraph::new();
-        for leaf in &priority_queue {
-            let mut neighboring_cells = Vec::new();
-            for x in -1..=1 {
-                for y in -1..=1 {
-                    for z in -1..=1 {
-                        if x == 0 && y == 0 && z == 0 {
-                            continue;
-                        }
-                        let neighbor_sample = Vector3::new(
-                            leaf.aabb.center().x + x as f32 * leaf.aabb.size().x,
-                            leaf.aabb.center().y + y as f32 * leaf.aabb.size().y,
-                            leaf.aabb.center().z + z as f32 * leaf.aabb.size().z,
-                        );
-                        if let Some((unique_index, _)) = hash_grid.get_leaf(neighbor_sample) {
-                            jeriya_shared::assert!(leaf.unique_index != unique_index);
-                            if processed_cells_indices.contains(&unique_index) {
-                                // We don't want to consider smaller cells that are not direct
-                                // neigbors as neighbors.
-                                continue;
-                            }
-                            if !neighboring_cells.contains(&unique_index) {
-                                neighboring_cells.push(unique_index);
-                            }
-                        }
-                    }
-                }
-            }
-            processed_cells_indices.insert(leaf.unique_index);
-            cluster_graph.push_cluster(leaf.unique_index, leaf.indices.clone(), neighboring_cells);
-        }
-
-        // Smaller nodes know their neighbors but larger nodes don't know smaller nodes when
-        // they are their neighbors. Therefore, we have to create bidirectional connections.
-        cluster_graph.create_bidirectional_connections();
-
-        jeriya_shared::assert!(cluster_graph.validate_bidirectional(), "failed to validate ClusterGraph");
-        if let Some(debug_directory) = debug_directory {
-            let dot = cluster_graph.to_dot();
-            std::fs::write(debug_directory.join("cluster_graph.dot"), dot).expect("failed to write cluster graph to file");
-        }
-
-        // The information from the cells is collected into the last page and when it is full,
-        // a new page is created.
-        let mut pages = vec![Page::default()];
-        info!("Number of pages: {}", pages.len());
-        info!("Number of hash grid cells for debugging: {}", debug_hash_grid_cells.len());
-        info!("Computing the clusters took {} ms", start.elapsed().as_secs_f32());
-
-        let debug_geometry = DebugGeometry {
-            hash_grid_cells: debug_hash_grid_cells,
-        };
-        Self {
-            root_cluster_index: ClusterIndex {
-                page_index: 0,
-                cluster_index: 0,
-            },
-            pages,
-            max_cluster_depth: 0,
-            debug_geometry: Some(debug_geometry),
-        }
-    }
-
-    pub fn from_simple_point_cloud(simple_point_cloud: &SimplePointCloud, debug_directory: Option<&Path>) -> Self {
-        let start = Instant::now();
-
-        let target_points_per_cell = Cluster::MAX_POINTS;
-        let mut debug_hash_grid_cells = Vec::new();
 
         let build_parameters = &BuildContext {
             cluster_point_count: Cluster::MAX_POINTS,
@@ -446,17 +227,12 @@ impl ClusteredPointCloud {
         };
         trace!("Root cluster index: {:?}", root_cluster_index);
 
-        let debug_geometry = DebugGeometry {
-            hash_grid_cells: debug_hash_grid_cells,
-        };
-
         info!("Computing the clusters took {} ms", start.elapsed().as_secs_f32());
 
         Self {
             root_cluster_index,
             pages,
             max_cluster_depth: octree.max_proto_cluster_depth(),
-            debug_geometry: Some(debug_geometry),
         }
     }
 
@@ -468,11 +244,6 @@ impl ClusteredPointCloud {
     /// Returns the index of the root `Cluster` in the `ClusteredPointCloud`.
     pub fn root_cluster_index(&self) -> ClusterIndex {
         self.root_cluster_index.clone()
-    }
-
-    /// Returns the `DebugGeometry` of the `ClusteredPointCloud`.
-    pub fn debug_geometry(&self) -> Option<&DebugGeometry> {
-        self.debug_geometry.as_ref()
     }
 
     /// Returns the maximum depth of the clusters in the `ClusteredPointCloud`.
@@ -647,17 +418,6 @@ impl ClusteredPointCloud {
 
                 Ok(())
             }
-            ObjClusterWriteConfig::HashGridCells => {
-                let mut vertex_count = 0;
-                if let Some(debug_geometry) = &self.debug_geometry() {
-                    for (aabb_index, aabb) in debug_geometry.hash_grid_cells.iter().enumerate() {
-                        writeln!(obj_writer, "# Bounding box of the grid cell {aabb_index}")?;
-                        vertex_count += write_bounding_box_o(&format!("hash_grid_cell_{aabb_index}"), vertex_count, &mut obj_writer, aabb)?;
-                        writeln!(obj_writer, "")?;
-                    }
-                }
-                Ok(())
-            }
         }
     }
 }
@@ -666,83 +426,4 @@ impl std::fmt::Debug for ClusteredPointCloud {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ClusteredPointCloud").field("pages", &self.pages.len()).finish()
     }
-}
-
-struct LeafCell {
-    unique_index: usize,
-    aabb: AABB,
-    indices: Vec<usize>,
-}
-
-/// Creates a priority queue that is used to process the cells starting from the lowest levels.
-fn create_priority_queue(hash_grid: &ClusterHashGrid) -> Vec<LeafCell> {
-    // Its not trivial to find the neighbors of a cell in the hash grid because the
-    // cells might be subdivided finding the neighbors in the child cells would
-    // require knowledge about the direction of neighborhood. However, when traversing
-    // down to the leafs, finding the neighbors is trivial because the neighboring
-    // cell is always found a cell width aways from the center. Here, the tree is
-    // traversed down to the leafs and the cells are inserted into a queue that is
-    // used to process the cells starting from the lowest levels.
-    let mut priority_queue = Vec::new();
-    fn insert_into_queue(priority_queue: &mut Vec<LeafCell>, cell_content: &CellContent) {
-        match &cell_content.ty {
-            CellType::Empty => {}
-            CellType::Leaf(points) => {
-                priority_queue.push(LeafCell {
-                    unique_index: cell_content.unique_index,
-                    aabb: cell_content.aabb,
-                    indices: points.clone(),
-                });
-            }
-            CellType::Grid(grid) => insert_into_queue_from_grid(priority_queue, grid.cells()),
-            CellType::XAxisHalfSplit(first, second) => {
-                insert_into_queue(priority_queue, first);
-                insert_into_queue(priority_queue, second);
-            }
-        }
-    }
-    fn insert_into_queue_from_grid<'a>(priority_queue: &mut Vec<LeafCell>, cells: impl Iterator<Item = &'a CellContent>) {
-        // Since we want to traverse the tree donw to the leafs before adding cells in the
-        // higher levels, the cells are partitioned into recursive and non-recursive cells.
-        let (recursive, non_recursive) = cells.partition::<Vec<_>, _>(|cell| matches!(&cell.ty, CellType::Grid(_)));
-        for cell in recursive {
-            insert_into_queue(priority_queue, cell);
-        }
-        for cell in non_recursive {
-            insert_into_queue(priority_queue, cell);
-        }
-    }
-    insert_into_queue_from_grid(&mut priority_queue, hash_grid.cells());
-    priority_queue
-}
-
-/// Inserts the points into the page.
-fn insert_into_page(
-    pages: &mut Vec<Page>,
-    points: &[usize],
-    point_positions: &[Vector3<f32>],
-    point_colors: &[ByteColor3],
-    depth: usize,
-    level: usize,
-    children: Vec<ClusterIndex>,
-) {
-    jeriya_shared::assert!(points.len() <= Cluster::MAX_POINTS, "The cluster has too many points");
-
-    // When the last page is full, a new page is created.
-    let has_space = pages.last().map_or(false, |page| page.has_space());
-    if !has_space {
-        pages.push(Page::default());
-    }
-
-    // Insert the cluster into the page
-    let Some(last_page) = pages.last_mut() else {
-        panic!("Failed to get the last page");
-    };
-    last_page.push(
-        points.iter().map(|&index| &point_positions[index]),
-        points.iter().map(|&index| &point_colors[index]),
-        depth,
-        level,
-        children,
-    );
 }

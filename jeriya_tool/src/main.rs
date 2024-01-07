@@ -75,7 +75,7 @@ fn main() -> ey::Result<()> {
                 let model = Model::import(&convert.source_filepath).wrap_err("Failed to import model")?;
 
                 info!("Converting model to point cloud");
-                let point_cloud = PointCloud::sample_from_model(&model, point_per_square_unit, None);
+                let point_cloud = PointCloud::sample_from_model(&model, point_per_square_unit);
 
                 info!("Serializing point cloud");
                 point_cloud
