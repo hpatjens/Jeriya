@@ -129,15 +129,9 @@ impl PointCloudAttributesBuilder {
         handle: Handle<Arc<PointCloudAttributes>>,
         gpu_index_allocation: GpuIndexAllocation<PointCloudAttributes>,
     ) -> Result<PointCloudAttributes> {
-        let point_positions = self
-            .point_positions
-            .ok_or(Error::MandatoryAttributeMissing(AttributeType::PointPositions))?;
-        let point_colors = self
-            .point_colors
-            .ok_or(Error::MandatoryAttributeMissing(AttributeType::PointColors))?;
         Ok(PointCloudAttributes {
-            point_positions,
-            point_colors,
+            point_positions: self.point_positions.unwrap_or_default(),
+            point_colors: self.point_colors.unwrap_or_default(),
             root_cluster_index: self.root_cluster_index.unwrap_or_default(),
             pages: self.pages.unwrap_or_default(),
             handle,

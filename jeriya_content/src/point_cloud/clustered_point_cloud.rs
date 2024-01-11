@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    fs::File,
     io::{self, Write},
     path::Path,
     time::Instant,
@@ -356,6 +357,19 @@ impl ClusteredPointCloud {
         Self::plot_histogram(&self, &data, filepath, "Page fill level histogram")
     }
 
+    /// Serializes the `PointCloud` to a file.
+    pub fn serialize_to_file(&self, filepath: &impl AsRef<Path>) -> crate::Result<()> {
+        let file = File::create(filepath)?;
+        bincode::serialize_into(file, self).map_err(|err| crate::Error::FailedSerialization(err))?;
+        Ok(())
+    }
+
+    /// Deserializes the `PointCloud` from a file.
+    pub fn deserialize_from_file(filepath: &impl AsRef<Path>) -> crate::Result<Self> {
+        let file = File::open(filepath)?;
+        bincode::deserialize_from(file).map_err(|err| crate::Error::FailedDeserialization(err))
+    }
+
     pub fn to_obj(
         &self,
         mut obj_writer: impl Write,
@@ -420,10 +434,62 @@ impl ClusteredPointCloud {
             }
         }
     }
+
+    /// Writes the point cloud as an OBJ file. The MTL file is written to the same directory.
+    pub fn to_obj_file(&self, config: &ObjClusterWriteConfig, filepath: &impl AsRef<Path>) -> io::Result<()> {
+        let obj_filepath = filepath.as_ref().with_extension("obj");
+        let mtl_filepath = filepath.as_ref().with_extension("mtl");
+        let obj_file = File::create(&obj_filepath)?;
+        let mtl_file = File::create(&mtl_filepath)?;
+        let mtl_filename = mtl_filepath
+            .file_name()
+            .expect("Failed to get MTL filename")
+            .to_str()
+            .expect("Failed to convert MTL filename to str");
+        self.to_obj(obj_file, mtl_file, mtl_filename, config)
+    }
 }
 
 impl std::fmt::Debug for ClusteredPointCloud {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ClusteredPointCloud").field("pages", &self.pages.len()).finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use jeriya_shared::function_name;
+    use jeriya_test::create_test_result_folder_for_function;
+
+    use crate::model::Model;
+
+    use super::*;
+
+    #[test]
+    fn test_sample_from_model() {
+        env_logger::builder().filter_level(jeriya_shared::log::LevelFilter::Trace).init();
+
+        let directory = create_test_result_folder_for_function(function_name!());
+
+        let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
+        let simple_point_cloud = SimplePointCloud::sample_from_model(&model, 200.0);
+        let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
+
+        for depth in 0..=clustered_point_cloud.max_cluster_depth() {
+            let config = ObjClusterWriteConfig::Points { point_size: 0.02, depth };
+            clustered_point_cloud
+                .to_obj_file(&config, &directory.join(format!("point_cloud_depth{depth}.obj")))
+                .unwrap();
+        }
+
+        clustered_point_cloud
+            .plot_cluster_fill_level_histogram(&directory.join("cluster_fill_level_histogram.svg"))
+            .unwrap();
+
+        clustered_point_cloud
+            .plot_page_fill_level_histogram(&directory.join("page_fill_level_histogram.svg"))
+            .unwrap();
+
+        clustered_point_cloud.write_statisics(&directory.join("statistics.json")).unwrap();
     }
 }

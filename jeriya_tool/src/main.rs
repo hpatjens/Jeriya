@@ -1,11 +1,14 @@
-use std::{io, path::PathBuf};
+use std::{fs, io, path::PathBuf};
 
 use clap::Parser;
 use color_eyre as ey;
 use ey::eyre::Context;
 use jeriya_content::{
     model::Model,
-    point_cloud::{self, clustered_point_cloud::ObjClusterWriteConfig, simple_point_cloud, PointCloud},
+    point_cloud::{
+        clustered_point_cloud::{ClusteredPointCloud, ObjClusterWriteConfig},
+        simple_point_cloud::SimplePointCloud,
+    },
 };
 use jeriya_shared::log::{self, info};
 
@@ -74,27 +77,25 @@ fn main() -> ey::Result<()> {
                 info!("Importing model: {:?}", convert.source_filepath);
                 let model = Model::import(&convert.source_filepath).wrap_err("Failed to import model")?;
 
-                info!("Converting model to point cloud");
-                let point_cloud = PointCloud::sample_from_model(&model, point_per_square_unit);
+                info!("Converting model to simple point cloud");
+                let simple_point_cloud = SimplePointCloud::sample_from_model(&model, point_per_square_unit);
+
+                info!("Clustering point cloud");
+                let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
 
                 info!("Serializing point cloud");
-                point_cloud
+                clustered_point_cloud
                     .serialize_to_file(&convert.destination_filepath)
                     .wrap_err("Failed to serialize point cloud")?;
             }
             ConvertType::PointCloudToObj { point_size, depth } => {
                 info!("Deserializing point cloud");
-                let point_cloud =
-                    PointCloud::deserialize_from_file(&convert.source_filepath).wrap_err("Failed to deserialize point cloud")?;
+                let clustered_point_cloud =
+                    ClusteredPointCloud::deserialize_from_file(&convert.source_filepath).wrap_err("Failed to deserialize point cloud")?;
 
                 info!("Writing point cloud to OBJ");
-                let config = if point_cloud.clustered_point_cloud().is_some() {
-                    point_cloud::ObjWriteConfig::Clusters(ObjClusterWriteConfig::Points { point_size, depth })
-                } else {
-                    point_cloud::ObjWriteConfig::SimplePointCloud(simple_point_cloud::ObjWriteConfig::Points { point_size })
-                };
-                point_cloud
-                    .to_obj_file(&config, &convert.destination_filepath)
+                clustered_point_cloud
+                    .to_obj_file(&ObjClusterWriteConfig::Points { point_size, depth }, &convert.destination_filepath)
                     .wrap_err("Failed to write point cloud to OBJ")?;
             }
         },
