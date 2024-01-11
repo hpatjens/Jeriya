@@ -1,6 +1,8 @@
 use std::{
     collections::HashMap,
+    fs::File,
     io::{self, Write},
+    path::Path,
     sync::Arc,
 };
 
@@ -215,6 +217,19 @@ impl SimplePointCloud {
     /// Returns `true` if the `PointCloud` contains no points.
     pub fn is_empty(&self) -> bool {
         self.point_positions.is_empty()
+    }
+
+    /// Serializes the `PointCloud` to a file.
+    pub fn serialize_to_file(&self, filepath: &impl AsRef<Path>) -> crate::Result<()> {
+        let file = File::create(filepath)?;
+        bincode::serialize_into(file, self).map_err(|err| crate::Error::FailedSerialization(err))?;
+        Ok(())
+    }
+
+    /// Deserializes the `PointCloud` from a file.
+    pub fn deserialize_from_file(filepath: &impl AsRef<Path>) -> crate::Result<Self> {
+        let file = File::open(filepath)?;
+        bincode::deserialize_from(file).map_err(|err| crate::Error::FailedDeserialization(err))
     }
 }
 

@@ -30,7 +30,9 @@ use jeriya_backend::{
     Backend,
 };
 use jeriya_backend_ash::AshBackend;
-use jeriya_content::{model::Model, point_cloud::PointCloud, AssetImporter, AssetProcessor, Directories, FileSystem};
+use jeriya_content::{
+    model::Model, point_cloud::clustered_point_cloud::ClusteredPointCloud, AssetImporter, AssetProcessor, Directories, FileSystem,
+};
 use jeriya_shared::{
     debug_info,
     log::{self, error, info},
@@ -430,25 +432,20 @@ fn main() -> ey::Result<()> {
                 transaction.finish();
             }
             FileType::PointCloud => {
-                let point_cloud = PointCloud::deserialize_from_file(&command_line_arguments.path)
+                let clustered_point_cloud = ClusteredPointCloud::deserialize_from_file(&command_line_arguments.path)
                     .wrap_err("Failed to deserialize PointCloud")
                     .expect("Failed to deserialize PointCloud");
-                info!("PointCloud to view: {point_cloud:?}");
+                info!("PointCloud to view: {clustered_point_cloud:?}");
 
                 let mut resource_group = resource_group2.lock();
                 let mut element_group = element_group2.lock();
                 let mut instance_group = instance_group2.lock();
 
                 // Create PointCloudAttributes
-                let mut point_cloud_attributes_builder = PointCloudAttributes::builder()
-                    .with_point_positions(point_cloud.simple_point_cloud().point_positions().to_vec())
-                    .with_point_colors(point_cloud.simple_point_cloud().point_colors().to_vec())
-                    .with_debug_info(debug_info!("my_point_cloud_attributes"));
-                if let Some(clustered_point_cloud) = point_cloud.clustered_point_cloud() {
-                    let root_index = clustered_point_cloud.root_cluster_index();
-                    point_cloud_attributes_builder = point_cloud_attributes_builder.with_pages(clustered_point_cloud.pages().to_vec());
-                    point_cloud_attributes_builder = point_cloud_attributes_builder.with_root_cluster_index(root_index);
-                }
+                let point_cloud_attributes_builder = PointCloudAttributes::builder()
+                    .with_debug_info(debug_info!("my_point_cloud_attributes"))
+                    .with_pages(clustered_point_cloud.pages().to_vec())
+                    .with_root_cluster_index(clustered_point_cloud.root_cluster_index().clone());
                 let point_cloud_attributes = resource_group
                     .point_cloud_attributes()
                     .insert_with(point_cloud_attributes_builder)
