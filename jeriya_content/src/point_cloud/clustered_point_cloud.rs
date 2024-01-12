@@ -1,13 +1,14 @@
 use std::{
     collections::HashMap,
     fs::File,
-    io::{self, Write},
+    io::{self, Read, Seek, SeekFrom, Write},
     path::Path,
     time::Instant,
 };
 
 use jeriya_shared::{
     aabb::AABB,
+    byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt},
     colors_transform::Hsl,
     itertools::Itertools,
     log::{info, trace},
@@ -37,7 +38,8 @@ pub enum ObjClusterWriteConfig {
 }
 
 /// Index of the `Cluster` in the `ClusteredPointCloud`.
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[repr(C)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ClusterIndex {
     /// Index into the `Page`s
     pub page_index: usize,
@@ -45,7 +47,7 @@ pub struct ClusterIndex {
     pub cluster_index: usize,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Cluster {
     /// Index into the `Page`'s `point_positions` and `point_colors` `Vec`s
     pub index_start: u32,
@@ -70,7 +72,7 @@ impl Cluster {
     pub const MAX_POINTS: usize = 256;
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Page {
     point_positions: Vec<Vector3<f32>>,
     point_colors: Vec<ByteColor3>,
@@ -171,7 +173,7 @@ impl Page {
     }
 }
 
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ClusteredPointCloud {
     root_cluster_index: ClusterIndex,
     pages: Vec<Page>,
@@ -357,19 +359,6 @@ impl ClusteredPointCloud {
         Self::plot_histogram(&self, &data, filepath, "Page fill level histogram")
     }
 
-    /// Serializes the `PointCloud` to a file.
-    pub fn serialize_to_file(&self, filepath: &impl AsRef<Path>) -> crate::Result<()> {
-        let file = File::create(filepath)?;
-        bincode::serialize_into(file, self).map_err(|err| crate::Error::FailedSerialization(err))?;
-        Ok(())
-    }
-
-    /// Deserializes the `PointCloud` from a file.
-    pub fn deserialize_from_file(filepath: &impl AsRef<Path>) -> crate::Result<Self> {
-        let file = File::open(filepath)?;
-        bincode::deserialize_from(file).map_err(|err| crate::Error::FailedDeserialization(err))
-    }
-
     pub fn to_obj(
         &self,
         mut obj_writer: impl Write,
@@ -448,6 +437,206 @@ impl ClusteredPointCloud {
             .expect("Failed to convert MTL filename to str");
         self.to_obj(obj_file, mtl_file, mtl_filename, config)
     }
+
+    /// Serializes the `PointCloud` into a stream.
+    pub fn serialize_into<W: Write + Seek>(&self, mut writer: W) -> io::Result<()> {
+        // Leave space for the header
+        let header_size = 4 * std::mem::size_of::<u64>();
+        writer.seek(SeekFrom::Start(header_size as u64))?;
+
+        // Page table mapping the page index to the stream offset
+        let mut page_table = HashMap::<u64, u64>::new();
+
+        // Write the pages
+        let pages_offset = writer.stream_position()?;
+        for (page_index, page) in self.pages.iter().enumerate() {
+            // Insert the offset into the page table
+            let page_start = writer.stream_position()?;
+            page_table.insert(page_index as u64, page_start);
+
+            let len = page.point_positions().len() as u64;
+            writer.write_u64::<LittleEndian>(len)?;
+
+            // Write the point positions
+            let positions_ptr = page.point_positions.as_ptr() as *const u8;
+            let positions_size = page.point_positions.len() * std::mem::size_of::<Vector3<f32>>();
+            let positions: &[u8] = unsafe { std::slice::from_raw_parts(positions_ptr, positions_size) };
+            writer.write(positions)?;
+
+            // Write the point colors
+            let colors_ptr = page.point_colors.as_ptr() as *const u8;
+            let colors_size = page.point_colors.len() * std::mem::size_of::<ByteColor3>();
+            let colors: &[u8] = unsafe { std::slice::from_raw_parts(colors_ptr, colors_size) };
+            writer.write(colors)?;
+
+            // Write the page
+            writer.write_u64::<LittleEndian>(page.clusters.len() as u64)?;
+            for cluster in &page.clusters {
+                writer.write_u64::<LittleEndian>(cluster.index_start as u64)?;
+                writer.write_u64::<LittleEndian>(cluster.len as u64)?;
+                writer.write_f32::<LittleEndian>(cluster.aabb.min.x)?;
+                writer.write_f32::<LittleEndian>(cluster.aabb.min.y)?;
+                writer.write_f32::<LittleEndian>(cluster.aabb.min.z)?;
+                writer.write_f32::<LittleEndian>(cluster.aabb.max.x)?;
+                writer.write_f32::<LittleEndian>(cluster.aabb.max.y)?;
+                writer.write_f32::<LittleEndian>(cluster.aabb.max.z)?;
+                writer.write_f32::<LittleEndian>(cluster.center.x)?;
+                writer.write_f32::<LittleEndian>(cluster.center.y)?;
+                writer.write_f32::<LittleEndian>(cluster.center.z)?;
+                writer.write_f32::<LittleEndian>(cluster.radius)?;
+                writer.write_u64::<LittleEndian>(cluster.depth as u64)?;
+                writer.write_u64::<LittleEndian>(cluster.level as u64)?;
+                writer.write_u64::<LittleEndian>(cluster.children.len() as u64)?;
+                for child in &cluster.children {
+                    writer.write_u64::<LittleEndian>(child.page_index as u64)?;
+                    writer.write_u64::<LittleEndian>(child.cluster_index as u64)?;
+                }
+            }
+        }
+
+        // Write the offset of the page table into the header
+        let page_table_offset = writer.stream_position()?;
+
+        // Write the page table
+        writer.write_u64::<LittleEndian>(page_table.len() as u64)?;
+        for page_index in 0..self.pages.len() {
+            let page_index = page_index as u64;
+            let page_offset = *page_table.get(&page_index).expect("Failed to get page offset");
+            writer.write_u64::<LittleEndian>(page_index)?;
+            writer.write_u64::<LittleEndian>(page_offset)?;
+        }
+
+        // Write header at the start of the stream
+        writer.rewind()?;
+        writer.write_u64::<LittleEndian>(self.root_cluster_index.page_index as u64)?;
+        writer.write_u64::<LittleEndian>(self.root_cluster_index.cluster_index as u64)?;
+        writer.write_u64::<LittleEndian>(pages_offset as u64)?;
+        writer.write_u64::<LittleEndian>(page_table_offset as u64)?;
+
+        Ok(())
+    }
+
+    /// Serializes the `PointCloud` to a file.
+    pub fn serialize_to_file(&self, filepath: &impl AsRef<Path>) -> crate::Result<()> {
+        let mut file = File::create(filepath)?;
+        let start = Instant::now();
+        self.serialize_into(&mut file)?;
+        info!("Serializing the point cloud took {} ms", start.elapsed().as_secs_f32());
+        Ok(())
+    }
+
+    pub fn deserialize_from<R: Read + Seek>(mut reader: R) -> io::Result<Self> {
+        // Read the header
+        let root_cluster_page_index = reader.read_u64::<LittleEndian>()?;
+        let root_cluster_index = reader.read_u64::<LittleEndian>()?;
+        let pages_offset = reader.read_u64::<LittleEndian>()?;
+        let page_table_offset = reader.read_u64::<LittleEndian>()?;
+
+        // Read the page table
+        reader.seek(SeekFrom::Start(page_table_offset))?;
+        let page_table_len = reader.read_u64::<LittleEndian>()?;
+        let mut page_sequence = Vec::new();
+        for _ in 0..page_table_len {
+            let page_index = reader.read_u64::<LittleEndian>()?;
+            let page_offset = reader.read_u64::<LittleEndian>()?;
+            page_sequence.push((page_index, page_offset));
+        }
+
+        // Read the pages
+        reader.seek(SeekFrom::Start(pages_offset))?;
+        let mut pages = Vec::<Page>::new();
+        for (_page_index, page_offset) in page_sequence {
+            reader.seek(SeekFrom::Start(page_offset))?;
+
+            let len = reader.read_u64::<LittleEndian>()? as usize;
+
+            // Read the point positions
+            let mut point_positions = Vec::<Vector3<f32>>::with_capacity(len);
+            let positions_size = len * std::mem::size_of::<Vector3<f32>>();
+            let mut positions = vec![0u8; positions_size];
+            reader.read_exact(&mut positions)?;
+            let positions_ptr = positions.as_ptr() as *const Vector3<f32>;
+            let positions: &[Vector3<f32>] = unsafe { std::slice::from_raw_parts(positions_ptr, len) };
+            point_positions.extend_from_slice(positions);
+
+            // Read the point colors
+            let mut point_colors = Vec::<ByteColor3>::with_capacity(len);
+            let colors_size = len * std::mem::size_of::<ByteColor3>();
+            let mut colors = vec![0u8; colors_size];
+            reader.read_exact(&mut colors)?;
+            let colors_ptr = colors.as_ptr() as *const ByteColor3;
+            let colors: &[ByteColor3] = unsafe { std::slice::from_raw_parts(colors_ptr, len) };
+            point_colors.extend_from_slice(colors);
+
+            // Read the clusters
+            let clusters_len = reader.read_u64::<LittleEndian>()? as usize;
+            let mut clusters = Vec::<Cluster>::with_capacity(clusters_len);
+            for _ in 0..clusters_len {
+                let index_start = reader.read_u64::<LittleEndian>()? as u32;
+                let len = reader.read_u64::<LittleEndian>()? as u32;
+                let min_x = reader.read_f32::<LittleEndian>()?;
+                let min_y = reader.read_f32::<LittleEndian>()?;
+                let min_z = reader.read_f32::<LittleEndian>()?;
+                let max_x = reader.read_f32::<LittleEndian>()?;
+                let max_y = reader.read_f32::<LittleEndian>()?;
+                let max_z = reader.read_f32::<LittleEndian>()?;
+                let center_x = reader.read_f32::<LittleEndian>()?;
+                let center_y = reader.read_f32::<LittleEndian>()?;
+                let center_z = reader.read_f32::<LittleEndian>()?;
+                let radius = reader.read_f32::<LittleEndian>()?;
+                let depth = reader.read_u64::<LittleEndian>()? as usize;
+                let level = reader.read_u64::<LittleEndian>()? as usize;
+                let children_len = reader.read_u64::<LittleEndian>()? as usize;
+                let mut children = Vec::<ClusterIndex>::with_capacity(children_len);
+                for _ in 0..children_len {
+                    let page_index = reader.read_u64::<LittleEndian>()? as usize;
+                    let cluster_index = reader.read_u64::<LittleEndian>()? as usize;
+                    children.push(ClusterIndex { page_index, cluster_index });
+                }
+                clusters.push(Cluster {
+                    index_start,
+                    len,
+                    aabb: AABB::new(Vector3::new(min_x, min_y, min_z), Vector3::new(max_x, max_y, max_z)),
+                    center: Vector3::new(center_x, center_y, center_z),
+                    radius,
+                    depth,
+                    level,
+                    children,
+                });
+            }
+
+            pages.push(Page {
+                point_positions,
+                point_colors,
+                clusters,
+            });
+        }
+
+        let root_cluster_index = ClusterIndex {
+            page_index: root_cluster_page_index as usize,
+            cluster_index: root_cluster_index as usize,
+        };
+        let max_cluster_depth = pages
+            .iter()
+            .map(|page| page.clusters.iter().map(|cluster| cluster.depth).max().unwrap_or(0))
+            .max()
+            .unwrap_or(0);
+
+        Ok(Self {
+            root_cluster_index,
+            pages,
+            max_cluster_depth,
+        })
+    }
+
+    /// Deserializes the `PointCloud` from a file.
+    pub fn deserialize_from_file(filepath: &impl AsRef<Path>) -> crate::Result<Self> {
+        let mut file = File::open(filepath)?;
+        let start = Instant::now();
+        let result = Self::deserialize_from(&mut file)?;
+        info!("Deserializing the point cloud took {} ms", start.elapsed().as_secs_f32());
+        Ok(result)
+    }
 }
 
 impl std::fmt::Debug for ClusteredPointCloud {
@@ -458,6 +647,8 @@ impl std::fmt::Debug for ClusteredPointCloud {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
+
     use jeriya_shared::function_name;
     use jeriya_test::create_test_result_folder_for_function;
 
@@ -491,5 +682,16 @@ mod tests {
             .unwrap();
 
         clustered_point_cloud.write_statisics(&directory.join("statistics.json")).unwrap();
+    }
+
+    #[test]
+    fn serialize_and_deserialize() {
+        let simple_point_cloud = SimplePointCloud::sample_from_model(&Model::import("../sample_assets/models/suzanne.glb").unwrap(), 200.0);
+        let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
+        let mut file = Cursor::new(Vec::new());
+        clustered_point_cloud.serialize_into(&mut file).unwrap();
+        file.rewind().unwrap();
+        let result = ClusteredPointCloud::deserialize_from(file).unwrap();
+        assert_eq!(clustered_point_cloud, result);
     }
 }
