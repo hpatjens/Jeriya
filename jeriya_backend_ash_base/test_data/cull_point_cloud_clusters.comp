@@ -446,6 +446,27 @@ layout (
     local_size_z = 1
 ) in;
 
+bool estimate_density(
+    in PointCloudCluster cluster, 
+    in mat4 model_matrix,
+    in mat4 view_matrix,
+    in mat4 projection_matrix,
+    out float density
+) {
+    vec3 view_space_center = (view_matrix * model_matrix * vec4(cluster.center_radius.xyz, 1.0)).xyz;
+
+    // bool visible = cull_sphere_near_plane(view_space_center.z, cluster.center_radius.w, znear);
+    // if (!visible) {
+    //     return false;
+    // }
+
+    AABB2 aabb = project_sphere_badly(view_space_center, cluster.center_radius.w, projection_matrix);
+    float area = (aabb.max.x - aabb.min.x) * (aabb.max.y - aabb.min.y);
+    density = float(cluster.points_len) / area;
+
+    return true;
+}
+
 void main() {
     if (gl_GlobalInvocationID.x != 0) {
         return;
@@ -480,14 +501,13 @@ void main() {
     uint global_page_index = point_cloud_attributes.pages_start_offset + point_cloud_attributes.root_cluster_page_index;
     uint cluster_index = point_cloud_attributes.root_cluster_cluster_index;
     PointCloudCluster cluster = static_point_cloud_pages[global_page_index].clusters[cluster_index];
-    vec3 view_space_center = (view_matrix * model_matrix * vec4(cluster.center_radius.xyz, 1.0)).xyz;
-    bool visible = cull_sphere_near_plane(view_space_center.z, cluster.center_radius.w, znear);
+
+    // Density estimation for root cluster
+    float density;
+    bool visible = estimate_density(cluster, model_matrix, view_matrix, projection_matrix, density);
     if (!visible) {
         return;
     }
-    AABB2 aabb = project_sphere_badly(view_space_center, cluster.center_radius.w, projection_matrix);
-    float area = (aabb.max.x - aabb.min.x) * (aabb.max.y - aabb.min.y);
-    float density = float(cluster.points_len) / area;
 
     uint stack_len = 1;
 
@@ -506,16 +526,13 @@ void main() {
         uint global_page_index = point_cloud_attributes.pages_start_offset + cluster_id.page_index;
         uint cluster_index = cluster_id.cluster_index;
         PointCloudCluster cluster = static_point_cloud_pages[global_page_index].clusters[cluster_index];
-        vec3 view_space_center = (view_matrix * model_matrix * vec4(cluster.center_radius.xyz, 1.0)).xyz;
 
-        // bool visible = cull_sphere_near_plane(view_space_center.z, cluster.center_radius.w, znear);
-        // if (!visible) {
-        //     continue;
-        // }
-
-        AABB2 aabb = project_sphere_badly(view_space_center, cluster.center_radius.w, projection_matrix);
-        float area = (aabb.max.x - aabb.min.x) * (aabb.max.y - aabb.min.y);
-        float density = float(cluster.points_len) / area;
+        // Density estimation
+        float density;
+        bool visible = estimate_density(cluster, model_matrix, view_matrix, projection_matrix, density);
+        if (!visible) {
+            continue;
+        }
 
         // Debug Rendering
         // vec4 ndc_center = projection_matrix * vec4(view_space_center, 1.0);
