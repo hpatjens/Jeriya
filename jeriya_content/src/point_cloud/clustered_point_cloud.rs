@@ -459,17 +459,9 @@ impl ClusteredPointCloud {
         Ok(())
     }
 
-    /// Serializes the `PointCloud` into a stream.
-    pub fn serialize_into<W: Write + Seek>(&self, mut writer: W) -> io::Result<()> {
-        // Leave space for the header
-        let header_size = 4 * std::mem::size_of::<u64>();
-        writer.seek(SeekFrom::Start(header_size as u64))?;
-
-        // Page table mapping the page index to the stream offset
+    /// Serializes the `Page`s into a stream.
+    fn serlialize_pages_into<W: Write + Seek>(&self, mut writer: W) -> io::Result<HashMap<u64, u64>> {
         let mut page_table = HashMap::<u64, u64>::new();
-
-        // Write the pages
-        let pages_offset = writer.stream_position()?;
         for (page_index, page) in self.pages.iter().enumerate() {
             // Insert the offset into the page table
             let page_start = writer.stream_position()?;
@@ -514,6 +506,18 @@ impl ClusteredPointCloud {
                 }
             }
         }
+        Ok(page_table)
+    }
+
+    /// Serializes the `PointCloud` into a stream.
+    pub fn serialize_into<W: Write + Seek>(&self, mut writer: W) -> io::Result<()> {
+        // Leave space for the header
+        let header_size = 4 * std::mem::size_of::<u64>();
+        writer.seek(SeekFrom::Start(header_size as u64))?;
+
+        // Write the pages
+        let pages_offset = writer.stream_position()?;
+        let page_table = self.serlialize_pages_into(&mut writer)?;
 
         // Write the page table
         let page_table_offset = writer.stream_position()?;
@@ -559,20 +563,11 @@ impl ClusteredPointCloud {
         Ok((root_cluster_page_index, root_cluster_index, pages_offset, page_table_offset))
     }
 
-    /// Deserializes the `PointCloud` from a stream.
-    pub fn deserialize_from<R: Read + Seek>(mut reader: R) -> io::Result<Self> {
-        // Read the header
-        let (root_cluster_page_index, root_cluster_index, pages_offset, page_table_offset) = Self::deserialize_header_from(&mut reader)?;
-
-        // Read the page table
-        reader.seek(SeekFrom::Start(page_table_offset))?;
-        let page_sequence = Self::deserialize_page_table_from(&mut reader)?;
-
-        // Read the pages
-        reader.seek(SeekFrom::Start(pages_offset))?;
+    /// Deserializes the `Page`s from a stream.
+    fn deserialize_pages_from<R: Read + Seek>(mut reader: R, page_offsets: &Vec<(u64, u64)>) -> io::Result<Vec<Page>> {
         let mut pages = Vec::<Page>::new();
-        for (_page_index, page_offset) in page_sequence {
-            reader.seek(SeekFrom::Start(page_offset))?;
+        for (_page_index, page_offset) in page_offsets {
+            reader.seek(SeekFrom::Start(*page_offset))?;
 
             let len = reader.read_u64::<LittleEndian>()? as usize;
 
@@ -637,6 +632,21 @@ impl ClusteredPointCloud {
                 clusters,
             });
         }
+        Ok(pages)
+    }
+
+    /// Deserializes the `PointCloud` from a stream.
+    pub fn deserialize_from<R: Read + Seek>(mut reader: R) -> io::Result<Self> {
+        // Read the header
+        let (root_cluster_page_index, root_cluster_index, pages_offset, page_table_offset) = Self::deserialize_header_from(&mut reader)?;
+
+        // Read the page table
+        reader.seek(SeekFrom::Start(page_table_offset))?;
+        let page_offsets = Self::deserialize_page_table_from(&mut reader)?;
+
+        // Read the pages
+        reader.seek(SeekFrom::Start(pages_offset))?;
+        let pages = Self::deserialize_pages_from(&mut reader, &page_offsets)?;
 
         let root_cluster_index = ClusterIndex {
             page_index: root_cluster_page_index as usize,
