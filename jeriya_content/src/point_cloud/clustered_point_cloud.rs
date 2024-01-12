@@ -438,6 +438,27 @@ impl ClusteredPointCloud {
         self.to_obj(obj_file, mtl_file, mtl_filename, config)
     }
 
+    /// Serializes the `Page` table into a stream.
+    fn serialize_page_table_into<W: Write + Seek>(&self, mut writer: W, page_table: &HashMap<u64, u64>) -> io::Result<()> {
+        writer.write_u64::<LittleEndian>(self.pages.len() as u64)?;
+        for page_index in 0..self.pages.len() {
+            let page_index = page_index as u64;
+            let page_offset = *page_table.get(&page_index).expect("Failed to get page offset");
+            writer.write_u64::<LittleEndian>(page_index)?;
+            writer.write_u64::<LittleEndian>(page_offset)?;
+        }
+        Ok(())
+    }
+
+    /// Serializes the header of the `PointCloud` into a stream.
+    fn serialize_header_into<W: Write + Seek>(&self, mut writer: W, pages_offset: u64, page_table_offset: u64) -> io::Result<()> {
+        writer.write_u64::<LittleEndian>(self.root_cluster_index.page_index as u64)?;
+        writer.write_u64::<LittleEndian>(self.root_cluster_index.cluster_index as u64)?;
+        writer.write_u64::<LittleEndian>(pages_offset as u64)?;
+        writer.write_u64::<LittleEndian>(page_table_offset as u64)?;
+        Ok(())
+    }
+
     /// Serializes the `PointCloud` into a stream.
     pub fn serialize_into<W: Write + Seek>(&self, mut writer: W) -> io::Result<()> {
         // Leave space for the header
@@ -494,24 +515,13 @@ impl ClusteredPointCloud {
             }
         }
 
-        // Write the offset of the page table into the header
-        let page_table_offset = writer.stream_position()?;
-
         // Write the page table
-        writer.write_u64::<LittleEndian>(page_table.len() as u64)?;
-        for page_index in 0..self.pages.len() {
-            let page_index = page_index as u64;
-            let page_offset = *page_table.get(&page_index).expect("Failed to get page offset");
-            writer.write_u64::<LittleEndian>(page_index)?;
-            writer.write_u64::<LittleEndian>(page_offset)?;
-        }
+        let page_table_offset = writer.stream_position()?;
+        self.serialize_page_table_into(&mut writer, &page_table)?;
 
         // Write header at the start of the stream
         writer.rewind()?;
-        writer.write_u64::<LittleEndian>(self.root_cluster_index.page_index as u64)?;
-        writer.write_u64::<LittleEndian>(self.root_cluster_index.cluster_index as u64)?;
-        writer.write_u64::<LittleEndian>(pages_offset as u64)?;
-        writer.write_u64::<LittleEndian>(page_table_offset as u64)?;
+        self.serialize_header_into(&mut writer, pages_offset, page_table_offset)?;
 
         Ok(())
     }
@@ -525,22 +535,38 @@ impl ClusteredPointCloud {
         Ok(())
     }
 
-    pub fn deserialize_from<R: Read + Seek>(mut reader: R) -> io::Result<Self> {
-        // Read the header
+    /// Deserializes the `Page` table from a stream. A `Vec` is returned instead of
+    /// a `HashMap` because it also gives the order of the pages. It can be converted
+    /// into a `HashMap` with `Vec::into_iter().collect::<HashMap<_, _>>()`. The first
+    /// element of the tuple is the page index and the second element is the page offset.
+    fn deserialize_page_table_from<R: Read + Seek>(mut reader: R) -> io::Result<Vec<(u64, u64)>> {
+        let page_table_len = reader.read_u64::<LittleEndian>()?;
+        let mut page_table = Vec::with_capacity(page_table_len as usize);
+        for _ in 0..page_table_len {
+            let page_index = reader.read_u64::<LittleEndian>()?;
+            let page_offset = reader.read_u64::<LittleEndian>()?;
+            page_table.push((page_index, page_offset));
+        }
+        Ok(page_table)
+    }
+
+    /// Deserializes the header of the `PointCloud` from a stream.
+    fn deserialize_header_from<R: Read + Seek>(mut reader: R) -> io::Result<(u64, u64, u64, u64)> {
         let root_cluster_page_index = reader.read_u64::<LittleEndian>()?;
         let root_cluster_index = reader.read_u64::<LittleEndian>()?;
         let pages_offset = reader.read_u64::<LittleEndian>()?;
         let page_table_offset = reader.read_u64::<LittleEndian>()?;
+        Ok((root_cluster_page_index, root_cluster_index, pages_offset, page_table_offset))
+    }
+
+    /// Deserializes the `PointCloud` from a stream.
+    pub fn deserialize_from<R: Read + Seek>(mut reader: R) -> io::Result<Self> {
+        // Read the header
+        let (root_cluster_page_index, root_cluster_index, pages_offset, page_table_offset) = Self::deserialize_header_from(&mut reader)?;
 
         // Read the page table
         reader.seek(SeekFrom::Start(page_table_offset))?;
-        let page_table_len = reader.read_u64::<LittleEndian>()?;
-        let mut page_sequence = Vec::new();
-        for _ in 0..page_table_len {
-            let page_index = reader.read_u64::<LittleEndian>()?;
-            let page_offset = reader.read_u64::<LittleEndian>()?;
-            page_sequence.push((page_index, page_offset));
-        }
+        let page_sequence = Self::deserialize_page_table_from(&mut reader)?;
 
         // Read the pages
         reader.seek(SeekFrom::Start(pages_offset))?;
@@ -637,6 +663,15 @@ impl ClusteredPointCloud {
         info!("Deserializing the point cloud took {} ms", start.elapsed().as_secs_f32());
         Ok(result)
     }
+
+    /// Deserializes the `Page` table from a file.
+    pub fn deserialize_page_table_from_file(filepath: &impl AsRef<Path>) -> crate::Result<HashMap<u64, u64>> {
+        let mut file = File::open(filepath).expect("Failed to open file");
+        let (_, _, _, page_table_offset) = Self::deserialize_header_from(&mut file)?;
+        file.seek(SeekFrom::Start(page_table_offset)).expect("Failed to seek to page table");
+        let page_table = Self::deserialize_page_table_from(&mut file)?;
+        Ok(page_table.into_iter().collect::<HashMap<_, _>>())
+    }
 }
 
 impl std::fmt::Debug for ClusteredPointCloud {
@@ -693,5 +728,16 @@ mod tests {
         file.rewind().unwrap();
         let result = ClusteredPointCloud::deserialize_from(file).unwrap();
         assert_eq!(clustered_point_cloud, result);
+    }
+
+    #[test]
+    fn deserialize_page_table_from_file_smoke() {
+        let simple_point_cloud = SimplePointCloud::sample_from_model(&Model::import("../sample_assets/models/suzanne.glb").unwrap(), 200.0);
+        let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
+        let folder = create_test_result_folder_for_function(function_name!());
+        let filepath = folder.join("point_cloud.bin");
+        clustered_point_cloud.serialize_to_file(&filepath).unwrap();
+        let result = ClusteredPointCloud::deserialize_page_table_from_file(&filepath).unwrap();
+        assert_eq!(clustered_point_cloud.pages.len(), result.len());
     }
 }
