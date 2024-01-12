@@ -39,6 +39,10 @@ enum ConvertType {
         /// Number of points that will be distributed per square unit
         #[clap(short, long, default_value = "1")]
         points_per_square_unit: f32,
+
+        /// Scale of the model. Use 0.1 to divide every coordinate by 10.
+        #[clap(short, long, default_value = "1.0")]
+        scale: f32,
     },
     PointCloudToObj {
         /// Size of the points in the point cloud
@@ -72,13 +76,14 @@ fn main() -> ey::Result<()> {
     match &command_line_arguments {
         CommandLineArguments::Convert(convert) => match convert.convert_type {
             ConvertType::GltfToPointCloud {
-                points_per_square_unit: point_per_square_unit,
+                points_per_square_unit,
+                scale,
             } => {
                 info!("Importing model: {:?}", convert.source_filepath);
                 let model = Model::import(&convert.source_filepath).wrap_err("Failed to import model")?;
 
                 info!("Converting model to simple point cloud");
-                let simple_point_cloud = SimplePointCloud::sample_from_model(&model, point_per_square_unit);
+                let simple_point_cloud = SimplePointCloud::sample_from_model(&model, points_per_square_unit, scale);
 
                 info!("Clustering point cloud");
                 let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
