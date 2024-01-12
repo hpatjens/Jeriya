@@ -76,5 +76,5 @@ void main() {
         return;
     }
 
-    output_color = vec4(color, 1.0);
+    output_color = in_point_color;
 }

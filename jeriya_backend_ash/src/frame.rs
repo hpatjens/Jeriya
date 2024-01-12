@@ -365,12 +365,6 @@ impl Frame {
         self.per_frame_data_buffer.set_memory_unaligned(&[per_frame_data])?;
         drop(span);
 
-        trace!("Frame telemetry: {:#?}", {
-            self.frame_telemetry_buffer
-                .get_memory_unaligned_index(0)
-                .expect("frame telemetry not available")
-        });
-
         const LOCAL_SIZE_X: u32 = 128;
         let cull_compute_shader_group_count = (self.rigid_mesh_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
 
