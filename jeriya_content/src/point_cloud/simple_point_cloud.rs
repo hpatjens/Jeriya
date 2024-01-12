@@ -360,7 +360,7 @@ mod tests {
     #[test]
     fn sample_from_model() {
         let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
-        let point_cloud = SimplePointCloud::sample_from_model(&model, 200.0);
+        let point_cloud = SimplePointCloud::sample_from_model(&model, 200.0, 1.0);
         let directory = create_test_result_folder_for_function(function_name!());
         let obj_path = directory.join("suzanne.obj");
         let file = File::create(&obj_path).unwrap();
