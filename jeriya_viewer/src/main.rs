@@ -254,12 +254,12 @@ fn main() -> ey::Result<()> {
     event_loop.set_control_flow(ControlFlow::Poll);
     let window1 = WindowBuilder::new()
         .with_title("Window 1")
-        .with_inner_size(LogicalSize::new(640.0, 480.0))
+        .with_inner_size(LogicalSize::new(1000.0, 1000.0))
         .build(&event_loop)
         .wrap_err("Failed to create window 1")?;
     let window2 = WindowBuilder::new()
         .with_title("Window 2")
-        .with_inner_size(LogicalSize::new(640.0, 480.0))
+        .with_inner_size(LogicalSize::new(1000.0, 1000.0))
         .build(&event_loop)
         .wrap_err("Failed to create window 2")?;
 
