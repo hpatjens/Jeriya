@@ -493,6 +493,7 @@ fn handle_point_cloud_attributes_events(
                         }
                     })
                     .collect::<Vec<_>>();
+
                 let pages_start_offset = backend_shared
                     .static_point_cloud_pages_buffer
                     .lock()

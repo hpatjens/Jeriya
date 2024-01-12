@@ -34,7 +34,7 @@ impl SimplePointCloud {
     }
 
     /// Creates a point cloud by sampling the surface of the given `Model`.
-    pub fn sample_from_model(model: &Model, points_per_square_unit: f32) -> Self {
+    pub fn sample_from_model(model: &Model, points_per_square_unit: f32, scale: f32) -> Self {
         let triangle_count = model.meshes.iter().map(|mesh| mesh.simple_mesh.indices.len() / 3).sum::<usize>();
         info!("Mesh count: {}", model.meshes.len());
         info!("Triangle count: {}", triangle_count);
@@ -131,7 +131,7 @@ impl SimplePointCloud {
                         };
 
                         // Push the point to the point cloud
-                        point_positions.push(point_position);
+                        point_positions.push(scale * point_position);
                         point_colors.push(point_color);
                     }
                     let mut guard = simple_point_cloud.lock();
