@@ -539,7 +539,7 @@ void main() {
         // push_debug_ndc_cross(ndc_center.xyz / ndc_center.w, 0.01, vec4(1.0, 0.5, 0.0, 1.0));
         // push_debug_ndc_aabb2(aabb, vec4(1.0, 0.0, 0.0, 1.0), vec4(0.0, 1.0, 0.0, 1.0));
 
-        bool is_correct_density = false; //parent_density < density_threshold && density > density_threshold;
+        bool is_correct_density = parent_density < density_threshold && density > density_threshold;
         bool has_no_children = cluster.children_count == 0;
 
         if (is_correct_density || has_no_children) {
