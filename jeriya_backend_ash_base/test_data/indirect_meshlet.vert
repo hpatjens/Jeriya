@@ -17,7 +17,7 @@ layout (constant_id = 10) const uint MAX_POINT_CLOUD_INSTANCES = 1024;
 layout (constant_id = 11) const uint MAX_POINT_CLOUD_PAGES = 16384;
 // layout (constant_id = 12)
 // layout (constant_id = 13)
-layout (constant_id = 14) const uint MAX_VISIBLE_POINT_CLOUD_CLUSTERS = 16384;
+layout (constant_id = 14) const uint MAX_VISIBLE_POINT_CLOUD_CLUSTERS = 1048576;
 layout (constant_id = 15) const uint MAX_DEVICE_LOCAL_DEBUG_LINES_COMPONENT_COUNT = 16384;
 
 const float TAU = 6.283184;
