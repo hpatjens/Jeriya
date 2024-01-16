@@ -489,7 +489,6 @@ void main() {
 
     PointCloudAttributes point_cloud_attributes = point_cloud_attributes[point_cloud.point_cloud_attributes_index];
 
-
     float density_threshold = 5000.0;
 
     float znear = active_camera_znear();
@@ -511,10 +510,11 @@ void main() {
 
     uint stack_len = 1;
 
-    float density_stack[128];
+    const uint DENSITY_STACK_SIZE = 128;
+    float density_stack[DENSITY_STACK_SIZE];
     density_stack[0] = density;
 
-    PointCloudClusterId id_stack[128];
+    PointCloudClusterId id_stack[DENSITY_STACK_SIZE];
     id_stack[0].cluster_index = point_cloud_attributes.root_cluster_cluster_index;
     id_stack[0].page_index = point_cloud_attributes.root_cluster_page_index;
 
@@ -539,7 +539,7 @@ void main() {
         // push_debug_ndc_cross(ndc_center.xyz / ndc_center.w, 0.01, vec4(1.0, 0.5, 0.0, 1.0));
         // push_debug_ndc_aabb2(aabb, vec4(1.0, 0.0, 0.0, 1.0), vec4(0.0, 1.0, 0.0, 1.0));
 
-        bool is_correct_density = parent_density < density_threshold && density > density_threshold;
+        bool is_correct_density = false; //parent_density < density_threshold && density > density_threshold;
         bool has_no_children = cluster.children_count == 0;
 
         if (is_correct_density || has_no_children) {
@@ -563,10 +563,12 @@ void main() {
             visible_point_cloud_clusters.cluster_ids[allocated_index] = cluster_id;
         } else {
             for (uint i = 0; i < cluster.children_count; i++) {
-                density_stack[stack_len] = density;
-                id_stack[stack_len].page_index = cluster.children_page_indices[i];
-                id_stack[stack_len].cluster_index = cluster.children_cluster_indices[i];
-                stack_len += 1;
+                if (stack_len < DENSITY_STACK_SIZE) {
+                    density_stack[stack_len] = density;
+                    id_stack[stack_len].page_index = cluster.children_page_indices[i];
+                    id_stack[stack_len].cluster_index = cluster.children_cluster_indices[i];
+                    stack_len += 1;
+                }
             }
         }
     } while (stack_len > 0);

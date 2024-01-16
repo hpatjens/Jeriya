@@ -87,7 +87,6 @@ fn main() -> ey::Result<()> {
 
                 info!("Clustering point cloud");
                 let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
-
                 info!("Serializing point cloud");
                 clustered_point_cloud
                     .serialize_to_file(&convert.destination_filepath)
