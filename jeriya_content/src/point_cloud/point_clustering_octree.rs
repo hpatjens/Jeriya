@@ -40,7 +40,7 @@ impl PointClusteringOctree {
             "Creating a PointClusteringOctree for {} points",
             build_context.point_positions.len()
         );
-        let aabb = Self::bound(&build_context.point_positions);
+        let aabb = Self::bound(build_context.point_positions);
         trace!("Outer AABB of the octree: {:?}", aabb);
         let indices = (0..build_context.point_positions.len()).collect::<Vec<_>>();
         let root_proto_cluster = Self::build_clusters_in_aabb(build_context, indices, &aabb);
@@ -96,19 +96,15 @@ impl PointClusteringOctree {
 
     /// Returns the number of proto clusters in the octree.
     fn count_proto_clusters(proto_cluster: &ProtoCluster) -> usize {
-        1 + proto_cluster
-            .children
-            .iter()
-            .map(|proto_cluster| Self::count_proto_clusters(proto_cluster))
-            .sum::<usize>()
+        1 + proto_cluster.children.iter().map(Self::count_proto_clusters).sum::<usize>()
     }
 
     /// Returns the `AABB` that bounds all the points in the given `point_positions`.
     fn bound(point_positions: &[Vector3<f32>]) -> AABB {
         point_positions
             .par_iter()
-            .fold(|| AABB::empty(), |aabb, point_position: &Vector3<f32>| aabb.union(point_position))
-            .reduce(|| AABB::empty(), |aabb1, aabb2| aabb1.union(&aabb2))
+            .fold(AABB::empty, |aabb, point_position: &Vector3<f32>| aabb.union(point_position))
+            .reduce(AABB::empty, |aabb1, aabb2| aabb1.union(&aabb2))
     }
 
     /// Returns the index of the quadrant that the given `point_position` is in. This index can be used to access the children of a `Node`.
@@ -207,7 +203,7 @@ impl PointClusteringOctree {
             if i + 1 < children.len() {
                 let child_a = children[i].take().expect("failed to get some");
                 let child_b = children[i + 1].take().expect("failed to get some");
-                let merged_cluster = Self::merge_two_clusters(build_context, child_a, child_b, &outer_aabb);
+                let merged_cluster = Self::merge_two_clusters(build_context, child_a, child_b, outer_aabb);
                 new_children.push(Some(merged_cluster));
             } else {
                 new_children.push(children[i].take());
@@ -251,7 +247,7 @@ impl PointClusteringOctree {
             .par_iter()
             .fold(Self::empty_quadrants, |mut children, index| {
                 let point_position = &build_context.point_positions[*index];
-                let quadrant_index = Self::quadrant_index(point_position, &aabb);
+                let quadrant_index = Self::quadrant_index(point_position, aabb);
                 let child = &mut children[quadrant_index];
                 child.push(*index);
                 children
@@ -274,7 +270,7 @@ impl PointClusteringOctree {
             .into_iter()
             .enumerate()
             .map(|(quadrant_index, quadrant_indices)| {
-                let quadrant_aabb = Self::quadrant_aabb(&aabb, quadrant_index);
+                let quadrant_aabb = Self::quadrant_aabb(aabb, quadrant_index);
                 if quadrant_indices.is_empty() {
                     None
                 } else {
