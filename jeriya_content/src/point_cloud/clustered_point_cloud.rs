@@ -474,13 +474,13 @@ impl ClusteredPointCloud {
             let positions_ptr = page.point_positions.as_ptr() as *const u8;
             let positions_size = page.point_positions.len() * std::mem::size_of::<Vector3<f32>>();
             let positions: &[u8] = unsafe { std::slice::from_raw_parts(positions_ptr, positions_size) };
-            writer.write(positions)?;
+            let _ = writer.write(positions)?;
 
             // Write the point colors
             let colors_ptr = page.point_colors.as_ptr() as *const u8;
             let colors_size = page.point_colors.len() * std::mem::size_of::<ByteColor3>();
             let colors: &[u8] = unsafe { std::slice::from_raw_parts(colors_ptr, colors_size) };
-            writer.write(colors)?;
+            let _ = writer.write(colors)?;
 
             // Write the page
             writer.write_u64::<LittleEndian>(page.clusters.len() as u64)?;
