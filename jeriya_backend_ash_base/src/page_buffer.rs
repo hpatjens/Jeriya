@@ -74,8 +74,7 @@ impl<P: Clone + Send + Sync + 'static> PageBuffer<P> {
         )?);
 
         // Create the commands to transfer the individual pages from the staging buffer to the device visible buffer
-        for i in 0..pages.len() {
-            let page_index = indices[i];
+        for (i, page_index) in indices.iter().enumerate().take(pages.len()) {
             let src_offset = i * std::mem::size_of::<P>();
             let dst_offset = page_index * std::mem::size_of::<P>();
 

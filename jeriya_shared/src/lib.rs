@@ -105,6 +105,10 @@ macro_rules! assert_eq {
 /// Type that is used instead of tracer::Span when the feature "profile" is not enabled
 pub struct SpanDummy;
 
+impl Drop for SpanDummy {
+    fn drop(&mut self) {}
+}
+
 /// Profiling span that gets enabled with the feature "profile"
 #[cfg(feature = "profile")]
 #[macro_export]

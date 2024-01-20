@@ -62,9 +62,13 @@ impl<T: Clone> HostVisibleBuffer<T> {
     }
 
     /// Returns the underlying [`UnsafeBuffer`]
-    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.len
+    }
+
+    /// Returns whether the buffer is empty
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
     /// Returns the size of the buffer in bytes
