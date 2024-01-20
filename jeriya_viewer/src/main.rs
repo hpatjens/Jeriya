@@ -34,7 +34,7 @@ use jeriya_content::{
     asset_importer::{AssetImporter, FileSystem},
     asset_processor::AssetProcessor,
     common::Directories,
-    model::Model,
+    model::ModelAsset,
     point_cloud::clustered_point_cloud::ClusteredPointCloud,
 };
 use jeriya_shared::{
@@ -297,7 +297,7 @@ fn main() -> ey::Result<()> {
     let mut instance_group = InstanceGroup::new(&renderer, debug_info!("my_instance_group"));
 
     // Load models
-    let cube_model = Model::import("sample_assets/models/rotated_cube.glb").wrap_err("Failed to import model")?;
+    let cube_model = ModelAsset::import("sample_assets/models/rotated_cube.glb").wrap_err("Failed to import model")?;
 
     // Create MeshAttributes for the model
     //
@@ -409,7 +409,7 @@ fn main() -> ey::Result<()> {
     thread::spawn(move || {
         match command_line_arguments.file_type {
             FileType::Model => {
-                let main_model = Model::import(command_line_arguments.path)
+                let main_model = ModelAsset::import(command_line_arguments.path)
                     .wrap_err("Failed to import model")
                     .expect("Failed to import model");
 
