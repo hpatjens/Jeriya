@@ -125,16 +125,16 @@ pub struct Material {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Model {
+pub struct ModelAsset {
     pub name: String,
     pub meshes: Vec<Mesh>,
     pub textures: Vec<Texture>,
     pub materials: Vec<Material>,
 }
 
-impl Model {
+impl ModelAsset {
     /// Import model from a glTF file.
-    pub fn import(path: impl AsRef<Path>) -> crate::Result<Model> {
+    pub fn import(path: impl AsRef<Path>) -> crate::Result<ModelAsset> {
         let (document, buffers, images) = gltf::import(&path).map_err(|err| Error::FailedLoading {
             path: path.as_ref().to_owned(),
             error_message: err.to_string(),
@@ -177,7 +177,7 @@ impl Model {
             .map(|mesh| build_mesh(model_name, &mesh, &buffers))
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(Model {
+        Ok(ModelAsset {
             name: model_name.to_owned(),
             meshes,
             textures,
@@ -307,7 +307,7 @@ impl Meshlet {
 /// Function for the [`AssetProcessor`]
 pub fn process_model(asset_builder: &mut AssetBuilder) -> crate::Result<()> {
     let path = asset_builder.unprocessed_asset_path().to_owned();
-    let model = Model::import(path)?;
+    let model = ModelAsset::import(path)?;
     let file_name = "model.bin";
     let file = File::create(asset_builder.processed_asset_path().join(file_name))?;
     bincode::serialize_into(file, &model).map_err(|err| crate::Error::FailedSerialization(err))?;
@@ -464,7 +464,7 @@ mod tests {
     }
 
     fn export(src_path: impl AsRef<Path>, dst_name: &str, obj_write_config: ObjWriteConfig) -> Contents {
-        let model = Model::import(&src_path).unwrap();
+        let model = ModelAsset::import(&src_path).unwrap();
         let mut obj_writer = BufWriter::new(Vec::new());
         let mut mtl_writer = BufWriter::new(Vec::new());
 
@@ -501,7 +501,7 @@ mod tests {
     #[test]
     fn smoke() {
         setup_logger();
-        let model = Model::import("../sample_assets/models/rotated_cube.glb").unwrap();
+        let model = ModelAsset::import("../sample_assets/models/rotated_cube.glb").unwrap();
         assert_eq!(model.meshes.len(), 1);
         assert_eq!(model.meshes[0].simple_mesh.vertex_positions.len(), 24);
         assert_eq!(model.meshes[0].simple_mesh.vertex_normals.len(), 24);

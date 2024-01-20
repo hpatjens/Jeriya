@@ -4,7 +4,7 @@ use clap::Parser;
 use color_eyre as ey;
 use ey::eyre::Context;
 use jeriya_content::{
-    model::Model,
+    model::ModelAsset,
     point_cloud::{
         clustered_point_cloud::{ClusteredPointCloud, ObjClusterWriteConfig},
         simple_point_cloud::SimplePointCloud,
@@ -80,7 +80,7 @@ fn main() -> ey::Result<()> {
                 scale,
             } => {
                 info!("Importing model: {:?}", convert.source_filepath);
-                let model = Model::import(&convert.source_filepath).wrap_err("Failed to import model")?;
+                let model = ModelAsset::import(&convert.source_filepath).wrap_err("Failed to import model")?;
 
                 info!("Converting model to simple point cloud");
                 let simple_point_cloud = SimplePointCloud::sample_from_model(&model, points_per_square_unit, scale);

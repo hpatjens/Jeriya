@@ -33,7 +33,7 @@ pub struct RigidMeshCollection {
 impl RigidMeshCollection {
     /// Creates a new [`RigidMeshCollection`] from a Model.
     pub fn from_model(
-        model: &jeriya_content::model::Model,
+        model: &jeriya_content::model::ModelAsset,
         resource_group: &mut ResourceGroup,
         element_group: &mut ElementGroup,
         transaction: &mut impl PushEvent,

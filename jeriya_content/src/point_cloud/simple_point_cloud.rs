@@ -12,7 +12,7 @@ use jeriya_shared::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::model::Model;
+use crate::model::ModelAsset;
 
 /// Determines what is exported to the OBJ file.
 pub enum ObjWriteConfig {
@@ -34,7 +34,7 @@ impl SimplePointCloud {
     }
 
     /// Creates a point cloud by sampling the surface of the given `Model`.
-    pub fn sample_from_model(model: &Model, points_per_square_unit: f32, scale: f32) -> Self {
+    pub fn sample_from_model(model: &ModelAsset, points_per_square_unit: f32, scale: f32) -> Self {
         let triangle_count = model.meshes.iter().map(|mesh| mesh.simple_mesh.indices.len() / 3).sum::<usize>();
         info!("Mesh count: {}", model.meshes.len());
         info!("Triangle count: {}", triangle_count);
@@ -252,7 +252,7 @@ struct SurfaceAreas {
 
 impl SurfaceAreas {
     /// Computes the surface areas of the given `Model`.
-    fn compute_for(model: &Model) -> Self {
+    fn compute_for(model: &ModelAsset) -> Self {
         let mut surface_areas = SurfaceAreas::default();
         for (mesh_index, mesh) in model.meshes.iter().enumerate() {
             let mut mesh_surface_area = 0.0; // surface area of this mesh
@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn sample_from_model() {
-        let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
+        let model = ModelAsset::import("../sample_assets/models/suzanne.glb").unwrap();
         let point_cloud = SimplePointCloud::sample_from_model(&model, 200.0, 1.0);
         let directory = create_test_result_folder_for_function(function_name!());
         let obj_path = directory.join("suzanne.obj");
@@ -384,7 +384,7 @@ mod tests {
 
         #[test]
         fn smoke() {
-            let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
+            let model = ModelAsset::import("../sample_assets/models/suzanne.glb").unwrap();
             let surface_areas = SurfaceAreas::compute_for(&model);
             assert!(approx_eq!(f32, surface_areas.overall_surface_area, 26.453384, ulps = 2));
             // mesh surface areas
@@ -409,7 +409,7 @@ mod tests {
 
         #[test]
         fn smoke() {
-            let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
+            let model = ModelAsset::import("../sample_assets/models/suzanne.glb").unwrap();
             let surface_areas = SurfaceAreas::compute_for(&model);
             let cumulative_sums = CumulativeSums::compute_for(&surface_areas);
             // mesh cumulative sums

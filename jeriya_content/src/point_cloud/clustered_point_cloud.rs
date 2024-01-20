@@ -697,7 +697,7 @@ mod tests {
     use jeriya_shared::function_name;
     use jeriya_test::create_test_result_folder_for_function;
 
-    use crate::model::Model;
+    use crate::model::ModelAsset;
 
     use super::*;
 
@@ -707,7 +707,7 @@ mod tests {
 
         let directory = create_test_result_folder_for_function(function_name!());
 
-        let model = Model::import("../sample_assets/models/suzanne.glb").unwrap();
+        let model = ModelAsset::import("../sample_assets/models/suzanne.glb").unwrap();
         let simple_point_cloud = SimplePointCloud::sample_from_model(&model, 200.0, 1.0);
         let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
 
@@ -732,7 +732,7 @@ mod tests {
     #[test]
     fn serialize_and_deserialize() {
         let simple_point_cloud =
-            SimplePointCloud::sample_from_model(&Model::import("../sample_assets/models/suzanne.glb").unwrap(), 200.0, 1.0);
+            SimplePointCloud::sample_from_model(&ModelAsset::import("../sample_assets/models/suzanne.glb").unwrap(), 200.0, 1.0);
         let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
         let mut file = Cursor::new(Vec::new());
         clustered_point_cloud.serialize_into(&mut file).unwrap();
@@ -744,7 +744,7 @@ mod tests {
     #[test]
     fn deserialize_page_table_from_file_smoke() {
         let simple_point_cloud =
-            SimplePointCloud::sample_from_model(&Model::import("../sample_assets/models/suzanne.glb").unwrap(), 200.0, 1.0);
+            SimplePointCloud::sample_from_model(&ModelAsset::import("../sample_assets/models/suzanne.glb").unwrap(), 200.0, 1.0);
         let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
         let folder = create_test_result_folder_for_function(function_name!());
         let filepath = folder.join("point_cloud.bin");
