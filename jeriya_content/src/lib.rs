@@ -58,6 +58,7 @@ pub mod asset_processor;
 pub mod common;
 pub mod model;
 pub mod point_cloud;
+pub mod shader;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -83,4 +84,8 @@ pub enum Error {
     FailedDeserialization(Box<dyn std::error::Error + Send + Sync>),
     #[error("Other: {0}")]
     Other(Box<dyn std::error::Error + Send + Sync>),
+    #[error("Failed to execute: {0}")]
+    FailedToCompileShader(String),
+    #[error("Failed to convert from UTF-8: {0}")]
+    Utf8Error(#[from] std::string::FromUtf8Error),
 }
