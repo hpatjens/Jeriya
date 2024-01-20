@@ -201,7 +201,10 @@ fn setup_asset_processor() -> ey::Result<AssetProcessor> {
         .wrap_err("Failed to create Directories for AssetProcessor")?;
     let asset_processor = AssetProcessor::new(&directories, 4)
         .wrap_err("Failed to create AssetProcessor")?
-        .register("glb", Box::new(jeriya_content::model::process_model));
+        .register("glb", Box::new(jeriya_content::model::process_model))
+        .register("vert", Box::new(jeriya_content::shader::process_shader))
+        .register("frag", Box::new(jeriya_content::shader::process_shader))
+        .register("comp", Box::new(jeriya_content::shader::process_shader));
     asset_processor.set_active(true)?;
     Ok(asset_processor)
 }

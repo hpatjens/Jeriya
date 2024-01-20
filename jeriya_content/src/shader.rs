@@ -3,6 +3,8 @@ use std::{
     process::Command,
 };
 
+use crate::asset_processor::AssetBuilder;
+
 pub struct ShaderAsset {
     name: String,
     spriv: Vec<u8>,
@@ -64,6 +66,14 @@ impl ShaderAsset {
     pub fn spriv(&self) -> &[u8] {
         &self.spriv
     }
+}
+
+/// Processes a model asset.
+pub fn process_shader(asset_builder: &mut AssetBuilder) -> crate::Result<()> {
+    let dst_path = asset_builder.processed_asset_path().join("shader.spv");
+    asset_builder.with_file(&dst_path);
+    ShaderAsset::compile_from(asset_builder.unprocessed_asset_path(), dst_path)?;
+    Ok(())
 }
 
 #[cfg(test)]
