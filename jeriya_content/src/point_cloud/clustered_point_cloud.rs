@@ -174,13 +174,13 @@ impl Page {
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ClusteredPointCloud {
+pub struct ClusteredPointCloudAsset {
     root_cluster_index: ClusterIndex,
     pages: Vec<Page>,
     max_cluster_depth: usize,
 }
 
-impl ClusteredPointCloud {
+impl ClusteredPointCloudAsset {
     pub fn from_simple_point_cloud(simple_point_cloud: &SimplePointCloud) -> Self {
         let start = Instant::now();
 
@@ -684,7 +684,7 @@ impl ClusteredPointCloud {
     }
 }
 
-impl std::fmt::Debug for ClusteredPointCloud {
+impl std::fmt::Debug for ClusteredPointCloudAsset {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ClusteredPointCloud").field("pages", &self.pages.len()).finish()
     }
@@ -709,7 +709,7 @@ mod tests {
 
         let model = ModelAsset::import("../sample_assets/models/suzanne.glb").unwrap();
         let simple_point_cloud = SimplePointCloud::sample_from_model(&model, 200.0, 1.0);
-        let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
+        let clustered_point_cloud = ClusteredPointCloudAsset::from_simple_point_cloud(&simple_point_cloud);
 
         for depth in 0..=clustered_point_cloud.max_cluster_depth() {
             let config = ObjClusterWriteConfig::Points { point_size: 0.02, depth };
@@ -733,11 +733,11 @@ mod tests {
     fn serialize_and_deserialize() {
         let simple_point_cloud =
             SimplePointCloud::sample_from_model(&ModelAsset::import("../sample_assets/models/suzanne.glb").unwrap(), 200.0, 1.0);
-        let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
+        let clustered_point_cloud = ClusteredPointCloudAsset::from_simple_point_cloud(&simple_point_cloud);
         let mut file = Cursor::new(Vec::new());
         clustered_point_cloud.serialize_into(&mut file).unwrap();
         file.rewind().unwrap();
-        let result = ClusteredPointCloud::deserialize_from(file).unwrap();
+        let result = ClusteredPointCloudAsset::deserialize_from(file).unwrap();
         assert_eq!(clustered_point_cloud, result);
     }
 
@@ -745,11 +745,11 @@ mod tests {
     fn deserialize_page_table_from_file_smoke() {
         let simple_point_cloud =
             SimplePointCloud::sample_from_model(&ModelAsset::import("../sample_assets/models/suzanne.glb").unwrap(), 200.0, 1.0);
-        let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
+        let clustered_point_cloud = ClusteredPointCloudAsset::from_simple_point_cloud(&simple_point_cloud);
         let folder = create_test_result_folder_for_function(function_name!());
         let filepath = folder.join("point_cloud.bin");
         clustered_point_cloud.serialize_to_file(&filepath).unwrap();
-        let result = ClusteredPointCloud::deserialize_page_table_from_file(&filepath).unwrap();
+        let result = ClusteredPointCloudAsset::deserialize_page_table_from_file(&filepath).unwrap();
         assert_eq!(clustered_point_cloud.pages.len(), result.len());
     }
 }
