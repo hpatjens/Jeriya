@@ -3,40 +3,13 @@ use std::{
     fmt::{self, Formatter},
     fs, io,
     path::{Path, PathBuf},
-    result,
     time::SystemTime,
 };
 
-use jeriya_shared::{log::trace, thiserror};
+use jeriya_shared::log::trace;
 use serde::{Deserialize, Serialize};
 
 pub const ASSET_META_FILE_NAME: &str = "asset.yaml";
-
-pub type Result<T> = result::Result<T, Error>;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Invalid path: {0}")]
-    InvalidPath(PathBuf),
-    #[error("Invalid extension '{0}' in path {1}")]
-    InvalidExtension(String, PathBuf),
-    #[error("IoError: {0}")]
-    IoError(#[from] io::Error),
-    #[error("Extension not registered: {0}")]
-    ExtensionNotRegistered(String),
-    #[error("Failed to start directory watcher in directory: {0}")]
-    FailedToStartDirectoryWatcher(PathBuf),
-    #[error("Failed to start thread pool")]
-    FailedToStartThreadPool,
-    #[error("Failed to read the asset: {0}")]
-    InvalidAssetData(PathBuf),
-    #[error("Failed to serialize the asset: {0}")]
-    FailedSerialization(Box<dyn std::error::Error + Send + Sync>),
-    #[error("Failed to deserialize the asset: {0}")]
-    FailedDeserialization(Box<dyn std::error::Error + Send + Sync>),
-    #[error("Other: {0}")]
-    Other(Box<dyn std::error::Error + Send + Sync>),
-}
 
 /// Directories that are used by the [`AssetProcessor`].
 #[derive(Debug, Clone)]
@@ -76,7 +49,7 @@ impl Directories {
     }
 
     /// Assets that the directories exist and returns a specific error if they don't.
-    pub fn check(&self) -> Result<()> {
+    pub fn check(&self) -> crate::Result<()> {
         if !self.processed_assets_path.exists() {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
@@ -182,20 +155,20 @@ impl From<&AssetKey> for AssetKey {
     }
 }
 
-pub(crate) fn extract_extension_from_path(path: &Path) -> Result<String> {
+pub(crate) fn extract_extension_from_path(path: &Path) -> crate::Result<String> {
     Ok(path
         .extension()
         .and_then(|extension| extension.to_str())
         .map(|extension| extension.to_lowercase())
-        .ok_or(Error::InvalidPath(path.to_owned()))?
+        .ok_or(crate::Error::InvalidPath(path.to_owned()))?
         .to_owned())
 }
 
-pub(crate) fn extract_file_name_from_path(path: &Path) -> Result<String> {
+pub(crate) fn extract_file_name_from_path(path: &Path) -> crate::Result<String> {
     Ok(path
         .file_name()
         .and_then(|file_name| file_name.to_str())
-        .ok_or(Error::InvalidPath(path.to_owned()))?
+        .ok_or(crate::Error::InvalidPath(path.to_owned()))?
         .to_owned())
 }
 

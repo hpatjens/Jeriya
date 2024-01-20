@@ -1,6 +1,11 @@
 use std::{fs, io};
 
-use jeriya_content::{AssetImporter, AssetProcessor, Directories, Error, FileSystem};
+use jeriya_content::{
+    asset_importer::{AssetImporter, FileSystem},
+    asset_processor::AssetProcessor,
+    common::Directories,
+    Error,
+};
 use jeriya_shared::log;
 
 fn main() -> io::Result<()> {
