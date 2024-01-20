@@ -6,7 +6,7 @@ use ey::eyre::Context;
 use jeriya_content::{
     model::ModelAsset,
     point_cloud::{
-        clustered_point_cloud::{ClusteredPointCloud, ObjClusterWriteConfig},
+        clustered_point_cloud::{ClusteredPointCloudAsset, ObjClusterWriteConfig},
         simple_point_cloud::SimplePointCloud,
     },
 };
@@ -86,7 +86,7 @@ fn main() -> ey::Result<()> {
                 let simple_point_cloud = SimplePointCloud::sample_from_model(&model, points_per_square_unit, scale);
 
                 info!("Clustering point cloud");
-                let clustered_point_cloud = ClusteredPointCloud::from_simple_point_cloud(&simple_point_cloud);
+                let clustered_point_cloud = ClusteredPointCloudAsset::from_simple_point_cloud(&simple_point_cloud);
                 info!("Serializing point cloud");
                 clustered_point_cloud
                     .serialize_to_file(&convert.destination_filepath)
@@ -94,8 +94,8 @@ fn main() -> ey::Result<()> {
             }
             ConvertType::PointCloudToObj { point_size, depth } => {
                 info!("Deserializing point cloud");
-                let clustered_point_cloud =
-                    ClusteredPointCloud::deserialize_from_file(&convert.source_filepath).wrap_err("Failed to deserialize point cloud")?;
+                let clustered_point_cloud = ClusteredPointCloudAsset::deserialize_from_file(&convert.source_filepath)
+                    .wrap_err("Failed to deserialize point cloud")?;
 
                 info!("Writing point cloud to OBJ");
                 clustered_point_cloud

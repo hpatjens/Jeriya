@@ -35,7 +35,7 @@ use jeriya_content::{
     asset_processor::AssetProcessor,
     common::Directories,
     model::ModelAsset,
-    point_cloud::clustered_point_cloud::ClusteredPointCloud,
+    point_cloud::clustered_point_cloud::ClusteredPointCloudAsset,
 };
 use jeriya_shared::{
     debug_info,
@@ -439,7 +439,7 @@ fn main() -> ey::Result<()> {
                 transaction.finish();
             }
             FileType::PointCloud => {
-                let clustered_point_cloud = ClusteredPointCloud::deserialize_from_file(&command_line_arguments.path)
+                let clustered_point_cloud = ClusteredPointCloudAsset::deserialize_from_file(&command_line_arguments.path)
                     .wrap_err("Failed to deserialize PointCloud")
                     .expect("Failed to deserialize PointCloud");
                 info!("PointCloud to view: {clustered_point_cloud:?}");
