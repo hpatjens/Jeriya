@@ -521,7 +521,7 @@ fn main() -> ey::Result<()> {
                         WindowEvent::MouseWheel { delta, .. } => {
                             if window_id == window2.id() {
                                 match delta {
-                                    MouseScrollDelta::LineDelta(_x, y) => camera_controller2.zoom_out(-y as f32),
+                                    MouseScrollDelta::LineDelta(_x, y) => camera_controller2.zoom_out(-y),
                                     MouseScrollDelta::PixelDelta(delta) => camera_controller2.zoom_out(-delta.y as f32),
                                 }
                             }

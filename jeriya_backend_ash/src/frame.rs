@@ -25,7 +25,6 @@ use jeriya_backend_ash_base::{
     shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
 };
 use jeriya_macros::profile;
-use jeriya_shared::log::trace;
 use jeriya_shared::{debug_info, log::info, nalgebra::Matrix4, plot_with_index, tracy_client::plot, winit::window::WindowId};
 
 use crate::ash_immediate::ImmediateRenderingFrameTask;

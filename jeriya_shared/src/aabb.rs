@@ -152,7 +152,9 @@ impl AABB {
     /// assert_approx_eq!(f32, bounding_box.max.z, 3.0, ulps = 1);
     /// ```
     pub fn from_slice(points: &[Vector3<f32>]) -> Self {
-        Self::from_iter(points.iter())
+        let mut bounding_box = Self::empty();
+        bounding_box.extend(points);
+        bounding_box
     }
 
     /// Creates a new [`AABB`] that contains the `points` from the iterator.
@@ -168,7 +170,7 @@ impl AABB {
     ///     Vector3::new(1.0, 2.0, 3.0),
     ///     Vector3::new(-4.0, -5.0, -6.0),
     /// ];
-    /// let bounding_box = AABB::from_iter(vec.iter());
+    /// let bounding_box = AABB::from_ref_iter(vec.iter());
     /// assert_approx_eq!(f32, bounding_box.min.x, -4.0, ulps = 1);
     /// assert_approx_eq!(f32, bounding_box.min.y, -5.0, ulps = 1);
     /// assert_approx_eq!(f32, bounding_box.min.z, -6.0, ulps = 1);
@@ -176,9 +178,9 @@ impl AABB {
     /// assert_approx_eq!(f32, bounding_box.max.y, 2.0, ulps = 1);
     /// assert_approx_eq!(f32, bounding_box.max.z, 3.0, ulps = 1);
     /// ```
-    pub fn from_iter<'v>(points: impl IntoIterator<Item = &'v Vector3<f32>>) -> Self {
+    pub fn from_ref_iter<'s, T: IntoIterator<Item = &'s Vector3<f32>>>(iter: T) -> Self {
         let mut bounding_box = Self::empty();
-        bounding_box.extend(points);
+        bounding_box.extend(iter);
         bounding_box
     }
 
@@ -278,7 +280,7 @@ impl AABB {
     /// assert!(bounding_box.contains(&other));
     /// ```
     pub fn contains(&self, other: &impl Contains) -> bool {
-        other.contains(&self)
+        other.contains(self)
     }
 
     /// Returns the center of the `AABB`
@@ -309,6 +311,35 @@ impl AABB {
     /// Returns `true` if the `AABB` is empty.
     pub fn is_empty(&self) -> bool {
         self.min.x > self.max.x || self.min.y > self.max.y || self.min.z > self.max.z
+    }
+}
+
+impl FromIterator<Vector3<f32>> for AABB {
+    /// Creates a new [`AABB`] that contains the `points` from the iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use jeriya_shared::nalgebra::Vector3;
+    /// # use jeriya_shared::aabb::AABB;
+    /// # use jeriya_shared::float_cmp::assert_approx_eq;
+    /// let vec = vec![
+    ///     Vector3::new(0.0, 0.0, 0.0),
+    ///     Vector3::new(1.0, 2.0, 3.0),
+    ///     Vector3::new(-4.0, -5.0, -6.0),
+    /// ];
+    /// let bounding_box = AABB::from_iter(vec);
+    /// assert_approx_eq!(f32, bounding_box.min.x, -4.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.min.y, -5.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.min.z, -6.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.max.x, 1.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.max.y, 2.0, ulps = 1);
+    /// assert_approx_eq!(f32, bounding_box.max.z, 3.0, ulps = 1);
+    /// ```
+    fn from_iter<T: IntoIterator<Item = Vector3<f32>>>(iter: T) -> Self {
+        let mut bounding_box = Self::empty();
+        bounding_box.extend(iter);
+        bounding_box
     }
 }
 

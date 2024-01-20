@@ -456,8 +456,8 @@ fn handle_point_cloud_attributes_events(
                             .iter()
                             .map(|cluster| shader_interface::PointCloudCluster {
                                 center_radius: Vector4::new(cluster.center.x, cluster.center.y, cluster.center.z, cluster.radius),
-                                points_start_offset: cluster.index_start as u32,
-                                points_len: cluster.len as u32,
+                                points_start_offset: cluster.index_start,
+                                points_len: cluster.len,
                                 level: cluster.level as u32,
                                 depth: cluster.depth as u32,
                                 children_count: cluster.children.len() as u32,

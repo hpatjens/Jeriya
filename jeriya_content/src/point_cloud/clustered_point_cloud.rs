@@ -121,15 +121,15 @@ impl Page {
         jeriya_shared::assert!(self.has_space(), "The page is full");
         jeriya_shared::assert!(children.len() <= 2, "too many children");
         jeriya_shared::assert!(
-            point_positions.clone().into_iter().count() <= Cluster::MAX_POINTS,
+            point_positions.clone().count() <= Cluster::MAX_POINTS,
             "The cluster has too many point positions"
         );
         jeriya_shared::assert!(
-            point_colors.clone().into_iter().count() <= Cluster::MAX_POINTS,
+            point_colors.clone().count() <= Cluster::MAX_POINTS,
             "The cluster has too many point colors"
         );
         jeriya_shared::assert_eq! {
-            point_positions.clone().into_iter().count(), point_colors.clone().into_iter().count(),
+            point_positions.clone().count(), point_colors.clone().count(),
             "point_positions and point_colors must have the same length"
         }
 
@@ -137,7 +137,7 @@ impl Page {
         self.point_positions.extend(point_positions.clone());
         self.point_colors.extend(point_colors);
         let len = self.point_positions.len() as u32 - index_start;
-        let aabb = AABB::from_iter(point_positions.clone());
+        let aabb = AABB::from_ref_iter(point_positions.clone());
         let center = point_positions.clone().fold(Vector3::zeros(), |acc, position| acc + position) / len as f32;
         let radius = point_positions.fold(0.0, |acc, position| {
             let distance = (position - center).norm();
@@ -222,7 +222,7 @@ impl ClusteredPointCloud {
 
             ClusterIndex { page_index, cluster_index }
         }
-        visit(octree.root(), 0, &mut pages, &simple_point_cloud);
+        visit(octree.root(), 0, &mut pages, simple_point_cloud);
 
         let root_cluster_index = ClusterIndex {
             page_index: pages.len() - 1,
@@ -300,7 +300,7 @@ impl ClusteredPointCloud {
         drawing_area.fill(&WHITE)?;
 
         // Convert the data into the representation that plotters expects
-        let mut data = data.into_iter().map(|(a, b)| (a.clone(), b.clone())).collect::<Vec<_>>();
+        let mut data = data.iter().map(|(a, b)| (*a, *b)).collect::<Vec<_>>();
         data.sort_by(|(a, _), (b, _)| a.cmp(b));
 
         let x_max = data.iter().map(|(a, _)| a).max().cloned().unwrap_or(0usize);
@@ -351,12 +351,12 @@ impl ClusteredPointCloud {
         // Map from the number of points in a cluster to the number of clusters with that number of points
         let mut data = HashMap::<usize, usize>::new();
         for page in &self.pages {
-            data.entry(page.point_positions().len() as usize)
+            data.entry(page.point_positions().len())
                 .and_modify(|count| *count += 1)
                 .or_insert(1usize);
         }
 
-        Self::plot_histogram(&self, &data, filepath, "Page fill level histogram")
+        Self::plot_histogram(self, &data, filepath, "Page fill level histogram")
     }
 
     pub fn to_obj(
@@ -375,7 +375,7 @@ impl ClusteredPointCloud {
                 let mut global_cluster_index = 0;
                 for (page_index, page) in self.pages().iter().enumerate() {
                     for (cluster_index, cluster) in page.clusters().iter().filter(|cluster| cluster.depth == *depth).enumerate() {
-                        writeln!(obj_writer, "")?;
+                        writeln!(obj_writer)?;
                         writeln!(obj_writer, "# Cluster {cluster_index} in page {page_index}")?;
                         writeln!(obj_writer, "o cluster_{global_cluster_index}")?;
                         writeln!(obj_writer, "usemtl cluster_{global_cluster_index}")?;
@@ -414,7 +414,7 @@ impl ClusteredPointCloud {
                         writeln!(mtl_writer, "Kd {r} {g} {b}")?;
                         writeln!(mtl_writer, "Ks 1.0 1.0 1.0")?;
                         writeln!(mtl_writer, "Ns 100")?;
-                        writeln!(mtl_writer, "")?;
+                        writeln!(mtl_writer)?;
                         global_clutser_index += 1;
                     }
                 }
@@ -428,7 +428,7 @@ impl ClusteredPointCloud {
     pub fn to_obj_file(&self, config: &ObjClusterWriteConfig, filepath: &impl AsRef<Path>) -> io::Result<()> {
         let obj_filepath = filepath.as_ref().with_extension("obj");
         let mtl_filepath = filepath.as_ref().with_extension("mtl");
-        let obj_file = File::create(&obj_filepath)?;
+        let obj_file = File::create(obj_filepath)?;
         let mtl_file = File::create(&mtl_filepath)?;
         let mtl_filename = mtl_filepath
             .file_name()
@@ -454,8 +454,8 @@ impl ClusteredPointCloud {
     fn serialize_header_into<W: Write + Seek>(&self, mut writer: W, pages_offset: u64, page_table_offset: u64) -> io::Result<()> {
         writer.write_u64::<LittleEndian>(self.root_cluster_index.page_index as u64)?;
         writer.write_u64::<LittleEndian>(self.root_cluster_index.cluster_index as u64)?;
-        writer.write_u64::<LittleEndian>(pages_offset as u64)?;
-        writer.write_u64::<LittleEndian>(page_table_offset as u64)?;
+        writer.write_u64::<LittleEndian>(pages_offset)?;
+        writer.write_u64::<LittleEndian>(page_table_offset)?;
         Ok(())
     }
 
