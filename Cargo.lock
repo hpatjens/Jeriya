@@ -1299,7 +1299,7 @@ checksum = "af150ab688ff2122fcef229be89cb50dd66af9e01a4ff320cc137eecc9bacc38"
 
 [[package]]
 name = "jeriya"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "doc-comment",
  "fern",
@@ -1314,7 +1314,7 @@ dependencies = [
 
 [[package]]
 name = "jeriya_backend"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "jeriya_content",
  "jeriya_shared",
@@ -1323,7 +1323,7 @@ dependencies = [
 
 [[package]]
 name = "jeriya_backend_ash"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "jeriya",
  "jeriya_backend",
@@ -1336,7 +1336,7 @@ dependencies = [
 
 [[package]]
 name = "jeriya_backend_ash_base"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ash",
  "jeriya",
@@ -1351,7 +1351,7 @@ dependencies = [
 
 [[package]]
 name = "jeriya_content"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bincode",
  "env_logger",
@@ -1367,7 +1367,7 @@ dependencies = [
 
 [[package]]
 name = "jeriya_macros"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1376,7 +1376,7 @@ dependencies = [
 
 [[package]]
 name = "jeriya_shared"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "async-trait",
  "bitflags 2.4.1",
@@ -1417,7 +1417,7 @@ dependencies = [
 
 [[package]]
 name = "jeriya_test"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "image",
@@ -1428,7 +1428,7 @@ dependencies = [
 
 [[package]]
 name = "jeriya_tool"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "clap",
  "color-eyre",
@@ -1439,7 +1439,7 @@ dependencies = [
 
 [[package]]
 name = "jeriya_viewer"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "clap",
  "color-eyre",
