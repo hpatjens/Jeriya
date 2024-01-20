@@ -11,8 +11,8 @@ use std::{
 };
 
 use crate::{
-    common::{extract_extension_from_path, modified_system_time, Directories, ASSET_META_FILE_NAME},
-    AssetKey, Error, Result,
+    common::{extract_extension_from_path, modified_system_time, AssetKey, Directories, ASSET_META_FILE_NAME},
+    Error, Result,
 };
 use jeriya_shared::{
     crossbeam_channel::{self, Receiver, Sender},
@@ -508,7 +508,9 @@ mod tests {
     use jeriya_test::setup_logger;
     use tempdir::TempDir;
 
-    use crate::{asset_processor::Event, common::Directories, AssetProcessor};
+    use crate::{asset_processor::Event, common::Directories};
+
+    use super::AssetProcessor;
 
     /// Creates an unprocessed asset with the given content.
     fn create_unprocessed_asset(root: &Path, content: &str) -> PathBuf {

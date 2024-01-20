@@ -31,7 +31,11 @@ use jeriya_backend::{
 };
 use jeriya_backend_ash::AshBackend;
 use jeriya_content::{
-    model::Model, point_cloud::clustered_point_cloud::ClusteredPointCloud, AssetImporter, AssetProcessor, Directories, FileSystem,
+    asset_importer::{AssetImporter, FileSystem},
+    asset_processor::AssetProcessor,
+    common::Directories,
+    model::Model,
+    point_cloud::clustered_point_cloud::ClusteredPointCloud,
 };
 use jeriya_shared::{
     debug_info,
@@ -521,7 +525,7 @@ fn main() -> ey::Result<()> {
                         WindowEvent::MouseWheel { delta, .. } => {
                             if window_id == window2.id() {
                                 match delta {
-                                    MouseScrollDelta::LineDelta(_x, y) => camera_controller2.zoom_out(-y),
+                                    MouseScrollDelta::LineDelta(_x, y) => camera_controller2.zoom_out(-y as f32),
                                     MouseScrollDelta::PixelDelta(delta) => camera_controller2.zoom_out(-delta.y as f32),
                                 }
                             }

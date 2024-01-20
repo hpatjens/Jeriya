@@ -16,7 +16,7 @@ use jeriya_shared::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::AssetBuilder;
+use crate::asset_processor::AssetBuilder;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

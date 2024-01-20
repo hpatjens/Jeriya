@@ -49,13 +49,38 @@
 //! from the source directory to the target directory. The [`AssetImporter`] is
 //! used to import assets from the target directory into the renderer.
 
-mod asset_importer;
-mod asset_processor;
-mod common;
+use std::path::PathBuf;
 
+use jeriya_shared::thiserror;
+
+pub mod asset_importer;
+pub mod asset_processor;
+pub mod common;
 pub mod model;
 pub mod point_cloud;
 
-pub use asset_importer::*;
-pub use asset_processor::*;
-pub use common::{AssetKey, Directories, Error, Result};
+pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Invalid path: {0}")]
+    InvalidPath(PathBuf),
+    #[error("Invalid extension '{0}' in path {1}")]
+    InvalidExtension(String, PathBuf),
+    #[error("IoError: {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("Extension not registered: {0}")]
+    ExtensionNotRegistered(String),
+    #[error("Failed to start directory watcher in directory: {0}")]
+    FailedToStartDirectoryWatcher(PathBuf),
+    #[error("Failed to start thread pool")]
+    FailedToStartThreadPool,
+    #[error("Failed to read the asset: {0}")]
+    InvalidAssetData(PathBuf),
+    #[error("Failed to serialize the asset: {0}")]
+    FailedSerialization(Box<dyn std::error::Error + Send + Sync>),
+    #[error("Failed to deserialize the asset: {0}")]
+    FailedDeserialization(Box<dyn std::error::Error + Send + Sync>),
+    #[error("Other: {0}")]
+    Other(Box<dyn std::error::Error + Send + Sync>),
+}
