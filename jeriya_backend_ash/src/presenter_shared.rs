@@ -15,26 +15,30 @@ use jeriya_backend_ash_base::{
     swapchain_render_pass::SwapchainRenderPass,
 };
 use jeriya_shared::{debug_info, log::info, winit::window::WindowId};
+use jeriya_shared::{Handle, IndexingContainer};
 
 use crate::backend_shared::BackendShared;
 
 pub struct GraphicsPipelines {
-    pub simple_graphics_pipeline: GenericGraphicsPipeline,
-    pub immediate_graphics_pipeline_line_list: GenericGraphicsPipeline,
-    pub immediate_graphics_pipeline_line_strip: GenericGraphicsPipeline,
-    pub immediate_graphics_pipeline_triangle_list: GenericGraphicsPipeline,
-    pub immediate_graphics_pipeline_triangle_strip: GenericGraphicsPipeline,
-    pub indirect_simple_graphics_pipeline: GenericGraphicsPipeline,
-    pub indirect_meshlet_graphics_pipeline: GenericGraphicsPipeline,
-    pub point_cloud_graphics_pipeline: GenericGraphicsPipeline,
-    pub point_cloud_clusters_graphics_pipeline: GenericGraphicsPipeline,
-    pub device_local_debug_lines_pipeline: GenericGraphicsPipeline,
+    pub simple_graphics_pipeline: Handle<GenericGraphicsPipeline>,
+    pub immediate_graphics_pipeline_line_list: Handle<GenericGraphicsPipeline>,
+    pub immediate_graphics_pipeline_line_strip: Handle<GenericGraphicsPipeline>,
+    pub immediate_graphics_pipeline_triangle_list: Handle<GenericGraphicsPipeline>,
+    pub immediate_graphics_pipeline_triangle_strip: Handle<GenericGraphicsPipeline>,
+    pub indirect_simple_graphics_pipeline: Handle<GenericGraphicsPipeline>,
+    pub indirect_meshlet_graphics_pipeline: Handle<GenericGraphicsPipeline>,
+    pub point_cloud_graphics_pipeline: Handle<GenericGraphicsPipeline>,
+    pub point_cloud_clusters_graphics_pipeline: Handle<GenericGraphicsPipeline>,
+    pub device_local_debug_lines_pipeline: Handle<GenericGraphicsPipeline>,
 
-    pub cull_rigid_mesh_instances_compute_pipeline: GenericComputePipeline,
-    pub cull_rigid_mesh_meshlets_compute_pipeline: GenericComputePipeline,
-    pub cull_point_cloud_instances_compute_pipeline: GenericComputePipeline,
-    pub cull_point_cloud_clusters_compute_pipeline: GenericComputePipeline,
-    pub frame_telemetry_compute_pipeline: GenericComputePipeline,
+    pub cull_rigid_mesh_instances_compute_pipeline: Handle<GenericComputePipeline>,
+    pub cull_rigid_mesh_meshlets_compute_pipeline: Handle<GenericComputePipeline>,
+    pub cull_point_cloud_instances_compute_pipeline: Handle<GenericComputePipeline>,
+    pub cull_point_cloud_clusters_compute_pipeline: Handle<GenericComputePipeline>,
+    pub frame_telemetry_compute_pipeline: Handle<GenericComputePipeline>,
+
+    graphics_pipelines: IndexingContainer<GenericGraphicsPipeline>,
+    compute_pipelines: IndexingContainer<GenericComputePipeline>,
 }
 
 impl GraphicsPipelines {
@@ -72,6 +76,9 @@ impl GraphicsPipelines {
             specialization_constants
         };
 
+        let mut graphics_pipelines = IndexingContainer::new();
+        let mut compute_pipelines = IndexingContainer::new();
+
         info!("Create Simple Graphics Pipeline");
         let simple_graphics_pipeline = {
             let config = GenericGraphicsPipelineConfig {
@@ -81,11 +88,12 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Simple-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
+            let pipeline = GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?;
+            graphics_pipelines.insert(pipeline)
         };
 
         info!("Create Immediate Graphics Pipelines");
-        let create_immediate_graphics_pipeline = |primitive_topology| {
+        let mut create_immediate_graphics_pipeline = |primitive_topology| -> base::Result<_> {
             let config = GenericGraphicsPipelineConfig {
                 vertex_shader_spirv: Some(spirv!("color.vert.spv")),
                 fragment_shader_spirv: Some(spirv!("color.frag.spv")),
@@ -95,7 +103,8 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Immediate-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)
+            let pipeline = GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?;
+            Ok(graphics_pipelines.insert(pipeline))
         };
         let immediate_graphics_pipeline_line_list = create_immediate_graphics_pipeline(PrimitiveTopology::LineList)?;
         let immediate_graphics_pipeline_line_strip = create_immediate_graphics_pipeline(PrimitiveTopology::LineStrip)?;
@@ -103,59 +112,57 @@ impl GraphicsPipelines {
         let immediate_graphics_pipeline_triangle_strip = create_immediate_graphics_pipeline(PrimitiveTopology::TriangleStrip)?;
 
         info!("Create Point Cloud Graphics Pipeline");
-        let point_cloud_graphics_pipeline = GenericGraphicsPipeline::new(
-            device,
-            &GenericGraphicsPipelineConfig {
+        let point_cloud_graphics_pipeline = {
+            let config = GenericGraphicsPipelineConfig {
                 vertex_shader_spirv: Some(spirv!("point_cloud.vert.spv")),
                 fragment_shader_spirv: Some(spirv!("point_cloud.frag.spv")),
                 primitive_topology: PrimitiveTopology::TriangleList,
                 debug_info: debug_info!(format!("Point-Cloud-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
-            },
-            swapchain_render_pass,
-            swapchain,
-            &specialization_constants,
-        )?;
+            };
+            let pipeline = GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?;
+            graphics_pipelines.insert(pipeline)
+        };
 
         info!("Create Cull Point Cloud Instances Compute Pipeline");
-        let cull_point_cloud_instances_compute_pipeline = GenericComputePipeline::new(
-            device,
-            &GenericComputePipelineConfig {
+        let cull_point_cloud_instances_compute_pipeline = {
+            let config = GenericComputePipelineConfig {
                 shader_spirv: spirv!("cull_point_cloud_instances.comp.spv"),
                 debug_info: debug_info!(format!("Cull-PointCloudInstances-ComputePipeline-for-Window{:?}", window_id)),
-            },
-            &specialization_constants,
-        )?;
+            };
+            let pipeline = GenericComputePipeline::new(device, &config, &specialization_constants)?;
+            compute_pipelines.insert(pipeline)
+        };
 
         info!("Create Cull Point Cloud Clusters Compute Pipeline");
-        let cull_point_cloud_clusters_compute_pipeline = GenericComputePipeline::new(
-            device,
-            &GenericComputePipelineConfig {
+        let cull_point_cloud_clusters_compute_pipeline = {
+            let config = GenericComputePipelineConfig {
                 shader_spirv: spirv!("cull_point_cloud_clusters.comp.spv"),
                 debug_info: debug_info!(format!("Cull-PointCloudClusters-ComputePipeline-for-Window{:?}", window_id)),
-            },
-            &specialization_constants,
-        )?;
+            };
+            let pipeline = GenericComputePipeline::new(device, &config, &specialization_constants)?;
+            compute_pipelines.insert(pipeline)
+        };
 
         info!("Create Cull Rigid Mesh Instances Compute Pipeline");
-        let cull_rigid_mesh_instances_compute_pipeline = GenericComputePipeline::new(
-            device,
-            &GenericComputePipelineConfig {
+        let cull_rigid_mesh_instances_compute_pipeline = {
+            let config = GenericComputePipelineConfig {
                 shader_spirv: spirv!("cull_rigid_mesh_instances.comp.spv"),
                 debug_info: debug_info!(format!("Cull-RigidMeshInstances-ComputePipeline-for-Window{:?}", window_id)),
-            },
-            &specialization_constants,
-        )?;
+            };
+            let pipeline = GenericComputePipeline::new(device, &config, &specialization_constants)?;
+            compute_pipelines.insert(pipeline)
+        };
 
         info!("Create Cull Rigid Mesh Meshlets Compute Pipeline");
-        let cull_rigid_mesh_meshlets_compute_pipeline = GenericComputePipeline::new(
-            device,
-            &GenericComputePipelineConfig {
+        let cull_rigid_mesh_meshlets_compute_pipeline = {
+            let config = GenericComputePipelineConfig {
                 shader_spirv: spirv!("cull_rigid_mesh_meshlets.comp.spv"),
                 debug_info: debug_info!(format!("Cull-RigidMeshMeshlets-ComputePipeline-for-Window{:?}", window_id)),
-            },
-            &specialization_constants,
-        )?;
+            };
+            let pipeline = GenericComputePipeline::new(device, &config, &specialization_constants)?;
+            compute_pipelines.insert(pipeline)
+        };
 
         info!("Create Indirect Simple Graphics Pipeline");
         let indirect_simple_graphics_pipeline = {
@@ -166,7 +173,8 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Indirect-Simple-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
+            let pipeline = GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?;
+            graphics_pipelines.insert(pipeline)
         };
 
         info!("Create Indirect Meshlet Graphics Pipeline");
@@ -178,18 +186,19 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Indirect-Meshlet-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
+            let pipeline = GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?;
+            graphics_pipelines.insert(pipeline)
         };
 
         info!("Create Frame Telemetry Compute Pipeline");
-        let frame_telemetry_compute_pipeline = GenericComputePipeline::new(
-            device,
-            &GenericComputePipelineConfig {
+        let frame_telemetry_compute_pipeline = {
+            let config = GenericComputePipelineConfig {
                 shader_spirv: spirv!("frame_telemetry.comp.spv"),
                 debug_info: debug_info!(format!("Frame-Telemetry-ComputePipeline-for-Window{:?}", window_id)),
-            },
-            &specialization_constants,
-        )?;
+            };
+            let pipeline = GenericComputePipeline::new(device, &config, &specialization_constants)?;
+            compute_pipelines.insert(pipeline)
+        };
 
         info!("Create Point Cloud Clusters Graphics Pipeline");
         let point_cloud_clusters_graphics_pipeline = {
@@ -200,11 +209,12 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Point-Cloud-Clusters-GraphicsPipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
+            let pipeline = GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?;
+            graphics_pipelines.insert(pipeline)
         };
 
         info!("Create Device Local Debug Line Pipeline");
-        let device_local_debug_line_pipeline = {
+        let device_local_debug_lines_pipeline = {
             let config = GenericGraphicsPipelineConfig {
                 vertex_shader_spirv: Some(spirv!("device_local_debug_line.vert.spv")),
                 fragment_shader_spirv: Some(spirv!("device_local_debug_line.frag.spv")),
@@ -212,7 +222,8 @@ impl GraphicsPipelines {
                 debug_info: debug_info!(format!("Device-Local-Debug-Line-Pipeline-for-Window{:?}", window_id)),
                 ..Default::default()
             };
-            GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?
+            let pipeline = GenericGraphicsPipeline::new(device, &config, swapchain_render_pass, swapchain, &specialization_constants)?;
+            graphics_pipelines.insert(pipeline)
         };
 
         Ok(Self {
@@ -230,8 +241,20 @@ impl GraphicsPipelines {
             indirect_meshlet_graphics_pipeline,
             point_cloud_graphics_pipeline,
             point_cloud_clusters_graphics_pipeline,
-            device_local_debug_lines_pipeline: device_local_debug_line_pipeline,
+            device_local_debug_lines_pipeline,
+            graphics_pipelines,
+            compute_pipelines,
         })
+    }
+
+    /// Returns the [`GenericGraphicsPipeline`] for the given [`Handle`]
+    pub fn get_graphics_pipeline(&self, handle: &Handle<GenericGraphicsPipeline>) -> &GenericGraphicsPipeline {
+        self.graphics_pipelines.get(handle).expect("Invalid GraphicsPipeline handle")
+    }
+
+    /// Returns the [`GenericComputePipeline`] for the given [`Handle`]
+    pub fn get_compute_pipeline(&self, handle: &Handle<GenericComputePipeline>) -> &GenericComputePipeline {
+        self.compute_pipelines.get(handle).expect("Invalid ComputePipeline handle")
     }
 }
 
