@@ -3,11 +3,11 @@ use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
     log::info,
-    nalgebra::{Vector3, Vector4},
+    nalgebra::{Matrix4, Vector3, Vector4},
     AsDebugInfo, DebugInfo,
 };
 
-use std::{ffi::CString, io::Cursor, marker::PhantomData, mem, sync::Arc};
+use std::{ffi::CString, io::Cursor, mem, sync::Arc};
 
 use crate::{
     descriptor_set_layout::DescriptorSetLayout,
@@ -20,13 +20,16 @@ use crate::{
     AsRawVulkan, DebugInfoAshExtension,
 };
 
+#[repr(C)]
+#[derive(Debug, Default, PartialEq)]
+pub struct PushConstants {
+    pub color: Vector4<f32>,
+    pub matrix: Matrix4<f32>,
+}
+
 pub trait GraphicsPipeline {
     fn graphics_pipeline(&self) -> vk::Pipeline;
     fn pipeline_layout(&self) -> vk::PipelineLayout;
-}
-
-pub trait GraphicsPipelineInterface {
-    type PushConstants;
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -99,10 +102,7 @@ pub struct GenericGraphicsPipelineConfig {
     pub debug_info: DebugInfo,
 }
 
-pub struct GenericGraphicsPipeline<I>
-where
-    I: GraphicsPipelineInterface,
-{
+pub struct GenericGraphicsPipeline {
     config: GenericGraphicsPipelineConfig,
     _vertex_shader: ShaderModule,
     _fragment_shader: ShaderModule,
@@ -110,13 +110,9 @@ where
     graphics_pipeline_layout: vk::PipelineLayout,
     pub descriptor_set_layout: Arc<DescriptorSetLayout>,
     device: Arc<Device>,
-    _phantom_data: PhantomData<I>,
 }
 
-impl<I> Drop for GenericGraphicsPipeline<I>
-where
-    I: GraphicsPipelineInterface,
-{
+impl Drop for GenericGraphicsPipeline {
     fn drop(&mut self) {
         unsafe {
             let device = &self.device.as_raw_vulkan();
@@ -127,10 +123,7 @@ where
 }
 
 #[profile]
-impl<I> GenericGraphicsPipeline<I>
-where
-    I: GraphicsPipelineInterface,
-{
+impl GenericGraphicsPipeline {
     pub fn new(
         device: &Arc<Device>,
         config: &GenericGraphicsPipelineConfig,
@@ -216,7 +209,7 @@ where
 
         let push_constant_range = [vk::PushConstantRange::builder()
             .stage_flags(vk::ShaderStageFlags::ALL)
-            .size(std::mem::size_of::<I::PushConstants>() as u32)
+            .size(std::mem::size_of::<PushConstants>() as u32)
             .offset(0)
             .build()];
 
@@ -360,15 +353,11 @@ where
             graphics_pipeline_layout,
             descriptor_set_layout,
             device: device.clone(),
-            _phantom_data: PhantomData,
         })
     }
 }
 
-impl<I> GraphicsPipeline for GenericGraphicsPipeline<I>
-where
-    I: GraphicsPipelineInterface,
-{
+impl GraphicsPipeline for GenericGraphicsPipeline {
     fn graphics_pipeline(&self) -> vk::Pipeline {
         self.graphics_pipeline
     }
@@ -378,20 +367,14 @@ where
     }
 }
 
-impl<I> AsRawVulkan for GenericGraphicsPipeline<I>
-where
-    I: GraphicsPipelineInterface,
-{
+impl AsRawVulkan for GenericGraphicsPipeline {
     type Output = vk::Pipeline;
     fn as_raw_vulkan(&self) -> &Self::Output {
         &self.graphics_pipeline
     }
 }
 
-impl<I> AsDebugInfo for GenericGraphicsPipeline<I>
-where
-    I: GraphicsPipelineInterface,
-{
+impl AsDebugInfo for GenericGraphicsPipeline {
     fn as_debug_info(&self) -> &DebugInfo {
         &self.config.debug_info
     }
@@ -406,7 +389,7 @@ mod tests {
 
         use crate::{
             device::TestFixtureDevice,
-            graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, GraphicsPipelineInterface, PrimitiveTopology},
+            graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, PrimitiveTopology},
             specialization_constants::SpecializationConstants,
             swapchain::Swapchain,
             swapchain_render_pass::SwapchainRenderPass,
@@ -414,11 +397,6 @@ mod tests {
 
         #[test]
         fn smoke() {
-            struct TestGraphicsPipelineInterface;
-            impl GraphicsPipelineInterface for TestGraphicsPipelineInterface {
-                type PushConstants = ();
-            }
-
             let test_fixture_device = TestFixtureDevice::new().unwrap();
             let swapchain = Swapchain::new(&test_fixture_device.device, &test_fixture_device.surface, 2, None).unwrap();
             let render_pass = SwapchainRenderPass::new(&test_fixture_device.device, &swapchain).unwrap();
@@ -430,7 +408,7 @@ mod tests {
                 ..Default::default()
             };
             let specialization_constants = SpecializationConstants::new();
-            let _graphics_pipeline = GenericGraphicsPipeline::<TestGraphicsPipelineInterface>::new(
+            let _graphics_pipeline = GenericGraphicsPipeline::new(
                 &test_fixture_device.device,
                 &config,
                 &render_pass,

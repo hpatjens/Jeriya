@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::{mem, sync::Arc};
 
 use base::frame_local_buffer::FrameLocalBuffer;
+use base::graphics_pipeline::PushConstants;
 use jeriya_backend::elements::{camera, point_cloud};
 use jeriya_backend::instances::{camera_instance, point_cloud_instance};
 use jeriya_backend::{
@@ -28,11 +29,7 @@ use jeriya_macros::profile;
 use jeriya_shared::{debug_info, log::info, nalgebra::Matrix4, plot_with_index, tracy_client::plot, winit::window::WindowId};
 
 use crate::ash_immediate::ImmediateRenderingFrameTask;
-use crate::{
-    ash_immediate::ImmediateCommand,
-    backend_shared::BackendShared,
-    presenter_shared::{PresenterShared, PushConstants},
-};
+use crate::{ash_immediate::ImmediateCommand, backend_shared::BackendShared, presenter_shared::PresenterShared};
 
 pub struct Frame {
     presenter_index: usize,
