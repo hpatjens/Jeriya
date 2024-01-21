@@ -7,65 +7,34 @@ use jeriya_backend_ash_base::{
     compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig},
     device::Device,
     frame_index::FrameIndex,
-    graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, GraphicsPipelineInterface, PrimitiveTopology},
+    graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, PrimitiveTopology},
     surface::Surface,
     swapchain::Swapchain,
     swapchain_depth_buffer::SwapchainDepthBuffers,
     swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
-use jeriya_shared::{
-    debug_info,
-    log::info,
-    nalgebra::{Matrix4, Vector4},
-    winit::window::WindowId,
-};
+use jeriya_shared::{debug_info, log::info, winit::window::WindowId};
 
 use crate::backend_shared::BackendShared;
 
-pub struct IndirectGraphicsPipelineInterface;
-impl GraphicsPipelineInterface for IndirectGraphicsPipelineInterface {
-    type PushConstants = u32;
-}
-
-pub struct SimpleGraphicsPipelineInterface;
-impl GraphicsPipelineInterface for SimpleGraphicsPipelineInterface {
-    type PushConstants = u32;
-}
-
-pub struct PointCloudGraphicsPipelineInterface;
-impl GraphicsPipelineInterface for PointCloudGraphicsPipelineInterface {
-    type PushConstants = u32;
-}
-
-#[repr(C)]
-#[derive(Debug, Default, PartialEq)]
-pub struct PushConstants {
-    pub color: Vector4<f32>,
-    pub matrix: Matrix4<f32>,
-}
-
-pub struct ImmediateGraphicsPipelineInterface;
-impl GraphicsPipelineInterface for ImmediateGraphicsPipelineInterface {
-    type PushConstants = PushConstants;
-}
-
 pub struct GraphicsPipelines {
-    pub simple_graphics_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
-    pub immediate_graphics_pipeline_line_list: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
-    pub immediate_graphics_pipeline_line_strip: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
-    pub immediate_graphics_pipeline_triangle_list: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
-    pub immediate_graphics_pipeline_triangle_strip: GenericGraphicsPipeline<ImmediateGraphicsPipelineInterface>,
+    pub simple_graphics_pipeline: GenericGraphicsPipeline,
+    pub immediate_graphics_pipeline_line_list: GenericGraphicsPipeline,
+    pub immediate_graphics_pipeline_line_strip: GenericGraphicsPipeline,
+    pub immediate_graphics_pipeline_triangle_list: GenericGraphicsPipeline,
+    pub immediate_graphics_pipeline_triangle_strip: GenericGraphicsPipeline,
+    pub indirect_simple_graphics_pipeline: GenericGraphicsPipeline,
+    pub indirect_meshlet_graphics_pipeline: GenericGraphicsPipeline,
+    pub point_cloud_graphics_pipeline: GenericGraphicsPipeline,
+    pub point_cloud_clusters_graphics_pipeline: GenericGraphicsPipeline,
+    pub device_local_debug_lines_pipeline: GenericGraphicsPipeline,
+
     pub cull_rigid_mesh_instances_compute_pipeline: GenericComputePipeline,
     pub cull_rigid_mesh_meshlets_compute_pipeline: GenericComputePipeline,
     pub cull_point_cloud_instances_compute_pipeline: GenericComputePipeline,
     pub cull_point_cloud_clusters_compute_pipeline: GenericComputePipeline,
     pub frame_telemetry_compute_pipeline: GenericComputePipeline,
-    pub indirect_simple_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
-    pub indirect_meshlet_graphics_pipeline: GenericGraphicsPipeline<IndirectGraphicsPipelineInterface>,
-    pub point_cloud_graphics_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
-    pub point_cloud_clusters_graphics_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
-    pub device_local_debug_lines_pipeline: GenericGraphicsPipeline<SimpleGraphicsPipelineInterface>,
 }
 
 impl GraphicsPipelines {
