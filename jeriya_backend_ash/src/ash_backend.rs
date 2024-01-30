@@ -45,7 +45,11 @@ use jeriya_backend_ash_base::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_content::{model::Meshlet, point_cloud::clustered_point_cloud::Page};
+use jeriya_content::{
+    asset_importer::{self, AssetImporter},
+    model::Meshlet,
+    point_cloud::clustered_point_cloud::Page,
+};
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
@@ -207,6 +211,7 @@ impl Backend for AshBackend {
     fn new(
         renderer_config: RendererConfig,
         backend_config: Self::BackendConfig,
+        asset_importer: Arc<AssetImporter>,
         window_configs: &[WindowConfig],
     ) -> jeriya_backend::Result<Arc<Self>>
     where
@@ -266,7 +271,12 @@ impl Backend for AshBackend {
 
         let (resource_event_sender, resource_event_receiver) = mpsc::channel();
 
-        let backend_shared = Arc::new(BackendShared::new(&device, &Arc::new(renderer_config), resource_event_sender)?);
+        let backend_shared = Arc::new(BackendShared::new(
+            &device,
+            &Arc::new(renderer_config),
+            resource_event_sender,
+            &asset_importer,
+        )?);
 
         let presenters = surfaces
             .iter()
@@ -753,7 +763,7 @@ mod tests {
                 window: &window,
                 frame_rate: FrameRate::Unlimited,
             };
-            AshBackend::new(renderer_config, backend_config, &[window_config]).unwrap();
+            AshBackend::new(renderer_config, backend_config).unwrap();
         }
 
         #[test]
@@ -765,7 +775,7 @@ mod tests {
                 window: &window,
                 frame_rate: FrameRate::Unlimited,
             };
-            AshBackend::new(renderer_config, backend_config, &[window_config]).unwrap();
+            AshBackend::new(renderer_config, backend_config).unwrap();
         }
 
         #[test]

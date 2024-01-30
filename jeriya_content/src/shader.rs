@@ -76,6 +76,11 @@ pub fn process_shader(asset_builder: &mut AssetBuilder) -> crate::Result<()> {
     Ok(())
 }
 
+/// Imports a shader asset.
+pub fn import_shader(bytes: &[u8]) -> crate::Result<ShaderAsset> {
+    Ok(ShaderAsset::new("TODO", bytes.to_vec()))
+}
+
 #[cfg(test)]
 mod tests {
     use jeriya_shared::function_name;

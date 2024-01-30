@@ -1,3 +1,4 @@
+use std::sync::mpsc::TryRecvError;
 use std::sync::Arc;
 
 use base::specialization_constants::SpecializationConstants;
@@ -14,6 +15,10 @@ use jeriya_backend_ash_base::{
     swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
+use jeriya_content::asset_importer::{self, Asset, AssetImporter};
+use jeriya_content::shader::ShaderAsset;
+use jeriya_shared::bus::BusReader;
+use jeriya_shared::log::error;
 use jeriya_shared::{debug_info, log::info, winit::window::WindowId};
 use jeriya_shared::{Handle, IndexingContainer};
 
@@ -37,6 +42,8 @@ pub struct GraphicsPipelines {
     pub cull_point_cloud_clusters_compute_pipeline: Handle<GenericComputePipeline>,
     pub frame_telemetry_compute_pipeline: Handle<GenericComputePipeline>,
 
+    shader_asset_receiver: BusReader<Arc<jeriya_content::Result<Asset<ShaderAsset>>>>,
+
     graphics_pipelines: IndexingContainer<GenericGraphicsPipeline>,
     compute_pipelines: IndexingContainer<GenericComputePipeline>,
 }
@@ -47,6 +54,7 @@ impl GraphicsPipelines {
         window_id: &WindowId,
         swapchain: &Swapchain,
         swapchain_render_pass: &SwapchainRenderPass,
+        asset_importer: &Arc<AssetImporter>,
     ) -> base::Result<Self> {
         macro_rules! spirv {
             ($shader:literal) => {
@@ -226,6 +234,10 @@ impl GraphicsPipelines {
             graphics_pipelines.insert(pipeline)
         };
 
+        let shader_asset_receiver = asset_importer
+            .receiver::<ShaderAsset>()
+            .expect("Failed to get shader asset receiver");
+
         Ok(Self {
             simple_graphics_pipeline,
             immediate_graphics_pipeline_line_list,
@@ -242,6 +254,7 @@ impl GraphicsPipelines {
             point_cloud_graphics_pipeline,
             point_cloud_clusters_graphics_pipeline,
             device_local_debug_lines_pipeline,
+            shader_asset_receiver,
             graphics_pipelines,
             compute_pipelines,
         })
@@ -255,6 +268,32 @@ impl GraphicsPipelines {
     /// Returns the [`GenericComputePipeline`] for the given [`Handle`]
     pub fn get_compute_pipeline(&self, handle: &Handle<GenericComputePipeline>) -> &GenericComputePipeline {
         self.compute_pipelines.get(handle).expect("Invalid ComputePipeline handle")
+    }
+
+    pub fn pre_frame_update(&mut self) -> base::Result<()> {
+        match self.shader_asset_receiver.try_recv() {
+            Ok(import_result) => match import_result.as_ref() {
+                Ok(asset) => {
+                    let Some(shader_asset) = asset.value() else {
+                        error!("Asset doesn't contain a shader asset");
+                        return Err(base::Error::FailedToReceiveAsset(
+                            "Receiver returned as error upon try_recv".to_string(),
+                        ));
+                    };
+
+                    info!("Shader loaded");
+                }
+                Err(err) => error!("Failed to receive asset import result: {:?}", err),
+            },
+            Err(TryRecvError::Empty) => {}
+            Err(TryRecvError::Disconnected) => {
+                error!("Failed to receive asset import result");
+                return Err(base::Error::FailedToReceiveAsset(
+                    "Receiver returned as error upon try_recv".to_string(),
+                ));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -283,7 +322,13 @@ impl PresenterShared {
             SwapchainFramebuffers::new(&backend_shared.device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
 
         info!("Create Graphics Pipelines");
-        let graphics_pipelines = GraphicsPipelines::new(&backend_shared.device, window_id, &swapchain, &swapchain_render_pass)?;
+        let graphics_pipelines = GraphicsPipelines::new(
+            &backend_shared.device,
+            window_id,
+            &swapchain,
+            &swapchain_render_pass,
+            &backend_shared.asset_importer,
+        )?;
 
         Ok(Self {
             frame_index: FrameIndex::new(),
@@ -294,9 +339,13 @@ impl PresenterShared {
             swapchain_framebuffers,
             swapchain_render_pass,
             graphics_pipelines,
-            device: backend_shared.device.clone(),
             active_camera_instance: None,
+            device: backend_shared.device.clone(),
         })
+    }
+
+    pub fn pre_frame_update(&mut self) {
+        self.graphics_pipelines.pre_frame_update();
     }
 
     /// Creates the swapchain and all state that depends on it
@@ -316,7 +365,13 @@ impl PresenterShared {
             &self.swapchain_render_pass,
         )?;
 
-        self.graphics_pipelines = GraphicsPipelines::new(&backend_shared.device, window_id, &self.swapchain, &self.swapchain_render_pass)?;
+        self.graphics_pipelines = GraphicsPipelines::new(
+            &backend_shared.device,
+            window_id,
+            &self.swapchain,
+            &self.swapchain_render_pass,
+            &backend_shared.asset_importer,
+        )?;
 
         Ok(())
     }

@@ -138,6 +138,8 @@ fn run_presenter_thread(
             .send(ResourceEvent::FrameStart)
             .expect("failed to send ResourceEvent::FrameStart");
 
+        presenter_shared.pre_frame_update();
+
         // Remove timed out immediate rendering frames.
         //
         // The immediate rendering frames are removed one frame after they timed out. This is to make sure that

@@ -7,6 +7,7 @@ use jeriya_backend::{
     transactions::ProvideTransactionProcessor,
     Backend, Result,
 };
+use jeriya_content::asset_importer::AssetImporter;
 use jeriya_shared::{features::info_log_features, tracy_client::Client, winit::window::WindowId, DebugInfo, RendererConfig, WindowConfig};
 
 use std::{
@@ -186,6 +187,7 @@ where
     window_configs: &'a [WindowConfig<'a>],
     renderer_config: Option<RendererConfig>,
     backend_config: Option<B::BackendConfig>,
+    asset_importer: Option<Arc<AssetImporter>>,
 }
 
 impl<'a, B> RendererBuilder<'a, B>
@@ -198,11 +200,17 @@ where
             window_configs: &[],
             renderer_config: None,
             backend_config: None,
+            asset_importer: None,
         }
     }
 
     pub fn add_renderer_config(mut self, renderer_config: RendererConfig) -> Self {
         self.renderer_config = Some(renderer_config);
+        self
+    }
+
+    pub fn add_asset_importer(mut self, asset_importer: Arc<AssetImporter>) -> Self {
+        self.asset_importer = Some(asset_importer);
         self
     }
 
@@ -229,7 +237,8 @@ where
 
         let renderer_config = self.renderer_config.unwrap_or(RendererConfig::default());
         let backend_config = self.backend_config.unwrap_or(B::BackendConfig::default());
-        let backend = B::new(renderer_config, backend_config, self.window_configs)?;
+        let asset_importer = self.asset_importer.expect("Asset importer must be set");
+        let backend = B::new(renderer_config, backend_config, asset_importer, self.window_configs)?;
         Ok(Arc::new(Renderer::new(backend)))
     }
 }

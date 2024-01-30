@@ -36,6 +36,7 @@ use jeriya_content::{
     common::Directories,
     model::ModelAsset,
     point_cloud::clustered_point_cloud::ClusteredPointCloudAsset,
+    shader::{import_shader, ShaderAsset},
 };
 use jeriya_shared::{
     debug_info,
@@ -270,9 +271,22 @@ fn main() -> ey::Result<()> {
         .build(&event_loop)
         .wrap_err("Failed to create window 2")?;
 
+    // Setup Content Pipeline
+    let _asset_processor = setup_asset_processor()?;
+    let import_source = FileSystem::new("assets/unprocessed").wrap_err("Failed to create ImportSource for AssetImporter")?;
+    let asset_importer = {
+        let asset_importer = AssetImporter::new(import_source, 4)
+            .wrap_err("Failed to create AssetImporter")?
+            .register::<ShaderAsset>("vert", Box::new(import_shader))
+            .register::<ShaderAsset>("frag", Box::new(import_shader))
+            .register::<ShaderAsset>("comp", Box::new(import_shader));
+        Arc::new(asset_importer)
+    };
+
     // Create Renderer
     let renderer = jeriya::Renderer::<AshBackend>::builder()
         .add_renderer_config(RendererConfig::normal())
+        .add_asset_importer(asset_importer)
         .add_windows(&[
             WindowConfig {
                 window: &window1,
@@ -285,11 +299,6 @@ fn main() -> ey::Result<()> {
         ])
         .build()
         .wrap_err("Failed to create renderer")?;
-
-    // Setup Content Pipeline
-    let _asset_processor = setup_asset_processor()?;
-    let import_source = FileSystem::new("assets/unprocessed").wrap_err("Failed to create ImportSource for AssetImporter")?;
-    let _asset_importer = AssetImporter::new(import_source, 4).wrap_err("Failed to create AssetImporter")?;
 
     // Containers in which manage the GPU resources
     let mut resource_group = ResourceGroup::new(&renderer, debug_info!("my_resource_group"));
