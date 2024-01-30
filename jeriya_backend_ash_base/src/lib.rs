@@ -161,6 +161,8 @@ pub enum Error {
     WouldOverflow,
     #[error("Element was not found")]
     NotFound,
+    #[error("Failed to receive asset from asset importer")]
+    FailedToReceiveAsset(String), // String contains the details
 }
 
 impl From<Error> for jeriya_backend::Error {

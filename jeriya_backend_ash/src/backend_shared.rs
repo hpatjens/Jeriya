@@ -17,6 +17,7 @@ use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags, device::Device, host_visible_buffer::HostVisibleBuffer, page_buffer::PageBuffer, shader_interface,
     staged_push_only_buffer::StagedPushOnlyBuffer,
 };
+use jeriya_content::asset_importer::AssetImporter;
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, Handle, RendererConfig};
 
 use crate::queue_scheduler::QueueScheduler;
@@ -27,6 +28,8 @@ pub struct BackendShared {
     pub renderer_config: Arc<RendererConfig>,
 
     pub queue_scheduler: QueueScheduler,
+
+    pub asset_importer: Arc<AssetImporter>,
 
     pub resource_event_sender: Sender<ResourceEvent>,
 
@@ -61,6 +64,7 @@ impl BackendShared {
         device: &Arc<Device>,
         renderer_config: &Arc<RendererConfig>,
         resource_sender: Sender<ResourceEvent>,
+        asset_importer: &Arc<AssetImporter>,
     ) -> jeriya_backend::Result<Self> {
         info!("Creating HostVisibleBuffer for MeshAttributes");
         let mesh_attributes_buffer = Mutex::new(HostVisibleBuffer::new(
@@ -167,6 +171,7 @@ impl BackendShared {
             device: device.clone(),
             renderer_config: renderer_config.clone(),
             queue_scheduler,
+            asset_importer: asset_importer.clone(),
             resource_event_sender: resource_sender,
             mesh_attributes_buffer,
             mesh_attributes_gpu_states: Arc::new(Mutex::new(HashMap::new())),

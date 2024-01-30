@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use jeriya_content::asset_importer::AssetImporter;
 use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, DebugInfo, RendererConfig, WindowConfig};
 
 use crate::{
@@ -35,6 +36,7 @@ pub trait Backend:
     fn new(
         renderer_config: RendererConfig,
         backend_config: Self::BackendConfig,
+        asset_importer: Arc<AssetImporter>,
         window_configs: &[WindowConfig],
     ) -> crate::Result<Arc<Self>>
     where
