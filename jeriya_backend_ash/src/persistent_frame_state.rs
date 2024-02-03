@@ -528,15 +528,23 @@ mod tests {
 
     use base::device::TestFixtureDevice;
     use jeriya_backend::{elements::camera::Camera, gpu_index_allocator::GpuIndexAllocation, transactions::PushEvent};
+    use jeriya_content::asset_importer::AssetImporter;
     use jeriya_shared::Handle;
 
     use super::*;
 
     #[test]
-    fn resources() {
+    fn push_camera_insert_transaction_expect_projection_in_buffer() {
         let test_fixture_device = TestFixtureDevice::new().unwrap();
         let (resource_sender, _resource_receiver) = channel();
-        let backend_shared = BackendShared::new(&test_fixture_device.device, &Arc::new(Default::default()), resource_sender).unwrap();
+        let asset_importer = Arc::new(AssetImporter::default_from("../assets/processed").unwrap());
+        let backend_shared = BackendShared::new(
+            &test_fixture_device.device,
+            &Arc::new(Default::default()),
+            resource_sender,
+            &asset_importer,
+        )
+        .unwrap();
         let mut frame = PersistentFrameState::new(0, &test_fixture_device.window.id(), &backend_shared).unwrap();
         let mut transaction = Transaction::new();
         let camera = Camera::new(

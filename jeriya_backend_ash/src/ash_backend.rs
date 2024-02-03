@@ -45,16 +45,21 @@ use jeriya_backend_ash_base::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_content::{asset_importer::AssetImporter, model::Meshlet, point_cloud::clustered_point_cloud::Page};
+use jeriya_content::{
+    asset_importer::{AssetImporter, FileSystem},
+    model::Meshlet,
+    point_cloud::clustered_point_cloud::Page,
+};
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
     log::{error, info, trace},
     nalgebra::Vector4,
     tracy_client::Client,
-    winit::window::WindowId,
-    AsDebugInfo, DebugInfo, RendererConfig, WindowConfig,
+    winit::window::{Window, WindowId},
+    AsDebugInfo, DebugInfo, FrameRate, RendererConfig, WindowConfig,
 };
+use jeriya_test::create_window;
 
 pub struct AshBackend {
     presenters: HashMap<WindowId, Presenter>,
@@ -742,9 +747,6 @@ mod tests {
     use super::*;
 
     mod backend_new {
-        use jeriya_shared::FrameRate;
-        use jeriya_test::create_window;
-
         use super::*;
 
         #[test]
@@ -759,7 +761,8 @@ mod tests {
                 window: &window,
                 frame_rate: FrameRate::Unlimited,
             };
-            AshBackend::new(renderer_config, backend_config).unwrap();
+            let asset_importer = Arc::new(AssetImporter::default_from("../assets/unprocessed").unwrap());
+            AshBackend::new(renderer_config, backend_config, asset_importer, &[window_config]).unwrap();
         }
 
         #[test]
@@ -771,17 +774,17 @@ mod tests {
                 window: &window,
                 frame_rate: FrameRate::Unlimited,
             };
-            AshBackend::new(renderer_config, backend_config).unwrap();
+            let asset_importer = Arc::new(AssetImporter::default_from("../assets/unprocessed").unwrap());
+            AshBackend::new(renderer_config, backend_config, asset_importer, &[window_config]).unwrap();
         }
 
         #[test]
         fn empty_windows_none() {
             let renderer_config = RendererConfig::default();
             let backend_config = Config::default();
-            assert!(matches!(
-                AshBackend::new(renderer_config, backend_config, &[]),
-                Err(jeriya_backend::Error::ExpectedWindow)
-            ));
+            let asset_importer = Arc::new(AssetImporter::default_from("../assets/unprocessed").unwrap());
+            let result = AshBackend::new(renderer_config, backend_config, asset_importer, &[]);
+            assert!(matches!(result, Err(jeriya_backend::Error::ExpectedWindow)));
         }
     }
 }
