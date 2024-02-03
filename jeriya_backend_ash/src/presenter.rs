@@ -9,7 +9,7 @@ use crate::{
     ash_immediate::{AshImmediateCommandBufferHandler, ImmediateRenderingFrameTask},
     backend_shared::BackendShared,
     compiled_frame_graph::CompiledFrameGraph,
-    frame::Frame,
+    persistent_frame_state::PersistentFrameState,
     presenter_shared::PresenterShared,
 };
 
@@ -110,7 +110,7 @@ fn run_presenter_thread(
     client.set_thread_name(name);
 
     let mut frames = SwapchainVec::new(presenter_shared.lock().swapchain(), |_| {
-        Frame::new(presenter_index, &window_id, &backend_shared)
+        PersistentFrameState::new(presenter_index, &window_id, &backend_shared)
     })?;
 
     // Immediate rendering frames
