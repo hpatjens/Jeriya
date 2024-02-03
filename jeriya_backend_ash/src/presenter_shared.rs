@@ -15,7 +15,7 @@ use jeriya_backend_ash_base::{
     swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
-use jeriya_content::asset_importer::{self, Asset, AssetImporter};
+use jeriya_content::asset_importer::{Asset, AssetImporter};
 use jeriya_content::shader::ShaderAsset;
 use jeriya_shared::bus::BusReader;
 use jeriya_shared::log::error;

@@ -8,6 +8,7 @@ use std::{
 use crate::{
     ash_immediate::{AshImmediateCommandBufferHandler, ImmediateRenderingFrameTask},
     backend_shared::BackendShared,
+    compiled_frame_graph::CompiledFrameGraph,
     frame::Frame,
     presenter_shared::PresenterShared,
 };
@@ -224,8 +225,14 @@ fn run_presenter_thread(
 
         let rendering_complete_command_buffer = rendering_complete_command_buffer.get_mut(&frame_index);
 
-        // Render the frames
-        frames.get_mut(&presenter_shared.frame_index).render_frame(
+        // Process Transactions
+        let frame = frames.get_mut(&presenter_shared.frame_index);
+        frame.process_transactions()?;
+
+        // Render the frame
+        let frame_graph = CompiledFrameGraph::new();
+        frame_graph.execute(
+            frame,
             &window_id,
             &backend_shared,
             &mut presenter_shared,
