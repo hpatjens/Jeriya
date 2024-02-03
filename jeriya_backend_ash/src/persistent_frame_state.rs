@@ -1,6 +1,11 @@
 use std::{collections::VecDeque, mem, sync::Arc};
 
-use base::{fence::Fence, frame_local_buffer::FrameLocalBuffer, push_descriptors::PushDescriptors};
+use base::{
+    command_pool::{CommandPool, CommandPoolCreateFlags},
+    fence::Fence,
+    frame_local_buffer::FrameLocalBuffer,
+    push_descriptors::PushDescriptors,
+};
 use jeriya_backend::{
     elements::{camera, point_cloud, rigid_mesh},
     instances::{camera_instance, point_cloud_instance, rigid_mesh_instance},
@@ -23,6 +28,8 @@ pub struct PersistentFrameState {
     pub image_available_semaphore: Semaphore,
     pub rendering_complete_semaphore: Semaphore,
     pub rendering_complete_fence: Fence,
+
+    pub command_pool: Arc<CommandPool>,
 
     pub per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
     pub frame_telemetry_buffer: HostVisibleBuffer<shader_interface::FrameTelemetry>,
@@ -274,11 +281,22 @@ impl PersistentFrameState {
         let rendering_complete_semaphore = Semaphore::new(&backend_shared.device, debug_info!("rendering-complete-Semaphore"))?;
         let image_available_semaphore = Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?;
 
+        // Create a CommandPool
+        let mut queues = backend_shared.queue_scheduler.queues();
+        let command_pool = CommandPool::new(
+            &backend_shared.device,
+            queues.presentation_queue(*window_id),
+            CommandPoolCreateFlags::ResetCommandBuffer,
+            debug_info!("preliminary-CommandPool"),
+        )?;
+        drop(queues);
+
         Ok(Self {
             presenter_index,
             image_available_semaphore,
             rendering_complete_semaphore,
             rendering_complete_fence,
+            command_pool,
             per_frame_data_buffer,
             frame_telemetry_buffer,
             mesh_attributes_active_buffer,

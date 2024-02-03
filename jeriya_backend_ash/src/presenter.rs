@@ -237,13 +237,16 @@ fn run_presenter_thread(
         let previous_frame_graph = compiled_frame_graphs.get_mut(&presenter_shared.frame_index).take();
         drop(previous_frame_graph);
 
+        // Reset CommandPool
+        persistent_frame_state.command_pool.reset()?;
+
         // Update the synchronization primitives for the next frame
         persistent_frame_state.image_available_semaphore = image_available_semaphore;
         persistent_frame_state.rendering_complete_semaphore = rendering_complete_semaphore;
         persistent_frame_state.rendering_complete_fence = rendering_complete_fence;
 
         // Render the frame
-        let mut compiled_frame_graph = CompiledFrameGraph::new(&backend_shared, &presenter_shared)?;
+        let mut compiled_frame_graph = CompiledFrameGraph::new(&backend_shared, &persistent_frame_state)?;
         compiled_frame_graph.execute(
             persistent_frame_state,
             &window_id,

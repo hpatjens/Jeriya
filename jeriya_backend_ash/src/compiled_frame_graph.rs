@@ -3,13 +3,8 @@ use std::{collections::BTreeMap, mem, sync::Arc};
 use base::graphics_pipeline::PushConstants;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
-    buffer::BufferUsageFlags,
-    command_buffer::CommandBuffer,
-    command_buffer_builder::CommandBufferBuilder,
-    command_buffer_builder::PipelineBindPoint,
-    command_pool::{CommandPool, CommandPoolCreateFlags},
-    graphics_pipeline::PrimitiveTopology,
-    host_visible_buffer::HostVisibleBuffer,
+    buffer::BufferUsageFlags, command_buffer::CommandBuffer, command_buffer_builder::CommandBufferBuilder,
+    command_buffer_builder::PipelineBindPoint, graphics_pipeline::PrimitiveTopology, host_visible_buffer::HostVisibleBuffer,
     shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
 };
 use jeriya_shared::{debug_info, nalgebra::Matrix4, plot_with_index, tracy_client::plot, winit::window::WindowId};
@@ -22,36 +17,18 @@ use crate::{
 };
 
 pub struct CompiledFrameGraph {
-    command_pool: Arc<CommandPool>,
     command_buffer: CommandBuffer,
 }
 
 impl CompiledFrameGraph {
-    pub fn new(backend_shared: &BackendShared, presenter_shared: &PresenterShared) -> jeriya_backend::Result<Self> {
-        // Create a CommandPool
-        let command_pool_span = jeriya_shared::span!("create commnad pool");
-        let mut queues = backend_shared.queue_scheduler.queues();
-        let command_pool = CommandPool::new(
-            &backend_shared.device,
-            queues.presentation_queue(presenter_shared.window_id),
-            CommandPoolCreateFlags::ResetCommandBuffer,
-            debug_info!("preliminary-CommandPool"),
-        )?;
-        drop(queues);
-        drop(command_pool_span);
-
-        let creation_span = jeriya_shared::span!("command buffer creation");
+    pub fn new(backend_shared: &BackendShared, persistent_frame_state: &PersistentFrameState) -> jeriya_backend::Result<Self> {
         let command_buffer = CommandBuffer::new(
             &backend_shared.device,
-            &command_pool,
+            &persistent_frame_state.command_pool,
             debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
         )?;
-        drop(creation_span);
 
-        Ok(CompiledFrameGraph {
-            command_pool,
-            command_buffer,
-        })
+        Ok(CompiledFrameGraph { command_buffer })
     }
 
     pub fn execute(
