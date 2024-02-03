@@ -1,5 +1,6 @@
 use crate::{
     common::{extract_extension_from_path, extract_file_name_from_path, AssetKey, ASSET_META_FILE_NAME},
+    shader::{import_shader, ShaderAsset},
     Error, Result,
 };
 use jeriya_shared::{
@@ -258,6 +259,26 @@ impl AssetImporter {
             tracked_assets: Arc::new(RwLock::new(BTreeMap::new())),
             import_source,
             buses: Arc::new(Mutex::new(BTreeMap::new())),
+        })
+    }
+
+    /// Creates a new `AssetImporter` with the default importers.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use jeriya_content::{AssetImporter, FileSystem};
+    /// const ASSET_FOLDER: &str = "assets";
+    /// std::fs::create_dir_all(ASSET_FOLDER).unwrap();
+    /// let asset_importer = AssetImporter::new_default_from(ASSET_FOLDER).unwrap();
+    /// ```
+    pub fn default_from(root: impl AsRef<Path>) -> Result<Self> {
+        let asset_source = FileSystem::new(root)?;
+        Self::new(asset_source, 4).map(|asset_importer| {
+            asset_importer
+                .register::<ShaderAsset>("vert", Box::new(import_shader))
+                .register::<ShaderAsset>("frag", Box::new(import_shader))
+                .register::<ShaderAsset>("comp", Box::new(import_shader))
         })
     }
 

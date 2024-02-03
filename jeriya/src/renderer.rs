@@ -282,6 +282,7 @@ mod tests {
         transactions::{Transaction, TransactionProcessor},
         Backend, ImmediateCommandBufferBuilderHandler,
     };
+    use jeriya_content::asset_importer::AssetImporter;
     use jeriya_shared::{debug_info, winit::window::WindowId, AsDebugInfo, DebugInfo, WindowConfig};
     use std::sync::{
         mpsc::{channel, Sender},
@@ -289,8 +290,11 @@ mod tests {
     };
 
     mod immediate_command_buffer {
+        use std::sync::Arc;
+
         use jeriya_backend::immediate::{ImmediateRenderingFrame, LineConfig, LineList};
         use jeriya_backend_ash::AshBackend;
+        use jeriya_content::asset_importer::AssetImporter;
         use jeriya_shared::{debug_info, nalgebra::Vector3, FrameRate, WindowConfig};
         use jeriya_test::create_window;
 
@@ -303,7 +307,11 @@ mod tests {
                 window: &window,
                 frame_rate: FrameRate::Unlimited,
             };
-            let renderer = Renderer::<AshBackend>::builder().add_windows(&[window_config]).build()?;
+            let asset_importer = Arc::new(AssetImporter::default_from("../assets/processed").unwrap());
+            let renderer = Renderer::<AshBackend>::builder()
+                .add_windows(&[window_config])
+                .add_asset_importer(asset_importer)
+                .build()?;
             let line_list = LineList::new(
                 vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0)],
                 LineConfig::default(),
@@ -388,6 +396,7 @@ mod tests {
         fn new(
             _renderer_config: jeriya_shared::RendererConfig,
             _backend_config: Self::BackendConfig,
+            _asset_importer: Arc<AssetImporter>,
             _window_configs: &[WindowConfig],
         ) -> jeriya_backend::Result<Arc<Self>>
         where

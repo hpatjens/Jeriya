@@ -273,15 +273,7 @@ fn main() -> ey::Result<()> {
 
     // Setup Content Pipeline
     let _asset_processor = setup_asset_processor()?;
-    let import_source = FileSystem::new("assets/unprocessed").wrap_err("Failed to create ImportSource for AssetImporter")?;
-    let asset_importer = {
-        let asset_importer = AssetImporter::new(import_source, 4)
-            .wrap_err("Failed to create AssetImporter")?
-            .register::<ShaderAsset>("vert", Box::new(import_shader))
-            .register::<ShaderAsset>("frag", Box::new(import_shader))
-            .register::<ShaderAsset>("comp", Box::new(import_shader));
-        Arc::new(asset_importer)
-    };
+    let asset_importer = Arc::new(AssetImporter::default_from("assets/processed").wrap_err("Failed to create AssetImporter")?);
 
     // Create Renderer
     let renderer = jeriya::Renderer::<AshBackend>::builder()

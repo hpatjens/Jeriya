@@ -408,6 +408,7 @@ mod tests {
         use jeriya_backend_ash_base::{
             device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, queue_plan::QueuePlan, surface::Surface,
         };
+        use jeriya_content::{asset_importer::AssetImporter, shader::ShaderAsset};
         use jeriya_shared::RendererConfig;
         use jeriya_test::create_window;
 
@@ -423,7 +424,9 @@ mod tests {
             let queue_plan = QueuePlan::new(&instance, &physical_device, iter::once((&window.id(), &surface))).unwrap();
             let device = Device::new(physical_device, &instance, queue_plan).unwrap();
             let (resource_sender, _resource_receiver) = mpsc::channel();
-            let backend_shared = BackendShared::new(&device, &Arc::new(RendererConfig::default()), resource_sender).unwrap();
+            let asset_importer = Arc::new(AssetImporter::default_from("../assets/processed").unwrap());
+            let backend_shared =
+                BackendShared::new(&device, &Arc::new(RendererConfig::default()), resource_sender, &asset_importer).unwrap();
             let _presenter = PresenterShared::new(&window.id(), &backend_shared, &surface).unwrap();
         }
     }
