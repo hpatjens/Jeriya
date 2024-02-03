@@ -10,14 +10,13 @@ use crate::{
     backend_shared::BackendShared,
     compiled_frame_graph::CompiledFrameGraph,
     persistent_frame_state::PersistentFrameState,
-    presenter,
     presenter_shared::PresenterShared,
 };
 
 use jeriya_backend::{
     immediate::ImmediateRenderingFrame, instances::camera_instance::CameraInstance, resources::ResourceEvent, transactions::Transaction,
 };
-use jeriya_backend_ash_base::{fence::Fence, queue, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
+use jeriya_backend_ash_base::{fence::Fence, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info, log::info, parking_lot::Mutex, spin_sleep, tracy_client::Client, winit::window::WindowId, EventQueue, FrameRate,

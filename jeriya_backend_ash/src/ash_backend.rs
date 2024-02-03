@@ -45,21 +45,16 @@ use jeriya_backend_ash_base::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_content::{
-    asset_importer::{AssetImporter, FileSystem},
-    model::Meshlet,
-    point_cloud::clustered_point_cloud::Page,
-};
+use jeriya_content::{asset_importer::AssetImporter, model::Meshlet, point_cloud::clustered_point_cloud::Page};
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
     log::{error, info, trace},
     nalgebra::Vector4,
     tracy_client::Client,
-    winit::window::{Window, WindowId},
-    AsDebugInfo, DebugInfo, FrameRate, RendererConfig, WindowConfig,
+    winit::window::WindowId,
+    AsDebugInfo, DebugInfo, RendererConfig, WindowConfig,
 };
-use jeriya_test::create_window;
 
 pub struct AshBackend {
     presenters: HashMap<WindowId, Presenter>,
@@ -747,6 +742,9 @@ mod tests {
     use super::*;
 
     mod backend_new {
+        use jeriya_shared::FrameRate;
+        use jeriya_test::create_window;
+
         use super::*;
 
         #[test]

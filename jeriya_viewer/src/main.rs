@@ -31,12 +31,8 @@ use jeriya_backend::{
 };
 use jeriya_backend_ash::AshBackend;
 use jeriya_content::{
-    asset_importer::{AssetImporter, FileSystem},
-    asset_processor::AssetProcessor,
-    common::Directories,
-    model::ModelAsset,
+    asset_importer::AssetImporter, asset_processor::AssetProcessor, common::Directories, model::ModelAsset,
     point_cloud::clustered_point_cloud::ClusteredPointCloudAsset,
-    shader::{import_shader, ShaderAsset},
 };
 use jeriya_shared::{
     debug_info,
