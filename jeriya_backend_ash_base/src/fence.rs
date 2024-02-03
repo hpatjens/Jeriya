@@ -26,8 +26,17 @@ impl AsDebugInfo for Fence {
 }
 
 impl Fence {
+    /// Creates a new unsignalled `VkFence`.
     pub fn new(device: &Arc<Device>, debug_info: DebugInfo) -> crate::Result<Self> {
-        let fence_create_info = vk::FenceCreateInfo::default();
+        Self::with_state(device, false, debug_info)
+    }
+
+    /// Creates a new `VkFence` with the given state.
+    pub fn with_state(device: &Arc<Device>, signalled: bool, debug_info: DebugInfo) -> crate::Result<Self> {
+        let mut fence_create_info = vk::FenceCreateInfo::builder();
+        if signalled {
+            fence_create_info = fence_create_info.flags(vk::FenceCreateFlags::SIGNALED);
+        }
         let fence = unsafe { device.as_raw_vulkan().create_fence(&fence_create_info, None)? };
         let debug_info = debug_info.with_vulkan_ptr(fence);
         Ok(Self {

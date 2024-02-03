@@ -125,11 +125,14 @@ impl Queue {
     }
 
     /// Submits the given [`CommandBuffer`] to the `Queue` and waits for the given [`Semaphore`] to be signalled.
+    ///
+    /// All passed resources must be held alive until the `Queue` has finished using them.
     pub fn submit_for_rendering_complete(
         &mut self,
-        command_buffer: Arc<CommandBuffer>,
-        wait_semaphore: &Arc<Semaphore>,
-        signal_semaphore: &Arc<Semaphore>,
+        command_buffer: &CommandBuffer,
+        wait_semaphore: &Semaphore,
+        signal_semaphore: &Semaphore,
+        fence: &Fence,
     ) -> crate::Result<()> {
         let wait_semaphores = [*wait_semaphore.as_raw_vulkan()];
         let signal_semaphores = [*signal_semaphore.as_raw_vulkan()];
@@ -144,12 +147,8 @@ impl Queue {
         unsafe {
             self.device
                 .as_raw_vulkan()
-                .queue_submit(self.queue, &[submit_info], *command_buffer.completed_fence().as_raw_vulkan())?
+                .queue_submit(self.queue, &[submit_info], *fence.as_raw_vulkan())?
         };
-        self.submitted_command_buffers.push_back(SubmittedCommandBuffer::Arc {
-            command_buffer,
-            semaphores: vec![signal_semaphore.clone(), wait_semaphore.clone()],
-        });
         Ok(())
     }
 

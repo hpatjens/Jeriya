@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, mem, sync::Arc};
 
-use base::{frame_local_buffer::FrameLocalBuffer, push_descriptors::PushDescriptors};
+use base::{fence::Fence, frame_local_buffer::FrameLocalBuffer, push_descriptors::PushDescriptors};
 use jeriya_backend::{
     elements::{camera, point_cloud, rigid_mesh},
     instances::{camera_instance, point_cloud_instance, rigid_mesh_instance},
@@ -19,8 +19,10 @@ use crate::backend_shared::BackendShared;
 
 pub struct PersistentFrameState {
     pub presenter_index: usize,
-    pub image_available_semaphore: Option<Arc<Semaphore>>,
-    pub rendering_complete_semaphore: Option<Arc<Semaphore>>,
+
+    pub image_available_semaphore: Semaphore,
+    pub rendering_complete_semaphore: Semaphore,
+    pub rendering_complete_fence: Fence,
 
     pub per_frame_data_buffer: HostVisibleBuffer<shader_interface::PerFrameData>,
     pub frame_telemetry_buffer: HostVisibleBuffer<shader_interface::FrameTelemetry>,
@@ -267,10 +269,16 @@ impl PersistentFrameState {
             debug_info!(format!("DeviceLocalDebugLinesBuffer-for-Window{:?}", window_id)),
         )?;
 
+        // The `Fence` is created in the signalled state so that the first frame can call `wait` on it and not block.
+        let rendering_complete_fence = Fence::with_state(&backend_shared.device, true, debug_info!("rendering-complete-Fence"))?;
+        let rendering_complete_semaphore = Semaphore::new(&backend_shared.device, debug_info!("rendering-complete-Semaphore"))?;
+        let image_available_semaphore = Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?;
+
         Ok(Self {
             presenter_index,
-            image_available_semaphore: None,
-            rendering_complete_semaphore: None,
+            image_available_semaphore,
+            rendering_complete_semaphore,
+            rendering_complete_fence,
             per_frame_data_buffer,
             frame_telemetry_buffer,
             mesh_attributes_active_buffer,
@@ -296,16 +304,6 @@ impl PersistentFrameState {
     /// Pushes a [`Transaction`] to the frame to be processed when the frame is rendered.
     pub fn push_transaction(&mut self, transaction: Transaction) {
         self.transactions.push_back(transaction);
-    }
-
-    /// Sets the image available semaphore for the frame.
-    pub fn set_image_available_semaphore(&mut self, image_available_semaphore: Arc<Semaphore>) {
-        self.image_available_semaphore = Some(image_available_semaphore);
-    }
-
-    /// Returns the rendering complete semaphores for the frame.
-    pub fn rendering_complete_semaphore(&self) -> Option<&Arc<Semaphore>> {
-        self.rendering_complete_semaphore.as_ref()
     }
 
     /// Processes the [`Transaction`]s pushed to the frame.

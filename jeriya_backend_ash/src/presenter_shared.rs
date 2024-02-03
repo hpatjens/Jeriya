@@ -299,6 +299,7 @@ impl GraphicsPipelines {
 
 /// All the state that is required for presenting to the [`Surface`]
 pub struct PresenterShared {
+    pub window_id: WindowId,
     pub frame_index: FrameIndex,
     pub desired_swapchain_length: u32,
     pub surface: Arc<Surface>,
@@ -331,6 +332,7 @@ impl PresenterShared {
         )?;
 
         Ok(Self {
+            window_id: window_id.clone(),
             frame_index: FrameIndex::new(),
             desired_swapchain_length,
             surface: surface.clone(),

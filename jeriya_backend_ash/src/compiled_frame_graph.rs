@@ -10,7 +10,6 @@ use jeriya_backend_ash_base::{
     command_pool::{CommandPool, CommandPoolCreateFlags},
     graphics_pipeline::PrimitiveTopology,
     host_visible_buffer::HostVisibleBuffer,
-    semaphore::Semaphore,
     shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
 };
 use jeriya_shared::{debug_info, nalgebra::Matrix4, plot_with_index, tracy_client::plot, winit::window::WindowId};
@@ -22,36 +21,47 @@ use crate::{
     presenter_shared::PresenterShared,
 };
 
-pub struct CompiledFrameGraph;
+pub struct CompiledFrameGraph {
+    command_pool: Arc<CommandPool>,
+    command_buffer: CommandBuffer,
+}
 
 impl CompiledFrameGraph {
-    pub fn new() -> Self {
-        CompiledFrameGraph
+    pub fn new(backend_shared: &BackendShared, presenter_shared: &PresenterShared) -> jeriya_backend::Result<Self> {
+        // Create a CommandPool
+        let command_pool_span = jeriya_shared::span!("create commnad pool");
+        let mut queues = backend_shared.queue_scheduler.queues();
+        let command_pool = CommandPool::new(
+            &backend_shared.device,
+            queues.presentation_queue(presenter_shared.window_id),
+            CommandPoolCreateFlags::ResetCommandBuffer,
+            debug_info!("preliminary-CommandPool"),
+        )?;
+        drop(queues);
+        drop(command_pool_span);
+
+        let creation_span = jeriya_shared::span!("command buffer creation");
+        let command_buffer = CommandBuffer::new(
+            &backend_shared.device,
+            &command_pool,
+            debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
+        )?;
+        drop(creation_span);
+
+        Ok(CompiledFrameGraph {
+            command_pool,
+            command_buffer,
+        })
     }
 
     pub fn execute(
-        &self,
+        &mut self,
         persistent_frame_state: &mut PersistentFrameState,
         window_id: &WindowId,
         backend_shared: &BackendShared,
         presenter_shared: &mut PresenterShared,
         immediate_rendering_frames: &BTreeMap<&'static str, ImmediateRenderingFrameTask>,
-        rendering_complete_command_buffer: &mut Option<Arc<CommandBuffer>>,
     ) -> jeriya_backend::Result<()> {
-        // Wait for the previous work for the currently occupied frame to finish
-        let wait_span = jeriya_shared::span!("wait for rendering complete");
-        if let Some(command_buffer) = rendering_complete_command_buffer.take() {
-            command_buffer.wait_for_completion()?;
-        }
-        drop(wait_span);
-
-        // Prepare rendering complete semaphore
-        let main_rendering_complete_semaphore = Arc::new(Semaphore::new(
-            &backend_shared.device,
-            debug_info!("main-CommandBuffer-rendering-complete-Semaphore"),
-        )?);
-        persistent_frame_state.rendering_complete_semaphore = Some(main_rendering_complete_semaphore.clone());
-
         // Update Buffers
         let span = jeriya_shared::span!("update per frame data buffer");
         let per_frame_data = shader_interface::PerFrameData {
@@ -72,29 +82,9 @@ impl CompiledFrameGraph {
         let cull_compute_shader_group_count =
             (persistent_frame_state.rigid_mesh_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
 
-        // Create a CommandPool
-        let command_pool_span = jeriya_shared::span!("create commnad pool");
-        let mut queues = backend_shared.queue_scheduler.queues();
-        let command_pool = CommandPool::new(
-            &backend_shared.device,
-            queues.presentation_queue(*window_id),
-            CommandPoolCreateFlags::ResetCommandBuffer,
-            debug_info!("preliminary-CommandPool"),
-        )?;
-        drop(queues);
-        drop(command_pool_span);
-
         // Build CommandBuffer
         let command_buffer_span = jeriya_shared::span!("build command buffer");
-
-        let creation_span = jeriya_shared::span!("command buffer creation");
-        let mut command_buffer = CommandBuffer::new(
-            &backend_shared.device,
-            &command_pool,
-            debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
-        )?;
-        let mut builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
-        drop(creation_span);
+        let mut builder = CommandBufferBuilder::new(&backend_shared.device, &mut self.command_buffer)?;
 
         let begin_span = jeriya_shared::span!("begin command buffer");
         builder.begin_command_buffer_for_one_time_submit()?;
@@ -327,10 +317,14 @@ impl CompiledFrameGraph {
         builder.bottom_to_top_pipeline_barrier();
 
         // Render Pass
+        let swapchain_image_index = presenter_shared
+            .frame_index
+            .swapchain_index()
+            .expect("swapchain index must be set before rendering");
         builder.begin_render_pass(
             presenter_shared.swapchain(),
             presenter_shared.render_pass(),
-            (presenter_shared.framebuffers(), presenter_shared.frame_index.swapchain_index()),
+            (presenter_shared.framebuffers(), swapchain_image_index),
         )?;
 
         // Render with IndirectSimpleGraphicsPipeline
@@ -432,7 +426,7 @@ impl CompiledFrameGraph {
         drop(indirect_meshlet_span);
 
         // Render with ImmediateRenderingPipeline
-        self.append_immediate_rendering_commands(
+        Self::append_immediate_rendering_commands(
             persistent_frame_state,
             backend_shared,
             presenter_shared,
@@ -473,23 +467,14 @@ impl CompiledFrameGraph {
 
         drop(command_buffer_span);
 
-        // Save CommandBuffer to be able to check whether this frame was completed
-        let command_buffer = Arc::new(command_buffer);
-        *rendering_complete_command_buffer = Some(command_buffer.clone());
-
-        // Submit immediate rendering
-        let image_available_semaphore = persistent_frame_state
-            .image_available_semaphore
-            .as_ref()
-            .expect("not image available semaphore assigned for the frame");
-
         // Insert into Queue
         let submit_span = jeriya_shared::span!("submit command buffer commands");
         let mut queues = backend_shared.queue_scheduler.queues();
         queues.presentation_queue(*window_id).submit_for_rendering_complete(
-            command_buffer,
-            image_available_semaphore,
-            &main_rendering_complete_semaphore,
+            &self.command_buffer,
+            &persistent_frame_state.image_available_semaphore,
+            &persistent_frame_state.rendering_complete_semaphore,
+            &persistent_frame_state.rendering_complete_fence,
         )?;
         drop(queues);
         drop(submit_span);
@@ -498,7 +483,6 @@ impl CompiledFrameGraph {
     }
 
     fn append_immediate_rendering_commands(
-        &self,
         frame: &PersistentFrameState,
         backend_shared: &BackendShared,
         presenter_shared: &PresenterShared,
