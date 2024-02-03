@@ -11,10 +11,13 @@ use jeriya_backend_ash_base::{
 };
 use jeriya_content::asset_importer::{Asset, AssetImporter};
 use jeriya_content::shader::ShaderAsset;
-use jeriya_shared::bus::BusReader;
-use jeriya_shared::log::error;
-use jeriya_shared::{debug_info, log::info, winit::window::WindowId};
-use jeriya_shared::{Handle, IndexingContainer};
+use jeriya_shared::{
+    bus::BusReader,
+    debug_info,
+    log::{error, info},
+    winit::window::WindowId,
+    Handle, IndexingContainer,
+};
 
 pub struct PipelineFactory {
     pub simple_graphics_pipeline: Handle<GenericGraphicsPipeline>,
