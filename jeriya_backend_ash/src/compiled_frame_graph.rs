@@ -99,8 +99,8 @@ impl CompiledFrameGraph {
         // 1. Cull RigidMeshInstances
         let cull_rigid_mesh_instances_span = jeriya_shared::span!("cull rigid mesh instances");
         let pipeline = presenter_shared
-            .graphics_pipelines
-            .get_compute_pipeline(&presenter_shared.graphics_pipelines.cull_rigid_mesh_instances_compute_pipeline);
+            .pipeline_factory
+            .get_compute_pipeline(&presenter_shared.pipeline_factory.cull_rigid_mesh_instances_compute_pipeline);
         builder.bind_compute_pipeline(pipeline);
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
@@ -152,8 +152,8 @@ impl CompiledFrameGraph {
         // Cull Meshlets
         let cull_meshlets_span = jeriya_shared::span!("cull meshlets");
         let pipeline = presenter_shared
-            .graphics_pipelines
-            .get_compute_pipeline(&presenter_shared.graphics_pipelines.cull_rigid_mesh_meshlets_compute_pipeline);
+            .pipeline_factory
+            .get_compute_pipeline(&presenter_shared.pipeline_factory.cull_rigid_mesh_meshlets_compute_pipeline);
         builder.bind_compute_pipeline(pipeline);
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
@@ -202,8 +202,8 @@ impl CompiledFrameGraph {
         // is written to the front of the buffer as in the culling of the rigid mesh instances.
         let cull_point_cloud_instances_span = jeriya_shared::span!("cull point cloud instances");
         let pipeline = presenter_shared
-            .graphics_pipelines
-            .get_compute_pipeline(&presenter_shared.graphics_pipelines.cull_point_cloud_instances_compute_pipeline);
+            .pipeline_factory
+            .get_compute_pipeline(&presenter_shared.pipeline_factory.cull_point_cloud_instances_compute_pipeline);
         builder.bind_compute_pipeline(pipeline);
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
@@ -259,8 +259,8 @@ impl CompiledFrameGraph {
 
         let cull_point_cloud_clusters_span = jeriya_shared::span!("cull point cloud clusters");
         let pipeline = presenter_shared
-            .graphics_pipelines
-            .get_compute_pipeline(&presenter_shared.graphics_pipelines.cull_point_cloud_clusters_compute_pipeline);
+            .pipeline_factory
+            .get_compute_pipeline(&presenter_shared.pipeline_factory.cull_point_cloud_clusters_compute_pipeline);
         builder.bind_compute_pipeline(pipeline);
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
@@ -307,8 +307,8 @@ impl CompiledFrameGraph {
         // Render with IndirectSimpleGraphicsPipeline
         let indirect_simple_span = jeriya_shared::span!("record indirect simple commands");
         let pipeline = presenter_shared
-            .graphics_pipelines
-            .get_graphics_pipeline(&presenter_shared.graphics_pipelines.indirect_simple_graphics_pipeline);
+            .pipeline_factory
+            .get_graphics_pipeline(&presenter_shared.pipeline_factory.indirect_simple_graphics_pipeline);
         builder.bind_graphics_pipeline(pipeline);
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -328,8 +328,8 @@ impl CompiledFrameGraph {
         // Render with IndirectMeshletGraphicsPipeline
         let indirect_meshlet_span = jeriya_shared::span!("record indirect meshlet commands");
         let pipeline = presenter_shared
-            .graphics_pipelines
-            .get_graphics_pipeline(&presenter_shared.graphics_pipelines.indirect_meshlet_graphics_pipeline);
+            .pipeline_factory
+            .get_graphics_pipeline(&presenter_shared.pipeline_factory.indirect_meshlet_graphics_pipeline);
         builder.bind_graphics_pipeline(pipeline);
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -349,8 +349,8 @@ impl CompiledFrameGraph {
         // Render Point Clouds
         let point_cloud_span = jeriya_shared::span!("record point cloud commands");
         let pipeline = presenter_shared
-            .graphics_pipelines
-            .get_graphics_pipeline(&presenter_shared.graphics_pipelines.point_cloud_graphics_pipeline);
+            .pipeline_factory
+            .get_graphics_pipeline(&presenter_shared.pipeline_factory.point_cloud_graphics_pipeline);
         builder.bind_graphics_pipeline(pipeline);
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -370,8 +370,8 @@ impl CompiledFrameGraph {
         // Render with SimpleGraphicsPipeline
         let simple_span = jeriya_shared::span!("record simple commands");
         let pipeline = presenter_shared
-            .graphics_pipelines
-            .get_graphics_pipeline(&presenter_shared.graphics_pipelines.simple_graphics_pipeline);
+            .pipeline_factory
+            .get_graphics_pipeline(&presenter_shared.pipeline_factory.simple_graphics_pipeline);
         builder.bind_graphics_pipeline(pipeline);
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -384,8 +384,8 @@ impl CompiledFrameGraph {
         // Render with PointCloudClusterGraphicsPipeline
         let indirect_meshlet_span = jeriya_shared::span!("record point cloud cluster commands");
         let pipeline = presenter_shared
-            .graphics_pipelines
-            .get_graphics_pipeline(&presenter_shared.graphics_pipelines.point_cloud_clusters_graphics_pipeline);
+            .pipeline_factory
+            .get_graphics_pipeline(&presenter_shared.pipeline_factory.point_cloud_clusters_graphics_pipeline);
         builder.bind_graphics_pipeline(pipeline);
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -414,8 +414,8 @@ impl CompiledFrameGraph {
         // Render device local debug lines
         let device_local_debug_lines_span = jeriya_shared::span!("record device local debug lines commands");
         let pipeline = presenter_shared
-            .graphics_pipelines
-            .get_graphics_pipeline(&presenter_shared.graphics_pipelines.device_local_debug_lines_pipeline);
+            .pipeline_factory
+            .get_graphics_pipeline(&presenter_shared.pipeline_factory.device_local_debug_lines_pipeline);
         builder.bind_graphics_pipeline(pipeline);
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
@@ -434,8 +434,8 @@ impl CompiledFrameGraph {
 
         // Write the frame telemetry data to the buffer
         let pipeline = presenter_shared
-            .graphics_pipelines
-            .get_compute_pipeline(&presenter_shared.graphics_pipelines.frame_telemetry_compute_pipeline);
+            .pipeline_factory
+            .get_compute_pipeline(&presenter_shared.pipeline_factory.frame_telemetry_compute_pipeline);
         builder.bind_compute_pipeline(pipeline);
         builder.bottom_to_top_pipeline_barrier();
         builder.dispatch(1, 1, 1);
@@ -515,8 +515,8 @@ impl CompiledFrameGraph {
                         ImmediateCommand::LineList(line_list) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::LineList)) {
                                 let pipeline = presenter_shared
-                                    .graphics_pipelines
-                                    .get_graphics_pipeline(&presenter_shared.graphics_pipelines.immediate_graphics_pipeline_line_list);
+                                    .pipeline_factory
+                                    .get_graphics_pipeline(&presenter_shared.pipeline_factory.immediate_graphics_pipeline_line_list);
                                 command_buffer_builder.bind_graphics_pipeline(pipeline);
                                 frame.push_descriptors(
                                     PipelineBindPoint::Graphics,
@@ -538,8 +538,8 @@ impl CompiledFrameGraph {
                         ImmediateCommand::LineStrip(line_strip) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::LineStrip)) {
                                 let pipeline = presenter_shared
-                                    .graphics_pipelines
-                                    .get_graphics_pipeline(&presenter_shared.graphics_pipelines.immediate_graphics_pipeline_line_strip);
+                                    .pipeline_factory
+                                    .get_graphics_pipeline(&presenter_shared.pipeline_factory.immediate_graphics_pipeline_line_strip);
                                 command_buffer_builder.bind_graphics_pipeline(pipeline);
                                 frame.push_descriptors(
                                     PipelineBindPoint::Graphics,
@@ -561,8 +561,8 @@ impl CompiledFrameGraph {
                         ImmediateCommand::TriangleList(triangle_list) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::TriangleList)) {
                                 let pipeline = presenter_shared
-                                    .graphics_pipelines
-                                    .get_graphics_pipeline(&presenter_shared.graphics_pipelines.immediate_graphics_pipeline_triangle_list);
+                                    .pipeline_factory
+                                    .get_graphics_pipeline(&presenter_shared.pipeline_factory.immediate_graphics_pipeline_triangle_list);
                                 command_buffer_builder.bind_graphics_pipeline(pipeline);
                                 frame.push_descriptors(
                                     PipelineBindPoint::Graphics,
@@ -583,8 +583,8 @@ impl CompiledFrameGraph {
                         ImmediateCommand::TriangleStrip(triangle_strip) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::TriangleStrip)) {
                                 let pipeline = presenter_shared
-                                    .graphics_pipelines
-                                    .get_graphics_pipeline(&presenter_shared.graphics_pipelines.immediate_graphics_pipeline_triangle_strip);
+                                    .pipeline_factory
+                                    .get_graphics_pipeline(&presenter_shared.pipeline_factory.immediate_graphics_pipeline_triangle_strip);
                                 command_buffer_builder.bind_graphics_pipeline(pipeline);
                                 frame.push_descriptors(
                                     PipelineBindPoint::Graphics,
