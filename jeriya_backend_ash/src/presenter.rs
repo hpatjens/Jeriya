@@ -109,7 +109,7 @@ fn run_presenter_thread(
     let client = Client::start();
     client.set_thread_name(name);
 
-    let mut frames = SwapchainVec::new(presenter_shared.lock().swapchain(), |_| {
+    let mut persistent_frame_states = SwapchainVec::new(presenter_shared.lock().swapchain(), |_| {
         PersistentFrameState::new(presenter_index, &window_id, &backend_shared)
     })?;
 
@@ -185,8 +185,8 @@ fn run_presenter_thread(
                     }
                 }
                 PresenterEvent::ProcessTransaction(transaction) => {
-                    let len = frames.len();
-                    for (index, frame) in frames.iter_mut().enumerate() {
+                    let len = persistent_frame_states.len();
+                    for (index, frame) in persistent_frame_states.iter_mut().enumerate() {
                         if index == len - 1 {
                             frame.push_transaction(transaction);
                             break;
@@ -218,7 +218,7 @@ fn run_presenter_thread(
             }
         };
         presenter_shared.frame_index = frame_index.clone();
-        frames
+        persistent_frame_states
             .get_mut(&presenter_shared.frame_index)
             .set_image_available_semaphore(image_available_semaphore);
         drop(acquire_span);
@@ -226,13 +226,13 @@ fn run_presenter_thread(
         let rendering_complete_command_buffer = rendering_complete_command_buffer.get_mut(&frame_index);
 
         // Process Transactions
-        let frame = frames.get_mut(&presenter_shared.frame_index);
-        frame.process_transactions()?;
+        let persistent_frame_state = persistent_frame_states.get_mut(&presenter_shared.frame_index);
+        persistent_frame_state.process_transactions()?;
 
         // Render the frame
         let frame_graph = CompiledFrameGraph::new();
         frame_graph.execute(
-            frame,
+            persistent_frame_state,
             &window_id,
             &backend_shared,
             &mut presenter_shared,
@@ -241,7 +241,7 @@ fn run_presenter_thread(
         )?;
 
         // Present
-        let rendering_complete_semaphore = frames
+        let rendering_complete_semaphore = persistent_frame_states
             .get(&frame_index)
             .rendering_complete_semaphore()
             .expect("rendering_complete_semaphore not set");
