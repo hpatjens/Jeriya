@@ -54,6 +54,16 @@ impl CommandPool {
         unsafe { Self::new_from_family(device, queue.queue_family_index, command_pool_create_flags, debug_info) }
     }
 
+    /// Reset the `CommandPool`
+    pub fn reset(&self) -> crate::Result<()> {
+        unsafe {
+            self.device
+                .as_raw_vulkan()
+                .reset_command_pool(self.command_pool, vk::CommandPoolResetFlags::RELEASE_RESOURCES)?;
+        }
+        Ok(())
+    }
+
     /// Returns the [`CommandPoolCreateFlags`] that were used to create the `CommandPool`.
     pub fn command_pool_create_flags(&self) -> &CommandPoolCreateFlags {
         &self.command_pool_create_flags
