@@ -6,7 +6,8 @@ pub struct SwapchainVec<T> {
 }
 
 impl<T> SwapchainVec<T> {
-    const OUT_OF_BOUNDS_MSG: &str = "swapchain_index was out of bounds while accessing a SwapchainVec";
+    const OUT_OF_BOUNDS_MSG: &str = "swapchain index was out of bounds while accessing a SwapchainVec";
+    const MUST_BE_SET_MST: &str = "swapchain index must be set before accessing a SwapchainVec";
 
     /// Creates a new `SwapchainVec<T>` for the given `Swapchain` by using the function `init` to initialize the elements
     pub fn new<F>(swapchain: &Swapchain, init: F) -> crate::Result<Self>
@@ -36,22 +37,22 @@ impl<T> SwapchainVec<T> {
 
     /// Returns a reference to the entry in the `SwapchainVec` that belongs to the given `FrameIndex`.
     pub fn get(&self, frame_index: &FrameIndex) -> &T {
-        self.data.get(frame_index.swapchain_index()).expect(Self::OUT_OF_BOUNDS_MSG)
+        let index = frame_index.swapchain_index().expect(Self::MUST_BE_SET_MST);
+        self.data.get(index).expect(Self::OUT_OF_BOUNDS_MSG)
     }
 
     /// Returns a mutable reference to the entry in the `SwapchainVec` that belongs to the given `FrameIndex`.
     pub fn get_mut(&mut self, frame_index: &FrameIndex) -> &mut T {
-        self.data.get_mut(frame_index.swapchain_index()).expect(Self::OUT_OF_BOUNDS_MSG)
+        let index = frame_index.swapchain_index().expect(Self::MUST_BE_SET_MST);
+        self.data.get_mut(index).expect(Self::OUT_OF_BOUNDS_MSG)
     }
 }
 
 impl<T> SwapchainVec<Option<T>> {
     /// Replaces the value at `frame_index` with `value`
     pub fn replace(&mut self, frame_index: &FrameIndex, value: T) -> Option<T> {
-        self.data
-            .get_mut(frame_index.swapchain_index())
-            .expect(Self::OUT_OF_BOUNDS_MSG)
-            .replace(value)
+        let index = frame_index.swapchain_index().expect(Self::MUST_BE_SET_MST);
+        self.data.get_mut(index).expect(Self::OUT_OF_BOUNDS_MSG).replace(value)
     }
 }
 

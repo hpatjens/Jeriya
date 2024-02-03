@@ -153,7 +153,7 @@ impl Swapchain {
         })
     }
 
-    pub fn acquire_next_image(&self, frame_index: &FrameIndex, semaphore_to_signal: &Semaphore) -> crate::Result<FrameIndex> {
+    pub fn acquire_next_image(&self, semaphore_to_signal: &Semaphore) -> crate::Result<u32> {
         let _span = jeriya_shared::span!("acquire_next_image");
 
         let (present_index, is_suboptimal) = unsafe {
@@ -167,19 +167,19 @@ impl Swapchain {
         if is_suboptimal {
             warn!("Suboptimal swapchain image");
         }
-        Ok(frame_index.incremented(present_index as usize))
+        Ok(present_index)
     }
 
     pub fn present(
         &self,
         frame_index: &FrameIndex,
-        rendering_complete_semaphore: &Arc<Semaphore>,
+        rendering_complete_semaphore: &Semaphore,
         present_queue: &Queue,
     ) -> crate::Result<bool> {
         let _span = jeriya_shared::span!("Swapchain::present");
         let wait_semaphores = [*rendering_complete_semaphore.as_raw_vulkan()];
         let swapchains = [self.swapchain_khr];
-        let image_indices = [frame_index.swapchain_index() as u32];
+        let image_indices = [frame_index.swapchain_index().expect("swapchain image must be set for presenting") as u32];
         let present_info = vk::PresentInfoKHR::builder()
             .wait_semaphores(&wait_semaphores)
             .swapchains(&swapchains)
