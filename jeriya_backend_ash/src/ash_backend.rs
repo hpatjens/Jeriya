@@ -45,11 +45,7 @@ use jeriya_backend_ash_base::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_content::{
-    asset_importer::{self, AssetImporter},
-    model::Meshlet,
-    point_cloud::clustered_point_cloud::Page,
-};
+use jeriya_content::{asset_importer::AssetImporter, model::Meshlet, point_cloud::clustered_point_cloud::Page};
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
