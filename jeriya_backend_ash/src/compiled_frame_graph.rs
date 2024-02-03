@@ -18,7 +18,7 @@ use jeriya_shared::{debug_info, nalgebra::Matrix4, plot_with_index, tracy_client
 use crate::{
     ash_immediate::{ImmediateCommand, ImmediateRenderingFrameTask},
     backend_shared::BackendShared,
-    frame::Frame,
+    persistent_frame_state::PersistentFrameState,
     presenter_shared::PresenterShared,
 };
 
@@ -31,7 +31,7 @@ impl CompiledFrameGraph {
 
     pub fn execute(
         &self,
-        frame: &mut Frame,
+        persistent_frame_state: &mut PersistentFrameState,
         window_id: &WindowId,
         backend_shared: &BackendShared,
         presenter_shared: &mut PresenterShared,
@@ -50,24 +50,27 @@ impl CompiledFrameGraph {
             &backend_shared.device,
             debug_info!("main-CommandBuffer-rendering-complete-Semaphore"),
         )?);
-        frame.rendering_complete_semaphore = Some(main_rendering_complete_semaphore.clone());
+        persistent_frame_state.rendering_complete_semaphore = Some(main_rendering_complete_semaphore.clone());
 
         // Update Buffers
         let span = jeriya_shared::span!("update per frame data buffer");
         let per_frame_data = shader_interface::PerFrameData {
             active_camera: presenter_shared.active_camera_instance.map(|c| c.index() as i32).unwrap_or(-1),
-            mesh_attributes_count: frame.mesh_attributes_active_buffer.high_water_mark() as u32,
-            rigid_mesh_count: frame.rigid_mesh_buffer.high_water_mark() as u32,
-            rigid_mesh_instance_count: frame.rigid_mesh_instance_buffer.high_water_mark() as u32,
-            point_cloud_instance_count: frame.point_cloud_instance_buffer.high_water_mark() as u32,
+            mesh_attributes_count: persistent_frame_state.mesh_attributes_active_buffer.high_water_mark() as u32,
+            rigid_mesh_count: persistent_frame_state.rigid_mesh_buffer.high_water_mark() as u32,
+            rigid_mesh_instance_count: persistent_frame_state.rigid_mesh_instance_buffer.high_water_mark() as u32,
+            point_cloud_instance_count: persistent_frame_state.point_cloud_instance_buffer.high_water_mark() as u32,
             framebuffer_width: presenter_shared.swapchain.extent().width,
             framebuffer_height: presenter_shared.swapchain.extent().height,
         };
-        frame.per_frame_data_buffer.set_memory_unaligned(&[per_frame_data])?;
+        persistent_frame_state
+            .per_frame_data_buffer
+            .set_memory_unaligned(&[per_frame_data])?;
         drop(span);
 
         const LOCAL_SIZE_X: u32 = 128;
-        let cull_compute_shader_group_count = (frame.rigid_mesh_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
+        let cull_compute_shader_group_count =
+            (persistent_frame_state.rigid_mesh_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X;
 
         // Create a CommandPool
         let command_pool_span = jeriya_shared::span!("create commnad pool");
@@ -105,7 +108,7 @@ impl CompiledFrameGraph {
 
         // Reset device local debug lines buffer
         let byte_size = mem::size_of::<u32>() as u64 + mem::size_of::<DrawIndirectCommand>() as u64;
-        builder.fill_buffer(&frame.device_local_debug_lines_buffer, 0, byte_size, 0);
+        builder.fill_buffer(&persistent_frame_state.device_local_debug_lines_buffer, 0, byte_size, 0);
         builder.bottom_to_top_pipeline_barrier();
 
         // Rigid Mesh Culling
@@ -132,7 +135,7 @@ impl CompiledFrameGraph {
             .graphics_pipelines
             .get_compute_pipeline(&presenter_shared.graphics_pipelines.cull_rigid_mesh_instances_compute_pipeline);
         builder.bind_compute_pipeline(pipeline);
-        frame.push_descriptors(
+        persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
             &pipeline.descriptor_set_layout,
             backend_shared,
@@ -148,13 +151,18 @@ impl CompiledFrameGraph {
         // that will be rendered with the meshlet representation.
         let clear_bytes_count = mem::size_of::<DispatchIndirectCommand>() + mem::size_of::<u32>();
         builder.transfer_to_transfer_command_barrier();
-        builder.fill_buffer(&frame.visible_rigid_mesh_instances, 0, clear_bytes_count as u64, 0);
+        builder.fill_buffer(&persistent_frame_state.visible_rigid_mesh_instances, 0, clear_bytes_count as u64, 0);
 
         // Clear counter for the visible rigid mesh instances that will be rendered with the
         // simple mesh representation.
         let clear_bytes_count = mem::size_of::<u32>();
         builder.transfer_to_transfer_command_barrier();
-        builder.fill_buffer(&frame.visible_rigid_mesh_instances_simple_buffer, 0, clear_bytes_count as u64, 0);
+        builder.fill_buffer(
+            &persistent_frame_state.visible_rigid_mesh_instances_simple_buffer,
+            0,
+            clear_bytes_count as u64,
+            0,
+        );
 
         // Dispatch compute shader for every rigid mesh instance
         builder.transfer_to_compute_pipeline_barrier();
@@ -180,7 +188,7 @@ impl CompiledFrameGraph {
             .graphics_pipelines
             .get_compute_pipeline(&presenter_shared.graphics_pipelines.cull_rigid_mesh_meshlets_compute_pipeline);
         builder.bind_compute_pipeline(pipeline);
-        frame.push_descriptors(
+        persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
             &pipeline.descriptor_set_layout,
             backend_shared,
@@ -188,7 +196,12 @@ impl CompiledFrameGraph {
         )?;
 
         // Clear counter for the visible meshlets
-        builder.fill_buffer(&frame.visible_rigid_mesh_meshlets, 0, mem::size_of::<u32>() as u64, 0);
+        builder.fill_buffer(
+            &persistent_frame_state.visible_rigid_mesh_meshlets,
+            0,
+            mem::size_of::<u32>() as u64,
+            0,
+        );
 
         builder.transfer_to_indirect_command_barrier();
         builder.transfer_to_compute_pipeline_barrier();
@@ -196,7 +209,7 @@ impl CompiledFrameGraph {
         builder.compute_to_compute_pipeline_barrier();
 
         // Dispatch compute shader for every visible rigid mesh instance
-        builder.dispatch_indirect(&frame.visible_rigid_mesh_instances, 0);
+        builder.dispatch_indirect(&persistent_frame_state.visible_rigid_mesh_instances, 0);
         builder.compute_to_indirect_command_pipeline_barrier();
         drop(cull_meshlets_span);
 
@@ -225,7 +238,7 @@ impl CompiledFrameGraph {
             .graphics_pipelines
             .get_compute_pipeline(&presenter_shared.graphics_pipelines.cull_point_cloud_instances_compute_pipeline);
         builder.bind_compute_pipeline(pipeline);
-        frame.push_descriptors(
+        persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
             &pipeline.descriptor_set_layout,
             backend_shared,
@@ -233,18 +246,28 @@ impl CompiledFrameGraph {
         )?;
 
         // Clear counter for the visible point cloud instances without clusters
-        builder.fill_buffer(&frame.visible_point_cloud_instances_simple, 0, mem::size_of::<u32>() as u64, 0);
+        builder.fill_buffer(
+            &persistent_frame_state.visible_point_cloud_instances_simple,
+            0,
+            mem::size_of::<u32>() as u64,
+            0,
+        );
         builder.transfer_to_compute_pipeline_barrier();
 
         // Clear counter for the visible point cloud instances with clusters
         let offset = mem::size_of::<DispatchIndirectCommand>() as u64;
-        builder.fill_buffer(&frame.visible_point_cloud_instances, offset, mem::size_of::<u32>() as u64, 0);
+        builder.fill_buffer(
+            &persistent_frame_state.visible_point_cloud_instances,
+            offset,
+            mem::size_of::<u32>() as u64,
+            0,
+        );
         builder.transfer_to_compute_pipeline_barrier();
 
         // Dispatch
         let cull_point_cloud_instances_group_count = {
             const LOCAL_SIZE_X: u32 = 128;
-            (frame.point_cloud_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X
+            (persistent_frame_state.point_cloud_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X
         };
         builder.transfer_to_indirect_command_barrier();
         builder.transfer_to_compute_pipeline_barrier();
@@ -272,7 +295,7 @@ impl CompiledFrameGraph {
             .graphics_pipelines
             .get_compute_pipeline(&presenter_shared.graphics_pipelines.cull_point_cloud_clusters_compute_pipeline);
         builder.bind_compute_pipeline(pipeline);
-        frame.push_descriptors(
+        persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
             &pipeline.descriptor_set_layout,
             backend_shared,
@@ -280,7 +303,12 @@ impl CompiledFrameGraph {
         )?;
 
         // Clear counter for the visible point cloud clusters
-        builder.fill_buffer(&frame.visible_point_cloud_clusters, 0, mem::size_of::<u32>() as u64, 0);
+        builder.fill_buffer(
+            &persistent_frame_state.visible_point_cloud_clusters,
+            0,
+            mem::size_of::<u32>() as u64,
+            0,
+        );
 
         // Dispatch
         builder.transfer_to_compute_pipeline_barrier();
@@ -289,7 +317,7 @@ impl CompiledFrameGraph {
         builder.compute_to_compute_pipeline_barrier();
 
         // Dispatch compute shader for culling the point cloud clusters
-        builder.dispatch_indirect(&frame.visible_point_cloud_instances, 0);
+        builder.dispatch_indirect(&persistent_frame_state.visible_point_cloud_instances, 0);
         builder.compute_to_indirect_command_pipeline_barrier();
 
         drop(cull_point_cloud_clusters_span);
@@ -311,18 +339,18 @@ impl CompiledFrameGraph {
             .graphics_pipelines
             .get_graphics_pipeline(&presenter_shared.graphics_pipelines.indirect_simple_graphics_pipeline);
         builder.bind_graphics_pipeline(pipeline);
-        frame.push_descriptors(
+        persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
             backend_shared,
             &mut builder,
         )?;
         builder.draw_indirect_count(
-            &frame.visible_rigid_mesh_instances_simple_buffer,
+            &persistent_frame_state.visible_rigid_mesh_instances_simple_buffer,
             mem::size_of::<u32>() as u64,
-            &frame.visible_rigid_mesh_instances_simple_buffer,
+            &persistent_frame_state.visible_rigid_mesh_instances_simple_buffer,
             0,
-            frame.rigid_mesh_instance_buffer.high_water_mark(),
+            persistent_frame_state.rigid_mesh_instance_buffer.high_water_mark(),
         );
         drop(indirect_simple_span);
 
@@ -332,16 +360,16 @@ impl CompiledFrameGraph {
             .graphics_pipelines
             .get_graphics_pipeline(&presenter_shared.graphics_pipelines.indirect_meshlet_graphics_pipeline);
         builder.bind_graphics_pipeline(pipeline);
-        frame.push_descriptors(
+        persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
             backend_shared,
             &mut builder,
         )?;
         builder.draw_indirect_count(
-            &frame.visible_rigid_mesh_meshlets,
+            &persistent_frame_state.visible_rigid_mesh_meshlets,
             mem::size_of::<u32>() as u64,
-            &frame.visible_rigid_mesh_meshlets,
+            &persistent_frame_state.visible_rigid_mesh_meshlets,
             0,
             backend_shared.static_meshlet_buffer.lock().len(),
         );
@@ -353,18 +381,18 @@ impl CompiledFrameGraph {
             .graphics_pipelines
             .get_graphics_pipeline(&presenter_shared.graphics_pipelines.point_cloud_graphics_pipeline);
         builder.bind_graphics_pipeline(pipeline);
-        frame.push_descriptors(
+        persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
             backend_shared,
             &mut builder,
         )?;
         builder.draw_indirect_count(
-            &frame.visible_point_cloud_instances_simple,
+            &persistent_frame_state.visible_point_cloud_instances_simple,
             mem::size_of::<u32>() as u64,
-            &frame.visible_point_cloud_instances_simple,
+            &persistent_frame_state.visible_point_cloud_instances_simple,
             0,
-            frame.point_cloud_instance_buffer.high_water_mark(),
+            persistent_frame_state.point_cloud_instance_buffer.high_water_mark(),
         );
         drop(point_cloud_span);
 
@@ -374,7 +402,7 @@ impl CompiledFrameGraph {
             .graphics_pipelines
             .get_graphics_pipeline(&presenter_shared.graphics_pipelines.simple_graphics_pipeline);
         builder.bind_graphics_pipeline(pipeline);
-        frame.push_descriptors(
+        persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
             backend_shared,
@@ -388,23 +416,29 @@ impl CompiledFrameGraph {
             .graphics_pipelines
             .get_graphics_pipeline(&presenter_shared.graphics_pipelines.point_cloud_clusters_graphics_pipeline);
         builder.bind_graphics_pipeline(pipeline);
-        frame.push_descriptors(
+        persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
             backend_shared,
             &mut builder,
         )?;
         builder.draw_indirect_count(
-            &frame.visible_point_cloud_clusters,
+            &persistent_frame_state.visible_point_cloud_clusters,
             std::mem::size_of::<u32>() as u64,
-            &frame.visible_point_cloud_clusters,
+            &persistent_frame_state.visible_point_cloud_clusters,
             0,
             backend_shared.renderer_config.maximum_number_of_visible_point_cloud_clusters,
         );
         drop(indirect_meshlet_span);
 
         // Render with ImmediateRenderingPipeline
-        self.append_immediate_rendering_commands(frame, backend_shared, presenter_shared, &mut builder, immediate_rendering_frames)?;
+        self.append_immediate_rendering_commands(
+            persistent_frame_state,
+            backend_shared,
+            presenter_shared,
+            &mut builder,
+            immediate_rendering_frames,
+        )?;
 
         // Render device local debug lines
         let device_local_debug_lines_span = jeriya_shared::span!("record device local debug lines commands");
@@ -412,13 +446,17 @@ impl CompiledFrameGraph {
             .graphics_pipelines
             .get_graphics_pipeline(&presenter_shared.graphics_pipelines.device_local_debug_lines_pipeline);
         builder.bind_graphics_pipeline(pipeline);
-        frame.push_descriptors(
+        persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
             backend_shared,
             &mut builder,
         )?;
-        builder.draw_indirect(&frame.device_local_debug_lines_buffer, mem::size_of::<u32>() as u64, 1);
+        builder.draw_indirect(
+            &persistent_frame_state.device_local_debug_lines_buffer,
+            mem::size_of::<u32>() as u64,
+            1,
+        );
         drop(device_local_debug_lines_span);
 
         builder.end_render_pass()?;
@@ -440,7 +478,7 @@ impl CompiledFrameGraph {
         *rendering_complete_command_buffer = Some(command_buffer.clone());
 
         // Submit immediate rendering
-        let image_available_semaphore = frame
+        let image_available_semaphore = persistent_frame_state
             .image_available_semaphore
             .as_ref()
             .expect("not image available semaphore assigned for the frame");
@@ -461,7 +499,7 @@ impl CompiledFrameGraph {
 
     fn append_immediate_rendering_commands(
         &self,
-        frame: &Frame,
+        frame: &PersistentFrameState,
         backend_shared: &BackendShared,
         presenter_shared: &PresenterShared,
         command_buffer_builder: &mut CommandBufferBuilder,

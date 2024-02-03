@@ -17,7 +17,7 @@ use jeriya_shared::{debug_info, log::info, winit::window::WindowId};
 
 use crate::backend_shared::BackendShared;
 
-pub struct Frame {
+pub struct PersistentFrameState {
     pub presenter_index: usize,
     pub image_available_semaphore: Option<Arc<Semaphore>>,
     pub rendering_complete_semaphore: Option<Arc<Semaphore>>,
@@ -64,7 +64,7 @@ pub struct Frame {
 }
 
 #[profile]
-impl Frame {
+impl PersistentFrameState {
     pub fn new(presenter_index: usize, window_id: &WindowId, backend_shared: &BackendShared) -> base::Result<Self> {
         let per_frame_data_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
@@ -537,7 +537,7 @@ mod tests {
         let test_fixture_device = TestFixtureDevice::new().unwrap();
         let (resource_sender, _resource_receiver) = channel();
         let backend_shared = BackendShared::new(&test_fixture_device.device, &Arc::new(Default::default()), resource_sender).unwrap();
-        let mut frame = Frame::new(0, &test_fixture_device.window.id(), &backend_shared).unwrap();
+        let mut frame = PersistentFrameState::new(0, &test_fixture_device.window.id(), &backend_shared).unwrap();
         let mut transaction = Transaction::new();
         let camera = Camera::new(
             camera::CameraProjection::Orthographic {
