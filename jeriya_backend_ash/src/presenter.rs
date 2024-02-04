@@ -109,11 +109,11 @@ fn run_presenter_thread(
     let client = Client::start();
     client.set_thread_name(name);
 
-    let mut persistent_frame_states = SwapchainVec::new(presenter_shared.lock().swapchain(), |_| {
+    let mut persistent_frame_states = SwapchainVec::new(&presenter_shared.lock().swapchain, |_| {
         PersistentFrameState::new(presenter_index, &window_id, &backend_shared)
     })?;
     let mut compiled_frame_graphs: SwapchainVec<Option<CompiledFrameGraph>> =
-        SwapchainVec::new(presenter_shared.lock().swapchain(), |_| Ok(None))?;
+        SwapchainVec::new(&presenter_shared.lock().swapchain, |_| Ok(None))?;
 
     // Immediate rendering frames
     //
@@ -212,7 +212,7 @@ fn run_presenter_thread(
         // Acquire the next swapchain image
         let acquire_span = jeriya_shared::span!("acquire swapchain image");
         let swapchain_image_index = loop {
-            match presenter_shared.swapchain().acquire_next_image(&image_available_semaphore) {
+            match presenter_shared.swapchain.acquire_next_image(&image_available_semaphore) {
                 Ok(index) => break index,
                 Err(_) => {
                     info!("Failed to acquire next swapchain image. Recreating swapchain.");
@@ -261,7 +261,7 @@ fn run_presenter_thread(
 
         // Present
         let mut queues = backend_shared.queue_scheduler.queues();
-        let result = presenter_shared.swapchain().present(
+        let result = presenter_shared.swapchain.present(
             &presenter_shared.frame_index,
             &persistent_frame_state.rendering_complete_semaphore,
             queues.presentation_queue(window_id),
