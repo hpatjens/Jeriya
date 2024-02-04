@@ -41,6 +41,7 @@ pub use nalgebra_glm;
 pub use num_cpus;
 pub use parking_lot;
 pub use pathdiff;
+pub use petgraph;
 pub use plotters;
 pub use rand;
 pub use raw_window_handle;

@@ -71,7 +71,13 @@ impl CompiledFrameGraph {
         builder.bottom_to_top_pipeline_barrier();
 
         // Image transition to optimal layout
-        builder.depth_pipeline_barrier(presenter_shared.depth_buffers().depth_buffers.get(&presenter_shared.frame_index))?;
+        builder.depth_pipeline_barrier(
+            presenter_shared
+                .vulkan_resource_coordinator
+                .swapchain_depth_buffers()
+                .depth_buffers
+                .get(&presenter_shared.frame_index),
+        )?;
 
         // Reset device local debug lines buffer
         let byte_size = mem::size_of::<u32>() as u64 + mem::size_of::<DrawIndirectCommand>() as u64;
@@ -299,9 +305,12 @@ impl CompiledFrameGraph {
             .swapchain_index()
             .expect("swapchain index must be set before rendering");
         builder.begin_render_pass(
-            presenter_shared.swapchain(),
-            presenter_shared.render_pass(),
-            (presenter_shared.framebuffers(), swapchain_image_index),
+            &presenter_shared.swapchain,
+            presenter_shared.vulkan_resource_coordinator.swapchain_render_pass(),
+            (
+                presenter_shared.vulkan_resource_coordinator.swapchain_framebuffers(),
+                swapchain_image_index,
+            ),
         )?;
 
         // Render with IndirectSimpleGraphicsPipeline

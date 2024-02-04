@@ -10,6 +10,7 @@ use jeriya_shared::{log::info, winit::window::WindowId};
 
 use crate::backend_shared::BackendShared;
 use crate::pipeline_factory::PipelineFactory;
+use crate::vulkan_resource_coordinator::VulkanResourceCoordinator;
 
 /// All the state that is required for presenting to the [`Surface`]
 pub struct PresenterShared {
@@ -18,9 +19,7 @@ pub struct PresenterShared {
     pub desired_swapchain_length: u32,
     pub surface: Arc<Surface>,
     pub swapchain: Swapchain,
-    pub swapchain_depth_buffers: SwapchainDepthBuffers,
-    pub swapchain_framebuffers: SwapchainFramebuffers,
-    pub swapchain_render_pass: SwapchainRenderPass,
+    pub vulkan_resource_coordinator: VulkanResourceCoordinator,
     pub pipeline_factory: PipelineFactory,
     pub active_camera_instance: Option<GpuIndexAllocation<CameraInstance>>,
     pub device: Arc<Device>,
@@ -31,17 +30,16 @@ impl PresenterShared {
     pub fn new(window_id: &WindowId, backend_shared: &BackendShared, surface: &Arc<Surface>) -> jeriya_backend::Result<Self> {
         let desired_swapchain_length = backend_shared.renderer_config.default_desired_swapchain_length;
         let swapchain = Swapchain::new(&backend_shared.device, surface, desired_swapchain_length, None)?;
-        let swapchain_depth_buffers = SwapchainDepthBuffers::new(&backend_shared.device, &swapchain)?;
-        let swapchain_render_pass = SwapchainRenderPass::new(&backend_shared.device, &swapchain)?;
-        let swapchain_framebuffers =
-            SwapchainFramebuffers::new(&backend_shared.device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
+
+        let vulkan_resource_coordinator =
+            VulkanResourceCoordinator::new(&backend_shared.device, &backend_shared.vulkan_resource_preparer, &swapchain)?;
 
         info!("Create Graphics Pipelines");
         let graphics_pipelines = PipelineFactory::new(
             &backend_shared.device,
             window_id,
             &swapchain,
-            &swapchain_render_pass,
+            vulkan_resource_coordinator.swapchain_render_pass(),
             &backend_shared.asset_importer,
         )?;
 
@@ -51,9 +49,7 @@ impl PresenterShared {
             desired_swapchain_length,
             surface: surface.clone(),
             swapchain,
-            swapchain_depth_buffers,
-            swapchain_framebuffers,
-            swapchain_render_pass,
+            vulkan_resource_coordinator,
             pipeline_factory: graphics_pipelines,
             active_camera_instance: None,
             device: backend_shared.device.clone(),
@@ -72,44 +68,17 @@ impl PresenterShared {
 
         self.device.wait_for_idle()?;
         self.swapchain = Swapchain::new(&self.device, &self.surface, self.desired_swapchain_length, Some(&self.swapchain))?;
-        self.swapchain_depth_buffers = SwapchainDepthBuffers::new(&self.device, &self.swapchain)?;
-        self.swapchain_render_pass = SwapchainRenderPass::new(&self.device, &self.swapchain)?;
-        self.swapchain_framebuffers = SwapchainFramebuffers::new(
-            &self.device,
-            &self.swapchain,
-            &self.swapchain_depth_buffers,
-            &self.swapchain_render_pass,
-        )?;
+        self.vulkan_resource_coordinator.recreate(&self.swapchain)?;
 
         self.pipeline_factory = PipelineFactory::new(
             &backend_shared.device,
             window_id,
             &self.swapchain,
-            &self.swapchain_render_pass,
+            self.vulkan_resource_coordinator.swapchain_render_pass(),
             &backend_shared.asset_importer,
         )?;
 
         Ok(())
-    }
-
-    /// Currently used [`Swapchain`]
-    pub fn swapchain(&self) -> &Swapchain {
-        &self.swapchain
-    }
-
-    /// Currently used [`SwapchainFramebuffers`]
-    pub fn framebuffers(&self) -> &SwapchainFramebuffers {
-        &self.swapchain_framebuffers
-    }
-
-    /// Currently used [`SwapchainRenderPass`]
-    pub fn render_pass(&self) -> &SwapchainRenderPass {
-        &self.swapchain_render_pass
-    }
-
-    /// Currently used [`DepthBuffers`]
-    pub fn depth_buffers(&self) -> &SwapchainDepthBuffers {
-        &self.swapchain_depth_buffers
     }
 }
 
