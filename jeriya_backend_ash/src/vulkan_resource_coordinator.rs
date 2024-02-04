@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use base::graphics_pipeline::GenericGraphicsPipelineConfig;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     device::Device, graphics_pipeline::GenericGraphicsPipeline, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffers,
@@ -43,7 +44,7 @@ impl VulkanResourceCoordinator {
         Ok(())
     }
 
-    pub fn query_graphics_pipeline(&self) -> Option<Arc<GenericGraphicsPipeline>> {
+    pub fn query_graphics_pipeline(&self, config: GenericGraphicsPipelineConfig) -> Option<Arc<GenericGraphicsPipeline>> {
         todo!()
     }
 

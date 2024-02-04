@@ -21,15 +21,15 @@ pub trait ComputePipeline {
 #[derive(Debug, Clone)]
 pub struct GenericComputePipelineConfig {
     pub shader_spirv: Arc<Vec<u8>>,
-    pub debug_info: DebugInfo,
 }
 
 pub struct GenericComputePipeline {
-    config: GenericComputePipelineConfig,
+    _config: GenericComputePipelineConfig,
     pipeline_layout: vk::PipelineLayout,
     compute_pipeline: vk::Pipeline,
     pub descriptor_set_layout: Arc<DescriptorSetLayout>,
     device: Arc<Device>,
+    debug_info: DebugInfo,
 }
 
 #[profile]
@@ -38,6 +38,7 @@ impl GenericComputePipeline {
         device: &Arc<Device>,
         config: &GenericComputePipelineConfig,
         specialization_constants: &SpecializationConstants,
+        debug_info: DebugInfo,
     ) -> crate::Result<Self> {
         let entry_name = CString::new("main").expect("Valid c string");
 
@@ -108,11 +109,12 @@ impl GenericComputePipeline {
         };
 
         Ok(Self {
-            config: config.clone(),
+            _config: config.clone(),
             compute_pipeline,
             pipeline_layout,
             descriptor_set_layout,
             device: device.clone(),
+            debug_info,
         })
     }
 }
@@ -139,7 +141,7 @@ impl ComputePipeline for GenericComputePipeline {
 
 impl AsDebugInfo for GenericComputePipeline {
     fn as_debug_info(&self) -> &DebugInfo {
-        &self.config.debug_info
+        &self.debug_info
     }
 }
 
@@ -160,10 +162,15 @@ mod tests {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
             let config = GenericComputePipelineConfig {
                 shader_spirv: Arc::new(include_bytes!("../test_data/cull_rigid_mesh_instances.comp.spv").to_vec()),
-                debug_info: debug_info!("my_compute_pipeline"),
             };
             let specialization_constants = SpecializationConstants::new();
-            let _compute_pipeline = GenericComputePipeline::new(&test_fixture_device.device, &config, &specialization_constants).unwrap();
+            let _compute_pipeline = GenericComputePipeline::new(
+                &test_fixture_device.device,
+                &config,
+                &specialization_constants,
+                debug_info!("my_compute_pipeline"),
+            )
+            .unwrap();
         }
     }
 }

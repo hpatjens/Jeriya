@@ -17,7 +17,7 @@ use crate::{
     specialization_constants::SpecializationConstants,
     swapchain::Swapchain,
     swapchain_render_pass::SwapchainRenderPass,
-    AsRawVulkan, DebugInfoAshExtension,
+    AsRawVulkan,
 };
 
 #[repr(C)]
@@ -32,7 +32,7 @@ pub trait GraphicsPipeline {
     fn pipeline_layout(&self) -> vk::PipelineLayout;
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PolygonMode {
     #[default]
     Fill,
@@ -48,7 +48,7 @@ impl From<PolygonMode> for vk::PolygonMode {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CullMode {
     None,
     Front,
@@ -68,7 +68,7 @@ impl From<CullMode> for vk::CullModeFlags {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PrimitiveTopology {
     #[default]
     PointList,
@@ -90,7 +90,7 @@ impl From<PrimitiveTopology> for vk::PrimitiveTopology {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Hash)]
 pub struct GenericGraphicsPipelineConfig {
     pub vertex_shader_spirv: Option<Arc<Vec<u8>>>,
     pub fragment_shader_spirv: Option<Arc<Vec<u8>>>,
@@ -99,7 +99,6 @@ pub struct GenericGraphicsPipelineConfig {
     pub cull_mode: CullMode,
     pub use_input_attributes: bool,
     pub use_dynamic_state_line_width: bool,
-    pub debug_info: DebugInfo,
 }
 
 pub struct GenericGraphicsPipeline {
@@ -110,6 +109,7 @@ pub struct GenericGraphicsPipeline {
     graphics_pipeline_layout: vk::PipelineLayout,
     pub descriptor_set_layout: Arc<DescriptorSetLayout>,
     device: Arc<Device>,
+    debug_info: DebugInfo,
 }
 
 impl Drop for GenericGraphicsPipeline {
@@ -130,10 +130,11 @@ impl GenericGraphicsPipeline {
         renderpass: &SwapchainRenderPass,
         swapchain: &Swapchain,
         specialization_constants: &SpecializationConstants,
+        debug_info: DebugInfo,
     ) -> crate::Result<Self> {
         let entry_name = CString::new("main").expect("Valid c string");
 
-        info!("Create shader modules for GenericGraphicsPipeline \"{}\"", config.debug_info.name());
+        info!("Create shader modules for GenericGraphicsPipeline \"{}\"", debug_info.name());
         let vertex_shader_spirv = config.vertex_shader_spirv.as_ref().expect("No vertex shader spirv");
         let vertex_shader = ShaderModule::new(
             device,
@@ -169,10 +170,7 @@ impl GenericGraphicsPipeline {
             },
         ];
 
-        info!(
-            "Create pipeline layout for GenericGraphicsPipeline \"{}\"",
-            config.debug_info.name()
-        );
+        info!("Create pipeline layout for GenericGraphicsPipeline \"{}\"", debug_info.name());
         let descriptor_set_layout = Arc::new(
             DescriptorSetLayout::builder()
                 .push_uniform_buffer::<PerFrameData>(0, 1)
@@ -331,7 +329,7 @@ impl GenericGraphicsPipeline {
             .layout(graphics_pipeline_layout)
             .render_pass(*renderpass.as_raw_vulkan());
 
-        info!("Create pipeline for GenericGraphicsPipeline \"{}\"", config.debug_info.name());
+        info!("Create pipeline for GenericGraphicsPipeline \"{}\"", debug_info.name());
         let graphics_pipeline = unsafe {
             device
                 .as_raw_vulkan()
@@ -339,20 +337,16 @@ impl GenericGraphicsPipeline {
                 .map_err(|(_, err)| err)?[0]
         };
 
-        let config = GenericGraphicsPipelineConfig {
-            debug_info: config.debug_info.clone().with_vulkan_ptr(graphics_pipeline),
-            ..config.clone()
-        };
-
-        info!("Done creating GenericGraphicsPipeline \"{}\"", config.debug_info.name());
+        info!("Done creating GenericGraphicsPipeline \"{}\"", debug_info.name());
         Ok(Self {
-            config,
+            config: config.clone(),
             _vertex_shader: vertex_shader,
             _fragment_shader: fragment_shader,
             graphics_pipeline,
             graphics_pipeline_layout,
             descriptor_set_layout,
             device: device.clone(),
+            debug_info,
         })
     }
 }
@@ -376,7 +370,7 @@ impl AsRawVulkan for GenericGraphicsPipeline {
 
 impl AsDebugInfo for GenericGraphicsPipeline {
     fn as_debug_info(&self) -> &DebugInfo {
-        &self.config.debug_info
+        &self.debug_info
     }
 }
 
@@ -404,7 +398,6 @@ mod tests {
                 vertex_shader_spirv: Some(Arc::new(include_bytes!("../test_data/red_triangle.vert.spv").to_vec())),
                 fragment_shader_spirv: Some(Arc::new(include_bytes!("../test_data/red_triangle.frag.spv").to_vec())),
                 primitive_topology: PrimitiveTopology::LineList,
-                debug_info: debug_info!("my_graphics_pipeline"),
                 ..Default::default()
             };
             let specialization_constants = SpecializationConstants::new();
@@ -414,6 +407,7 @@ mod tests {
                 &render_pass,
                 &swapchain,
                 &specialization_constants,
+                debug_info!("my_graphics_pipeline"),
             )
             .unwrap();
         }

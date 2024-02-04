@@ -18,6 +18,7 @@ pub use debug_info::*;
 pub use event_queue::*;
 pub use indexing_container::*;
 
+pub use ahash;
 pub use async_trait;
 pub use bitflags;
 pub use bumpalo;
