@@ -31,17 +31,11 @@ impl PresenterShared {
         let desired_swapchain_length = backend_shared.renderer_config.default_desired_swapchain_length;
         let swapchain = Swapchain::new(&backend_shared.device, surface, desired_swapchain_length, None)?;
 
-        let vulkan_resource_coordinator =
+        let mut vulkan_resource_coordinator =
             VulkanResourceCoordinator::new(&backend_shared.device, &backend_shared.vulkan_resource_preparer, &swapchain)?;
 
         info!("Create Graphics Pipelines");
-        let graphics_pipelines = PipelineFactory::new(
-            &backend_shared.device,
-            window_id,
-            &swapchain,
-            vulkan_resource_coordinator.swapchain_render_pass(),
-            &backend_shared.asset_importer,
-        )?;
+        let graphics_pipelines = PipelineFactory::new(&swapchain, &mut vulkan_resource_coordinator, &backend_shared.asset_importer)?;
 
         Ok(Self {
             window_id: window_id.clone(),
@@ -71,10 +65,8 @@ impl PresenterShared {
         self.vulkan_resource_coordinator.recreate(&self.swapchain)?;
 
         self.pipeline_factory = PipelineFactory::new(
-            &backend_shared.device,
-            window_id,
             &self.swapchain,
-            self.vulkan_resource_coordinator.swapchain_render_pass(),
+            &mut self.vulkan_resource_coordinator,
             &backend_shared.asset_importer,
         )?;
 

@@ -19,36 +19,36 @@ use jeriya_shared::{
     Handle, IndexingContainer,
 };
 
-pub struct PipelineFactory {
-    pub simple_graphics_pipeline: Handle<GenericGraphicsPipeline>,
-    pub immediate_graphics_pipeline_line_list: Handle<GenericGraphicsPipeline>,
-    pub immediate_graphics_pipeline_line_strip: Handle<GenericGraphicsPipeline>,
-    pub immediate_graphics_pipeline_triangle_list: Handle<GenericGraphicsPipeline>,
-    pub immediate_graphics_pipeline_triangle_strip: Handle<GenericGraphicsPipeline>,
-    pub indirect_simple_graphics_pipeline: Handle<GenericGraphicsPipeline>,
-    pub indirect_meshlet_graphics_pipeline: Handle<GenericGraphicsPipeline>,
-    pub point_cloud_graphics_pipeline: Handle<GenericGraphicsPipeline>,
-    pub point_cloud_clusters_graphics_pipeline: Handle<GenericGraphicsPipeline>,
-    pub device_local_debug_lines_pipeline: Handle<GenericGraphicsPipeline>,
+use crate::vulkan_resource_coordinator::{self, VulkanResourceCoordinator};
 
-    pub cull_rigid_mesh_instances_compute_pipeline: Handle<GenericComputePipeline>,
-    pub cull_rigid_mesh_meshlets_compute_pipeline: Handle<GenericComputePipeline>,
-    pub cull_point_cloud_instances_compute_pipeline: Handle<GenericComputePipeline>,
-    pub cull_point_cloud_clusters_compute_pipeline: Handle<GenericComputePipeline>,
-    pub frame_telemetry_compute_pipeline: Handle<GenericComputePipeline>,
+pub struct PipelineFactory {
+    pub simple_graphics_pipeline: Handle<Arc<GenericGraphicsPipeline>>,
+    pub immediate_graphics_pipeline_line_list: Handle<Arc<GenericGraphicsPipeline>>,
+    pub immediate_graphics_pipeline_line_strip: Handle<Arc<GenericGraphicsPipeline>>,
+    pub immediate_graphics_pipeline_triangle_list: Handle<Arc<GenericGraphicsPipeline>>,
+    pub immediate_graphics_pipeline_triangle_strip: Handle<Arc<GenericGraphicsPipeline>>,
+    pub indirect_simple_graphics_pipeline: Handle<Arc<GenericGraphicsPipeline>>,
+    pub indirect_meshlet_graphics_pipeline: Handle<Arc<GenericGraphicsPipeline>>,
+    pub point_cloud_graphics_pipeline: Handle<Arc<GenericGraphicsPipeline>>,
+    pub point_cloud_clusters_graphics_pipeline: Handle<Arc<GenericGraphicsPipeline>>,
+    pub device_local_debug_lines_pipeline: Handle<Arc<GenericGraphicsPipeline>>,
+
+    pub cull_rigid_mesh_instances_compute_pipeline: Handle<Arc<GenericComputePipeline>>,
+    pub cull_rigid_mesh_meshlets_compute_pipeline: Handle<Arc<GenericComputePipeline>>,
+    pub cull_point_cloud_instances_compute_pipeline: Handle<Arc<GenericComputePipeline>>,
+    pub cull_point_cloud_clusters_compute_pipeline: Handle<Arc<GenericComputePipeline>>,
+    pub frame_telemetry_compute_pipeline: Handle<Arc<GenericComputePipeline>>,
 
     shader_asset_receiver: BusReader<Arc<jeriya_content::Result<Asset<ShaderAsset>>>>,
 
-    graphics_pipelines: IndexingContainer<GenericGraphicsPipeline>,
-    compute_pipelines: IndexingContainer<GenericComputePipeline>,
+    graphics_pipelines: IndexingContainer<Arc<GenericGraphicsPipeline>>,
+    compute_pipelines: IndexingContainer<Arc<GenericComputePipeline>>,
 }
 
 impl PipelineFactory {
     pub fn new(
-        device: &Arc<Device>,
-        window_id: &WindowId,
         swapchain: &Swapchain,
-        swapchain_render_pass: &SwapchainRenderPass,
+        vulkan_resource_coordinator: &mut VulkanResourceCoordinator,
         asset_importer: &Arc<AssetImporter>,
     ) -> base::Result<Self> {
         macro_rules! spirv {
@@ -56,28 +56,6 @@ impl PipelineFactory {
                 Arc::new(include_bytes!(concat!("../../jeriya_backend_ash_base/test_data/", $shader)).to_vec())
             };
         }
-
-        info!("Creating specialization constants");
-        let specialization_constants = {
-            let mut specialization_constants = SpecializationConstants::new();
-            specialization_constants.push(0, 16);
-            specialization_constants.push(1, 64);
-            specialization_constants.push(2, 1024);
-            specialization_constants.push(3, 1024);
-            specialization_constants.push(4, 1024);
-            specialization_constants.push(5, 1024);
-            specialization_constants.push(6, 1048576);
-            specialization_constants.push(7, 1024);
-            specialization_constants.push(8, 1048576);
-            specialization_constants.push(9, 1024);
-            specialization_constants.push(10, 1024);
-            specialization_constants.push(11, 16384);
-            specialization_constants.push(12, 256);
-            specialization_constants.push(13, 16);
-            specialization_constants.push(14, 1048576);
-            specialization_constants.push(15, 16384);
-            specialization_constants
-        };
 
         let mut graphics_pipelines = IndexingContainer::new();
         let mut compute_pipelines = IndexingContainer::new();
@@ -88,16 +66,11 @@ impl PipelineFactory {
                 vertex_shader_spirv: Some(spirv!("red_triangle.vert.spv")),
                 fragment_shader_spirv: Some(spirv!("red_triangle.frag.spv")),
                 primitive_topology: PrimitiveTopology::TriangleList,
+                framebuffer_width: swapchain.extent().width,
+                framebuffer_height: swapchain.extent().height,
                 ..Default::default()
             };
-            let pipeline = GenericGraphicsPipeline::new(
-                device,
-                &config,
-                swapchain_render_pass,
-                swapchain,
-                &specialization_constants,
-                debug_info!(format!("Simple-GraphicsPipeline-for-Window{:?}", window_id)),
-            )?;
+            let pipeline = vulkan_resource_coordinator.query_graphics_pipeline(&config)?;
             graphics_pipelines.insert(pipeline)
         };
 
@@ -109,16 +82,11 @@ impl PipelineFactory {
                 primitive_topology,
                 use_input_attributes: true,
                 use_dynamic_state_line_width: true,
+                framebuffer_width: swapchain.extent().width,
+                framebuffer_height: swapchain.extent().height,
                 ..Default::default()
             };
-            let pipeline = GenericGraphicsPipeline::new(
-                device,
-                &config,
-                swapchain_render_pass,
-                swapchain,
-                &specialization_constants,
-                debug_info!(format!("Immediate-GraphicsPipeline-for-Window{:?}", window_id)),
-            )?;
+            let pipeline = vulkan_resource_coordinator.query_graphics_pipeline(&config)?;
             Ok(graphics_pipelines.insert(pipeline))
         };
         let immediate_graphics_pipeline_line_list = create_immediate_graphics_pipeline(PrimitiveTopology::LineList)?;
@@ -132,16 +100,11 @@ impl PipelineFactory {
                 vertex_shader_spirv: Some(spirv!("point_cloud.vert.spv")),
                 fragment_shader_spirv: Some(spirv!("point_cloud.frag.spv")),
                 primitive_topology: PrimitiveTopology::TriangleList,
+                framebuffer_width: swapchain.extent().width,
+                framebuffer_height: swapchain.extent().height,
                 ..Default::default()
             };
-            let pipeline = GenericGraphicsPipeline::new(
-                device,
-                &config,
-                swapchain_render_pass,
-                swapchain,
-                &specialization_constants,
-                debug_info!(format!("Point-Cloud-GraphicsPipeline-for-Window{:?}", window_id)),
-            )?;
+            let pipeline = vulkan_resource_coordinator.query_graphics_pipeline(&config)?;
             graphics_pipelines.insert(pipeline)
         };
 
@@ -150,12 +113,7 @@ impl PipelineFactory {
             let config = GenericComputePipelineConfig {
                 shader_spirv: spirv!("cull_point_cloud_instances.comp.spv"),
             };
-            let pipeline = GenericComputePipeline::new(
-                device,
-                &config,
-                &specialization_constants,
-                debug_info!(format!("Cull-PointCloudInstances-ComputePipeline-for-Window{:?}", window_id)),
-            )?;
+            let pipeline = vulkan_resource_coordinator.query_compute_pipeline(&config)?;
             compute_pipelines.insert(pipeline)
         };
 
@@ -164,12 +122,7 @@ impl PipelineFactory {
             let config = GenericComputePipelineConfig {
                 shader_spirv: spirv!("cull_point_cloud_clusters.comp.spv"),
             };
-            let pipeline = GenericComputePipeline::new(
-                device,
-                &config,
-                &specialization_constants,
-                debug_info!(format!("Cull-PointCloudClusters-ComputePipeline-for-Window{:?}", window_id)),
-            )?;
+            let pipeline = vulkan_resource_coordinator.query_compute_pipeline(&config)?;
             compute_pipelines.insert(pipeline)
         };
 
@@ -178,12 +131,7 @@ impl PipelineFactory {
             let config = GenericComputePipelineConfig {
                 shader_spirv: spirv!("cull_rigid_mesh_instances.comp.spv"),
             };
-            let pipeline = GenericComputePipeline::new(
-                device,
-                &config,
-                &specialization_constants,
-                debug_info!(format!("Cull-RigidMeshInstances-ComputePipeline-for-Window{:?}", window_id)),
-            )?;
+            let pipeline = vulkan_resource_coordinator.query_compute_pipeline(&config)?;
             compute_pipelines.insert(pipeline)
         };
 
@@ -192,12 +140,7 @@ impl PipelineFactory {
             let config = GenericComputePipelineConfig {
                 shader_spirv: spirv!("cull_rigid_mesh_meshlets.comp.spv"),
             };
-            let pipeline = GenericComputePipeline::new(
-                device,
-                &config,
-                &specialization_constants,
-                debug_info!(format!("Cull-RigidMeshMeshlets-ComputePipeline-for-Window{:?}", window_id)),
-            )?;
+            let pipeline = vulkan_resource_coordinator.query_compute_pipeline(&config)?;
             compute_pipelines.insert(pipeline)
         };
 
@@ -207,16 +150,11 @@ impl PipelineFactory {
                 vertex_shader_spirv: Some(spirv!("indirect_simple.vert.spv")),
                 fragment_shader_spirv: Some(spirv!("indirect_simple.frag.spv")),
                 primitive_topology: PrimitiveTopology::TriangleList,
+                framebuffer_width: swapchain.extent().width,
+                framebuffer_height: swapchain.extent().height,
                 ..Default::default()
             };
-            let pipeline = GenericGraphicsPipeline::new(
-                device,
-                &config,
-                swapchain_render_pass,
-                swapchain,
-                &specialization_constants,
-                debug_info!("pipeline"),
-            )?;
+            let pipeline = vulkan_resource_coordinator.query_graphics_pipeline(&config)?;
             graphics_pipelines.insert(pipeline)
         };
 
@@ -226,16 +164,11 @@ impl PipelineFactory {
                 vertex_shader_spirv: Some(spirv!("indirect_meshlet.vert.spv")),
                 fragment_shader_spirv: Some(spirv!("indirect_meshlet.frag.spv")),
                 primitive_topology: PrimitiveTopology::TriangleList,
+                framebuffer_width: swapchain.extent().width,
+                framebuffer_height: swapchain.extent().height,
                 ..Default::default()
             };
-            let pipeline = GenericGraphicsPipeline::new(
-                device,
-                &config,
-                swapchain_render_pass,
-                swapchain,
-                &specialization_constants,
-                debug_info!("pipeline"),
-            )?;
+            let pipeline = vulkan_resource_coordinator.query_graphics_pipeline(&config)?;
             graphics_pipelines.insert(pipeline)
         };
 
@@ -244,7 +177,7 @@ impl PipelineFactory {
             let config = GenericComputePipelineConfig {
                 shader_spirv: spirv!("frame_telemetry.comp.spv"),
             };
-            let pipeline = GenericComputePipeline::new(device, &config, &specialization_constants, debug_info!("pipeline"))?;
+            let pipeline = vulkan_resource_coordinator.query_compute_pipeline(&config)?;
             compute_pipelines.insert(pipeline)
         };
 
@@ -254,16 +187,11 @@ impl PipelineFactory {
                 vertex_shader_spirv: Some(spirv!("point_cloud_cluster.vert.spv")),
                 fragment_shader_spirv: Some(spirv!("point_cloud_cluster.frag.spv")),
                 primitive_topology: PrimitiveTopology::TriangleList,
+                framebuffer_width: swapchain.extent().width,
+                framebuffer_height: swapchain.extent().height,
                 ..Default::default()
             };
-            let pipeline = GenericGraphicsPipeline::new(
-                device,
-                &config,
-                swapchain_render_pass,
-                swapchain,
-                &specialization_constants,
-                debug_info!("pipeline"),
-            )?;
+            let pipeline = vulkan_resource_coordinator.query_graphics_pipeline(&config)?;
             graphics_pipelines.insert(pipeline)
         };
 
@@ -273,16 +201,11 @@ impl PipelineFactory {
                 vertex_shader_spirv: Some(spirv!("device_local_debug_line.vert.spv")),
                 fragment_shader_spirv: Some(spirv!("device_local_debug_line.frag.spv")),
                 primitive_topology: PrimitiveTopology::LineList,
+                framebuffer_width: swapchain.extent().width,
+                framebuffer_height: swapchain.extent().height,
                 ..Default::default()
             };
-            let pipeline = GenericGraphicsPipeline::new(
-                device,
-                &config,
-                swapchain_render_pass,
-                swapchain,
-                &specialization_constants,
-                debug_info!("pipeline"),
-            )?;
+            let pipeline = vulkan_resource_coordinator.query_graphics_pipeline(&config)?;
             graphics_pipelines.insert(pipeline)
         };
 
@@ -313,12 +236,12 @@ impl PipelineFactory {
     }
 
     /// Returns the [`GenericGraphicsPipeline`] for the given [`Handle`]
-    pub fn get_graphics_pipeline(&self, handle: &Handle<GenericGraphicsPipeline>) -> &GenericGraphicsPipeline {
+    pub fn get_graphics_pipeline(&self, handle: &Handle<Arc<GenericGraphicsPipeline>>) -> &GenericGraphicsPipeline {
         self.graphics_pipelines.get(handle).expect("Invalid GraphicsPipeline handle")
     }
 
     /// Returns the [`GenericComputePipeline`] for the given [`Handle`]
-    pub fn get_compute_pipeline(&self, handle: &Handle<GenericComputePipeline>) -> &GenericComputePipeline {
+    pub fn get_compute_pipeline(&self, handle: &Handle<Arc<GenericComputePipeline>>) -> &GenericComputePipeline {
         self.compute_pipelines.get(handle).expect("Invalid ComputePipeline handle")
     }
 

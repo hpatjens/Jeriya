@@ -18,7 +18,7 @@ pub trait ComputePipeline {
     fn pipeline_layout(&self) -> vk::PipelineLayout;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct GenericComputePipelineConfig {
     pub shader_spirv: Arc<Vec<u8>>,
 }
