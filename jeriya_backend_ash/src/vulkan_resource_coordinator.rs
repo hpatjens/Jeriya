@@ -115,10 +115,6 @@ impl VulkanResourceCoordinator {
         }
     }
 
-    pub fn query_swapchain_render_pass(&self) -> Option<Arc<SwapchainRenderPass>> {
-        todo!()
-    }
-
     pub fn swapchain_depth_buffers(&self) -> &SwapchainDepthBuffers {
         &self.swapchain_depth_buffers
     }
@@ -157,7 +153,12 @@ mod tests {
         let swapchain = Swapchain::new(&test_fixture_device.device, &test_fixture_device.surface, 3, None).unwrap();
         let asset_importer = Arc::new(AssetImporter::default_from("../assets/processed").unwrap());
         let vulkan_resource_preparer = VulkanResourcePreparer::new(&asset_importer);
-        let vulkan_resource_coordinator =
-            VulkanResourceCoordinator::new(&test_fixture_device.device, &vulkan_resource_preparer, &swapchain);
+        let _vulkan_resource_coordinator = VulkanResourceCoordinator::new(
+            &test_fixture_device.device,
+            &vulkan_resource_preparer,
+            &swapchain,
+            &RendererConfig::default(),
+        )
+        .unwrap();
     }
 }
