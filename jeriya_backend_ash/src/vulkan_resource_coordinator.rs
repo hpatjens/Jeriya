@@ -10,7 +10,7 @@ use jeriya_backend_ash_base::{
 };
 use jeriya_shared::log::info;
 use jeriya_shared::petgraph::Graph;
-use jeriya_shared::{ahash, debug_info};
+use jeriya_shared::{ahash, debug_info, RendererConfig};
 
 use crate::vulkan_resource_preparer::VulkanResourcePreparer;
 
@@ -31,7 +31,12 @@ pub struct VulkanResourceCoordinator {
 }
 
 impl VulkanResourceCoordinator {
-    pub fn new(device: &Arc<Device>, preparer: &VulkanResourcePreparer, swapchain: &Swapchain) -> jeriya_backend::Result<Self> {
+    pub fn new(
+        device: &Arc<Device>,
+        preparer: &VulkanResourcePreparer,
+        swapchain: &Swapchain,
+        renderer_config: &RendererConfig,
+    ) -> jeriya_backend::Result<Self> {
         info!("Creating swapchain resources");
         let swapchain_depth_buffers = SwapchainDepthBuffers::new(device, &swapchain)?;
         let swapchain_render_pass = SwapchainRenderPass::new(device, &swapchain)?;
@@ -40,22 +45,22 @@ impl VulkanResourceCoordinator {
         info!("Creating specialization constants");
         let specialization_constants = {
             let mut specialization_constants = SpecializationConstants::new();
-            specialization_constants.push(0, 16);
-            specialization_constants.push(1, 64);
-            specialization_constants.push(2, 1024);
-            specialization_constants.push(3, 1024);
-            specialization_constants.push(4, 1024);
-            specialization_constants.push(5, 1024);
-            specialization_constants.push(6, 1048576);
-            specialization_constants.push(7, 1024);
-            specialization_constants.push(8, 1048576);
-            specialization_constants.push(9, 1024);
-            specialization_constants.push(10, 1024);
-            specialization_constants.push(11, 16384);
-            specialization_constants.push(12, 256);
-            specialization_constants.push(13, 16);
-            specialization_constants.push(14, 1048576);
-            specialization_constants.push(15, 16384);
+            specialization_constants.push(0, renderer_config.maximum_number_of_cameras as u32);
+            specialization_constants.push(1, renderer_config.maximum_number_of_camera_instances as u32);
+            specialization_constants.push(2, renderer_config.maximum_number_of_point_cloud_attributes as u32);
+            specialization_constants.push(3, renderer_config.maximum_number_of_rigid_meshes as u32);
+            specialization_constants.push(4, renderer_config.maximum_number_of_mesh_attributes as u32);
+            specialization_constants.push(5, renderer_config.maximum_number_of_rigid_mesh_instances as u32);
+            specialization_constants.push(6, renderer_config.maximum_meshlets as u32);
+            specialization_constants.push(7, renderer_config.maximum_visible_rigid_mesh_instances as u32);
+            specialization_constants.push(8, renderer_config.maximum_visible_rigid_mesh_meshlets as u32);
+            specialization_constants.push(9, renderer_config.maximum_number_of_point_clouds as u32);
+            specialization_constants.push(10, renderer_config.maximum_number_of_point_cloud_instances as u32);
+            specialization_constants.push(11, renderer_config.maximum_number_of_point_cloud_pages as u32);
+            specialization_constants.push(12, 0);
+            specialization_constants.push(13, 0);
+            specialization_constants.push(14, renderer_config.maximum_number_of_visible_point_cloud_clusters as u32);
+            specialization_constants.push(15, renderer_config.maximum_number_of_device_local_debug_lines as u32);
             specialization_constants
         };
 
