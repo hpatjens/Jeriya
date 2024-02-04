@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
+use base::compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig};
 use base::graphics_pipeline::GenericGraphicsPipelineConfig;
+use base::specialization_constants::SpecializationConstants;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     device::Device, graphics_pipeline::GenericGraphicsPipeline, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffers,
     swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass,
 };
+use jeriya_shared::log::info;
 use jeriya_shared::petgraph::Graph;
+use jeriya_shared::{ahash, debug_info};
 
 use crate::vulkan_resource_preparer::VulkanResourcePreparer;
 
@@ -16,6 +20,11 @@ pub struct VulkanResourceCoordinator {
 
     graph: Graph<Node, ()>,
 
+    specialization_constants: SpecializationConstants,
+
+    graphics_pipelines: ahash::HashMap<GenericGraphicsPipelineConfig, Arc<GenericGraphicsPipeline>>,
+    compute_pipelines: ahash::HashMap<GenericComputePipelineConfig, Arc<GenericComputePipeline>>,
+
     swapchain_depth_buffers: SwapchainDepthBuffers,
     swapchain_framebuffers: SwapchainFramebuffers,
     swapchain_render_pass: SwapchainRenderPass,
@@ -23,13 +32,39 @@ pub struct VulkanResourceCoordinator {
 
 impl VulkanResourceCoordinator {
     pub fn new(device: &Arc<Device>, preparer: &VulkanResourcePreparer, swapchain: &Swapchain) -> jeriya_backend::Result<Self> {
+        info!("Creating swapchain resources");
         let swapchain_depth_buffers = SwapchainDepthBuffers::new(device, &swapchain)?;
         let swapchain_render_pass = SwapchainRenderPass::new(device, &swapchain)?;
         let swapchain_framebuffers = SwapchainFramebuffers::new(device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
 
+        info!("Creating specialization constants");
+        let specialization_constants = {
+            let mut specialization_constants = SpecializationConstants::new();
+            specialization_constants.push(0, 16);
+            specialization_constants.push(1, 64);
+            specialization_constants.push(2, 1024);
+            specialization_constants.push(3, 1024);
+            specialization_constants.push(4, 1024);
+            specialization_constants.push(5, 1024);
+            specialization_constants.push(6, 1048576);
+            specialization_constants.push(7, 1024);
+            specialization_constants.push(8, 1048576);
+            specialization_constants.push(9, 1024);
+            specialization_constants.push(10, 1024);
+            specialization_constants.push(11, 16384);
+            specialization_constants.push(12, 256);
+            specialization_constants.push(13, 16);
+            specialization_constants.push(14, 1048576);
+            specialization_constants.push(15, 16384);
+            specialization_constants
+        };
+
         Ok(VulkanResourceCoordinator {
             device: device.clone(),
             graph: Graph::new(),
+            specialization_constants,
+            graphics_pipelines: ahash::HashMap::default(),
+            compute_pipelines: ahash::HashMap::default(),
             swapchain_depth_buffers,
             swapchain_framebuffers,
             swapchain_render_pass,
@@ -44,12 +79,35 @@ impl VulkanResourceCoordinator {
         Ok(())
     }
 
-    pub fn query_graphics_pipeline(&self, config: GenericGraphicsPipelineConfig) -> Option<Arc<GenericGraphicsPipeline>> {
-        todo!()
+    pub fn query_graphics_pipeline(&mut self, config: &GenericGraphicsPipelineConfig) -> base::Result<Arc<GenericGraphicsPipeline>> {
+        if self.graphics_pipelines.contains_key(config) {
+            Ok(self.graphics_pipelines[config].clone())
+        } else {
+            let pipeline = Arc::new(GenericGraphicsPipeline::new(
+                &self.device,
+                config,
+                &self.swapchain_render_pass,
+                &self.specialization_constants,
+                debug_info!("GenericGraphicsPipeline"),
+            )?);
+            self.graphics_pipelines.insert(config.clone(), pipeline.clone());
+            Ok(pipeline)
+        }
     }
 
-    pub fn query_compute_pipeline(&self) -> Option<Arc<GenericGraphicsPipeline>> {
-        todo!()
+    pub fn query_compute_pipeline(&mut self, config: &GenericComputePipelineConfig) -> base::Result<Arc<GenericComputePipeline>> {
+        if self.compute_pipelines.contains_key(config) {
+            Ok(self.compute_pipelines[config].clone())
+        } else {
+            let pipeline = Arc::new(GenericComputePipeline::new(
+                &self.device,
+                config,
+                &self.specialization_constants,
+                debug_info!("GenericComputePipeline"),
+            )?);
+            self.compute_pipelines.insert(config.clone(), pipeline.clone());
+            Ok(pipeline)
+        }
     }
 
     pub fn query_swapchain_render_pass(&self) -> Option<Arc<SwapchainRenderPass>> {

@@ -90,7 +90,7 @@ impl From<PrimitiveTopology> for vk::PrimitiveTopology {
     }
 }
 
-#[derive(Debug, Default, Clone, Hash)]
+#[derive(Debug, Default, Clone, Hash, PartialEq, Eq)]
 pub struct GenericGraphicsPipelineConfig {
     pub vertex_shader_spirv: Option<Arc<Vec<u8>>>,
     pub fragment_shader_spirv: Option<Arc<Vec<u8>>>,
@@ -99,6 +99,8 @@ pub struct GenericGraphicsPipelineConfig {
     pub cull_mode: CullMode,
     pub use_input_attributes: bool,
     pub use_dynamic_state_line_width: bool,
+    pub framebuffer_width: u32,
+    pub framebuffer_height: u32,
 }
 
 pub struct GenericGraphicsPipeline {
@@ -128,7 +130,6 @@ impl GenericGraphicsPipeline {
         device: &Arc<Device>,
         config: &GenericGraphicsPipelineConfig,
         renderpass: &SwapchainRenderPass,
-        swapchain: &Swapchain,
         specialization_constants: &SpecializationConstants,
         debug_info: DebugInfo,
     ) -> crate::Result<Self> {
@@ -228,17 +229,17 @@ impl GenericGraphicsPipeline {
         // flipped viewport with VK_KHR_MAINTENANCE1 extension so that y is pointing up
         let viewports = vec![vk::Viewport {
             x: 0.0,
-            y: swapchain.extent().height as f32,
-            width: swapchain.extent().width as f32,
-            height: -(swapchain.extent().height as f32),
+            y: config.framebuffer_height as f32,
+            width: config.framebuffer_width as f32,
+            height: -(config.framebuffer_height as f32),
             min_depth: 0.0,
             max_depth: 1.0,
         }];
         let scissors = vec![vk::Rect2D {
             offset: vk::Offset2D { x: 0, y: 0 },
             extent: vk::Extent2D {
-                width: swapchain.extent().width,
-                height: swapchain.extent().height,
+                width: config.framebuffer_width,
+                height: config.framebuffer_height,
             },
         }];
         let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder()
@@ -398,6 +399,8 @@ mod tests {
                 vertex_shader_spirv: Some(Arc::new(include_bytes!("../test_data/red_triangle.vert.spv").to_vec())),
                 fragment_shader_spirv: Some(Arc::new(include_bytes!("../test_data/red_triangle.frag.spv").to_vec())),
                 primitive_topology: PrimitiveTopology::LineList,
+                framebuffer_width: swapchain.extent().width,
+                framebuffer_height: swapchain.extent().height,
                 ..Default::default()
             };
             let specialization_constants = SpecializationConstants::new();
@@ -405,7 +408,6 @@ mod tests {
                 &test_fixture_device.device,
                 &config,
                 &render_pass,
-                &swapchain,
                 &specialization_constants,
                 debug_info!("my_graphics_pipeline"),
             )
