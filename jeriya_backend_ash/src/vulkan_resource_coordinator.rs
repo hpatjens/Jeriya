@@ -23,6 +23,7 @@ pub struct VulkanResourceCoordinator {
 
     specialization_constants: SpecializationConstants,
 
+    // TODO: These are currently not freed
     graphics_pipelines: ahash::HashMap<GenericGraphicsPipelineConfig, Arc<GenericGraphicsPipeline>>,
     compute_pipelines: ahash::HashMap<GenericComputePipelineConfig, Arc<GenericComputePipeline>>,
 
