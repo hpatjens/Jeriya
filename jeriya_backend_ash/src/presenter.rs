@@ -141,8 +141,6 @@ fn run_presenter_thread(
             .send(ResourceEvent::FrameStart)
             .expect("failed to send ResourceEvent::FrameStart");
 
-        presenter_shared.pre_frame_update();
-
         // Remove timed out immediate rendering frames.
         //
         // The immediate rendering frames are removed one frame after they timed out. This is to make sure that
@@ -245,7 +243,7 @@ fn run_presenter_thread(
         persistent_frame_state.rendering_complete_fence = rendering_complete_fence;
 
         // Render the frame
-        let mut compiled_frame_graph = CompiledFrameGraph::new(&backend_shared, &persistent_frame_state)?;
+        let mut compiled_frame_graph = CompiledFrameGraph::new(&backend_shared, &mut presenter_shared, &persistent_frame_state)?;
         compiled_frame_graph.execute(
             persistent_frame_state,
             &window_id,

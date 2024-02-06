@@ -1402,7 +1402,6 @@ dependencies = [
  "num_cpus",
  "parking_lot",
  "pathdiff",
- "petgraph",
  "plotters",
  "rand 0.8.5",
  "raw-window-handle",
