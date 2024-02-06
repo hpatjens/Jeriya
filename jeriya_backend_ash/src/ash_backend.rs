@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     iter,
     sync::{
-        mpsc::{self, Receiver, Sender},
+        mpsc::{self, Receiver, Sender, TryRecvError},
         Arc,
     },
     thread,
@@ -45,11 +45,11 @@ use jeriya_backend_ash_base::{
     surface::Surface,
     Config, ValidationLayerConfig,
 };
-use jeriya_content::{asset_importer::AssetImporter, model::Meshlet, point_cloud::clustered_point_cloud::Page};
+use jeriya_content::{asset_importer::AssetImporter, model::Meshlet, point_cloud::clustered_point_cloud::Page, shader::ShaderAsset};
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
-    log::{error, info, trace},
+    log::{error, info, trace, warn},
     nalgebra::Vector4,
     tracy_client::Client,
     winit::window::WindowId,
@@ -311,6 +311,18 @@ impl Backend for AshBackend {
             }
         });
 
+        info!("Creating asset import thread");
+        let asset_importer2 = asset_importer.clone();
+        let backend2 = backend.clone();
+        thread::spawn(move || {
+            let client = Client::start();
+            client.set_thread_name("asset_import_thread");
+
+            if let Err(err) = run_asset_import_thread(asset_importer2, &backend2) {
+                error!("Failed to run asset import thread: {err:?}");
+            }
+        });
+
         Ok(backend)
     }
 
@@ -371,6 +383,36 @@ fn run_resource_thread(resource_event_receiver: Receiver<ResourceEvent>, backend
             ResourceEvent::PointCloudAttributes(point_cloud_attributes_events) => {
                 handle_point_cloud_attributes_events(backend, point_cloud_attributes_events)?;
             }
+        }
+    }
+}
+
+fn run_asset_import_thread(asset_importer: Arc<AssetImporter>, backend: &Arc<AshBackend>) -> jeriya_backend::Result<()> {
+    let mut notification_receiver = asset_importer.receive_notifications();
+    let mut shader_receiver = asset_importer
+        .receive_assets::<ShaderAsset>()
+        .ok_or(jeriya_backend::Error::MissingAssetImporter("ShaderAsset"))?;
+
+    loop {
+        notification_receiver
+            .recv()
+            .map_err(|_| jeriya_backend::Error::ConnectionToAssetImporterLost)?;
+
+        match shader_receiver.try_recv() {
+            Ok(asset_import_result) => match asset_import_result.as_ref() {
+                Ok(asset) => {
+                    if let Some(asset) = asset.value() {
+                        for (_, presenter) in &backend.presenters {
+                            presenter.send(PresenterEvent::ShaderImported(asset.clone()))
+                        }
+                    } else {
+                        warn!("Newly imported asset was detected but the asset is None.");
+                    }
+                }
+                Err(err) => error!("Failed to import asset: {}", err),
+            },
+            Err(TryRecvError::Disconnected) => return Err(jeriya_backend::Error::ConnectionToAssetImporterLost),
+            Err(TryRecvError::Empty) => {}
         }
     }
 }
