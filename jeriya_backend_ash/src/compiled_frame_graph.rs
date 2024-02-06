@@ -1,12 +1,14 @@
 use std::{collections::BTreeMap, mem, sync::Arc};
 
-use base::graphics_pipeline::PushConstants;
+use base::compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig};
+use base::graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, PushConstants};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags, command_buffer::CommandBuffer, command_buffer_builder::CommandBufferBuilder,
     command_buffer_builder::PipelineBindPoint, graphics_pipeline::PrimitiveTopology, host_visible_buffer::HostVisibleBuffer,
     shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
 };
+use jeriya_shared::log::info;
 use jeriya_shared::{debug_info, nalgebra::Matrix4, plot_with_index, tracy_client::plot, winit::window::WindowId};
 
 use crate::{
@@ -17,18 +19,174 @@ use crate::{
 };
 
 pub struct CompiledFrameGraph {
-    command_buffer: CommandBuffer,
+    command_buffer: Option<CommandBuffer>,
+
+    simple_graphics_pipeline: Arc<GenericGraphicsPipeline>,
+    immediate_graphics_pipeline_line_list: Arc<GenericGraphicsPipeline>,
+    immediate_graphics_pipeline_line_strip: Arc<GenericGraphicsPipeline>,
+    immediate_graphics_pipeline_triangle_list: Arc<GenericGraphicsPipeline>,
+    immediate_graphics_pipeline_triangle_strip: Arc<GenericGraphicsPipeline>,
+    indirect_simple_graphics_pipeline: Arc<GenericGraphicsPipeline>,
+    indirect_meshlet_graphics_pipeline: Arc<GenericGraphicsPipeline>,
+    point_cloud_graphics_pipeline: Arc<GenericGraphicsPipeline>,
+    point_cloud_clusters_graphics_pipeline: Arc<GenericGraphicsPipeline>,
+    device_local_debug_lines_pipeline: Arc<GenericGraphicsPipeline>,
+
+    cull_rigid_mesh_instances_compute_pipeline: Arc<GenericComputePipeline>,
+    cull_rigid_mesh_meshlets_compute_pipeline: Arc<GenericComputePipeline>,
+    cull_point_cloud_instances_compute_pipeline: Arc<GenericComputePipeline>,
+    cull_point_cloud_clusters_compute_pipeline: Arc<GenericComputePipeline>,
+    frame_telemetry_compute_pipeline: Arc<GenericComputePipeline>,
 }
 
 impl CompiledFrameGraph {
-    pub fn new(backend_shared: &BackendShared, persistent_frame_state: &PersistentFrameState) -> jeriya_backend::Result<Self> {
-        let command_buffer = CommandBuffer::new(
-            &backend_shared.device,
-            &persistent_frame_state.command_pool,
-            debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
-        )?;
+    pub fn new(
+        backend_shared: &BackendShared,
+        presenter_shared: &mut PresenterShared,
+        persistent_frame_state: &PersistentFrameState,
+    ) -> jeriya_backend::Result<Self> {
+        macro_rules! spirv {
+            ($shader:literal) => {
+                Arc::new(include_bytes!(concat!("../../jeriya_backend_ash_base/test_data/", $shader)).to_vec())
+            };
+        }
 
-        Ok(CompiledFrameGraph { command_buffer })
+        let graphics_pipeline_default = GenericGraphicsPipelineConfig {
+            primitive_topology: PrimitiveTopology::TriangleList,
+            framebuffer_width: presenter_shared.swapchain.extent().width,
+            framebuffer_height: presenter_shared.swapchain.extent().height,
+            ..Default::default()
+        };
+
+        let simple_graphics_pipeline = {
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("red_triangle.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("red_triangle.frag.spv")),
+                primitive_topology: PrimitiveTopology::TriangleList,
+                ..graphics_pipeline_default.clone()
+            };
+            presenter_shared.vulkan_resource_coordinator.query_graphics_pipeline(&config)?
+        };
+
+        let mut create_immediate_graphics_pipeline = |primitive_topology| -> base::Result<_> {
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("color.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("color.frag.spv")),
+                primitive_topology,
+                use_input_attributes: true,
+                use_dynamic_state_line_width: true,
+                ..graphics_pipeline_default.clone()
+            };
+            presenter_shared.vulkan_resource_coordinator.query_graphics_pipeline(&config)
+        };
+        let immediate_graphics_pipeline_line_list = create_immediate_graphics_pipeline(PrimitiveTopology::LineList)?;
+        let immediate_graphics_pipeline_line_strip = create_immediate_graphics_pipeline(PrimitiveTopology::LineStrip)?;
+        let immediate_graphics_pipeline_triangle_list = create_immediate_graphics_pipeline(PrimitiveTopology::TriangleList)?;
+        let immediate_graphics_pipeline_triangle_strip = create_immediate_graphics_pipeline(PrimitiveTopology::TriangleStrip)?;
+
+        let point_cloud_graphics_pipeline = {
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("point_cloud.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("point_cloud.frag.spv")),
+                primitive_topology: PrimitiveTopology::TriangleList,
+                ..graphics_pipeline_default.clone()
+            };
+            presenter_shared.vulkan_resource_coordinator.query_graphics_pipeline(&config)?
+        };
+
+        let cull_point_cloud_instances_compute_pipeline = {
+            let config = GenericComputePipelineConfig {
+                shader_spirv: spirv!("cull_point_cloud_instances.comp.spv"),
+            };
+            presenter_shared.vulkan_resource_coordinator.query_compute_pipeline(&config)?
+        };
+
+        let cull_point_cloud_clusters_compute_pipeline = {
+            let config = GenericComputePipelineConfig {
+                shader_spirv: spirv!("cull_point_cloud_clusters.comp.spv"),
+            };
+            presenter_shared.vulkan_resource_coordinator.query_compute_pipeline(&config)?
+        };
+
+        let cull_rigid_mesh_instances_compute_pipeline = {
+            let config = GenericComputePipelineConfig {
+                shader_spirv: spirv!("cull_rigid_mesh_instances.comp.spv"),
+            };
+            presenter_shared.vulkan_resource_coordinator.query_compute_pipeline(&config)?
+        };
+
+        let cull_rigid_mesh_meshlets_compute_pipeline = {
+            let config = GenericComputePipelineConfig {
+                shader_spirv: spirv!("cull_rigid_mesh_meshlets.comp.spv"),
+            };
+            presenter_shared.vulkan_resource_coordinator.query_compute_pipeline(&config)?
+        };
+
+        let indirect_simple_graphics_pipeline = {
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("indirect_simple.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("indirect_simple.frag.spv")),
+                primitive_topology: PrimitiveTopology::TriangleList,
+                ..graphics_pipeline_default.clone()
+            };
+            presenter_shared.vulkan_resource_coordinator.query_graphics_pipeline(&config)?
+        };
+
+        let indirect_meshlet_graphics_pipeline = {
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("indirect_meshlet.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("indirect_meshlet.frag.spv")),
+                primitive_topology: PrimitiveTopology::TriangleList,
+                ..graphics_pipeline_default.clone()
+            };
+            presenter_shared.vulkan_resource_coordinator.query_graphics_pipeline(&config)?
+        };
+
+        let frame_telemetry_compute_pipeline = {
+            let config = GenericComputePipelineConfig {
+                shader_spirv: spirv!("frame_telemetry.comp.spv"),
+            };
+            presenter_shared.vulkan_resource_coordinator.query_compute_pipeline(&config)?
+        };
+
+        let point_cloud_clusters_graphics_pipeline = {
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("point_cloud_cluster.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("point_cloud_cluster.frag.spv")),
+                primitive_topology: PrimitiveTopology::TriangleList,
+                ..graphics_pipeline_default.clone()
+            };
+            presenter_shared.vulkan_resource_coordinator.query_graphics_pipeline(&config)?
+        };
+
+        let device_local_debug_lines_pipeline = {
+            let config = GenericGraphicsPipelineConfig {
+                vertex_shader_spirv: Some(spirv!("device_local_debug_line.vert.spv")),
+                fragment_shader_spirv: Some(spirv!("device_local_debug_line.frag.spv")),
+                primitive_topology: PrimitiveTopology::LineList,
+                ..graphics_pipeline_default.clone()
+            };
+            presenter_shared.vulkan_resource_coordinator.query_graphics_pipeline(&config)?
+        };
+
+        Ok(CompiledFrameGraph {
+            command_buffer: None,
+            simple_graphics_pipeline,
+            immediate_graphics_pipeline_line_list,
+            immediate_graphics_pipeline_line_strip,
+            immediate_graphics_pipeline_triangle_list,
+            immediate_graphics_pipeline_triangle_strip,
+            cull_rigid_mesh_instances_compute_pipeline,
+            cull_rigid_mesh_meshlets_compute_pipeline,
+            cull_point_cloud_instances_compute_pipeline,
+            cull_point_cloud_clusters_compute_pipeline,
+            frame_telemetry_compute_pipeline,
+            indirect_simple_graphics_pipeline,
+            indirect_meshlet_graphics_pipeline,
+            point_cloud_graphics_pipeline,
+            point_cloud_clusters_graphics_pipeline,
+            device_local_debug_lines_pipeline,
+        })
     }
 
     pub fn execute(
@@ -39,6 +197,12 @@ impl CompiledFrameGraph {
         presenter_shared: &mut PresenterShared,
         immediate_rendering_frames: &BTreeMap<&'static str, ImmediateRenderingFrameTask>,
     ) -> jeriya_backend::Result<()> {
+        let mut command_buffer = CommandBuffer::new(
+            &backend_shared.device,
+            &persistent_frame_state.command_pool,
+            debug_info!("CommandBuffer-for-Swapchain-Renderpass"),
+        )?;
+
         // Update Buffers
         let span = jeriya_shared::span!("update per frame data buffer");
         let per_frame_data = shader_interface::PerFrameData {
@@ -61,7 +225,7 @@ impl CompiledFrameGraph {
 
         // Build CommandBuffer
         let command_buffer_span = jeriya_shared::span!("build command buffer");
-        let mut builder = CommandBufferBuilder::new(&backend_shared.device, &mut self.command_buffer)?;
+        let mut builder = CommandBufferBuilder::new(&backend_shared.device, &mut command_buffer)?;
 
         let begin_span = jeriya_shared::span!("begin command buffer");
         builder.begin_command_buffer_for_one_time_submit()?;
@@ -104,10 +268,8 @@ impl CompiledFrameGraph {
 
         // 1. Cull RigidMeshInstances
         let cull_rigid_mesh_instances_span = jeriya_shared::span!("cull rigid mesh instances");
-        let pipeline = presenter_shared
-            .pipeline_factory
-            .get_compute_pipeline(&presenter_shared.pipeline_factory.cull_rigid_mesh_instances_compute_pipeline);
-        builder.bind_compute_pipeline(pipeline);
+        let pipeline = &self.cull_rigid_mesh_instances_compute_pipeline;
+        builder.bind_compute_pipeline(pipeline.as_ref());
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
             &pipeline.descriptor_set_layout,
@@ -157,10 +319,8 @@ impl CompiledFrameGraph {
 
         // Cull Meshlets
         let cull_meshlets_span = jeriya_shared::span!("cull meshlets");
-        let pipeline = presenter_shared
-            .pipeline_factory
-            .get_compute_pipeline(&presenter_shared.pipeline_factory.cull_rigid_mesh_meshlets_compute_pipeline);
-        builder.bind_compute_pipeline(pipeline);
+        let pipeline = &self.cull_rigid_mesh_meshlets_compute_pipeline;
+        builder.bind_compute_pipeline(pipeline.as_ref());
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
             &pipeline.descriptor_set_layout,
@@ -207,10 +367,8 @@ impl CompiledFrameGraph {
         // to the `visible_point_cloud_instances` buffer. The number of visible point cloud instances
         // is written to the front of the buffer as in the culling of the rigid mesh instances.
         let cull_point_cloud_instances_span = jeriya_shared::span!("cull point cloud instances");
-        let pipeline = presenter_shared
-            .pipeline_factory
-            .get_compute_pipeline(&presenter_shared.pipeline_factory.cull_point_cloud_instances_compute_pipeline);
-        builder.bind_compute_pipeline(pipeline);
+        let pipeline = &self.cull_point_cloud_instances_compute_pipeline;
+        builder.bind_compute_pipeline(pipeline.as_ref());
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
             &pipeline.descriptor_set_layout,
@@ -264,10 +422,8 @@ impl CompiledFrameGraph {
         // }
 
         let cull_point_cloud_clusters_span = jeriya_shared::span!("cull point cloud clusters");
-        let pipeline = presenter_shared
-            .pipeline_factory
-            .get_compute_pipeline(&presenter_shared.pipeline_factory.cull_point_cloud_clusters_compute_pipeline);
-        builder.bind_compute_pipeline(pipeline);
+        let pipeline = &self.cull_point_cloud_clusters_compute_pipeline;
+        builder.bind_compute_pipeline(pipeline.as_ref());
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Compute,
             &pipeline.descriptor_set_layout,
@@ -315,10 +471,8 @@ impl CompiledFrameGraph {
 
         // Render with IndirectSimpleGraphicsPipeline
         let indirect_simple_span = jeriya_shared::span!("record indirect simple commands");
-        let pipeline = presenter_shared
-            .pipeline_factory
-            .get_graphics_pipeline(&presenter_shared.pipeline_factory.indirect_simple_graphics_pipeline);
-        builder.bind_graphics_pipeline(pipeline);
+        let pipeline = &self.indirect_simple_graphics_pipeline;
+        builder.bind_graphics_pipeline(pipeline.as_ref());
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
@@ -336,10 +490,8 @@ impl CompiledFrameGraph {
 
         // Render with IndirectMeshletGraphicsPipeline
         let indirect_meshlet_span = jeriya_shared::span!("record indirect meshlet commands");
-        let pipeline = presenter_shared
-            .pipeline_factory
-            .get_graphics_pipeline(&presenter_shared.pipeline_factory.indirect_meshlet_graphics_pipeline);
-        builder.bind_graphics_pipeline(pipeline);
+        let pipeline = &self.indirect_meshlet_graphics_pipeline;
+        builder.bind_graphics_pipeline(pipeline.as_ref());
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
@@ -357,10 +509,8 @@ impl CompiledFrameGraph {
 
         // Render Point Clouds
         let point_cloud_span = jeriya_shared::span!("record point cloud commands");
-        let pipeline = presenter_shared
-            .pipeline_factory
-            .get_graphics_pipeline(&presenter_shared.pipeline_factory.point_cloud_graphics_pipeline);
-        builder.bind_graphics_pipeline(pipeline);
+        let pipeline = &self.point_cloud_graphics_pipeline;
+        builder.bind_graphics_pipeline(pipeline.as_ref());
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
@@ -378,10 +528,8 @@ impl CompiledFrameGraph {
 
         // Render with SimpleGraphicsPipeline
         let simple_span = jeriya_shared::span!("record simple commands");
-        let pipeline = presenter_shared
-            .pipeline_factory
-            .get_graphics_pipeline(&presenter_shared.pipeline_factory.simple_graphics_pipeline);
-        builder.bind_graphics_pipeline(pipeline);
+        let pipeline = &self.simple_graphics_pipeline;
+        builder.bind_graphics_pipeline(pipeline.as_ref());
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
@@ -392,10 +540,8 @@ impl CompiledFrameGraph {
 
         // Render with PointCloudClusterGraphicsPipeline
         let indirect_meshlet_span = jeriya_shared::span!("record point cloud cluster commands");
-        let pipeline = presenter_shared
-            .pipeline_factory
-            .get_graphics_pipeline(&presenter_shared.pipeline_factory.point_cloud_clusters_graphics_pipeline);
-        builder.bind_graphics_pipeline(pipeline);
+        let pipeline = &self.point_cloud_clusters_graphics_pipeline;
+        builder.bind_graphics_pipeline(pipeline.as_ref());
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
@@ -412,20 +558,12 @@ impl CompiledFrameGraph {
         drop(indirect_meshlet_span);
 
         // Render with ImmediateRenderingPipeline
-        Self::append_immediate_rendering_commands(
-            persistent_frame_state,
-            backend_shared,
-            presenter_shared,
-            &mut builder,
-            immediate_rendering_frames,
-        )?;
+        self.append_immediate_rendering_commands(persistent_frame_state, backend_shared, &mut builder, immediate_rendering_frames)?;
 
         // Render device local debug lines
         let device_local_debug_lines_span = jeriya_shared::span!("record device local debug lines commands");
-        let pipeline = presenter_shared
-            .pipeline_factory
-            .get_graphics_pipeline(&presenter_shared.pipeline_factory.device_local_debug_lines_pipeline);
-        builder.bind_graphics_pipeline(pipeline);
+        let pipeline = &self.device_local_debug_lines_pipeline;
+        builder.bind_graphics_pipeline(pipeline.as_ref());
         persistent_frame_state.push_descriptors(
             PipelineBindPoint::Graphics,
             &pipeline.descriptor_set_layout,
@@ -442,10 +580,8 @@ impl CompiledFrameGraph {
         builder.end_render_pass()?;
 
         // Write the frame telemetry data to the buffer
-        let pipeline = presenter_shared
-            .pipeline_factory
-            .get_compute_pipeline(&presenter_shared.pipeline_factory.frame_telemetry_compute_pipeline);
-        builder.bind_compute_pipeline(pipeline);
+        let pipeline = &self.frame_telemetry_compute_pipeline;
+        builder.bind_compute_pipeline(pipeline.as_ref());
         builder.bottom_to_top_pipeline_barrier();
         builder.dispatch(1, 1, 1);
 
@@ -457,7 +593,7 @@ impl CompiledFrameGraph {
         let submit_span = jeriya_shared::span!("submit command buffer commands");
         let mut queues = backend_shared.queue_scheduler.queues();
         queues.presentation_queue(*window_id).submit_for_rendering_complete(
-            &self.command_buffer,
+            &command_buffer,
             &persistent_frame_state.image_available_semaphore,
             &persistent_frame_state.rendering_complete_semaphore,
             &persistent_frame_state.rendering_complete_fence,
@@ -465,13 +601,15 @@ impl CompiledFrameGraph {
         drop(queues);
         drop(submit_span);
 
+        self.command_buffer = Some(command_buffer);
+
         Ok(())
     }
 
     fn append_immediate_rendering_commands(
+        &self,
         frame: &PersistentFrameState,
         backend_shared: &BackendShared,
-        presenter_shared: &PresenterShared,
         command_buffer_builder: &mut CommandBufferBuilder,
         immediate_rendering_frames: &BTreeMap<&'static str, ImmediateRenderingFrameTask>,
     ) -> base::Result<()> {
@@ -523,10 +661,8 @@ impl CompiledFrameGraph {
                         ImmediateCommand::Matrix(matrix) => last_matrix = *matrix,
                         ImmediateCommand::LineList(line_list) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::LineList)) {
-                                let pipeline = presenter_shared
-                                    .pipeline_factory
-                                    .get_graphics_pipeline(&presenter_shared.pipeline_factory.immediate_graphics_pipeline_line_list);
-                                command_buffer_builder.bind_graphics_pipeline(pipeline);
+                                let pipeline = &self.immediate_graphics_pipeline_line_list;
+                                command_buffer_builder.bind_graphics_pipeline(pipeline.as_ref());
                                 frame.push_descriptors(
                                     PipelineBindPoint::Graphics,
                                     &pipeline.descriptor_set_layout,
@@ -546,10 +682,8 @@ impl CompiledFrameGraph {
                         }
                         ImmediateCommand::LineStrip(line_strip) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::LineStrip)) {
-                                let pipeline = presenter_shared
-                                    .pipeline_factory
-                                    .get_graphics_pipeline(&presenter_shared.pipeline_factory.immediate_graphics_pipeline_line_strip);
-                                command_buffer_builder.bind_graphics_pipeline(pipeline);
+                                let pipeline = &self.immediate_graphics_pipeline_line_strip;
+                                command_buffer_builder.bind_graphics_pipeline(pipeline.as_ref());
                                 frame.push_descriptors(
                                     PipelineBindPoint::Graphics,
                                     &pipeline.descriptor_set_layout,
@@ -569,10 +703,8 @@ impl CompiledFrameGraph {
                         }
                         ImmediateCommand::TriangleList(triangle_list) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::TriangleList)) {
-                                let pipeline = presenter_shared
-                                    .pipeline_factory
-                                    .get_graphics_pipeline(&presenter_shared.pipeline_factory.immediate_graphics_pipeline_triangle_list);
-                                command_buffer_builder.bind_graphics_pipeline(pipeline);
+                                let pipeline = &self.immediate_graphics_pipeline_triangle_list;
+                                command_buffer_builder.bind_graphics_pipeline(pipeline.as_ref());
                                 frame.push_descriptors(
                                     PipelineBindPoint::Graphics,
                                     &pipeline.descriptor_set_layout,
@@ -591,10 +723,8 @@ impl CompiledFrameGraph {
                         }
                         ImmediateCommand::TriangleStrip(triangle_strip) => {
                             if !matches!(last_topology, Some(PrimitiveTopology::TriangleStrip)) {
-                                let pipeline = presenter_shared
-                                    .pipeline_factory
-                                    .get_graphics_pipeline(&presenter_shared.pipeline_factory.immediate_graphics_pipeline_triangle_strip);
-                                command_buffer_builder.bind_graphics_pipeline(pipeline);
+                                let pipeline = &self.immediate_graphics_pipeline_triangle_strip;
+                                command_buffer_builder.bind_graphics_pipeline(pipeline.as_ref());
                                 frame.push_descriptors(
                                     PipelineBindPoint::Graphics,
                                     &pipeline.descriptor_set_layout,

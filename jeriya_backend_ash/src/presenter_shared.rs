@@ -2,14 +2,10 @@ use std::sync::Arc;
 
 use jeriya_backend::{gpu_index_allocator::GpuIndexAllocation, instances::camera_instance::CameraInstance};
 use jeriya_backend_ash_base as base;
-use jeriya_backend_ash_base::{
-    device::Device, frame_index::FrameIndex, surface::Surface, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffers,
-    swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass,
-};
-use jeriya_shared::{log::info, winit::window::WindowId};
+use jeriya_backend_ash_base::{device::Device, frame_index::FrameIndex, surface::Surface, swapchain::Swapchain};
+use jeriya_shared::winit::window::WindowId;
 
 use crate::backend_shared::BackendShared;
-use crate::pipeline_factory::PipelineFactory;
 use crate::vulkan_resource_coordinator::VulkanResourceCoordinator;
 
 /// All the state that is required for presenting to the [`Surface`]
@@ -20,7 +16,6 @@ pub struct PresenterShared {
     pub surface: Arc<Surface>,
     pub swapchain: Swapchain,
     pub vulkan_resource_coordinator: VulkanResourceCoordinator,
-    pub pipeline_factory: PipelineFactory,
     pub active_camera_instance: Option<GpuIndexAllocation<CameraInstance>>,
     pub device: Arc<Device>,
 }
@@ -38,9 +33,6 @@ impl PresenterShared {
             &backend_shared.renderer_config,
         )?;
 
-        info!("Create Graphics Pipelines");
-        let graphics_pipelines = PipelineFactory::new(&swapchain, &mut vulkan_resource_coordinator, &backend_shared.asset_importer)?;
-
         Ok(Self {
             window_id: window_id.clone(),
             frame_index: FrameIndex::new(),
@@ -48,14 +40,9 @@ impl PresenterShared {
             surface: surface.clone(),
             swapchain,
             vulkan_resource_coordinator,
-            pipeline_factory: graphics_pipelines,
             active_camera_instance: None,
             device: backend_shared.device.clone(),
         })
-    }
-
-    pub fn pre_frame_update(&mut self) {
-        self.pipeline_factory.pre_frame_update();
     }
 
     /// Creates the swapchain and all state that depends on it
@@ -67,12 +54,6 @@ impl PresenterShared {
         self.device.wait_for_idle()?;
         self.swapchain = Swapchain::new(&self.device, &self.surface, self.desired_swapchain_length, Some(&self.swapchain))?;
         self.vulkan_resource_coordinator.recreate(&self.swapchain)?;
-
-        self.pipeline_factory = PipelineFactory::new(
-            &self.swapchain,
-            &mut self.vulkan_resource_coordinator,
-            &backend_shared.asset_importer,
-        )?;
 
         Ok(())
     }
@@ -89,7 +70,7 @@ mod tests {
         use jeriya_backend_ash_base::{
             device::Device, entry::Entry, instance::Instance, physical_device::PhysicalDevice, queue_plan::QueuePlan, surface::Surface,
         };
-        use jeriya_content::{asset_importer::AssetImporter, shader::ShaderAsset};
+        use jeriya_content::asset_importer::AssetImporter;
         use jeriya_shared::RendererConfig;
         use jeriya_test::create_window;
 

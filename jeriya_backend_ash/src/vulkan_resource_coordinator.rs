@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use base::compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig};
@@ -9,7 +10,6 @@ use jeriya_backend_ash_base::{
     swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass,
 };
 use jeriya_shared::log::info;
-use jeriya_shared::petgraph::Graph;
 use jeriya_shared::{ahash, debug_info, RendererConfig};
 
 use crate::vulkan_resource_preparer::VulkanResourcePreparer;
@@ -17,8 +17,6 @@ use crate::vulkan_resource_preparer::VulkanResourcePreparer;
 /// Responsible for creating vulkan resources and managing their dependencies.
 pub struct VulkanResourceCoordinator {
     device: Arc<Device>,
-
-    graph: Graph<Node, ()>,
 
     specialization_constants: SpecializationConstants,
 
@@ -66,10 +64,9 @@ impl VulkanResourceCoordinator {
 
         Ok(VulkanResourceCoordinator {
             device: device.clone(),
-            graph: Graph::new(),
             specialization_constants,
-            graphics_pipelines: ahash::HashMap::default(),
-            compute_pipelines: ahash::HashMap::default(),
+            graphics_pipelines: HashMap::default(),
+            compute_pipelines: HashMap::default(),
             swapchain_depth_buffers,
             swapchain_framebuffers,
             swapchain_render_pass,
