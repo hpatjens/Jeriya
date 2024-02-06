@@ -17,6 +17,7 @@ use jeriya_backend::{
     immediate::ImmediateRenderingFrame, instances::camera_instance::CameraInstance, resources::ResourceEvent, transactions::Transaction,
 };
 use jeriya_backend_ash_base::{fence::Fence, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
+use jeriya_content::shader::ShaderAsset;
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info, log::info, parking_lot::Mutex, spin_sleep, tracy_client::Client, winit::window::WindowId, EventQueue, FrameRate,
@@ -28,6 +29,7 @@ pub enum PresenterEvent {
         immediate_rendering_frame: ImmediateRenderingFrame,
     },
     ProcessTransaction(Transaction),
+    ShaderImported(Arc<ShaderAsset>),
 }
 
 pub struct Presenter {
@@ -193,6 +195,9 @@ fn run_presenter_thread(
                         }
                         frame.push_transaction(transaction.clone());
                     }
+                }
+                PresenterEvent::ShaderImported(shader_asset) => {
+                    todo!()
                 }
             }
         }

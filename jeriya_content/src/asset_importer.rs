@@ -435,7 +435,7 @@ impl AssetImporter {
     ///
     /// let mut _receiver = asset_importer.receive_notifications();
     /// ```
-    pub fn receive_notifications(&mut self) -> BusReader<()> {
+    pub fn receive_notifications(&self) -> BusReader<()> {
         self.notification_buses.lock().add_rx()
     }
 

@@ -20,6 +20,10 @@ pub enum Error {
     MaximumCapacityReached(usize),
     #[error("Error from the backend: {0}")]
     Backend(Box<dyn std::error::Error + Send + Sync>),
+    #[error("Missing Asset Importer: {0}")]
+    MissingAssetImporter(&'static str),
+    #[error("Connection to AssetImporter lost")]
+    ConnectionToAssetImporterLost,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
