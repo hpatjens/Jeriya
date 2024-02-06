@@ -15,8 +15,6 @@ use jeriya_backend_ash_base::{
 use jeriya_shared::debug_info;
 use jeriya_shared::{ahash, log::info, RendererConfig};
 
-use crate::vulkan_resource_preparer::VulkanResourcePreparer;
-
 /// Responsible for creating vulkan resources and managing their dependencies.
 pub struct VulkanResourceCoordinator {
     device: Arc<Device>,
@@ -33,12 +31,7 @@ pub struct VulkanResourceCoordinator {
 }
 
 impl VulkanResourceCoordinator {
-    pub fn new(
-        device: &Arc<Device>,
-        preparer: &VulkanResourcePreparer,
-        swapchain: &Swapchain,
-        renderer_config: &RendererConfig,
-    ) -> jeriya_backend::Result<Self> {
+    pub fn new(device: &Arc<Device>, swapchain: &Swapchain, renderer_config: &RendererConfig) -> jeriya_backend::Result<Self> {
         info!("Creating swapchain resources");
         let swapchain_depth_buffers = SwapchainDepthBuffers::new(device, &swapchain)?;
         let swapchain_render_pass = SwapchainRenderPass::new(device, &swapchain)?;
@@ -133,25 +126,13 @@ impl VulkanResourceCoordinator {
 mod tests {
     use super::*;
 
-    use std::sync::Arc;
-
     use jeriya_backend_ash_base::{device::TestFixtureDevice, swapchain::Swapchain};
-    use jeriya_content::asset_importer::AssetImporter;
-
-    use crate::vulkan_resource_preparer::VulkanResourcePreparer;
 
     #[test]
     fn smoke() {
         let test_fixture_device = TestFixtureDevice::new().unwrap();
         let swapchain = Swapchain::new(&test_fixture_device.device, &test_fixture_device.surface, 3, None).unwrap();
-        let asset_importer = Arc::new(AssetImporter::default_from("../assets/processed").unwrap());
-        let vulkan_resource_preparer = VulkanResourcePreparer::new(&asset_importer);
-        let _vulkan_resource_coordinator = VulkanResourceCoordinator::new(
-            &test_fixture_device.device,
-            &vulkan_resource_preparer,
-            &swapchain,
-            &RendererConfig::default(),
-        )
-        .unwrap();
+        let _vulkan_resource_coordinator =
+            VulkanResourceCoordinator::new(&test_fixture_device.device, &swapchain, &RendererConfig::default()).unwrap();
     }
 }
