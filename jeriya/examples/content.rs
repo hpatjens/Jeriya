@@ -44,7 +44,7 @@ fn main() -> io::Result<()> {
                 .map(|s| s.to_owned())
         }),
     );
-    let mut receiver = asset_importer.receiver::<String>().unwrap();
+    let mut receiver = asset_importer.receive_assets::<String>().unwrap();
 
     loop {
         match receiver.recv().unwrap().as_ref() {

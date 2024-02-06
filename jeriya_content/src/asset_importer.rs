@@ -20,7 +20,7 @@ use std::{
     marker::PhantomData,
     path::{Path, PathBuf},
     result,
-    sync::Arc,
+    sync::{mpsc::Receiver, Arc},
 };
 
 pub type Importer<T> = dyn Fn(&[u8]) -> Result<T> + Send + Sync;
@@ -201,7 +201,10 @@ pub struct AssetImporter {
 
     /// Maps the type id to the channel that is used to send the result of the import. Any
     /// is used because the type of the channel depends on the type of the asset.
-    buses: Arc<Mutex<BTreeMap<TypeId, Box<dyn Any + Sync + Send>>>>,
+    asset_buses: Arc<Mutex<BTreeMap<TypeId, Box<dyn Any + Sync + Send>>>>,
+
+    /// The bus that is used to send notifications when an asset was imported.
+    notification_buses: Arc<Mutex<Bus<()>>>,
 
     tracked_assets: Arc<RwLock<BTreeMap<AssetKey, Arc<RawAsset>>>>,
     import_source: Arc<RwLock<dyn ImportSource>>,
@@ -258,7 +261,8 @@ impl AssetImporter {
             importers,
             tracked_assets: Arc::new(RwLock::new(BTreeMap::new())),
             import_source,
-            buses: Arc::new(Mutex::new(BTreeMap::new())),
+            asset_buses: Arc::new(Mutex::new(BTreeMap::new())),
+            notification_buses: Arc::new(Mutex::new(Bus::new(1024))),
         })
     }
 
@@ -318,10 +322,12 @@ impl AssetImporter {
 
         // Create bus to send the result of the import.
         let bus = Bus::<Arc<Result<Asset<T>>>>::new(1024);
-        let mut buses = self.buses.lock();
+        let mut buses = self.asset_buses.lock();
         buses.insert(TypeId::of::<T>(), Box::new(bus));
         drop(buses);
-        let buses2 = self.buses.clone();
+        let buses2 = self.asset_buses.clone();
+
+        let notification_buses2 = self.notification_buses.clone();
 
         // Function to import an asset from a file.
         let import_from_file = move |asset_key: &AssetKey| -> Result<Asset<T>> {
@@ -352,12 +358,18 @@ impl AssetImporter {
             extension.clone(),
             Arc::new(move |asset_key| {
                 let result = import_from_file(asset_key);
+
+                // Send the Asset to the receivers.
                 let mut buses = buses2.lock();
                 let bus = buses
                     .get_mut(&TypeId::of::<T>())
                     .and_then(|any| any.downcast_mut::<Bus<Arc<Result<Asset<T>>>>>())
                     .expect("failed to get bus for asset type although it must have been inserted at registration");
                 bus.broadcast(Arc::new(result));
+
+                // Send the notification to the receivers.
+                let mut notification_buses = notification_buses2.lock();
+                notification_buses.broadcast(());
             }),
         );
         drop(importers);
@@ -386,18 +398,45 @@ impl AssetImporter {
     /// #        })
     ///     );
     ///
-    /// let receiver = asset_importer.receiver::<String>();
+    /// let receiver = asset_importer.receive_assets::<String>();
     /// assert!(receiver.is_some());
     /// ```
-    pub fn receiver<T>(&self) -> Option<BusReader<Arc<Result<Asset<T>>>>>
+    pub fn receive_assets<T>(&self) -> Option<BusReader<Arc<Result<Asset<T>>>>>
     where
         T: 'static + Send + Sync,
     {
-        let mut buses = self.buses.lock();
+        let mut buses = self.asset_buses.lock();
         buses
             .get_mut(&TypeId::of::<T>())
             .and_then(|any| any.downcast_mut::<Bus<Arc<Result<Asset<T>>>>>())
             .map(|bus| bus.add_rx())
+    }
+
+    /// Returns the receiver of the bus that is used to send notifications when an asset was imported.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::sync::Arc;
+    /// # use jeriya_content::{asset_importer::{AssetImporter, FileSystem}, Error};
+    /// # std::fs::create_dir_all("assets").unwrap();
+    /// # let asset_source = FileSystem::new("assets").unwrap();
+    /// let mut asset_importer = AssetImporter::new(asset_source, 4)
+    ///     .unwrap()
+    ///     .register::<String>(
+    ///          // snip
+    /// #        "txt",
+    /// #        Box::new(|data| {
+    /// #            std::str::from_utf8(data)
+    /// #                .map_err(|err| Error::Other(Box::new(err)))
+    /// #                .map(|s| s.to_owned())
+    /// #        })
+    ///     );
+    ///
+    /// let _receiver = asset_importer.receive_notifications();
+    /// ```
+    pub fn receive_notifications(&mut self) -> BusReader<()> {
+        self.notification_buses.lock().add_rx()
     }
 
     /// Imports all assets of the given type.
@@ -523,7 +562,7 @@ mod tests {
                     .map(|s| s.to_owned())
             }),
         );
-        let mut receiver = asset_importer.receiver::<String>().unwrap();
+        let mut receiver = asset_importer.receive_assets::<String>().unwrap();
 
         // Start the import process.
         asset_importer.import::<String>("test.txt").unwrap();
@@ -562,7 +601,7 @@ mod tests {
                     .map(|s| s.to_owned())
             }),
         );
-        let mut receiver = asset_importer.receiver::<String>().unwrap();
+        let mut receiver = asset_importer.receive_assets::<String>().unwrap();
 
         // Update the file content
         create_processed_asset(root.path(), "Hello World 2!");
