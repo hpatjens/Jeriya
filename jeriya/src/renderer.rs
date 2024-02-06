@@ -37,6 +37,7 @@ where
     /// # Example
     ///
     /// ```
+    /// # use std::sync::Arc;
     /// # use jeriya_shared::{
     /// #     FrameRate, RendererConfig, WindowConfig,
     /// #     winit::{
@@ -47,6 +48,7 @@ where
     /// #     }
     /// # };
     /// # use jeriya_backend_ash::AshBackend;
+    /// # use jeriya_content::asset_importer::AssetImporter;
     /// let event_loop = EventLoop::new().unwrap();
     /// let window = WindowBuilder::new()
     ///     # .with_visible(false)
@@ -55,9 +57,12 @@ where
     ///     .build(&event_loop)
     ///     .unwrap();
     ///
+    /// let asset_importer = Arc::new(AssetImporter::default_from("../assets/processed").unwrap());
+    ///
     /// // Create Renderer
     /// let renderer = jeriya::Renderer::<AshBackend>::builder()
     ///     .add_renderer_config(RendererConfig::default())
+    ///     .add_asset_importer(asset_importer)
     ///     .add_windows(&[
     ///         WindowConfig {
     ///             window: &window,

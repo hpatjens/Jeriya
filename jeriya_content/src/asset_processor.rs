@@ -61,7 +61,7 @@ impl AssetProcessor {
     /// # Example
     ///
     /// ```rust
-    /// use jeriya_content::{AssetProcessor, Directories};
+    /// use jeriya_content::{asset_processor::{AssetProcessor}, common::Directories};
     /// std::fs::create_dir_all("unprocessed").unwrap();
     /// std::fs::create_dir_all("processed").unwrap();
     /// let directories = Directories::create_all_dir("unprocessed", "processed").unwrap();
@@ -182,7 +182,7 @@ impl AssetProcessor {
     /// # Example
     ///
     /// ```rust
-    /// use jeriya_content::{AssetProcessor, Directories};
+    /// use jeriya_content::{asset_processor::{AssetProcessor}, common::Directories};
     /// let directories = Directories::create_all_dir("unprocessed", "processed").unwrap();
     /// let asset_processor = AssetProcessor::new(&directories, 4)
     ///     .unwrap()

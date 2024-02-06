@@ -94,7 +94,7 @@ impl AssetKey {
     /// # Example
     ///
     /// ```rust
-    /// use jeriya_content::AssetKey;
+    /// use jeriya_content::common::AssetKey;
     /// let asset_key = AssetKey::new("textures/character.png");
     /// assert_eq!(asset_key.as_str(), "textures/character.png");
     /// ```
@@ -108,7 +108,7 @@ impl AssetKey {
     ///
     /// ```rust
     /// # use std::ffi::OsStr;
-    /// use jeriya_content::AssetKey;
+    /// use jeriya_content::common::AssetKey;
     /// let asset_key = AssetKey::new("textures/character.png");
     /// assert_eq!(asset_key.as_path().extension(), Some(OsStr::new("png")));
     /// ```
@@ -122,7 +122,7 @@ impl AssetKey {
     ///
     /// ```rust
     /// # use std::ffi::OsStr;
-    /// use jeriya_content::AssetKey;
+    /// use jeriya_content::common::AssetKey;
     /// let asset_key = AssetKey::new("textures/character.png");
     /// assert_eq!(asset_key.as_str(), "textures/character.png");
     /// ```
