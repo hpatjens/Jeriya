@@ -61,7 +61,7 @@ impl FileSystem {
     /// # Example
     ///
     /// ```
-    /// use jeriya_content::FileSystem;
+    /// use jeriya_content::asset_importer::FileSystem;
     /// std::fs::create_dir_all("assets").unwrap();
     /// let _file_system = FileSystem::new("assets").unwrap();
     /// ```
@@ -213,7 +213,7 @@ impl AssetImporter {
     /// # Example
     ///
     /// ```
-    /// use jeriya_content::{AssetImporter, FileSystem};
+    /// use jeriya_content::asset_importer::{AssetImporter, FileSystem};
     /// std::fs::create_dir_all("assets").unwrap();
     /// let asset_source = FileSystem::new("assets").unwrap();
     /// let asset_importer = AssetImporter::new(asset_source, 4).unwrap();
@@ -267,10 +267,10 @@ impl AssetImporter {
     /// # Example
     ///
     /// ```
-    /// use jeriya_content::{AssetImporter, FileSystem};
+    /// use jeriya_content::asset_importer::{AssetImporter, FileSystem};
     /// const ASSET_FOLDER: &str = "assets";
     /// std::fs::create_dir_all(ASSET_FOLDER).unwrap();
-    /// let asset_importer = AssetImporter::new_default_from(ASSET_FOLDER).unwrap();
+    /// let asset_importer = AssetImporter::default_from(ASSET_FOLDER).unwrap();
     /// ```
     pub fn default_from(root: impl AsRef<Path>) -> Result<Self> {
         let asset_source = FileSystem::new(root)?;
@@ -288,7 +288,7 @@ impl AssetImporter {
     ///
     /// ```
     /// # use std::sync::Arc;
-    /// use jeriya_content::{AssetImporter, FileSystem, Error};
+    /// use jeriya_content::{asset_importer::{AssetImporter, FileSystem}, Error};
     /// std::fs::create_dir_all("assets").unwrap();
     /// let asset_source = FileSystem::new("assets").unwrap();
     /// let mut asset_importer = AssetImporter::new(asset_source, 4).unwrap();
@@ -371,7 +371,7 @@ impl AssetImporter {
     ///
     /// ```
     /// # use std::sync::Arc;
-    /// # use jeriya_content::{AssetImporter, FileSystem, Error};
+    /// # use jeriya_content::{asset_importer::{AssetImporter, FileSystem}, Error};
     /// # std::fs::create_dir_all("assets").unwrap();
     /// # let asset_source = FileSystem::new("assets").unwrap();
     /// let mut asset_importer = AssetImporter::new(asset_source, 4)

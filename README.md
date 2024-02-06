@@ -18,6 +18,8 @@ The following image shows a test scene with a point cloud representation of the 
 ## API
 
 ```rust
+use std::sync::Arc;
+
 use jeriya_backend_ash::AshBackend;
 use jeriya_shared::{
     nalgebra::{self, Vector3, Translation3, Rotation3},
@@ -45,7 +47,7 @@ use jeriya_backend::{
     },
     resources::{mesh_attributes::MeshAttributes, resource_group::ResourceGroup},
 };
-use jeriya_content::model::Model;
+use jeriya_content::{asset_importer::AssetImporter, model::ModelAsset};
 
 // Create Window
 let event_loop = EventLoop::new().unwrap();
@@ -56,9 +58,13 @@ let window = WindowBuilder::new()
     .build(&event_loop)
     .unwrap();
 
+// Create AssetImporter
+let asset_importer = Arc::new(AssetImporter::default_from("../assets/processed").unwrap());
+
 // Create Renderer
 let renderer = jeriya::Renderer::<AshBackend>::builder()
     .add_renderer_config(RendererConfig::default())
+    .add_asset_importer(asset_importer)
     .add_windows(&[
         WindowConfig {
             window: &window,
@@ -108,7 +114,7 @@ let camera_instance = instance_group
 renderer.set_active_camera(window.id(), camera_instance).unwrap();
 
 // Load model
-let suzanne = Model::import("../sample_assets/models/suzanne.glb").unwrap();
+let suzanne = ModelAsset::import("../sample_assets/models/suzanne.glb").unwrap();
 let mesh = &suzanne.meshes[1].simple_mesh;
 
 // Copy Vertex Data to GPU
