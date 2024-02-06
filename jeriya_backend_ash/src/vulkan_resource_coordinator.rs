@@ -1,16 +1,19 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
-use base::compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig};
-use base::graphics_pipeline::GenericGraphicsPipelineConfig;
-use base::specialization_constants::SpecializationConstants;
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
-    device::Device, graphics_pipeline::GenericGraphicsPipeline, swapchain::Swapchain, swapchain_depth_buffer::SwapchainDepthBuffers,
-    swapchain_framebuffers::SwapchainFramebuffers, swapchain_render_pass::SwapchainRenderPass,
+    compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig},
+    device::Device,
+    graphics_pipeline::GenericGraphicsPipeline,
+    graphics_pipeline::GenericGraphicsPipelineConfig,
+    specialization_constants::SpecializationConstants,
+    swapchain::Swapchain,
+    swapchain_depth_buffer::SwapchainDepthBuffers,
+    swapchain_framebuffers::SwapchainFramebuffers,
+    swapchain_render_pass::SwapchainRenderPass,
 };
-use jeriya_shared::log::info;
-use jeriya_shared::{ahash, debug_info, RendererConfig};
+use jeriya_shared::debug_info;
+use jeriya_shared::{ahash, log::info, RendererConfig};
 
 use crate::vulkan_resource_preparer::VulkanResourcePreparer;
 
@@ -122,14 +125,6 @@ impl VulkanResourceCoordinator {
 
     pub fn swapchain_framebuffers(&self) -> &SwapchainFramebuffers {
         &self.swapchain_framebuffers
-    }
-}
-
-pub struct Node {}
-
-impl Node {
-    pub fn new() -> Self {
-        Node {}
     }
 }
 

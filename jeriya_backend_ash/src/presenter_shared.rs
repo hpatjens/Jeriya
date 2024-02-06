@@ -46,7 +46,7 @@ impl PresenterShared {
     }
 
     /// Creates the swapchain and all state that depends on it
-    pub fn recreate(&mut self, window_id: &WindowId, backend_shared: &BackendShared) -> base::Result<()> {
+    pub fn recreate(&mut self, backend_shared: &BackendShared) -> base::Result<()> {
         // Locking all the queues at once so that no thread can submit to any
         // queue while waiting for the device to be idle.
         let _lock = backend_shared.queue_scheduler.queues();

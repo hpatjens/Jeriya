@@ -15,7 +15,6 @@ use crate::{
     shader_interface::{self, Camera, CameraInstance, MeshAttributes, PerFrameData, PointCloudPage, RigidMesh, RigidMeshInstance},
     shader_module::ShaderModule,
     specialization_constants::SpecializationConstants,
-    swapchain::Swapchain,
     swapchain_render_pass::SwapchainRenderPass,
     AsRawVulkan,
 };
@@ -104,7 +103,7 @@ pub struct GenericGraphicsPipelineConfig {
 }
 
 pub struct GenericGraphicsPipeline {
-    config: GenericGraphicsPipelineConfig,
+    _config: GenericGraphicsPipelineConfig,
     _vertex_shader: ShaderModule,
     _fragment_shader: ShaderModule,
     graphics_pipeline: vk::Pipeline,
@@ -340,7 +339,7 @@ impl GenericGraphicsPipeline {
 
         info!("Done creating GenericGraphicsPipeline \"{}\"", debug_info.name());
         Ok(Self {
-            config: config.clone(),
+            _config: config.clone(),
             _vertex_shader: vertex_shader,
             _fragment_shader: fragment_shader,
             graphics_pipeline,
