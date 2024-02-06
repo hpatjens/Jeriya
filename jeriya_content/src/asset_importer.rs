@@ -20,7 +20,7 @@ use std::{
     marker::PhantomData,
     path::{Path, PathBuf},
     result,
-    sync::{mpsc::Receiver, Arc},
+    sync::Arc,
 };
 
 pub type Importer<T> = dyn Fn(&[u8]) -> Result<T> + Send + Sync;
@@ -417,7 +417,7 @@ impl AssetImporter {
     /// # Example
     ///
     /// ```
-    /// # use std::sync::Arc;
+    /// # use std::{sync::Arc, fs::File, io::Write};
     /// # use jeriya_content::{asset_importer::{AssetImporter, FileSystem}, Error};
     /// # std::fs::create_dir_all("assets").unwrap();
     /// # let asset_source = FileSystem::new("assets").unwrap();
@@ -433,7 +433,7 @@ impl AssetImporter {
     /// #        })
     ///     );
     ///
-    /// let _receiver = asset_importer.receive_notifications();
+    /// let mut _receiver = asset_importer.receive_notifications();
     /// ```
     pub fn receive_notifications(&mut self) -> BusReader<()> {
         self.notification_buses.lock().add_rx()
@@ -490,10 +490,10 @@ fn import(asset_key: &AssetKey, thread_pool: &ThreadPool, importers: &Arc<Mutex<
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{fs::File, io::Write, time::Duration};
 
-    use jeriya_shared::indoc::indoc;
-    use jeriya_test::setup_logger;
+    use jeriya_shared::{function_name, indoc::indoc};
+    use jeriya_test::{create_test_result_folder_for_function, setup_logger};
     use tempdir::TempDir;
 
     use super::*;
@@ -609,5 +609,49 @@ mod tests {
         // Receive and check the result.
         let asset = expect_asset(receiver.recv_timeout(Duration::from_millis(1000)));
         assert_eq!(asset.value(), Some(Arc::new("Hello World 2!".to_owned())));
+    }
+
+    #[test]
+    fn receive_notification_and_asset() {
+        setup_logger();
+
+        let folder = create_test_result_folder_for_function(function_name!());
+        let assets_folder = folder.join("assets");
+        let asset_folder = assets_folder.join("my_asset.txt");
+
+        std::fs::create_dir_all(&asset_folder).unwrap();
+
+        let asset_source = FileSystem::new(assets_folder).unwrap();
+        let mut asset_importer = AssetImporter::new(asset_source, 4).unwrap().register::<String>(
+            "txt",
+            Box::new(|data| {
+                std::str::from_utf8(data)
+                    .map_err(|err| Error::Other(Box::new(err)))
+                    .map(|s| s.to_owned())
+            }),
+        );
+
+        let mut notification_receiver = asset_importer.receive_notifications();
+        let mut asset_receiver = asset_importer.receive_assets::<String>().unwrap();
+
+        // Write the asset
+        let mut file = File::create(asset_folder.join("data.bin")).unwrap();
+        file.write_all(b"Hello, world!").unwrap();
+        let mut file = File::create(asset_folder.join("asset.yaml")).unwrap();
+        file.write_all(b"file: data.bin").unwrap();
+        drop(file);
+
+        asset_importer.import::<String>(AssetKey::new("my_asset.txt")).unwrap();
+
+        // Expect the notification
+        let result = notification_receiver.recv_timeout(Duration::from_millis(1000));
+        assert!(result.is_ok());
+
+        // Expect the asset
+        let result = asset_receiver.recv_timeout(Duration::from_millis(100));
+        assert!(result.is_ok());
+        let asset = result.unwrap();
+        let asset = asset.as_ref().as_ref().unwrap();
+        assert_eq!(*asset.value().unwrap(), "Hello, world!");
     }
 }
