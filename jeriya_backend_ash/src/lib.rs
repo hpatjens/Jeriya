@@ -9,6 +9,5 @@ mod presenter;
 mod presenter_shared;
 mod queue_scheduler;
 mod vulkan_resource_coordinator;
-mod vulkan_resource_preparer;
 
 pub use ash_backend::*;

@@ -20,10 +20,7 @@ use jeriya_backend_ash_base::{
 use jeriya_content::asset_importer::AssetImporter;
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, Handle, RendererConfig};
 
-use crate::{
-    queue_scheduler::QueueScheduler,
-    vulkan_resource_preparer::{self, VulkanResourcePreparer},
-};
+use crate::queue_scheduler::QueueScheduler;
 
 /// Elements of the backend that are shared between all [`Presenter`]s.
 pub struct BackendShared {
@@ -33,7 +30,6 @@ pub struct BackendShared {
     pub queue_scheduler: QueueScheduler,
 
     pub asset_importer: Arc<AssetImporter>,
-    pub vulkan_resource_preparer: VulkanResourcePreparer,
 
     pub resource_event_sender: Sender<ResourceEvent>,
 
@@ -171,14 +167,11 @@ impl BackendShared {
         let point_cloud_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_point_clouds);
         let point_cloud_instance_gpu_index_allocator = new_allocator(renderer_config.maximum_number_of_point_cloud_instances);
 
-        let vulkan_resource_preparer = VulkanResourcePreparer::new(asset_importer);
-
         Ok(Self {
             device: device.clone(),
             renderer_config: renderer_config.clone(),
             queue_scheduler,
             asset_importer: asset_importer.clone(),
-            vulkan_resource_preparer,
             resource_event_sender: resource_sender,
             mesh_attributes_buffer,
             mesh_attributes_gpu_states: Arc::new(Mutex::new(HashMap::new())),
