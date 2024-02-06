@@ -214,7 +214,7 @@ fn run_presenter_thread(
                 Ok(index) => break index,
                 Err(_) => {
                     info!("Failed to acquire next swapchain image. Recreating swapchain.");
-                    presenter_shared.recreate(&window_id, &backend_shared)?;
+                    presenter_shared.recreate(&backend_shared)?;
                 }
             }
         };
@@ -270,12 +270,12 @@ fn run_presenter_thread(
             Ok(is_suboptimal) => {
                 if is_suboptimal {
                     info!("Swapchain is suboptimal. Recreating swapchain.");
-                    presenter_shared.recreate(&window_id, &backend_shared)?;
+                    presenter_shared.recreate(&backend_shared)?;
                 }
             }
             Err(_err) => {
                 info!("Failed to present swapchain image. Recreating swapchain.");
-                presenter_shared.recreate(&window_id, &backend_shared)?;
+                presenter_shared.recreate(&backend_shared)?;
             }
         }
 
