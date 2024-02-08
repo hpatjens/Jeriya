@@ -196,9 +196,7 @@ fn run_presenter_thread(
                         frame.push_transaction(transaction.clone());
                     }
                 }
-                PresenterEvent::ShaderImported(shader_asset) => {
-                    todo!()
-                }
+                PresenterEvent::ShaderImported(shader_asset) => presenter_shared.vulkan_resource_coordinator.update_shader(shader_asset)?,
             }
         }
 

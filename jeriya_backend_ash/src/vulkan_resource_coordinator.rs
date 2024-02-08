@@ -12,8 +12,9 @@ use jeriya_backend_ash_base::{
     swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
-use jeriya_shared::debug_info;
+use jeriya_content::shader::ShaderAsset;
 use jeriya_shared::{ahash, log::info, RendererConfig};
+use jeriya_shared::{debug_info, Handle, IndexingContainer};
 
 /// Responsible for creating vulkan resources and managing their dependencies.
 pub struct VulkanResourceCoordinator {
@@ -22,8 +23,11 @@ pub struct VulkanResourceCoordinator {
     specialization_constants: SpecializationConstants,
 
     // TODO: These are currently not freed
-    graphics_pipelines: ahash::HashMap<GenericGraphicsPipelineConfig, Arc<GenericGraphicsPipeline>>,
-    compute_pipelines: ahash::HashMap<GenericComputePipelineConfig, Arc<GenericComputePipeline>>,
+    graphics_pipeline_mapping: ahash::HashMap<GenericGraphicsPipelineConfig, Handle<Arc<GenericGraphicsPipeline>>>,
+    compute_pipelines_mapping: ahash::HashMap<GenericComputePipelineConfig, Handle<Arc<GenericComputePipeline>>>,
+
+    graphics_pipelines: IndexingContainer<Arc<GenericGraphicsPipeline>>,
+    compute_pipelines: IndexingContainer<Arc<GenericComputePipeline>>,
 
     swapchain_depth_buffers: SwapchainDepthBuffers,
     swapchain_framebuffers: SwapchainFramebuffers,
@@ -62,8 +66,10 @@ impl VulkanResourceCoordinator {
         Ok(VulkanResourceCoordinator {
             device: device.clone(),
             specialization_constants,
-            graphics_pipelines: HashMap::default(),
-            compute_pipelines: HashMap::default(),
+            graphics_pipeline_mapping: HashMap::default(),
+            compute_pipelines_mapping: HashMap::default(),
+            graphics_pipelines: IndexingContainer::new(),
+            compute_pipelines: IndexingContainer::new(),
             swapchain_depth_buffers,
             swapchain_framebuffers,
             swapchain_render_pass,
@@ -78,9 +84,19 @@ impl VulkanResourceCoordinator {
         Ok(())
     }
 
+    pub fn update_shader(&mut self, shader_asset: Arc<ShaderAsset>) -> base::Result<()> {
+        todo!()
+    }
+
     pub fn query_graphics_pipeline(&mut self, config: &GenericGraphicsPipelineConfig) -> base::Result<Arc<GenericGraphicsPipeline>> {
-        if self.graphics_pipelines.contains_key(config) {
-            Ok(self.graphics_pipelines[config].clone())
+        if self.graphics_pipeline_mapping.contains_key(config) {
+            let handle = &self.graphics_pipeline_mapping[config];
+            let pipeline = self
+                .graphics_pipelines
+                .get(handle)
+                .expect("pipeline not found due to inconsistent mapping")
+                .clone();
+            Ok(pipeline)
         } else {
             let pipeline = Arc::new(GenericGraphicsPipeline::new(
                 &self.device,
@@ -89,14 +105,21 @@ impl VulkanResourceCoordinator {
                 &self.specialization_constants,
                 debug_info!("GenericGraphicsPipeline"),
             )?);
-            self.graphics_pipelines.insert(config.clone(), pipeline.clone());
+            let handle = self.graphics_pipelines.insert(pipeline.clone());
+            self.graphics_pipeline_mapping.insert(config.clone(), handle);
             Ok(pipeline)
         }
     }
 
     pub fn query_compute_pipeline(&mut self, config: &GenericComputePipelineConfig) -> base::Result<Arc<GenericComputePipeline>> {
-        if self.compute_pipelines.contains_key(config) {
-            Ok(self.compute_pipelines[config].clone())
+        if self.compute_pipelines_mapping.contains_key(config) {
+            let handle = &self.compute_pipelines_mapping[config];
+            let pipeline = self
+                .compute_pipelines
+                .get(handle)
+                .expect("pipeline not found due to inconsistent mapping")
+                .clone();
+            Ok(pipeline)
         } else {
             let pipeline = Arc::new(GenericComputePipeline::new(
                 &self.device,
@@ -104,7 +127,8 @@ impl VulkanResourceCoordinator {
                 &self.specialization_constants,
                 debug_info!("GenericComputePipeline"),
             )?);
-            self.compute_pipelines.insert(config.clone(), pipeline.clone());
+            let handle = self.compute_pipelines.insert(pipeline.clone());
+            self.compute_pipelines_mapping.insert(config.clone(), handle);
             Ok(pipeline)
         }
     }
