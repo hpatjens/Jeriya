@@ -85,7 +85,8 @@ impl VulkanResourceCoordinator {
     }
 
     pub fn update_shader(&mut self, shader_asset: Arc<ShaderAsset>) -> base::Result<()> {
-        todo!()
+        info!("Updating shader {}", shader_asset.name());
+        Ok(())
     }
 
     pub fn query_graphics_pipeline(&mut self, config: &GenericGraphicsPipelineConfig) -> base::Result<Arc<GenericGraphicsPipeline>> {
