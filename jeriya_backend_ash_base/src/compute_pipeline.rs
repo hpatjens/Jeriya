@@ -1,6 +1,7 @@
 use std::{ffi::CString, io::Cursor, sync::Arc};
 
 use ash::vk;
+use jeriya_content::common::AssetKey;
 use jeriya_macros::profile;
 use jeriya_shared::{debug_info, nalgebra::Vector4, AsDebugInfo, DebugInfo};
 
@@ -20,7 +21,7 @@ pub trait ComputePipeline {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct GenericComputePipelineConfig {
-    pub shader_spirv: Arc<Vec<u8>>,
+    pub shader: AssetKey,
 }
 
 pub struct GenericComputePipeline {
@@ -37,6 +38,7 @@ impl GenericComputePipeline {
     pub fn new(
         device: &Arc<Device>,
         config: &GenericComputePipelineConfig,
+        shader_spirv: &[u8],
         specialization_constants: &SpecializationConstants,
         debug_info: DebugInfo,
     ) -> crate::Result<Self> {
@@ -44,7 +46,7 @@ impl GenericComputePipeline {
 
         let shader = ShaderModule::new(
             device,
-            Cursor::new(&config.shader_spirv.as_ref()),
+            Cursor::new(&shader_spirv.as_ref()),
             debug_info!("GenericComputePipeline-ShaderModule"),
         )?;
 
@@ -148,8 +150,7 @@ impl AsDebugInfo for GenericComputePipeline {
 #[cfg(test)]
 mod tests {
     mod new {
-        use std::sync::Arc;
-
+        use jeriya_content::common::AssetKey;
         use jeriya_shared::debug_info;
 
         use crate::{
@@ -161,12 +162,13 @@ mod tests {
         fn smoke() {
             let test_fixture_device = TestFixtureDevice::new().unwrap();
             let config = GenericComputePipelineConfig {
-                shader_spirv: Arc::new(include_bytes!("../test_data/cull_rigid_mesh_instances.comp.spv").to_vec()),
+                shader: AssetKey::new("test_data/cull_rigid_mesh_instances.comp"),
             };
             let specialization_constants = SpecializationConstants::new();
             let _compute_pipeline = GenericComputePipeline::new(
                 &test_fixture_device.device,
                 &config,
+                include_bytes!("../test_data/cull_rigid_mesh_instances.comp.spv"),
                 &specialization_constants,
                 debug_info!("my_compute_pipeline"),
             )

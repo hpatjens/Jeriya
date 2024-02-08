@@ -12,6 +12,7 @@ use jeriya_backend_ash_base::{
     swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
+use jeriya_content::asset_importer::{self, Asset, AssetImporter};
 use jeriya_content::shader::ShaderAsset;
 use jeriya_shared::{ahash, log::info, RendererConfig};
 use jeriya_shared::{debug_info, Handle, IndexingContainer};
@@ -19,6 +20,8 @@ use jeriya_shared::{debug_info, Handle, IndexingContainer};
 /// Responsible for creating vulkan resources and managing their dependencies.
 pub struct VulkanResourceCoordinator {
     device: Arc<Device>,
+
+    asset_importer: Arc<AssetImporter>,
 
     specialization_constants: SpecializationConstants,
 
@@ -35,7 +38,12 @@ pub struct VulkanResourceCoordinator {
 }
 
 impl VulkanResourceCoordinator {
-    pub fn new(device: &Arc<Device>, swapchain: &Swapchain, renderer_config: &RendererConfig) -> jeriya_backend::Result<Self> {
+    pub fn new(
+        device: &Arc<Device>,
+        asset_importer: &Arc<AssetImporter>,
+        swapchain: &Swapchain,
+        renderer_config: &RendererConfig,
+    ) -> jeriya_backend::Result<Self> {
         info!("Creating swapchain resources");
         let swapchain_depth_buffers = SwapchainDepthBuffers::new(device, &swapchain)?;
         let swapchain_render_pass = SwapchainRenderPass::new(device, &swapchain)?;
@@ -65,6 +73,7 @@ impl VulkanResourceCoordinator {
 
         Ok(VulkanResourceCoordinator {
             device: device.clone(),
+            asset_importer: asset_importer.clone(),
             specialization_constants,
             graphics_pipeline_mapping: HashMap::default(),
             compute_pipelines_mapping: HashMap::default(),
@@ -84,8 +93,8 @@ impl VulkanResourceCoordinator {
         Ok(())
     }
 
-    pub fn update_shader(&mut self, shader_asset: Arc<ShaderAsset>) -> base::Result<()> {
-        info!("Updating shader {}", shader_asset.name());
+    pub fn update_shader(&mut self, shader_asset: Asset<ShaderAsset>) -> base::Result<()> {
+        info!("Updating shader {}", shader_asset.asset_key().as_str());
         Ok(())
     }
 
@@ -99,9 +108,55 @@ impl VulkanResourceCoordinator {
                 .clone();
             Ok(pipeline)
         } else {
+            let vertex_shader = config.vertex_shader.as_ref().expect("vertex shader not set");
+            let fragment_shader = config.fragment_shader.as_ref().expect("fragment shader not set");
+            let vertex_shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(vertex_shader) {
+                shader_asset
+                    .value()
+                    .ok_or(base::Error::AssetNotFound {
+                        asset_key: vertex_shader.clone(),
+                        // This means that the asset was explicitly dropped after being imported
+                        details: "Asset found via the `get` method but the value is None".to_owned(),
+                    })?
+                    .spriv()
+                    .to_vec()
+            } else {
+                self.asset_importer
+                    .import::<ShaderAsset>(vertex_shader)
+                    .map_err(|error| base::Error::AssetNotFound {
+                        asset_key: vertex_shader.clone(),
+                        details: format!(
+                            "Asset not found via the get method. Starting and import if it's not already running. {}",
+                            error
+                        ),
+                    })?;
+                return Err(base::Error::AssetNotFound {
+                    asset_key: vertex_shader.clone(),
+                    details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
+                });
+            };
+            let fragment_shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(fragment_shader) {
+                shader_asset
+                    .value()
+                    .ok_or(base::Error::AssetNotFound {
+                        asset_key: fragment_shader.clone(),
+                        // This means that the asset was explicitly dropped after being imported
+                        details: "Asset found via the `get` method but the value is None".to_owned(),
+                    })?
+                    .spriv()
+                    .to_vec()
+            } else {
+                self.asset_importer.import::<ShaderAsset>(fragment_shader);
+                return Err(base::Error::AssetNotFound {
+                    asset_key: fragment_shader.clone(),
+                    details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
+                });
+            };
             let pipeline = Arc::new(GenericGraphicsPipeline::new(
                 &self.device,
                 config,
+                &vertex_shader_spirv,
+                &fragment_shader_spirv,
                 &self.swapchain_render_pass,
                 &self.specialization_constants,
                 debug_info!("GenericGraphicsPipeline"),
@@ -122,9 +177,27 @@ impl VulkanResourceCoordinator {
                 .clone();
             Ok(pipeline)
         } else {
+            let shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(&config.shader) {
+                shader_asset
+                    .value()
+                    .ok_or(base::Error::AssetNotFound {
+                        asset_key: config.shader.clone(),
+                        // This means that the asset was explicitly dropped after being imported
+                        details: "Asset found via the `get` method but the value is None".to_owned(),
+                    })?
+                    .spriv()
+                    .to_vec()
+            } else {
+                self.asset_importer.import::<ShaderAsset>(&config.shader);
+                return Err(base::Error::AssetNotFound {
+                    asset_key: config.shader.clone(),
+                    details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
+                });
+            };
             let pipeline = Arc::new(GenericComputePipeline::new(
                 &self.device,
                 config,
+                &shader_spirv,
                 &self.specialization_constants,
                 debug_info!("GenericComputePipeline"),
             )?);
@@ -157,7 +230,8 @@ mod tests {
     fn smoke() {
         let test_fixture_device = TestFixtureDevice::new().unwrap();
         let swapchain = Swapchain::new(&test_fixture_device.device, &test_fixture_device.surface, 3, None).unwrap();
+        let asset_importer = Arc::new(AssetImporter::default_from("../assets/processed").unwrap());
         let _vulkan_resource_coordinator =
-            VulkanResourceCoordinator::new(&test_fixture_device.device, &swapchain, &RendererConfig::default()).unwrap();
+            VulkanResourceCoordinator::new(&test_fixture_device.device, &asset_importer, &swapchain, &RendererConfig::default()).unwrap();
     }
 }

@@ -4,6 +4,7 @@ use crate::{
     Error, Result,
 };
 use jeriya_shared::{
+    ahash::HashSet,
     bus::{Bus, BusReader},
     derive_where::derive_where,
     log::{error, info, trace, warn},
@@ -206,6 +207,7 @@ pub struct AssetImporter {
     /// The bus that is used to send notifications when an asset was imported.
     notification_buses: Arc<Mutex<Bus<()>>>,
 
+    importing_assets: Arc<RwLock<HashSet<AssetKey>>>,
     tracked_assets: Arc<RwLock<BTreeMap<AssetKey, Arc<RawAsset>>>>,
     import_source: Arc<RwLock<dyn ImportSource>>,
 }
@@ -237,19 +239,21 @@ impl AssetImporter {
         info!("Set the observer function for the import source");
         let importers = Arc::new(Mutex::new(BTreeMap::new()));
         let importers2 = importers.clone();
+        let importing_assets = Arc::new(RwLock::new(HashSet::default()));
+        let importing_assets2 = importing_assets.clone();
         let thread_pool2 = thread_pool.clone();
         let watch_fn = move |event: FileSystemEvent| match event {
             FileSystemEvent::Create(path) => {
                 trace!("Path '{}' was created", path.display());
                 let asset_key = AssetKey::new(path);
-                if let Err(err) = import(&asset_key, &thread_pool2, &importers2) {
+                if let Err(err) = import(&asset_key, &thread_pool2, &importers2, &importing_assets2) {
                     error!("{err}");
                 }
             }
             FileSystemEvent::Modify(path) => {
                 trace!("Path '{}' was modified", path.display());
                 let asset_key = AssetKey::new(path);
-                if let Err(err) = import(&asset_key, &thread_pool2, &importers2) {
+                if let Err(err) = import(&asset_key, &thread_pool2, &importers2, &importing_assets2) {
                     error!("{err}");
                 }
             }
@@ -259,6 +263,7 @@ impl AssetImporter {
         Ok(Self {
             thread_pool,
             importers,
+            importing_assets,
             tracked_assets: Arc::new(RwLock::new(BTreeMap::new())),
             import_source,
             asset_buses: Arc::new(Mutex::new(BTreeMap::new())),
@@ -439,6 +444,56 @@ impl AssetImporter {
         self.notification_buses.lock().add_rx()
     }
 
+    /// Returns the asset with the given key when available in the tracked assets.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use jeriya_content::{asset_importer::{AssetImporter, FileSystem}, common::AssetKey};
+    /// # std::fs::create_dir_all("assets").unwrap();
+    /// # let asset_source = FileSystem::new("assets").unwrap();
+    /// let asset_importer = AssetImporter::new(asset_source, 4).unwrap();
+    /// let manually_added = asset_importer.add(AssetKey::new("test.txt"), "Hello World!");
+    /// let asset = asset_importer.get(&AssetKey::new("test.txt")).unwrap();
+    /// assert_eq!(asset.value().unwrap(), manually_added.value().unwrap());
+    /// ```
+    pub fn get<T>(&self, asset_key: &AssetKey) -> Option<Asset<T>>
+    where
+        T: 'static + Send + Sync,
+    {
+        self.tracked_assets.read().get(asset_key).map(|raw_asset| Asset {
+            raw_asset: raw_asset.clone(),
+            _phantom: PhantomData,
+        })
+    }
+
+    /// Adds an asset to the tracked assets.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use jeriya_content::{asset_importer::{AssetImporter, FileSystem}, common::AssetKey};
+    /// # std::fs::create_dir_all("assets").unwrap();
+    /// # let asset_source = FileSystem::new("assets").unwrap();
+    /// let asset_importer = AssetImporter::new(asset_source, 4).unwrap();
+    /// let _manually_added = asset_importer.add(AssetKey::new("test.txt"), "Hello World!");
+    /// ```
+    pub fn add<T>(&self, asset_key: AssetKey, value: T) -> Asset<T>
+    where
+        T: 'static + Send + Sync,
+    {
+        let raw_asset = Arc::new(RawAsset {
+            asset_key: asset_key.clone(),
+            _ty: TypeId::of::<T>(),
+            value: Mutex::new(Some(Arc::new(value))),
+        });
+        self.tracked_assets.write().insert(asset_key.clone(), raw_asset.clone());
+        Asset {
+            raw_asset,
+            _phantom: PhantomData,
+        }
+    }
+
     /// Imports all assets of the given type.
     pub fn import_all<T>(&self) -> Result<()> {
         todo!()
@@ -446,7 +501,7 @@ impl AssetImporter {
 
     /// Imports an asset from the given path.
     pub fn import<T>(&self, asset_key: impl Into<AssetKey>) -> Result<()> {
-        import(&asset_key.into(), &self.thread_pool, &self.importers)
+        import(&asset_key.into(), &self.thread_pool, &self.importers, &self.importing_assets)
     }
 }
 
@@ -461,16 +516,33 @@ fn is_meta_file(path: &Path) -> bool {
     file_name == ASSET_META_FILE_NAME
 }
 
-fn import(asset_key: &AssetKey, thread_pool: &ThreadPool, importers: &Arc<Mutex<BTreeMap<String, Arc<ImportFn>>>>) -> Result<()> {
+fn import(
+    asset_key: &AssetKey,
+    thread_pool: &ThreadPool,
+    importers: &Arc<Mutex<BTreeMap<String, Arc<ImportFn>>>>,
+    importing_assets: &Arc<RwLock<HashSet<AssetKey>>>,
+) -> Result<()> {
     let importers = importers.clone();
 
     trace!("Extracting extension from '{asset_key}'");
     let extension = extract_extension_from_path(asset_key.as_path())?;
 
     trace!("Checking if the extension '{extension}' is registered");
-    if !importers.lock().contains_key(&extension) {
+    let guard = importers.lock();
+    if !guard.contains_key(&extension) {
         return Err(Error::ExtensionNotRegistered(extension));
     }
+    drop(guard);
+
+    trace!("Checking if the asset '{asset_key}' is already being imported");
+    let mut guard = importing_assets.write();
+    if guard.contains(asset_key) {
+        return Ok(());
+    }
+    guard.insert(asset_key.clone());
+    drop(guard);
+
+    let importing_assets2 = importing_assets.clone();
 
     // Spawn a thread to import the asset.
     let asset_key = asset_key.clone();
@@ -483,6 +555,10 @@ fn import(asset_key: &AssetKey, thread_pool: &ThreadPool, importers: &Arc<Mutex<
             .expect("failed to find the configuration for the given extension")
             .clone();
         importer(&asset_key);
+
+        trace!("Removing asset '{asset_key}' from the importing assets");
+        let mut importing_assets = importing_assets2.write();
+        importing_assets.remove(&asset_key);
     });
 
     Ok(())

@@ -17,10 +17,16 @@ use jeriya_backend::{
     immediate::ImmediateRenderingFrame, instances::camera_instance::CameraInstance, resources::ResourceEvent, transactions::Transaction,
 };
 use jeriya_backend_ash_base::{fence::Fence, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
-use jeriya_content::shader::ShaderAsset;
+use jeriya_content::{asset_importer::Asset, shader::ShaderAsset};
 use jeriya_macros::profile;
 use jeriya_shared::{
-    debug_info, log::info, parking_lot::Mutex, spin_sleep, tracy_client::Client, winit::window::WindowId, EventQueue, FrameRate,
+    debug_info,
+    log::{info, trace},
+    parking_lot::Mutex,
+    spin_sleep,
+    tracy_client::Client,
+    winit::window::WindowId,
+    EventQueue, FrameRate,
 };
 
 pub enum PresenterEvent {
@@ -29,7 +35,7 @@ pub enum PresenterEvent {
         immediate_rendering_frame: ImmediateRenderingFrame,
     },
     ProcessTransaction(Transaction),
-    ShaderImported(Arc<ShaderAsset>),
+    ShaderImported(Asset<ShaderAsset>),
 }
 
 pub struct Presenter {
@@ -205,80 +211,85 @@ fn run_presenter_thread(
         queues.presentation_queue(window_id).poll_completed_fences()?;
         drop(queues);
 
-        // Setup synchronization primitives for the next frame
-        let image_available_semaphore = Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?;
-        let rendering_complete_semaphore = Semaphore::new(&backend_shared.device, debug_info!("rendering-complete-Semaphore"))?;
-        let rendering_complete_fence = Fence::new(&backend_shared.device, debug_info!("rendering-complete-Fence"))?;
-
-        // Acquire the next swapchain image
-        let acquire_span = jeriya_shared::span!("acquire swapchain image");
-        let swapchain_image_index = loop {
-            match presenter_shared.swapchain.acquire_next_image(&image_available_semaphore) {
-                Ok(index) => break index,
-                Err(_) => {
-                    info!("Failed to acquire next swapchain image. Recreating swapchain.");
-                    presenter_shared.recreate(&backend_shared)?;
-                }
-            }
-        };
-        presenter_shared.frame_index.set_swapchain_index(swapchain_image_index as usize);
-        drop(acquire_span);
-
-        let persistent_frame_state = persistent_frame_states.get_mut(&presenter_shared.frame_index);
-
-        let wait_span = jeriya_shared::span!("wait for rendering complete");
-        persistent_frame_state.rendering_complete_fence.wait()?;
-        drop(wait_span);
-
-        // Process Transactions which update the persistent frame state
-        persistent_frame_state.process_transactions()?;
-
-        // Free the frame graph of the frame that was previously rendered in this position
-        let previous_frame_graph = compiled_frame_graphs.get_mut(&presenter_shared.frame_index).take();
-        drop(previous_frame_graph);
-
-        // Reset CommandPool
-        persistent_frame_state.command_pool.reset()?;
-
-        // Update the synchronization primitives for the next frame
-        persistent_frame_state.image_available_semaphore = image_available_semaphore;
-        persistent_frame_state.rendering_complete_semaphore = rendering_complete_semaphore;
-        persistent_frame_state.rendering_complete_fence = rendering_complete_fence;
-
         // Render the frame
-        let mut compiled_frame_graph = CompiledFrameGraph::new(&backend_shared, &mut presenter_shared, &persistent_frame_state)?;
-        compiled_frame_graph.execute(
-            persistent_frame_state,
-            &window_id,
-            &backend_shared,
-            &mut presenter_shared,
-            &immediate_rendering_frames,
-        )?;
+        match CompiledFrameGraph::new(&mut presenter_shared) {
+            Ok(mut compiled_frame_graph) => {
+                // Setup synchronization primitives for the next frame
+                let image_available_semaphore = Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?;
+                let rendering_complete_semaphore = Semaphore::new(&backend_shared.device, debug_info!("rendering-complete-Semaphore"))?;
+                let rendering_complete_fence = Fence::new(&backend_shared.device, debug_info!("rendering-complete-Fence"))?;
 
-        // Free frame graph of the frame that is was previously rendered in this position and replace it with the new one
-        compiled_frame_graphs
-            .get_mut(&presenter_shared.frame_index)
-            .replace(compiled_frame_graph);
+                // Acquire the next swapchain image
+                let acquire_span = jeriya_shared::span!("acquire swapchain image");
+                let swapchain_image_index = loop {
+                    match presenter_shared.swapchain.acquire_next_image(&image_available_semaphore) {
+                        Ok(index) => break index,
+                        Err(_) => {
+                            info!("Failed to acquire next swapchain image. Recreating swapchain.");
+                            presenter_shared.recreate(&backend_shared)?;
+                        }
+                    }
+                };
+                presenter_shared.frame_index.set_swapchain_index(swapchain_image_index as usize);
+                drop(acquire_span);
 
-        // Present
-        let mut queues = backend_shared.queue_scheduler.queues();
-        let result = presenter_shared.swapchain.present(
-            &presenter_shared.frame_index,
-            &persistent_frame_state.rendering_complete_semaphore,
-            queues.presentation_queue(window_id),
-        );
-        // The queues must be dropped before `recreate` is called to prevent a deadlock.
-        drop(queues);
-        match result {
-            Ok(is_suboptimal) => {
-                if is_suboptimal {
-                    info!("Swapchain is suboptimal. Recreating swapchain.");
-                    presenter_shared.recreate(&backend_shared)?;
+                let persistent_frame_state = persistent_frame_states.get_mut(&presenter_shared.frame_index);
+
+                let wait_span = jeriya_shared::span!("wait for rendering complete");
+                persistent_frame_state.rendering_complete_fence.wait()?;
+                drop(wait_span);
+
+                // Process Transactions which update the persistent frame state
+                persistent_frame_state.process_transactions()?;
+
+                // Free the frame graph of the frame that was previously rendered in this position
+                let previous_frame_graph = compiled_frame_graphs.get_mut(&presenter_shared.frame_index).take();
+                drop(previous_frame_graph);
+
+                // Reset CommandPool
+                persistent_frame_state.command_pool.reset()?;
+
+                // Update the synchronization primitives for the next frame
+                persistent_frame_state.image_available_semaphore = image_available_semaphore;
+                persistent_frame_state.rendering_complete_semaphore = rendering_complete_semaphore;
+                persistent_frame_state.rendering_complete_fence = rendering_complete_fence;
+
+                compiled_frame_graph.execute(
+                    persistent_frame_state,
+                    &window_id,
+                    &backend_shared,
+                    &mut presenter_shared,
+                    &immediate_rendering_frames,
+                )?;
+                // Free frame graph of the frame that is was previously rendered in this position and replace it with the new one
+                compiled_frame_graphs
+                    .get_mut(&presenter_shared.frame_index)
+                    .replace(compiled_frame_graph);
+
+                // Present
+                let mut queues = backend_shared.queue_scheduler.queues();
+                let result = presenter_shared.swapchain.present(
+                    &presenter_shared.frame_index,
+                    &persistent_frame_state.rendering_complete_semaphore,
+                    queues.presentation_queue(window_id),
+                );
+                // The queues must be dropped before `recreate` is called to prevent a deadlock.
+                drop(queues);
+                match result {
+                    Ok(is_suboptimal) => {
+                        if is_suboptimal {
+                            info!("Swapchain is suboptimal. Recreating swapchain.");
+                            presenter_shared.recreate(&backend_shared)?;
+                        }
+                    }
+                    Err(_err) => {
+                        info!("Failed to present swapchain image. Recreating swapchain.");
+                        presenter_shared.recreate(&backend_shared)?;
+                    }
                 }
             }
-            Err(_err) => {
-                info!("Failed to present swapchain image. Recreating swapchain.");
-                presenter_shared.recreate(&backend_shared)?;
+            Err(err) => {
+                trace!("Failed to compile frame graph: {err:?}");
             }
         }
 
