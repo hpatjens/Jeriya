@@ -1,4 +1,5 @@
 use ash::vk;
+use jeriya_content::common::AssetKey;
 use jeriya_macros::profile;
 use jeriya_shared::{
     debug_info,
@@ -91,8 +92,8 @@ impl From<PrimitiveTopology> for vk::PrimitiveTopology {
 
 #[derive(Debug, Default, Clone, Hash, PartialEq, Eq)]
 pub struct GenericGraphicsPipelineConfig {
-    pub vertex_shader_spirv: Option<Arc<Vec<u8>>>,
-    pub fragment_shader_spirv: Option<Arc<Vec<u8>>>,
+    pub vertex_shader: Option<AssetKey>,
+    pub fragment_shader: Option<AssetKey>,
     pub primitive_topology: PrimitiveTopology,
     pub polygon_mode: PolygonMode,
     pub cull_mode: CullMode,
@@ -128,6 +129,8 @@ impl GenericGraphicsPipeline {
     pub fn new(
         device: &Arc<Device>,
         config: &GenericGraphicsPipelineConfig,
+        vertex_shader_spirv: &[u8],
+        fragment_shader_spirv: &[u8],
         renderpass: &SwapchainRenderPass,
         specialization_constants: &SpecializationConstants,
         debug_info: DebugInfo,
@@ -135,16 +138,14 @@ impl GenericGraphicsPipeline {
         let entry_name = CString::new("main").expect("Valid c string");
 
         info!("Create shader modules for GenericGraphicsPipeline \"{}\"", debug_info.name());
-        let vertex_shader_spirv = config.vertex_shader_spirv.as_ref().expect("No vertex shader spirv");
         let vertex_shader = ShaderModule::new(
             device,
-            Cursor::new(vertex_shader_spirv.as_ref()),
+            Cursor::new(vertex_shader_spirv),
             debug_info!("GenericGraphicsPipeline-vertex-ShaderModule"),
         )?;
-        let fragment_shader_spirv = config.fragment_shader_spirv.as_ref().expect("No fragment shader spirv");
         let fragment_shader = ShaderModule::new(
             device,
-            Cursor::new(fragment_shader_spirv.as_ref()),
+            Cursor::new(fragment_shader_spirv),
             debug_info!("GenericGraphicsPipeline-fragment-ShaderModule"),
         )?;
 
@@ -377,8 +378,7 @@ impl AsDebugInfo for GenericGraphicsPipeline {
 #[cfg(test)]
 mod tests {
     mod new {
-        use std::sync::Arc;
-
+        use jeriya_content::common::AssetKey;
         use jeriya_shared::debug_info;
 
         use crate::{
@@ -395,8 +395,8 @@ mod tests {
             let swapchain = Swapchain::new(&test_fixture_device.device, &test_fixture_device.surface, 2, None).unwrap();
             let render_pass = SwapchainRenderPass::new(&test_fixture_device.device, &swapchain).unwrap();
             let config = GenericGraphicsPipelineConfig {
-                vertex_shader_spirv: Some(Arc::new(include_bytes!("../test_data/red_triangle.vert.spv").to_vec())),
-                fragment_shader_spirv: Some(Arc::new(include_bytes!("../test_data/red_triangle.frag.spv").to_vec())),
+                vertex_shader: Some(AssetKey::new("vertex_shader")),
+                fragment_shader: Some(AssetKey::new("fragment_shader")),
                 primitive_topology: PrimitiveTopology::LineList,
                 framebuffer_width: swapchain.extent().width,
                 framebuffer_height: swapchain.extent().height,
@@ -406,6 +406,8 @@ mod tests {
             let _graphics_pipeline = GenericGraphicsPipeline::new(
                 &test_fixture_device.device,
                 &config,
+                include_bytes!("../test_data/red_triangle.vert.spv"),
+                include_bytes!("../test_data/red_triangle.frag.spv"),
                 &render_pass,
                 &specialization_constants,
                 debug_info!("my_graphics_pipeline"),

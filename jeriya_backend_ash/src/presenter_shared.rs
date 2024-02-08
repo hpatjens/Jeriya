@@ -26,8 +26,12 @@ impl PresenterShared {
         let desired_swapchain_length = backend_shared.renderer_config.default_desired_swapchain_length;
         let swapchain = Swapchain::new(&backend_shared.device, surface, desired_swapchain_length, None)?;
 
-        let mut vulkan_resource_coordinator =
-            VulkanResourceCoordinator::new(&backend_shared.device, &swapchain, &backend_shared.renderer_config)?;
+        let vulkan_resource_coordinator = VulkanResourceCoordinator::new(
+            &backend_shared.device,
+            &backend_shared.asset_importer,
+            &swapchain,
+            &backend_shared.renderer_config,
+        )?;
 
         Ok(Self {
             window_id: window_id.clone(),

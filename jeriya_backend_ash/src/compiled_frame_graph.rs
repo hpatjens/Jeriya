@@ -12,6 +12,7 @@ use jeriya_backend_ash_base::{
     host_visible_buffer::HostVisibleBuffer,
     shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
 };
+use jeriya_content::common::AssetKey;
 use jeriya_shared::{debug_info, nalgebra::Matrix4, plot_with_index, tracy_client::plot, winit::window::WindowId};
 
 use crate::{
@@ -43,17 +44,7 @@ pub struct CompiledFrameGraph {
 }
 
 impl CompiledFrameGraph {
-    pub fn new(
-        backend_shared: &BackendShared,
-        presenter_shared: &mut PresenterShared,
-        persistent_frame_state: &PersistentFrameState,
-    ) -> jeriya_backend::Result<Self> {
-        macro_rules! spirv {
-            ($shader:literal) => {
-                Arc::new(include_bytes!(concat!("../../jeriya_backend_ash_base/test_data/", $shader)).to_vec())
-            };
-        }
-
+    pub fn new(presenter_shared: &mut PresenterShared) -> jeriya_backend::Result<Self> {
         let graphics_pipeline_default = GenericGraphicsPipelineConfig {
             primitive_topology: PrimitiveTopology::TriangleList,
             framebuffer_width: presenter_shared.swapchain.extent().width,
@@ -63,8 +54,8 @@ impl CompiledFrameGraph {
 
         let simple_graphics_pipeline = {
             let config = GenericGraphicsPipelineConfig {
-                vertex_shader_spirv: Some(spirv!("red_triangle.vert.spv")),
-                fragment_shader_spirv: Some(spirv!("red_triangle.frag.spv")),
+                vertex_shader: Some(AssetKey::new("shaders/red_triangle.vert")),
+                fragment_shader: Some(AssetKey::new("shaders/red_triangle.frag")),
                 primitive_topology: PrimitiveTopology::TriangleList,
                 ..graphics_pipeline_default.clone()
             };
@@ -73,8 +64,8 @@ impl CompiledFrameGraph {
 
         let mut create_immediate_graphics_pipeline = |primitive_topology| -> base::Result<_> {
             let config = GenericGraphicsPipelineConfig {
-                vertex_shader_spirv: Some(spirv!("color.vert.spv")),
-                fragment_shader_spirv: Some(spirv!("color.frag.spv")),
+                vertex_shader: Some(AssetKey::new("shaders/color.vert")),
+                fragment_shader: Some(AssetKey::new("shaders/color.frag")),
                 primitive_topology,
                 use_input_attributes: true,
                 use_dynamic_state_line_width: true,
@@ -89,8 +80,8 @@ impl CompiledFrameGraph {
 
         let point_cloud_graphics_pipeline = {
             let config = GenericGraphicsPipelineConfig {
-                vertex_shader_spirv: Some(spirv!("point_cloud.vert.spv")),
-                fragment_shader_spirv: Some(spirv!("point_cloud.frag.spv")),
+                vertex_shader: Some(AssetKey::new("shaders/point_cloud.vert")),
+                fragment_shader: Some(AssetKey::new("shaders/point_cloud.frag")),
                 primitive_topology: PrimitiveTopology::TriangleList,
                 ..graphics_pipeline_default.clone()
             };
@@ -99,36 +90,36 @@ impl CompiledFrameGraph {
 
         let cull_point_cloud_instances_compute_pipeline = {
             let config = GenericComputePipelineConfig {
-                shader_spirv: spirv!("cull_point_cloud_instances.comp.spv"),
+                shader: AssetKey::new("shaders/cull_point_cloud_instances.comp"),
             };
             presenter_shared.vulkan_resource_coordinator.query_compute_pipeline(&config)?
         };
 
         let cull_point_cloud_clusters_compute_pipeline = {
             let config = GenericComputePipelineConfig {
-                shader_spirv: spirv!("cull_point_cloud_clusters.comp.spv"),
+                shader: AssetKey::new("shaders/cull_point_cloud_clusters.comp"),
             };
             presenter_shared.vulkan_resource_coordinator.query_compute_pipeline(&config)?
         };
 
         let cull_rigid_mesh_instances_compute_pipeline = {
             let config = GenericComputePipelineConfig {
-                shader_spirv: spirv!("cull_rigid_mesh_instances.comp.spv"),
+                shader: AssetKey::new("shaders/cull_rigid_mesh_instances.comp"),
             };
             presenter_shared.vulkan_resource_coordinator.query_compute_pipeline(&config)?
         };
 
         let cull_rigid_mesh_meshlets_compute_pipeline = {
             let config = GenericComputePipelineConfig {
-                shader_spirv: spirv!("cull_rigid_mesh_meshlets.comp.spv"),
+                shader: AssetKey::new("shaders/cull_rigid_mesh_meshlets.comp"),
             };
             presenter_shared.vulkan_resource_coordinator.query_compute_pipeline(&config)?
         };
 
         let indirect_simple_graphics_pipeline = {
             let config = GenericGraphicsPipelineConfig {
-                vertex_shader_spirv: Some(spirv!("indirect_simple.vert.spv")),
-                fragment_shader_spirv: Some(spirv!("indirect_simple.frag.spv")),
+                vertex_shader: Some(AssetKey::new("shaders/indirect_simple.vert")),
+                fragment_shader: Some(AssetKey::new("shaders/indirect_simple.frag")),
                 primitive_topology: PrimitiveTopology::TriangleList,
                 ..graphics_pipeline_default.clone()
             };
@@ -137,8 +128,8 @@ impl CompiledFrameGraph {
 
         let indirect_meshlet_graphics_pipeline = {
             let config = GenericGraphicsPipelineConfig {
-                vertex_shader_spirv: Some(spirv!("indirect_meshlet.vert.spv")),
-                fragment_shader_spirv: Some(spirv!("indirect_meshlet.frag.spv")),
+                vertex_shader: Some(AssetKey::new("shaders/indirect_meshlet.vert")),
+                fragment_shader: Some(AssetKey::new("shaders/indirect_meshlet.frag")),
                 primitive_topology: PrimitiveTopology::TriangleList,
                 ..graphics_pipeline_default.clone()
             };
@@ -147,15 +138,15 @@ impl CompiledFrameGraph {
 
         let frame_telemetry_compute_pipeline = {
             let config = GenericComputePipelineConfig {
-                shader_spirv: spirv!("frame_telemetry.comp.spv"),
+                shader: AssetKey::new("shaders/frame_telemetry.comp"),
             };
             presenter_shared.vulkan_resource_coordinator.query_compute_pipeline(&config)?
         };
 
         let point_cloud_clusters_graphics_pipeline = {
             let config = GenericGraphicsPipelineConfig {
-                vertex_shader_spirv: Some(spirv!("point_cloud_cluster.vert.spv")),
-                fragment_shader_spirv: Some(spirv!("point_cloud_cluster.frag.spv")),
+                vertex_shader: Some(AssetKey::new("shaders/point_cloud_cluster.vert")),
+                fragment_shader: Some(AssetKey::new("shaders/point_cloud_cluster.frag")),
                 primitive_topology: PrimitiveTopology::TriangleList,
                 ..graphics_pipeline_default.clone()
             };
@@ -164,8 +155,8 @@ impl CompiledFrameGraph {
 
         let device_local_debug_lines_pipeline = {
             let config = GenericGraphicsPipelineConfig {
-                vertex_shader_spirv: Some(spirv!("device_local_debug_line.vert.spv")),
-                fragment_shader_spirv: Some(spirv!("device_local_debug_line.frag.spv")),
+                vertex_shader: Some(AssetKey::new("shaders/device_local_debug_line.vert")),
+                fragment_shader: Some(AssetKey::new("shaders/device_local_debug_line.frag")),
                 primitive_topology: PrimitiveTopology::LineList,
                 ..graphics_pipeline_default.clone()
             };

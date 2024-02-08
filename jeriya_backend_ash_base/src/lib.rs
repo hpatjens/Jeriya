@@ -42,6 +42,7 @@ pub mod swapchain_render_pass;
 pub mod swapchain_vec;
 pub mod unsafe_buffer;
 
+use jeriya_content::common::AssetKey;
 pub use vk::{DispatchIndirectCommand, DrawIndirectCommand};
 
 use std::{ffi::NulError, str::Utf8Error, sync::Arc};
@@ -163,6 +164,10 @@ pub enum Error {
     NotFound,
     #[error("Failed to receive asset from asset importer")]
     FailedToReceiveAsset(String), // String contains the details
+    #[error("Failed to get asset '{asset_key}' from asset importer: {details}")]
+    AssetNotFound { asset_key: AssetKey, details: String },
+    #[error("Error from the content module: {:?}", .0)]
+    ContentError(#[from] jeriya_content::Error),
 }
 
 impl From<Error> for jeriya_backend::Error {

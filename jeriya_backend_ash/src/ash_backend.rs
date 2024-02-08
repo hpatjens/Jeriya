@@ -401,9 +401,9 @@ fn run_asset_import_thread(asset_importer: Arc<AssetImporter>, backend: &Arc<Ash
         match shader_receiver.try_recv() {
             Ok(asset_import_result) => match asset_import_result.as_ref() {
                 Ok(asset) => {
-                    if let Some(asset) = asset.value() {
+                    if asset.value().is_some() {
                         for (_, presenter) in &backend.presenters {
-                            presenter.send(PresenterEvent::ShaderImported(asset.clone()))
+                            presenter.send(PresenterEvent::ShaderImported(asset.clone()));
                         }
                     } else {
                         warn!("Newly imported asset was detected but the asset is None.");
