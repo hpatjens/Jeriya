@@ -171,9 +171,9 @@ impl<T> Asset<T>
 where
     T: 'static + Send + Sync,
 {
-    /// Returns the path of the asset.
-    pub fn as_path(&self) -> &Path {
-        self.raw_asset.asset_key.as_path()
+    /// Returns the `AssetKey` of the asset.
+    pub fn asset_key(&self) -> &AssetKey {
+        &self.raw_asset.asset_key
     }
 
     /// Drops the data of the asset but keeps it as a tracked asset.
@@ -570,7 +570,7 @@ mod tests {
         // Receive and check the result.
         let result = expect_asset(receiver.recv_timeout(Duration::from_millis(100)));
         assert_eq!(*result.value().unwrap(), "Hello World!");
-        assert_eq!(result.as_path(), Path::new("test.txt"));
+        assert_eq!(result.asset_key().as_path(), Path::new("test.txt"));
         assert_eq!(result.value(), Some(Arc::new("Hello World!".to_owned())));
         result.drop_data();
         assert_eq!(result.value(), None);
