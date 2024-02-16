@@ -104,7 +104,7 @@ pub struct GenericGraphicsPipelineConfig {
 }
 
 pub struct GenericGraphicsPipeline {
-    _config: GenericGraphicsPipelineConfig,
+    pub config: GenericGraphicsPipelineConfig,
     _vertex_shader: ShaderModule,
     _fragment_shader: ShaderModule,
     graphics_pipeline: vk::Pipeline,
@@ -340,7 +340,7 @@ impl GenericGraphicsPipeline {
 
         info!("Done creating GenericGraphicsPipeline \"{}\"", debug_info.name());
         Ok(Self {
-            _config: config.clone(),
+            config: config.clone(),
             _vertex_shader: vertex_shader,
             _fragment_shader: fragment_shader,
             graphics_pipeline,

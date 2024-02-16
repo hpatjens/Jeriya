@@ -12,7 +12,8 @@ use jeriya_backend_ash_base::{
     swapchain_framebuffers::SwapchainFramebuffers,
     swapchain_render_pass::SwapchainRenderPass,
 };
-use jeriya_content::asset_importer::{self, Asset, AssetImporter};
+use jeriya_content::asset_importer::{Asset, AssetImporter};
+use jeriya_content::common::AssetKey;
 use jeriya_content::shader::ShaderAsset;
 use jeriya_shared::{ahash, log::info, RendererConfig};
 use jeriya_shared::{debug_info, Handle, IndexingContainer};
@@ -31,6 +32,9 @@ pub struct VulkanResourceCoordinator {
 
     graphics_pipelines: IndexingContainer<Arc<GenericGraphicsPipeline>>,
     compute_pipelines: IndexingContainer<Arc<GenericComputePipeline>>,
+
+    shader_asset_graphics_pipeline_mapping: ahash::HashMap<AssetKey, ahash::HashSet<Handle<Arc<GenericGraphicsPipeline>>>>,
+    shader_asset_compute_pipeline_mapping: ahash::HashMap<AssetKey, ahash::HashSet<Handle<Arc<GenericComputePipeline>>>>,
 
     swapchain_depth_buffers: SwapchainDepthBuffers,
     swapchain_framebuffers: SwapchainFramebuffers,
@@ -79,6 +83,8 @@ impl VulkanResourceCoordinator {
             compute_pipelines_mapping: HashMap::default(),
             graphics_pipelines: IndexingContainer::new(),
             compute_pipelines: IndexingContainer::new(),
+            shader_asset_graphics_pipeline_mapping: HashMap::default(),
+            shader_asset_compute_pipeline_mapping: HashMap::default(),
             swapchain_depth_buffers,
             swapchain_framebuffers,
             swapchain_render_pass,
@@ -95,6 +101,28 @@ impl VulkanResourceCoordinator {
 
     pub fn update_shader(&mut self, shader_asset: Asset<ShaderAsset>) -> base::Result<()> {
         info!("Updating shader {}", shader_asset.asset_key().as_str());
+        if let Some(graphics_pipeline_handles) = self.shader_asset_graphics_pipeline_mapping.get(shader_asset.asset_key()).cloned() {
+            for handle in graphics_pipeline_handles.iter() {
+                let old_pipeline_config = self
+                    .graphics_pipelines
+                    .get_mut(handle)
+                    .expect("pipeline not found due to inconsistent mapping")
+                    .config
+                    .clone();
+                self.try_build_graphics_pipeline(&old_pipeline_config)?;
+            }
+        }
+        if let Some(compute_pipeline_handles) = self.shader_asset_compute_pipeline_mapping.get(shader_asset.asset_key()).cloned() {
+            for handle in compute_pipeline_handles.iter() {
+                let old_pipeline_config = self
+                    .compute_pipelines
+                    .get_mut(handle)
+                    .expect("pipeline not found due to inconsistent mapping")
+                    .config
+                    .clone();
+                self.try_build_compute_pipeline(&old_pipeline_config)?;
+            }
+        }
         Ok(())
     }
 
@@ -108,63 +136,83 @@ impl VulkanResourceCoordinator {
                 .clone();
             Ok(pipeline)
         } else {
-            let vertex_shader = config.vertex_shader.as_ref().expect("vertex shader not set");
-            let fragment_shader = config.fragment_shader.as_ref().expect("fragment shader not set");
-            let vertex_shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(vertex_shader) {
-                shader_asset
-                    .value()
-                    .ok_or(base::Error::AssetNotFound {
-                        asset_key: vertex_shader.clone(),
-                        // This means that the asset was explicitly dropped after being imported
-                        details: "Asset found via the `get` method but the value is None".to_owned(),
-                    })?
-                    .spriv()
-                    .to_vec()
-            } else {
-                self.asset_importer
-                    .import::<ShaderAsset>(vertex_shader)
-                    .map_err(|error| base::Error::AssetNotFound {
-                        asset_key: vertex_shader.clone(),
-                        details: format!(
-                            "Asset not found via the get method. Starting and import if it's not already running. {}",
-                            error
-                        ),
-                    })?;
-                return Err(base::Error::AssetNotFound {
-                    asset_key: vertex_shader.clone(),
-                    details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
-                });
-            };
-            let fragment_shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(fragment_shader) {
-                shader_asset
-                    .value()
-                    .ok_or(base::Error::AssetNotFound {
-                        asset_key: fragment_shader.clone(),
-                        // This means that the asset was explicitly dropped after being imported
-                        details: "Asset found via the `get` method but the value is None".to_owned(),
-                    })?
-                    .spriv()
-                    .to_vec()
-            } else {
-                self.asset_importer.import::<ShaderAsset>(fragment_shader);
-                return Err(base::Error::AssetNotFound {
-                    asset_key: fragment_shader.clone(),
-                    details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
-                });
-            };
-            let pipeline = Arc::new(GenericGraphicsPipeline::new(
-                &self.device,
-                config,
-                &vertex_shader_spirv,
-                &fragment_shader_spirv,
-                &self.swapchain_render_pass,
-                &self.specialization_constants,
-                debug_info!("GenericGraphicsPipeline"),
-            )?);
-            let handle = self.graphics_pipelines.insert(pipeline.clone());
-            self.graphics_pipeline_mapping.insert(config.clone(), handle);
-            Ok(pipeline)
+            self.try_build_graphics_pipeline(config)
         }
+    }
+
+    fn try_build_graphics_pipeline(&mut self, config: &GenericGraphicsPipelineConfig) -> base::Result<Arc<GenericGraphicsPipeline>> {
+        let vertex_shader = config.vertex_shader.as_ref().expect("vertex shader not set");
+        let fragment_shader = config.fragment_shader.as_ref().expect("fragment shader not set");
+        let vertex_shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(vertex_shader) {
+            shader_asset
+                .value()
+                .ok_or(base::Error::AssetNotFound {
+                    asset_key: vertex_shader.clone(),
+                    // This means that the asset was explicitly dropped after being imported
+                    details: "Asset found via the `get` method but the value is None".to_owned(),
+                })?
+                .spriv()
+                .to_vec()
+        } else {
+            self.asset_importer
+                .import::<ShaderAsset>(vertex_shader)
+                .map_err(|error| base::Error::AssetNotFound {
+                    asset_key: vertex_shader.clone(),
+                    details: format!(
+                        "Asset not found via the get method. Starting and import if it's not already running. {}",
+                        error
+                    ),
+                })?;
+            return Err(base::Error::AssetNotFound {
+                asset_key: vertex_shader.clone(),
+                details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
+            });
+        };
+        let fragment_shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(fragment_shader) {
+            shader_asset
+                .value()
+                .ok_or(base::Error::AssetNotFound {
+                    asset_key: fragment_shader.clone(),
+                    // This means that the asset was explicitly dropped after being imported
+                    details: "Asset found via the `get` method but the value is None".to_owned(),
+                })?
+                .spriv()
+                .to_vec()
+        } else {
+            self.asset_importer
+                .import::<ShaderAsset>(fragment_shader)
+                .map_err(|error| base::Error::AssetNotFound {
+                    asset_key: fragment_shader.clone(),
+                    details: format!(
+                        "Asset not found via the get method. Starting and import if it's not already running. {}",
+                        error
+                    ),
+                })?;
+            return Err(base::Error::AssetNotFound {
+                asset_key: fragment_shader.clone(),
+                details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
+            });
+        };
+        let pipeline = Arc::new(GenericGraphicsPipeline::new(
+            &self.device,
+            config,
+            &vertex_shader_spirv,
+            &fragment_shader_spirv,
+            &self.swapchain_render_pass,
+            &self.specialization_constants,
+            debug_info!("GenericGraphicsPipeline"),
+        )?);
+        let handle = self.graphics_pipelines.insert(pipeline.clone());
+        self.graphics_pipeline_mapping.insert(config.clone(), handle);
+        self.shader_asset_graphics_pipeline_mapping
+            .entry(vertex_shader.clone())
+            .or_insert_with(ahash::HashSet::default)
+            .insert(handle);
+        self.shader_asset_graphics_pipeline_mapping
+            .entry(fragment_shader.clone())
+            .or_insert_with(ahash::HashSet::default)
+            .insert(handle);
+        Ok(pipeline)
     }
 
     pub fn query_compute_pipeline(&mut self, config: &GenericComputePipelineConfig) -> base::Result<Arc<GenericComputePipeline>> {
@@ -177,34 +225,50 @@ impl VulkanResourceCoordinator {
                 .clone();
             Ok(pipeline)
         } else {
-            let shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(&config.shader) {
-                shader_asset
-                    .value()
-                    .ok_or(base::Error::AssetNotFound {
-                        asset_key: config.shader.clone(),
-                        // This means that the asset was explicitly dropped after being imported
-                        details: "Asset found via the `get` method but the value is None".to_owned(),
-                    })?
-                    .spriv()
-                    .to_vec()
-            } else {
-                self.asset_importer.import::<ShaderAsset>(&config.shader);
-                return Err(base::Error::AssetNotFound {
-                    asset_key: config.shader.clone(),
-                    details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
-                });
-            };
-            let pipeline = Arc::new(GenericComputePipeline::new(
-                &self.device,
-                config,
-                &shader_spirv,
-                &self.specialization_constants,
-                debug_info!("GenericComputePipeline"),
-            )?);
-            let handle = self.compute_pipelines.insert(pipeline.clone());
-            self.compute_pipelines_mapping.insert(config.clone(), handle);
-            Ok(pipeline)
+            self.try_build_compute_pipeline(config)
         }
+    }
+
+    fn try_build_compute_pipeline(&mut self, config: &GenericComputePipelineConfig) -> base::Result<Arc<GenericComputePipeline>> {
+        let shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(&config.shader) {
+            shader_asset
+                .value()
+                .ok_or(base::Error::AssetNotFound {
+                    asset_key: config.shader.clone(),
+                    // This means that the asset was explicitly dropped after being imported
+                    details: "Asset found via the `get` method but the value is None".to_owned(),
+                })?
+                .spriv()
+                .to_vec()
+        } else {
+            self.asset_importer
+                .import::<ShaderAsset>(&config.shader)
+                .map_err(|error| base::Error::AssetNotFound {
+                    asset_key: config.shader.clone(),
+                    details: format!(
+                        "Asset not found via the get method. Starting and import if it's not already running. {}",
+                        error
+                    ),
+                })?;
+            return Err(base::Error::AssetNotFound {
+                asset_key: config.shader.clone(),
+                details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
+            });
+        };
+        let pipeline = Arc::new(GenericComputePipeline::new(
+            &self.device,
+            config,
+            &shader_spirv,
+            &self.specialization_constants,
+            debug_info!("GenericComputePipeline"),
+        )?);
+        let handle = self.compute_pipelines.insert(pipeline.clone());
+        self.compute_pipelines_mapping.insert(config.clone(), handle);
+        self.shader_asset_compute_pipeline_mapping
+            .entry(config.shader.clone())
+            .or_insert_with(ahash::HashSet::default)
+            .insert(handle);
+        Ok(pipeline)
     }
 
     pub fn swapchain_depth_buffers(&self) -> &SwapchainDepthBuffers {
