@@ -512,12 +512,18 @@ mod tests {
 
     use super::AssetProcessor;
 
+    const ASSET_PATH: &str = "test.txt";
+
     /// Creates an unprocessed asset with the given content.
     fn create_unprocessed_asset(root: &Path, content: &str) -> PathBuf {
-        const ASSET_PATH: &str = "test.txt";
         let asset_path = root.join(ASSET_PATH);
         fs::write(&asset_path, content).unwrap();
         ASSET_PATH.into()
+    }
+
+    fn update_unprocessed_asset(root: &Path, content: &str) {
+        let asset_path = root.join(ASSET_PATH);
+        fs::write(&asset_path, content).unwrap();
     }
 
     fn setup_dummy_txt_process_configuration(asset_processor: AssetProcessor) -> AssetProcessor {
@@ -536,8 +542,9 @@ mod tests {
     }
 
     #[test]
-    fn smoke1() {
+    fn file_created() {
         setup_logger();
+
         let root = TempDir::new("root").unwrap();
         let directories =
             Directories::create_all_dir(root.path().to_owned().join("unprocessed"), root.path().to_owned().join("processed")).unwrap();
@@ -560,6 +567,40 @@ mod tests {
 
         let asset_folder = directories.processed_assets_path().join(&asset_path);
         assert!(asset_folder.join("test.bin").exists());
+        let asset_meta_file_path = asset_folder.join("asset.yaml");
+        assert!(asset_meta_file_path.exists());
+        let meta_file_content = fs::read_to_string(&asset_meta_file_path).unwrap();
+        assert_eq!(meta_file_content, "file: test.bin");
+    }
+
+    #[test]
+    fn file_modified() {
+        setup_logger();
+
+        let root = TempDir::new("root").unwrap();
+        let directories =
+            Directories::create_all_dir(root.path().to_owned().join("unprocessed"), root.path().to_owned().join("processed")).unwrap();
+
+        // Create a sample asset to be processed.
+        let asset_path = create_unprocessed_asset(&directories.unprocessed_assets_path(), "Before Content");
+
+        // Setup the AssetProcessor.
+        let mut asset_processor = setup_dummy_txt_process_configuration(AssetProcessor::new(&directories, 4).unwrap());
+        let observer_channel = asset_processor.observe();
+        asset_processor.set_active(true).unwrap();
+
+        // Update the asset to trigger the modify event.
+        update_unprocessed_asset(&directories.unprocessed_assets_path(), "After Content");
+
+        // Expect the Processed event from the modify operation.
+        let event = observer_channel.recv_timeout(Duration::from_millis(1500)).unwrap();
+        assert_eq!(event, Event::Processed(asset_path.clone()));
+
+        let asset_folder = directories.processed_assets_path().join(&asset_path);
+        let processed_asset_path = asset_folder.join("test.bin");
+        assert!(processed_asset_path.exists());
+        let processed_content = fs::read_to_string(&processed_asset_path).unwrap();
+        assert_eq!(processed_content, "After Content");
         let asset_meta_file_path = asset_folder.join("asset.yaml");
         assert!(asset_meta_file_path.exists());
         let meta_file_content = fs::read_to_string(&asset_meta_file_path).unwrap();
