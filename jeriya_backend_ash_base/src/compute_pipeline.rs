@@ -25,7 +25,7 @@ pub struct GenericComputePipelineConfig {
 }
 
 pub struct GenericComputePipeline {
-    _config: GenericComputePipelineConfig,
+    pub config: GenericComputePipelineConfig,
     pipeline_layout: vk::PipelineLayout,
     compute_pipeline: vk::Pipeline,
     pub descriptor_set_layout: Arc<DescriptorSetLayout>,
@@ -111,7 +111,7 @@ impl GenericComputePipeline {
         };
 
         Ok(Self {
-            _config: config.clone(),
+            config: config.clone(),
             compute_pipeline,
             pipeline_layout,
             descriptor_set_layout,
