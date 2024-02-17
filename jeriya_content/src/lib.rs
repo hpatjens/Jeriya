@@ -58,6 +58,7 @@ pub mod asset_processor;
 pub mod common;
 pub mod model;
 pub mod point_cloud;
+pub mod read_asset;
 pub mod shader;
 
 pub type Result<T> = std::result::Result<T, Error>;
