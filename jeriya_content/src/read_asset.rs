@@ -3,15 +3,21 @@ use crate::{
     Error, Result,
 };
 use jeriya_shared::{
+    ahash,
     log::{error, info, warn},
+    parking_lot::Mutex,
     pathdiff,
 };
 use notify_debouncer_full::notify::{self, EventKind, ReadDirectoryChangesWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::{
-    env, fs, io,
+    collections::HashMap,
+    env, fs,
+    hash::Hasher,
+    io,
     path::{Path, PathBuf},
     result,
+    sync::Arc,
 };
 
 pub enum FileSystemEvent {
@@ -97,6 +103,13 @@ impl ReadAsset for FileSystem {
     }
 }
 
+fn hash_asset_file(absolute_path: impl AsRef<Path>) -> std::io::Result<u64> {
+    let bytes = std::fs::read(absolute_path)?;
+    let mut hasher = ahash::AHasher::default();
+    hasher.write(&bytes);
+    Ok(hasher.finish())
+}
+
 impl ImportSource for FileSystem {
     /// Sets the observer function that is called when an asset is created or modified.
     ///
@@ -105,42 +118,18 @@ impl ImportSource for FileSystem {
     /// If the `observer_fn` is already set.
     fn set_observer(&mut self, observer_fn: Box<ObserverFn>) -> Result<()> {
         if self.watcher.is_some() {
-            panic!("set_observer called although the observer is already set");
+            panic!("set_observer called although the observer is already set. You can only set the observer once.");
         }
         let root = self.root.clone();
 
-        let watch_fn = move |result: result::Result<notify::Event, notify::Error>| match result {
-            Ok(event) => {
-                let absolute_path = event.paths.first().expect("no path in event");
+        // Every file gets hashed and the hashes are stored in a map. If a file is modified
+        // the hash is checked and if it's different the observer function is called. This is
+        // necessary because the file watcher might emit multiple events for one file change
+        // but we only want to react once.
+        let hashes = Arc::new(Mutex::new(HashMap::<PathBuf, u64>::new()));
 
-                // Only changes in the meta file are relevant because there might be more than
-                // one file per asset and we only want to react to the change once. It is expected
-                // that the meta file is always changed or created last.
-                if !is_meta_file(absolute_path) {
-                    return;
-                }
-
-                // The file watcher returns absolute paths but he whole asset handling is based on
-                // relative paths because it's irrelavant where on the system they are located.
-                let Some(path) = pathdiff::diff_paths(absolute_path, &root) else {
-                    warn! {
-                        "Failed to get relative path of '{absolute_path}' relative to '{root}'",
-                        absolute_path = absolute_path.display(),
-                        root = root.display()
-                    };
-                    return;
-                };
-                assert!(path.is_relative(), "path '{}' is not relative", path.display());
-
-                // The asset path is the parent of the meta file.
-                let asset_path = path.parent().expect("path has no parent");
-
-                if let EventKind::Modify(_modify_event) = &event.kind {
-                    info!("Emitting modify event for asset '{}'", path.display());
-                    observer_fn(FileSystemEvent::Modify(asset_path.to_owned()))
-                }
-            }
-            Err(_) => todo!(),
+        let watch_fn = move |result: result::Result<notify::Event, notify::Error>| {
+            handle_event(&result, &root, &hashes, &observer_fn);
         };
 
         // Start the directory watcher.
@@ -148,8 +137,68 @@ impl ImportSource for FileSystem {
         watcher
             .watch(&self.root, RecursiveMode::Recursive)
             .map_err(|_| Error::FailedToStartDirectoryWatcher(self.root.clone()))?;
+
         self.watcher = Some(watcher);
 
         Ok(())
+    }
+}
+
+fn handle_event(
+    result: &std::result::Result<notify::Event, notify::Error>,
+    root: &PathBuf,
+    hashes: &Arc<Mutex<HashMap<PathBuf, u64>>>,
+    observer_fn: &Box<ObserverFn>,
+) {
+    let Ok(event) = result else {
+        warn!("Failed to get event from file watcher");
+        return;
+    };
+
+    let Some(absolute_path) = event.paths.first() else {
+        warn!("No path in event. The file watcher noticed an event but the path is missing.");
+        return;
+    };
+
+    // Only changes in the meta file are relevant because there might be more than
+    // one file per asset and we only want to react to the change once. It is expected
+    // that the meta file is always changed or created last.
+    if !is_meta_file(absolute_path) {
+        return;
+    }
+
+    // The file watcher returns absolute paths but he whole asset handling is based on
+    // relative paths because it's irrelavant where on the system they are located.
+    let Some(path) = pathdiff::diff_paths(absolute_path, &root) else {
+        warn! {
+            "Failed to get relative path of '{absolute_path}' relative to '{root}'",
+            absolute_path = absolute_path.display(),
+            root = root.display()
+        };
+        return;
+    };
+    assert!(path.is_relative(), "path '{}' is not relative", path.display());
+
+    // The asset path is the parent of the meta file.
+    let asset_path = path.parent().expect("path has no parent");
+
+    if let EventKind::Modify(_modify_event) = &event.kind {
+        let Ok(hash) = hash_asset_file(&absolute_path) else {
+            warn!("Failed to hash asset file '{}'", absolute_path.display());
+            return;
+        };
+
+        let mut hashes = hashes.lock();
+        if let Some(previous_hash) = hashes.get(absolute_path).cloned() {
+            if previous_hash == hash {
+                return;
+            } else {
+                hashes.insert(absolute_path.to_owned(), hash);
+            }
+        }
+        drop(hashes);
+
+        info!("Emitting modify event for asset '{}'", path.display());
+        observer_fn(FileSystemEvent::Modify(asset_path.to_owned()))
     }
 }
