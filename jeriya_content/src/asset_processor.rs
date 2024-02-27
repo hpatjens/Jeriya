@@ -589,6 +589,10 @@ mod tests {
         let observer_channel = asset_processor.observe();
         asset_processor.set_active(true).unwrap();
 
+        // Expect the Processed event from the create operation.
+        let event = observer_channel.recv_timeout(Duration::from_millis(1500)).unwrap();
+        assert_eq!(event, Event::Processed(asset_path.clone()));
+
         // Update the asset to trigger the modify event.
         update_unprocessed_asset(&directories.unprocessed_assets_path(), "After Content");
 
