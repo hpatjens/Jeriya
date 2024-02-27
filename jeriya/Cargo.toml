@@ -16,6 +16,6 @@ doc-comment = "0.3.3"
 jeriya_test = { path = "../jeriya_test" }
 jeriya_shared = { path = "../jeriya_shared" }
 jeriya_backend_ash = { path = "../jeriya_backend_ash" }
-fern = "0.6.1"
-spin_sleep = "1.1.1"
-gltf = "1.2.0"
+fern = "0.6.2"
+spin_sleep = "1.2.0"
+gltf = "1.4.0"
