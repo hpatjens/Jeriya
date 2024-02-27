@@ -164,7 +164,7 @@ impl Page {
 
     /// Returns `true` if the `Page` has space for another `Cluster`.
     pub fn has_space(&self) -> bool {
-        let result = self.clusters.len() + 1 <= Page::MAX_CLUSTERS;
+        let result = self.clusters.len() < Page::MAX_CLUSTERS;
         if result {
             jeriya_shared::assert!(self.point_positions.len() + Cluster::MAX_POINTS <= Page::MAX_POINTS);
             jeriya_shared::assert!(self.point_colors.len() + Cluster::MAX_POINTS <= Page::MAX_POINTS);

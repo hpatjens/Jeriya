@@ -148,7 +148,7 @@ fn handle_event(
     result: &std::result::Result<notify::Event, notify::Error>,
     root: &PathBuf,
     hashes: &Arc<Mutex<HashMap<PathBuf, u64>>>,
-    observer_fn: &Box<ObserverFn>,
+    observer_fn: &ObserverFn,
 ) {
     let Ok(event) = result else {
         warn!("Failed to get event from file watcher");
@@ -169,7 +169,7 @@ fn handle_event(
 
     // The file watcher returns absolute paths but he whole asset handling is based on
     // relative paths because it's irrelavant where on the system they are located.
-    let Some(path) = pathdiff::diff_paths(absolute_path, &root) else {
+    let Some(path) = pathdiff::diff_paths(absolute_path, root) else {
         warn! {
             "Failed to get relative path of '{absolute_path}' relative to '{root}'",
             absolute_path = absolute_path.display(),
@@ -183,7 +183,7 @@ fn handle_event(
     let asset_path = path.parent().expect("path has no parent");
 
     if let EventKind::Modify(_modify_event) = &event.kind {
-        let Ok(hash) = hash_asset_file(&absolute_path) else {
+        let Ok(hash) = hash_asset_file(absolute_path) else {
             warn!("Failed to hash asset file '{}'", absolute_path.display());
             return;
         };

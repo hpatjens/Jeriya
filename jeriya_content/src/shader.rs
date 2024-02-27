@@ -30,16 +30,16 @@ impl ShaderAsset {
 
         // Execute the shader compiler
         let output = Command::new("glslc.exe")
-            .args(&[src_path_str, "-o", dst_path_str])
+            .args([src_path_str, "-o", dst_path_str])
             .output()
             .map_err(|error| crate::Error::FailedToCompileShader(format!("Could not execute shader compiler: {}", error)))?;
 
         // Check if the shader compiler was successful
-        let stdout = String::from_utf8(output.stdout).map_err(|error| crate::Error::Utf8Error(error))?;
-        let stderr = String::from_utf8(output.stderr).map_err(|error| crate::Error::Utf8Error(error))?;
+        let stdout = String::from_utf8(output.stdout).map_err(crate::Error::Utf8Error)?;
+        let stderr = String::from_utf8(output.stderr).map_err(crate::Error::Utf8Error)?;
 
         if output.status.success() {
-            let spirv = std::fs::read(dst_path_str).map_err(|error| crate::Error::IoError(error))?;
+            let spirv = std::fs::read(dst_path_str).map_err(crate::Error::IoError)?;
             Ok(Self::new(name, spirv))
         } else {
             let message = format!(

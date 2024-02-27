@@ -49,9 +49,9 @@ impl VulkanResourceCoordinator {
         renderer_config: &RendererConfig,
     ) -> jeriya_backend::Result<Self> {
         info!("Creating swapchain resources");
-        let swapchain_depth_buffers = SwapchainDepthBuffers::new(device, &swapchain)?;
-        let swapchain_render_pass = SwapchainRenderPass::new(device, &swapchain)?;
-        let swapchain_framebuffers = SwapchainFramebuffers::new(device, &swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
+        let swapchain_depth_buffers = SwapchainDepthBuffers::new(device, swapchain)?;
+        let swapchain_render_pass = SwapchainRenderPass::new(device, swapchain)?;
+        let swapchain_framebuffers = SwapchainFramebuffers::new(device, swapchain, &swapchain_depth_buffers, &swapchain_render_pass)?;
 
         info!("Creating specialization constants");
         let specialization_constants = {
@@ -206,11 +206,11 @@ impl VulkanResourceCoordinator {
         self.graphics_pipeline_mapping.insert(config.clone(), handle);
         self.shader_asset_graphics_pipeline_mapping
             .entry(vertex_shader.clone())
-            .or_insert_with(ahash::HashSet::default)
+            .or_default()
             .insert(handle);
         self.shader_asset_graphics_pipeline_mapping
             .entry(fragment_shader.clone())
-            .or_insert_with(ahash::HashSet::default)
+            .or_default()
             .insert(handle);
         Ok(pipeline)
     }
@@ -266,7 +266,7 @@ impl VulkanResourceCoordinator {
         self.compute_pipelines_mapping.insert(config.clone(), handle);
         self.shader_asset_compute_pipeline_mapping
             .entry(config.shader.clone())
-            .or_insert_with(ahash::HashSet::default)
+            .or_default()
             .insert(handle);
         Ok(pipeline)
     }

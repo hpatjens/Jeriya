@@ -58,8 +58,8 @@ impl<P: Clone + Send + Sync + 'static> PageBuffer<P> {
         let indices = self.free_list.iter().take(pages.len()).copied().collect::<Vec<_>>();
         jeriya_shared::assert_eq!(indices.len(), pages.len(), "Allocated indices and pages must have the same length");
 
-        for i in 0..pages.len() {
-            self.page_table[indices[i]] = true;
+        for index in &indices {
+            self.page_table[*index] = true;
             self.free_list.remove(0);
         }
         self.len += pages.len();

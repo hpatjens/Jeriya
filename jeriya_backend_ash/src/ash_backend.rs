@@ -402,7 +402,7 @@ fn run_asset_import_thread(asset_importer: Arc<AssetImporter>, backend: &Arc<Ash
             Ok(asset_import_result) => match asset_import_result.as_ref() {
                 Ok(asset) => {
                     if asset.value().is_some() {
-                        for (_, presenter) in &backend.presenters {
+                        for presenter in backend.presenters.values() {
                             presenter.send(PresenterEvent::ShaderImported(asset.clone()));
                         }
                     } else {

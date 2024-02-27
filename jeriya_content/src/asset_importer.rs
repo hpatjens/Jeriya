@@ -218,7 +218,7 @@ impl AssetImporter {
                 _ty: TypeId::of::<T>(),
                 value: Mutex::new(Some(Arc::new(value))),
             });
-            if let Some(_) = tracked_assets2.write().insert(asset_key.clone(), raw_asset.clone()) {
+            if tracked_assets2.write().insert(asset_key.clone(), raw_asset.clone()).is_some() {
                 trace!("Tracked asset updated: {asset_key}");
             }
             Ok(Asset {

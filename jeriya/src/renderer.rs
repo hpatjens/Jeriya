@@ -240,8 +240,8 @@ where
             thread::spawn(move || run_deadlock_detection());
         }
 
-        let renderer_config = self.renderer_config.unwrap_or(RendererConfig::default());
-        let backend_config = self.backend_config.unwrap_or(B::BackendConfig::default());
+        let renderer_config = self.renderer_config.unwrap_or_default();
+        let backend_config = self.backend_config.unwrap_or_default();
         let asset_importer = self.asset_importer.expect("Asset importer must be set");
         let backend = B::new(renderer_config, backend_config, asset_importer, self.window_configs)?;
         Ok(Arc::new(Renderer::new(backend)))

@@ -301,7 +301,7 @@ fn main() -> ey::Result<()> {
     // This will upload the vertex positions and normals to the GPU asynchronously. When the upload
     // is done a MeshAttributes value will be uploaded to the GPU so that RigidMeshes can reference
     // the vertex data.
-    let mesh = &cube_model.meshes.get(0).unwrap().simple_mesh;
+    let mesh = &cube_model.meshes.first().unwrap().simple_mesh;
     let mesh_attributes_builder = MeshAttributes::builder()
         .with_vertex_positions(mesh.vertex_positions.clone())
         .with_vertex_normals(mesh.vertex_normals.clone())
@@ -525,7 +525,7 @@ fn main() -> ey::Result<()> {
                         WindowEvent::MouseWheel { delta, .. } => {
                             if window_id == window2.id() {
                                 match delta {
-                                    MouseScrollDelta::LineDelta(_x, y) => camera_controller2.zoom_out(-y as f32),
+                                    MouseScrollDelta::LineDelta(_x, y) => camera_controller2.zoom_out(-y),
                                     MouseScrollDelta::PixelDelta(delta) => camera_controller2.zoom_out(-delta.y as f32),
                                 }
                             }
