@@ -85,7 +85,10 @@ impl AssetImporter {
     /// # Example
     ///
     /// ```
-    /// use jeriya_content::asset_importer::{AssetImporter, FileSystem};
+    /// use jeriya_content::{
+    ///     asset_importer::{AssetImporter},
+    ///     read_asset::FileSystem,
+    /// };
     /// std::fs::create_dir_all("assets").unwrap();
     /// let asset_source = FileSystem::new("assets").unwrap();
     /// let asset_importer = AssetImporter::new(asset_source, 4).unwrap();
@@ -143,7 +146,10 @@ impl AssetImporter {
     /// # Example
     ///
     /// ```
-    /// use jeriya_content::asset_importer::{AssetImporter, FileSystem};
+    /// use jeriya_content::{
+    ///     asset_importer::{AssetImporter},
+    ///     read_asset::FileSystem,
+    /// };
     /// const ASSET_FOLDER: &str = "assets";
     /// std::fs::create_dir_all(ASSET_FOLDER).unwrap();
     /// let asset_importer = AssetImporter::default_from(ASSET_FOLDER).unwrap();
@@ -164,7 +170,11 @@ impl AssetImporter {
     ///
     /// ```
     /// # use std::sync::Arc;
-    /// use jeriya_content::{asset_importer::{AssetImporter, FileSystem}, Error};
+    /// use jeriya_content::{
+    ///     asset_importer::{AssetImporter},
+    ///     read_asset::FileSystem,
+    ///     Error,
+    /// };
     /// std::fs::create_dir_all("assets").unwrap();
     /// let asset_source = FileSystem::new("assets").unwrap();
     /// let mut asset_importer = AssetImporter::new(asset_source, 4).unwrap();
@@ -257,7 +267,11 @@ impl AssetImporter {
     ///
     /// ```
     /// # use std::sync::Arc;
-    /// # use jeriya_content::{asset_importer::{AssetImporter, FileSystem}, Error};
+    /// use jeriya_content::{
+    ///     asset_importer::{AssetImporter},
+    ///     read_asset::FileSystem,
+    ///     Error,
+    /// };
     /// # std::fs::create_dir_all("assets").unwrap();
     /// # let asset_source = FileSystem::new("assets").unwrap();
     /// let mut asset_importer = AssetImporter::new(asset_source, 4)
@@ -292,7 +306,11 @@ impl AssetImporter {
     ///
     /// ```
     /// # use std::{sync::Arc, fs::File, io::Write};
-    /// # use jeriya_content::{asset_importer::{AssetImporter, FileSystem}, Error};
+    /// use jeriya_content::{
+    ///     asset_importer::{AssetImporter},
+    ///     read_asset::FileSystem,
+    ///     Error,
+    /// };
     /// # std::fs::create_dir_all("assets").unwrap();
     /// # let asset_source = FileSystem::new("assets").unwrap();
     /// let mut asset_importer = AssetImporter::new(asset_source, 4)
@@ -318,7 +336,11 @@ impl AssetImporter {
     /// # Example
     ///
     /// ```
-    /// # use jeriya_content::{asset_importer::{AssetImporter, FileSystem}, common::AssetKey};
+    /// # use jeriya_content::{
+    /// #     asset_importer::{AssetImporter},
+    /// #     common::AssetKey,
+    /// #     read_asset::FileSystem,
+    /// # };
     /// # std::fs::create_dir_all("assets").unwrap();
     /// # let asset_source = FileSystem::new("assets").unwrap();
     /// let asset_importer = AssetImporter::new(asset_source, 4).unwrap();
@@ -341,7 +363,11 @@ impl AssetImporter {
     /// # Example
     ///
     /// ```
-    /// # use jeriya_content::{asset_importer::{AssetImporter, FileSystem}, common::AssetKey};
+    /// # use jeriya_content::{
+    /// #     asset_importer::{AssetImporter},
+    /// #     common::AssetKey,
+    /// #     read_asset::FileSystem,
+    /// # };
     /// # std::fs::create_dir_all("assets").unwrap();
     /// # let asset_source = FileSystem::new("assets").unwrap();
     /// let asset_importer = AssetImporter::new(asset_source, 4).unwrap();
@@ -554,7 +580,7 @@ mod tests {
         let root = TempDir::new("root").unwrap();
 
         let asset_source = FileSystem::new(root.path()).unwrap();
-        let mut asset_importer = AssetImporter::new(asset_source, 4).unwrap().register::<String>(
+        let asset_importer = AssetImporter::new(asset_source, 4).unwrap().register::<String>(
             "txt",
             Box::new(|data| {
                 std::str::from_utf8(data)
