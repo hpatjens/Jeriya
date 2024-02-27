@@ -56,7 +56,7 @@ impl FileSystem {
     /// # Example
     ///
     /// ```
-    /// use jeriya_content::asset_importer::FileSystem;
+    /// use jeriya_content::read_asset::FileSystem;
     /// std::fs::create_dir_all("assets").unwrap();
     /// let _file_system = FileSystem::new("assets").unwrap();
     /// ```
