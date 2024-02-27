@@ -46,7 +46,7 @@ impl GenericComputePipeline {
 
         let shader = ShaderModule::new(
             device,
-            Cursor::new(&shader_spirv.as_ref()),
+            Cursor::new(shader_spirv),
             debug_info!("GenericComputePipeline-ShaderModule"),
         )?;
 

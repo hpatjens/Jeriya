@@ -44,8 +44,8 @@ impl Instance {
             active_layers.extend(
                 available_layers
                     .iter()
+                    .filter(|&layer| layer == "VK_LAYER_LUNARG_standard_validation" || layer == "VK_LAYER_KHRONOS_validation")
                     .cloned()
-                    .filter(|layer| layer == "VK_LAYER_LUNARG_standard_validation" || layer == "VK_LAYER_KHRONOS_validation")
                     .collect::<Vec<_>>(),
             );
         }

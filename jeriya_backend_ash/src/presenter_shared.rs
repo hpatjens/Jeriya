@@ -34,7 +34,7 @@ impl PresenterShared {
         )?;
 
         Ok(Self {
-            window_id: window_id.clone(),
+            window_id: *window_id,
             frame_index: FrameIndex::new(),
             desired_swapchain_length,
             surface: surface.clone(),

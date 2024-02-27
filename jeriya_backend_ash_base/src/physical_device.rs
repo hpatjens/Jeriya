@@ -30,7 +30,7 @@ impl PhysicalDevice {
 
         // Rate PhysicalDevices and select the best one
         let rated = rate_physical_devices(instance, physical_devices)?;
-        let physical_device = rated.get(0).expect("no physical devices after rating");
+        let physical_device = rated.first().expect("no physical devices after rating");
 
         let physical_device_properties = unsafe { instance.get_physical_device_properties(*physical_device) };
         info!("Selected PhysicalDevice: {:#?}", physical_device_properties);
