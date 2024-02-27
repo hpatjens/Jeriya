@@ -2,7 +2,7 @@ use std::{
     collections::BTreeMap,
     sync::Arc,
     thread::{self, JoinHandle},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use crate::{
@@ -23,7 +23,7 @@ use jeriya_shared::{
     debug_info,
     log::{info, trace},
     parking_lot::Mutex,
-    spin_sleep,
+    spin_sleep_util,
     tracy_client::Client,
     winit::window::WindowId,
     EventQueue, FrameRate,
@@ -130,15 +130,13 @@ fn run_presenter_thread(
     // inserted into the `ImmediateRenderingFrameTask`.
     let mut immediate_rendering_frames = BTreeMap::<&'static str, ImmediateRenderingFrameTask>::new();
 
-    let mut loop_helper = match frame_rate {
-        FrameRate::Unlimited => spin_sleep::LoopHelper::builder().build_without_target_rate(),
-        FrameRate::Limited(frame_rate) => spin_sleep::LoopHelper::builder().build_with_target_rate(frame_rate as f64),
+    let mut interval = match frame_rate {
+        FrameRate::Limited(frame_rate) => Some(spin_sleep_util::interval(Duration::from_secs_f32(1.0 / frame_rate as f32))),
+        FrameRate::Unlimited => None,
     };
 
     info!("Starting presenter loop with frame rate: {:?}", frame_rate);
     loop {
-        loop_helper.loop_start();
-
         let mut presenter_shared = presenter_shared.lock();
 
         // Set the swapchain index to None to indicate that the swapchain image is not yet determined
@@ -298,6 +296,8 @@ fn run_presenter_thread(
 
         drop(presenter_shared);
 
-        loop_helper.loop_sleep();
+        if let Some(interval) = &mut interval {
+            interval.tick();
+        }
     }
 }

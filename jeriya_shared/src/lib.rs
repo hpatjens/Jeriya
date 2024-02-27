@@ -48,6 +48,7 @@ pub use raw_window_handle;
 pub use rayon;
 pub use serde_json;
 pub use spin_sleep;
+pub use spin_sleep_util;
 pub use thiserror;
 pub use thread_id;
 pub use tracy_client;
