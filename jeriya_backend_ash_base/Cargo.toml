@@ -4,7 +4,7 @@ version = "0.5.0"
 edition = "2021"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3.4", features = ["windef", "winuser"] }
+winapi = { version = "0.3.9", features = ["windef", "winuser"] }
 
 [dependencies]
 jeriya_test = { path = "../jeriya_test" }

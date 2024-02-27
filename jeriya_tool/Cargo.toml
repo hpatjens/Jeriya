@@ -12,6 +12,6 @@ default = [
 [dependencies]
 jeriya_shared = { path = "../jeriya_shared" }
 jeriya_content = { path = "../jeriya_content" }
-clap = { version = "4.4.7", features = ["derive"] }
+clap = { version = "4.5.1", features = ["derive"] }
 color-eyre = "0.6.2"
-fern = "0.6.1"
+fern = "0.6.2"
