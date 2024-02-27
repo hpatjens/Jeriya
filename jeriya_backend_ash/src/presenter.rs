@@ -242,12 +242,12 @@ fn run_presenter_thread(
                 // Process Transactions which update the persistent frame state
                 persistent_frame_state.process_transactions()?;
 
+                // Reset CommandPool
+                persistent_frame_state.command_pool.reset()?;
+
                 // Free the frame graph of the frame that was previously rendered in this position
                 let previous_frame_graph = compiled_frame_graphs.get_mut(&presenter_shared.frame_index).take();
                 drop(previous_frame_graph);
-
-                // Reset CommandPool
-                persistent_frame_state.command_pool.reset()?;
 
                 // Update the synchronization primitives for the next frame
                 persistent_frame_state.image_available_semaphore = image_available_semaphore;
@@ -261,7 +261,8 @@ fn run_presenter_thread(
                     &mut presenter_shared,
                     &immediate_rendering_frames,
                 )?;
-                // Free frame graph of the frame that is was previously rendered in this position and replace it with the new one
+                // Set the compiled frame graph for the current frame
+                assert!(compiled_frame_graphs.get(&presenter_shared.frame_index).is_none());
                 compiled_frame_graphs
                     .get_mut(&presenter_shared.frame_index)
                     .replace(compiled_frame_graph);
