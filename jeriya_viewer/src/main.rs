@@ -39,7 +39,7 @@ use jeriya_shared::{
     log::{self, error, info},
     nalgebra::{self, Matrix4, Scale3, Translation3, Vector2, Vector3, Vector4},
     parking_lot::Mutex,
-    spin_sleep,
+    spin_sleep_util,
     winit::{
         dpi::LogicalSize,
         event::{ElementState, Event, MouseButton, MouseScrollDelta, WindowEvent},
@@ -499,7 +499,7 @@ fn main() -> ey::Result<()> {
     let mut update_loop_frame_index = 0;
     let mut mesh_count = 0;
     let mut last_mesh_insert_t = Duration::from_secs(0);
-    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(UPDATE_FRAMERATE as f64);
+    let mut interval = spin_sleep_util::interval(Duration::from_secs_f32(1.0 / UPDATE_FRAMERATE as f32));
     event_loop
         .run(move |event, event_loop_window_target| match event {
             Event::WindowEvent {
@@ -538,7 +538,6 @@ fn main() -> ey::Result<()> {
                 }
             }
             Event::AboutToWait => {
-                loop_helper.loop_start();
                 let frame_start_time = Instant::now();
                 let t = frame_start_time - loop_start_time;
                 let dt = frame_start_time - last_frame_start_time;
@@ -581,7 +580,7 @@ fn main() -> ey::Result<()> {
 
                 update_loop_frame_index += 1;
                 last_frame_start_time = frame_start_time;
-                loop_helper.loop_sleep();
+                interval.tick();
             }
             _ => (),
         })
