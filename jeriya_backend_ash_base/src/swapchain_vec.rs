@@ -6,8 +6,8 @@ pub struct SwapchainVec<T> {
 }
 
 impl<T> SwapchainVec<T> {
-    const OUT_OF_BOUNDS_MSG: &str = "swapchain index was out of bounds while accessing a SwapchainVec";
-    const MUST_BE_SET_MST: &str = "swapchain index must be set before accessing a SwapchainVec";
+    const OUT_OF_BOUNDS_MSG: &'static str = "swapchain index was out of bounds while accessing a SwapchainVec";
+    const MUST_BE_SET_MST: &'static str = "swapchain index must be set before accessing a SwapchainVec";
 
     /// Creates a new `SwapchainVec<T>` for the given `Swapchain` by using the function `init` to initialize the elements
     pub fn new<F>(swapchain: &Swapchain, init: F) -> crate::Result<Self>
