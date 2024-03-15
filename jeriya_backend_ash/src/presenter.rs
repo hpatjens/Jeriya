@@ -6,12 +6,12 @@ use std::{
 };
 
 use crate::{
-    ash_immediate::ImmediateRenderingFrameTask, backend_shared::BackendShared, compiled_frame_graph::CompiledFrameGraph,
-    persistent_frame_state::PersistentFrameState, presenter_shared::PresenterShared,
+    backend_shared::BackendShared, compiled_frame_graph::CompiledFrameGraph, persistent_frame_state::PersistentFrameState,
+    presenter_shared::PresenterShared,
 };
 
 use jeriya_backend::{
-    immediate::{CommandBuffer, ImmediateRenderingFrame},
+    immediate::{CommandBuffer, ImmediateRenderingFrame, ImmediateRenderingFrameTask},
     instances::camera_instance::CameraInstance,
     resources::ResourceEvent,
     transactions::Transaction,
