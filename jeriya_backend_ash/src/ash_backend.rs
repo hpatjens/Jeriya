@@ -52,7 +52,7 @@ use jeriya_shared::{
     nalgebra::Vector4,
     tracy_client::Client,
     winit::window::WindowId,
-    AsDebugInfo, DebugInfo, RendererConfig, WindowConfig,
+    AsDebugInfo, RendererConfig, WindowConfig,
 };
 
 pub struct AshBackend {
