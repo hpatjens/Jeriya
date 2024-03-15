@@ -9,7 +9,6 @@ use std::{
 };
 
 use crate::{
-    ash_immediate::{AshImmediateCommandBufferBuilderHandler, AshImmediateCommandBufferHandler},
     backend_shared::BackendShared,
     presenter::{Presenter, PresenterEvent},
 };
@@ -33,7 +32,7 @@ use jeriya_backend::{
         ResourceEvent, ResourceReceiver,
     },
     transactions::{self, PushEvent, Transaction, TransactionProcessor},
-    Backend, ImmediateCommandBufferBuilderHandler,
+    Backend,
 };
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
@@ -201,9 +200,6 @@ impl AllocateGpuIndex<PointCloudAttributes> for AshBackend {
 impl Backend for AshBackend {
     type BackendConfig = Config;
 
-    type ImmediateCommandBufferBuilderHandler = AshImmediateCommandBufferBuilderHandler;
-    type ImmediateCommandBufferHandler = AshImmediateCommandBufferHandler;
-
     fn new(
         renderer_config: RendererConfig,
         backend_config: Self::BackendConfig,
@@ -326,25 +322,14 @@ impl Backend for AshBackend {
         Ok(backend)
     }
 
-    fn create_immediate_command_buffer_builder(
-        &self,
-        debug_info: DebugInfo,
-    ) -> jeriya_backend::Result<immediate::CommandBufferBuilder<Self>> {
-        let command_buffer_builder = AshImmediateCommandBufferBuilderHandler::new(self, debug_info)?;
-        Ok(immediate::CommandBufferBuilder::new(command_buffer_builder))
-    }
-
     fn render_immediate_command_buffer(
         &self,
         immediate_rendering_frame: &ImmediateRenderingFrame,
-        command_buffer: Arc<immediate::CommandBuffer<Self>>,
+        command_buffer: immediate::CommandBuffer,
     ) -> jeriya_backend::Result<()> {
         for presenter in self.presenters.values() {
             presenter.send(PresenterEvent::RenderImmediateCommandBuffer {
-                immediate_command_buffer_handler: AshImmediateCommandBufferHandler {
-                    commands: command_buffer.command_buffer().commands.clone(),
-                    debug_info: command_buffer.command_buffer().debug_info.clone(),
-                },
+                command_buffer: command_buffer.clone(),
                 immediate_rendering_frame: immediate_rendering_frame.clone(),
             });
         }

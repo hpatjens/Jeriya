@@ -82,8 +82,8 @@ where
     }
 
     /// Creates a new [`CommandBufferBuilder`]
-    pub fn create_immediate_command_buffer_builder(&self, debug_info: DebugInfo) -> Result<CommandBufferBuilder<B>> {
-        self.backend.create_immediate_command_buffer_builder(debug_info)
+    pub fn create_immediate_command_buffer_builder(&self, debug_info: DebugInfo) -> Result<CommandBufferBuilder> {
+        Ok(CommandBufferBuilder::new(debug_info))
     }
 
     /// Renders a [`CommandBuffer`] for the given [`ImmediateRenderingFrame`].
@@ -101,7 +101,7 @@ where
     pub fn render_immediate_command_buffer(
         &self,
         immediate_rendering_frame: &ImmediateRenderingFrame,
-        command_buffer: Arc<CommandBuffer<B>>,
+        command_buffer: CommandBuffer,
     ) -> Result<()> {
         self.backend
             .render_immediate_command_buffer(immediate_rendering_frame, command_buffer)
@@ -395,9 +395,6 @@ mod tests {
     impl Backend for DummyBackend {
         type BackendConfig = ();
 
-        type ImmediateCommandBufferBuilderHandler = DummyImmediateCommandBufferBuilderHandler;
-        type ImmediateCommandBufferHandler = DummyImmediateCommandBufferHandler;
-
         fn new(
             _renderer_config: jeriya_shared::RendererConfig,
             _backend_config: Self::BackendConfig,
@@ -412,63 +409,16 @@ mod tests {
             }))
         }
 
-        fn create_immediate_command_buffer_builder(&self, _debug_info: DebugInfo) -> jeriya_backend::Result<CommandBufferBuilder<Self>> {
-            Ok(CommandBufferBuilder::new(DummyImmediateCommandBufferBuilderHandler(debug_info!(
-                "dummy"
-            ))))
-        }
-
         fn render_immediate_command_buffer(
             &self,
             _immediate_rendering_frame: &ImmediateRenderingFrame,
-            _command_buffer: Arc<CommandBuffer<Self>>,
+            _command_buffer: CommandBuffer,
         ) -> jeriya_backend::Result<()> {
             Ok(())
         }
 
         fn set_active_camera(&self, _window_id: WindowId, _camera_instance: &CameraInstance) -> jeriya_backend::Result<()> {
             Ok(())
-        }
-    }
-
-    impl ImmediateCommandBufferBuilderHandler for DummyImmediateCommandBufferBuilderHandler {
-        type Backend = DummyBackend;
-
-        fn new(_backend: &Self::Backend, debug_info: DebugInfo) -> jeriya_backend::Result<Self>
-        where
-            Self: Sized,
-        {
-            Ok(DummyImmediateCommandBufferBuilderHandler(debug_info))
-        }
-
-        fn build(self) -> jeriya_backend::Result<Arc<CommandBuffer<Self::Backend>>> {
-            Ok(Arc::new(CommandBuffer::new(DummyImmediateCommandBufferHandler(self.0))))
-        }
-        fn matrix(&mut self, _matrix: jeriya_shared::nalgebra::Matrix4<f32>) -> jeriya_backend::Result<()> {
-            Ok(())
-        }
-        fn push_line_lists(&mut self, _line_lists: &[jeriya_backend::immediate::LineList]) -> jeriya_backend::Result<()> {
-            Ok(())
-        }
-
-        fn push_line_strips(&mut self, _line_strips: &[jeriya_backend::immediate::LineStrip]) -> jeriya_backend::Result<()> {
-            Ok(())
-        }
-        fn push_triangle_lists(&mut self, _triangle_lists: &[jeriya_backend::immediate::TriangleList]) -> jeriya_backend::Result<()> {
-            Ok(())
-        }
-        fn push_triangle_strips(&mut self, _triangle_strips: &[jeriya_backend::immediate::TriangleStrip]) -> jeriya_backend::Result<()> {
-            Ok(())
-        }
-    }
-    impl AsDebugInfo for DummyImmediateCommandBufferBuilderHandler {
-        fn as_debug_info(&self) -> &DebugInfo {
-            &self.0
-        }
-    }
-    impl AsDebugInfo for DummyImmediateCommandBufferHandler {
-        fn as_debug_info(&self) -> &DebugInfo {
-            &self.0
         }
     }
 }

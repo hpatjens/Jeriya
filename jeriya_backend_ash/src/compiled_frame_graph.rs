@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, mem, sync::Arc};
 
+use jeriya_backend::immediate::{self, ImmediateCommand};
 use jeriya_backend_ash_base as base;
 use jeriya_backend_ash_base::{
     buffer::BufferUsageFlags,
@@ -16,9 +17,7 @@ use jeriya_content::common::AssetKey;
 use jeriya_shared::{debug_info, nalgebra::Matrix4, plot_with_index, tracy_client::plot, winit::window::WindowId};
 
 use crate::{
-    ash_immediate::{ImmediateCommand, ImmediateRenderingFrameTask},
-    backend_shared::BackendShared,
-    persistent_frame_state::PersistentFrameState,
+    ash_immediate::ImmediateRenderingFrameTask, backend_shared::BackendShared, persistent_frame_state::PersistentFrameState,
     presenter_shared::PresenterShared,
 };
 
@@ -614,8 +613,8 @@ impl CompiledFrameGraph {
         // Collect vertex attributes for all immediate rendering requests
         let mut data = Vec::new();
         for task in immediate_rendering_frames.values() {
-            for command_buffer in &task.immediate_command_buffer_handlers {
-                for command in &command_buffer.commands {
+            for command_buffer in &task.command_buffers {
+                for command in command_buffer.commands() {
                     match command {
                         ImmediateCommand::Matrix(..) => {}
                         ImmediateCommand::LineList(line_list) => data.extend_from_slice(line_list.positions()),
@@ -639,8 +638,8 @@ impl CompiledFrameGraph {
             frame.presenter_index,
             immediate_rendering_frames
                 .values()
-                .flat_map(|task| &task.immediate_command_buffer_handlers)
-                .flat_map(|command_buffer| &command_buffer.commands)
+                .flat_map(|task| &task.command_buffers)
+                .flat_map(immediate::CommandBuffer::commands)
                 .count() as f64
         );
 
@@ -648,9 +647,9 @@ impl CompiledFrameGraph {
         let mut first_vertex = 0;
         let mut last_matrix = Matrix4::identity();
         for task in immediate_rendering_frames.values() {
-            for command_buffer in &task.immediate_command_buffer_handlers {
+            for command_buffer in &task.command_buffers {
                 let mut last_topology = None;
-                for command in &command_buffer.commands {
+                for command in command_buffer.commands() {
                     match command {
                         ImmediateCommand::Matrix(matrix) => last_matrix = *matrix,
                         ImmediateCommand::LineList(line_list) => {
