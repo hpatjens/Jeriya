@@ -18,7 +18,7 @@ use crate::{
 
 pub struct DeviceVisibleBuffer<T> {
     buffer: UnsafeBuffer<T>,
-    device: Arc<Device>,
+    _device: Arc<Device>,
 }
 
 #[profile]
@@ -42,7 +42,7 @@ impl<T: Clone + 'static + Send + Sync> DeviceVisibleBuffer<T> {
             buffer
         };
         Ok(Arc::new(Self {
-            device: device.clone(),
+            _device: device.clone(),
             buffer,
         }))
     }
@@ -68,8 +68,8 @@ impl<T: Clone + 'static + Send + Sync> DeviceVisibleBuffer<T> {
         transfer_queue: &mut Queue,
         command_pool: &Arc<CommandPool>,
     ) -> crate::Result<()> {
-        let mut command_buffer = CommandBuffer::new(&self.device, command_pool, debug_info!("CommandBuffer-for-DeviceVisibleBuffer"))?;
-        CommandBufferBuilder::new(&self.device, &mut command_buffer)?
+        let mut command_buffer = CommandBuffer::new(&self._device, command_pool, debug_info!("CommandBuffer-for-DeviceVisibleBuffer"))?;
+        CommandBufferBuilder::new(&self._device, &mut command_buffer)?
             .begin_command_buffer()?
             .copy_buffer_from_host_to_device(source_buffer, self)
             .end_command_buffer()?;
@@ -80,30 +80,6 @@ impl<T: Clone + 'static + Send + Sync> DeviceVisibleBuffer<T> {
     /// Size of the buffer in bytes
     pub fn byte_size(&self) -> usize {
         self.buffer.byte_size()
-    }
-}
-
-impl<T: Clone + 'static + Send + Sync + Default> DeviceVisibleBuffer<T> {
-    /// Reads the contents of the buffer into a new `HostVisibleBuffer` and waits for the transfer to finish.
-    pub fn read_into_new_buffer_and_wait(
-        self: &Arc<Self>,
-        transfer_queue: &mut Queue,
-        command_pool: &Arc<CommandPool>,
-    ) -> crate::Result<Arc<HostVisibleBuffer<T>>> {
-        let result = Arc::new(HostVisibleBuffer::new(
-            &self.device,
-            &vec![T::default(); self.byte_size() / std::mem::size_of::<T>()],
-            BufferUsageFlags::TRANSFER_DST_BIT,
-            debug_info!("HostVisibleBuffer-fors-DeviceVisibleBuffer"),
-        )?);
-        let mut command_buffer = CommandBuffer::new(&self.device, command_pool, debug_info!("CommandBuffer-for-DeviceVisibleBuffer"))?;
-        CommandBufferBuilder::new(&self.device, &mut command_buffer)?
-            .begin_command_buffer()?
-            .copy_buffer_from_device_to_host(self, &result)
-            .end_command_buffer()?;
-        transfer_queue.submit(command_buffer)?;
-        transfer_queue.wait_idle()?;
-        Ok(result)
     }
 }
 
