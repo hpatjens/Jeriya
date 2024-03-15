@@ -1,7 +1,4 @@
-use std::{
-    mem,
-    sync::{mpsc::Receiver, Arc},
-};
+use std::{mem, sync::Arc};
 
 use crate::{
     buffer::{Buffer, BufferUsageFlags, GeneralBuffer},
@@ -12,7 +9,7 @@ use crate::{
     AsRawVulkan, Error,
 };
 use ash::vk;
-use jeriya_shared::{debug_info, parking_lot::Mutex, AsDebugInfo, DebugInfo};
+use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
 
 /// Device visible buffer of a constant size which can be filled by pushing chunks of data to it via a staging buffer.
 pub struct StagedPushOnlyBuffer<T> {
@@ -106,7 +103,8 @@ impl<T: Clone + 'static + Send + Sync> StagedPushOnlyBuffer<T> {
 impl<T: Clone + 'static + Default + Send + Sync> StagedPushOnlyBuffer<T> {
     /// Reads all data from the [`DeviceVisibleBuffer`] into a newly constructed [`HostVisibleBuffer`] and issues a copy command to the [`CommandBufferBuilder`] to copy the data from the [`DeviceVisibleBuffer`] to the [`HostVisibleBuffer`].
     #[cfg(test)]
-    pub fn read_all(&mut self, command_buffer_builder: &mut CommandBufferBuilder) -> crate::Result<Receiver<Vec<T>>> {
+    pub fn read_all(&mut self, command_buffer_builder: &mut CommandBufferBuilder) -> crate::Result<std::sync::mpsc::Receiver<Vec<T>>> {
+        use jeriya_shared::parking_lot::Mutex;
         let host_visible_buffer = Arc::new(Mutex::new(HostVisibleBuffer::<T>::new(
             &self.device,
             &vec![Default::default(); self.len],
