@@ -6,15 +6,15 @@ use std::{
 };
 
 use crate::{
-    ash_immediate::{AshImmediateCommandBufferHandler, ImmediateRenderingFrameTask},
-    backend_shared::BackendShared,
-    compiled_frame_graph::CompiledFrameGraph,
-    persistent_frame_state::PersistentFrameState,
-    presenter_shared::PresenterShared,
+    ash_immediate::ImmediateRenderingFrameTask, backend_shared::BackendShared, compiled_frame_graph::CompiledFrameGraph,
+    persistent_frame_state::PersistentFrameState, presenter_shared::PresenterShared,
 };
 
 use jeriya_backend::{
-    immediate::ImmediateRenderingFrame, instances::camera_instance::CameraInstance, resources::ResourceEvent, transactions::Transaction,
+    immediate::{CommandBuffer, ImmediateRenderingFrame},
+    instances::camera_instance::CameraInstance,
+    resources::ResourceEvent,
+    transactions::Transaction,
 };
 use jeriya_backend_ash_base::{fence::Fence, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_content::{asset_importer::Asset, shader::ShaderAsset};
@@ -31,7 +31,7 @@ use jeriya_shared::{
 
 pub enum PresenterEvent {
     RenderImmediateCommandBuffer {
-        immediate_command_buffer_handler: AshImmediateCommandBufferHandler,
+        command_buffer: CommandBuffer,
         immediate_rendering_frame: ImmediateRenderingFrame,
     },
     ProcessTransaction(Transaction),
@@ -163,7 +163,7 @@ fn run_presenter_thread(
         while let Some(new_events) = event_queue.pop() {
             match new_events {
                 PresenterEvent::RenderImmediateCommandBuffer {
-                    immediate_command_buffer_handler,
+                    command_buffer,
                     immediate_rendering_frame,
                 } => {
                     // Check if the newly received immediate rendering frame is newer than the one that is already rendering
@@ -179,13 +179,13 @@ fn run_presenter_thread(
 
                     // Insert the newly received command buffer
                     if let Some(task) = immediate_rendering_frames.get_mut(&immediate_rendering_frame.update_loop_name()) {
-                        task.immediate_command_buffer_handlers.push(immediate_command_buffer_handler);
+                        task.command_buffers.push(command_buffer);
                     } else {
                         let task = ImmediateRenderingFrameTask {
                             start_time: Instant::now(),
                             is_timed_out: false,
                             immediate_rendering_frame: immediate_rendering_frame.clone(),
-                            immediate_command_buffer_handlers: vec![immediate_command_buffer_handler],
+                            command_buffers: vec![command_buffer],
                         };
                         immediate_rendering_frames.insert(immediate_rendering_frame.update_loop_name(), task);
                     }
