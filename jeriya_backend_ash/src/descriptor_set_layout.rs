@@ -1,4 +1,4 @@
-use std::{any::TypeId, collections::BTreeMap, sync::Arc};
+use std::{any::TypeId, sync::Arc};
 
 use ash::vk::{self};
 
@@ -63,30 +63,6 @@ impl DescriptorSetLayout {
     /// Returns the [`Descriptor`]s of the `DescriptorSetLayout`
     pub fn descriptors(&self) -> &[Descriptor] {
         &self.descriptors
-    }
-
-    /// Returns all [`Descriptor`]s of the `DescriptorSetLayout` grouped by their [`DescriptorType`]s
-    pub fn descriptors_by_type(&self) -> BTreeMap<DescriptorType, Vec<Descriptor>> {
-        let mut descriptors_by_type = BTreeMap::new();
-        for descriptor in &self.descriptors {
-            descriptors_by_type
-                .entry(descriptor.descriptor_type)
-                .or_insert_with(Vec::new)
-                .push(descriptor.clone());
-        }
-        jeriya_shared::assert_eq!(descriptors_by_type.values().map(|v| v.len()).sum::<usize>(), self.descriptors.len());
-        descriptors_by_type
-    }
-
-    /// Returns all [`Descriptor`]s of the `DescriptorSetLayout` grouped by their [`Descriptor::binding`]s
-    pub fn descriptors_by_binding(&self) -> BTreeMap<u32, Descriptor> {
-        let mut descriptors_by_binding = BTreeMap::new();
-        for descriptor in &self.descriptors {
-            jeriya_shared::assert!(!descriptors_by_binding.contains_key(&descriptor.binding), "binding must be unique");
-            descriptors_by_binding.insert(descriptor.binding, descriptor.clone());
-        }
-        jeriya_shared::assert_eq!(descriptors_by_binding.len(), self.descriptors.len());
-        descriptors_by_binding
     }
 }
 

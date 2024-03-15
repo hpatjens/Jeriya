@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
 use ash::vk;
-use jeriya_macros::profile;
-use jeriya_shared::{debug_info, AsDebugInfo, DebugInfo};
+use jeriya_shared::{AsDebugInfo, DebugInfo};
 
 use crate::{
     buffer::{Buffer, BufferUsageFlags, GeneralBuffer},
-    command_buffer::CommandBuffer,
-    command_buffer_builder::CommandBufferBuilder,
-    command_pool::CommandPool,
     device::Device,
-    host_visible_buffer::HostVisibleBuffer,
-    queue::Queue,
     unsafe_buffer::UnsafeBuffer,
     AsRawVulkan,
+};
+
+#[cfg(test)]
+use crate::{
+    command_buffer::CommandBuffer, command_buffer_builder::CommandBufferBuilder, command_pool::CommandPool,
+    host_visible_buffer::HostVisibleBuffer, queue::Queue,
 };
 
 pub struct DeviceVisibleBuffer<T> {
@@ -21,7 +21,6 @@ pub struct DeviceVisibleBuffer<T> {
     _device: Arc<Device>,
 }
 
-#[profile]
 impl<T: Clone + 'static + Send + Sync> DeviceVisibleBuffer<T> {
     /// Creates a new `DeviceVisibleBuffer`.
     pub fn new(
@@ -48,6 +47,7 @@ impl<T: Clone + 'static + Send + Sync> DeviceVisibleBuffer<T> {
     }
 
     /// Creates a new DeviceVisibleBuffer and transfers the data from the given [`HostVisibleBuffer`] to it by submitting a [`CommandBuffer`] to the given transfer queue.
+    #[cfg(test)]
     pub fn new_and_transfer_from_host_visible(
         device: &Arc<Device>,
         source_buffer: &Arc<HostVisibleBuffer<T>>,
@@ -62,12 +62,15 @@ impl<T: Clone + 'static + Send + Sync> DeviceVisibleBuffer<T> {
     }
 
     /// Transfers the data from the [`HostVisibleBuffer`] to the [`DeviceVisibleBuffer`] by submitting a [`CommandBuffer`] to the given transfer [`Queue`].
+    #[cfg(test)]
     pub fn transfer_memory_with_command_buffer(
         self: &Arc<Self>,
         source_buffer: &Arc<HostVisibleBuffer<T>>,
         transfer_queue: &mut Queue,
         command_pool: &Arc<CommandPool>,
     ) -> crate::Result<()> {
+        use jeriya_shared::debug_info;
+
         let mut command_buffer = CommandBuffer::new(&self._device, command_pool, debug_info!("CommandBuffer-for-DeviceVisibleBuffer"))?;
         CommandBufferBuilder::new(&self._device, &mut command_buffer)?
             .begin_command_buffer()?

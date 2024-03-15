@@ -55,6 +55,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
     /// Creates a new `CommandBufferBuilder` with state `CommandBufferState::Recording`.
     ///
     /// After calling this the command buffer can be used to record commands immediately.
+    #[cfg(test)]
     pub fn begin(device: &Arc<Device>, command_buffer: &'buf mut CommandBuffer) -> crate::Result<Self> {
         let mut this = Self::new(device, command_buffer)?;
         this.begin_command_buffer()?;
@@ -67,6 +68,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         self.command_buffer
     }
 
+    #[cfg(test)]
     pub fn begin_command_buffer(&mut self) -> crate::Result<&mut Self> {
         self.command_buffer.begin()?;
         Ok(self)
@@ -177,15 +179,6 @@ impl<'buf> CommandBufferBuilder<'buf> {
         self
     }
 
-    pub fn draw_three_vertices(&mut self) -> &mut Self {
-        unsafe {
-            self.device
-                .as_raw_vulkan()
-                .cmd_draw(*self.command_buffer.as_raw_vulkan(), 3, 1, 0, 0);
-        }
-        self
-    }
-
     /// Draw vertices with the given `vertex_count` and `first_vertex`
     pub fn draw_vertices(&mut self, vertex_count: u32, first_vertex: u32) -> &mut Self {
         unsafe {
@@ -197,36 +190,11 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
 
     /// Copies the contents of the given `HostVisibleBuffer` to the given `DeviceVisibleBuffer`.
+    #[cfg(test)]
     pub fn copy_buffer_from_host_to_device<T: Clone + 'static + Send + Sync>(
         &mut self,
         src: &Arc<HostVisibleBuffer<T>>,
         dst: &Arc<DeviceVisibleBuffer<T>>,
-    ) -> &mut Self {
-        assert_eq!(src.byte_size(), dst.byte_size(), "buffers must have the same size");
-        unsafe {
-            let copy_region = vk::BufferCopy {
-                src_offset: 0,
-                dst_offset: 0,
-                size: src.byte_size() as u64,
-            };
-            let copy_regions = [copy_region];
-            self.device.as_raw_vulkan().cmd_copy_buffer(
-                *self.command_buffer.as_raw_vulkan(),
-                *src.as_raw_vulkan(),
-                *dst.as_raw_vulkan(),
-                &copy_regions,
-            );
-            self.command_buffer.push_dependency(src.clone());
-            self.command_buffer.push_dependency(dst.clone());
-            self
-        }
-    }
-
-    /// Copies the contents of the given `DeviceVisibleBuffer` to the given `HostVisibleBuffer`.
-    pub fn copy_buffer_from_device_to_host<T: Clone + 'static + Send + Sync>(
-        &mut self,
-        src: &Arc<DeviceVisibleBuffer<T>>,
-        dst: &Arc<HostVisibleBuffer<T>>,
     ) -> &mut Self {
         assert_eq!(src.byte_size(), dst.byte_size(), "buffers must have the same size");
         unsafe {
@@ -330,26 +298,6 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 .as_raw_vulkan()
                 .cmd_fill_buffer(*self.command_buffer.as_raw_vulkan(), *buffer.as_raw_vulkan(), offset, size, data)
         }
-        self
-    }
-
-    pub fn compute_to_vertex_pipeline_barrier(&mut self) -> &mut Self {
-        let memory_barrier = vk::MemoryBarrier::builder()
-            .src_access_mask(vk::AccessFlags::SHADER_WRITE)
-            .dst_access_mask(vk::AccessFlags::SHADER_READ)
-            .build();
-        let memory_barriers = [memory_barrier];
-        unsafe {
-            self.device.as_raw_vulkan().cmd_pipeline_barrier(
-                *self.command_buffer.as_raw_vulkan(),
-                vk::PipelineStageFlags::COMPUTE_SHADER,
-                vk::PipelineStageFlags::VERTEX_SHADER,
-                vk::DependencyFlags::empty(),
-                &memory_barriers,
-                &[],
-                &[],
-            )
-        };
         self
     }
 
@@ -505,26 +453,6 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 *self.command_buffer.as_raw_vulkan(),
                 vk::PipelineStageFlags::BOTTOM_OF_PIPE,
                 vk::PipelineStageFlags::TOP_OF_PIPE,
-                vk::DependencyFlags::empty(),
-                &memory_barriers,
-                &[],
-                &[],
-            )
-        };
-        self
-    }
-
-    pub fn full_barrier(&mut self) -> &mut Self {
-        let memory_barrier = vk::MemoryBarrier::builder()
-            .src_access_mask(vk::AccessFlags::MEMORY_READ | vk::AccessFlags::MEMORY_WRITE)
-            .dst_access_mask(vk::AccessFlags::MEMORY_READ | vk::AccessFlags::MEMORY_WRITE)
-            .build();
-        let memory_barriers = [memory_barrier];
-        unsafe {
-            self.device.as_raw_vulkan().cmd_pipeline_barrier(
-                *self.command_buffer.as_raw_vulkan(),
-                vk::PipelineStageFlags::ALL_COMMANDS,
-                vk::PipelineStageFlags::ALL_COMMANDS,
                 vk::DependencyFlags::empty(),
                 &memory_barriers,
                 &[],
