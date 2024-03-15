@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use jeriya_content::asset_importer::AssetImporter;
-use jeriya_shared::{nalgebra::Matrix4, winit::window::WindowId, AsDebugInfo, DebugInfo, RendererConfig, WindowConfig};
+use jeriya_shared::{winit::window::WindowId, RendererConfig, WindowConfig};
 
 use crate::{
     elements::{self, point_cloud::PointCloud, rigid_mesh::RigidMesh},
     gpu_index_allocator::AllocateGpuIndex,
-    immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip},
+    immediate::{CommandBuffer, ImmediateRenderingFrame},
     instances::{camera_instance::CameraInstance, point_cloud_instance::PointCloudInstance, rigid_mesh_instance::RigidMeshInstance},
     resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes, ResourceReceiver},
     transactions::TransactionProcessor,

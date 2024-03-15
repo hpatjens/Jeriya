@@ -281,14 +281,14 @@ mod tests {
     use jeriya_backend::{
         elements::{self, point_cloud::PointCloud, rigid_mesh::RigidMesh},
         gpu_index_allocator::{AllocateGpuIndex, GpuIndexAllocation},
-        immediate::{CommandBuffer, CommandBufferBuilder, ImmediateRenderingFrame},
+        immediate::{CommandBuffer, ImmediateRenderingFrame},
         instances::{camera_instance::CameraInstance, point_cloud_instance::PointCloudInstance, rigid_mesh_instance::RigidMeshInstance},
         resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes, ResourceEvent, ResourceReceiver},
         transactions::{Transaction, TransactionProcessor},
-        Backend, ImmediateCommandBufferBuilderHandler,
+        Backend,
     };
     use jeriya_content::asset_importer::AssetImporter;
-    use jeriya_shared::{debug_info, winit::window::WindowId, AsDebugInfo, DebugInfo, WindowConfig};
+    use jeriya_shared::{winit::window::WindowId, WindowConfig};
     use std::sync::{
         mpsc::{channel, Sender},
         Arc,
@@ -334,8 +334,6 @@ mod tests {
     struct DummyBackend {
         resource_event_sender: Sender<ResourceEvent>,
     }
-    struct DummyImmediateCommandBufferBuilderHandler(DebugInfo);
-    struct DummyImmediateCommandBufferHandler(DebugInfo);
     impl ResourceReceiver for DummyBackend {
         fn sender(&self) -> &Sender<ResourceEvent> {
             &self.resource_event_sender

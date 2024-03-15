@@ -1,9 +1,6 @@
-use std::{sync::Arc, time::Instant};
+use std::time::Instant;
 
-use jeriya_backend::immediate::{self, CommandBuffer, ImmediateRenderingFrame, LineList, LineStrip, TriangleList, TriangleStrip};
-use jeriya_shared::{nalgebra::Matrix4, AsDebugInfo, DebugInfo};
-
-use crate::AshBackend;
+use jeriya_backend::immediate::{CommandBuffer, ImmediateRenderingFrame};
 
 /// Stored per update loop to keep track of all the `ImmediateCommandBuffer`s
 /// that have to be rendered for that update loop.
