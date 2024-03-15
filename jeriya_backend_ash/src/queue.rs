@@ -37,9 +37,8 @@ impl SubmittedCommandBuffer {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub enum QueueType {
-    Presentation,
-}
+pub enum QueueType {}
+
 pub struct Queue {
     pub queue_family_index: u32,
     pub queue_index: u32,

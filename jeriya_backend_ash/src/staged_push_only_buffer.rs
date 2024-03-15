@@ -91,11 +91,13 @@ impl<T: Clone + 'static + Send + Sync> StagedPushOnlyBuffer<T> {
     }
 
     /// Returns `true` if the buffer is empty.
+    #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
 
     /// Returns the capacity of the buffer.
+    #[cfg(test)]
     pub fn capacity(&self) -> usize {
         self.capacity
     }
@@ -103,6 +105,7 @@ impl<T: Clone + 'static + Send + Sync> StagedPushOnlyBuffer<T> {
 
 impl<T: Clone + 'static + Default + Send + Sync> StagedPushOnlyBuffer<T> {
     /// Reads all data from the [`DeviceVisibleBuffer`] into a newly constructed [`HostVisibleBuffer`] and issues a copy command to the [`CommandBufferBuilder`] to copy the data from the [`DeviceVisibleBuffer`] to the [`HostVisibleBuffer`].
+    #[cfg(test)]
     pub fn read_all(&mut self, command_buffer_builder: &mut CommandBufferBuilder) -> crate::Result<Receiver<Vec<T>>> {
         let host_visible_buffer = Arc::new(Mutex::new(HostVisibleBuffer::<T>::new(
             &self.device,

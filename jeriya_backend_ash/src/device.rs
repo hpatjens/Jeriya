@@ -230,6 +230,7 @@ impl AsRawVulkan for Device {
 }
 
 /// Test fixture for a [`Device`] and all its dependencies
+#[cfg(test)]
 pub struct TestFixtureDevice {
     pub window: Window,
     pub entry: Arc<Entry>,
@@ -238,6 +239,7 @@ pub struct TestFixtureDevice {
     pub device: Arc<Device>,
 }
 
+#[cfg(test)]
 impl TestFixtureDevice {
     pub fn new() -> crate::Result<Self> {
         let window = create_window();

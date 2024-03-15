@@ -17,7 +17,6 @@ pub struct PageBuffer<P> {
     device_visible_buffer: Arc<DeviceVisibleBuffer<P>>,
     device: Arc<Device>,
     capacity: usize,
-    debug_info: DebugInfo,
 
     page_table: Vec<bool>,
     free_list: Vec<usize>,
@@ -39,7 +38,6 @@ impl<P: Clone + Send + Sync + 'static> PageBuffer<P> {
             device_visible_buffer,
             device: device.clone(),
             capacity,
-            debug_info,
             page_table: vec![false; capacity],
             free_list: (0..capacity).collect(),
             len: 0,
@@ -145,11 +143,6 @@ impl<P: Clone + Send + Sync + 'static> PageBuffer<P> {
     /// Returns `true` if the buffer is empty.
     pub fn is_empty(&self) -> bool {
         self.len == 0
-    }
-
-    /// Returns the `DebugInfo` of the buffer
-    pub fn debug_info(&self) -> &DebugInfo {
-        &self.debug_info
     }
 }
 
