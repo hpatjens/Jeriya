@@ -55,16 +55,19 @@ where
     }
 
     /// Returns the [`HostVisibleBuffer`] that stores the values of the [`FrameLocalBuffer`].
+    #[cfg(test)]
     pub fn host_visible_buffer(&self) -> &HostVisibleBuffer<T> {
         &self.host_visible_buffer
     }
 
     /// Returns the capacity of the [`FrameLocalBuffer`].
+    #[cfg(test)]
     pub fn capacity(&self) -> usize {
         self.host_visible_buffer.len()
     }
 
     /// Returns the [`DebugInfo`] of the [`FrameLocalBuffer`].
+    #[allow(dead_code)]
     pub fn debug_info(&self) -> &DebugInfo {
         &self.debug_info
     }

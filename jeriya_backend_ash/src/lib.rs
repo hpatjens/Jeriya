@@ -27,6 +27,8 @@ mod frame_local_buffer;
 mod graphics_pipeline;
 mod host_visible_buffer;
 mod instance;
+// PageBuffer is currently not used fully
+#[allow(dead_code)]
 mod page_buffer;
 mod persistent_frame_state;
 mod physical_device;
