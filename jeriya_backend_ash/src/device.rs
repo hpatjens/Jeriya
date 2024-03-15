@@ -1,19 +1,14 @@
 use std::{collections::BTreeMap, iter, sync::Arc, thread};
 
-use crate::{
-    entry::Entry, instance::Instance, physical_device::PhysicalDevice, queue_plan::QueuePlan, surface::Surface, AsRawVulkan, Error,
-    Extensions, PhysicalDeviceFeature,
-};
-
 use ash::{
     extensions::khr,
     vk::{self, PhysicalDeviceFeatures2, PhysicalDeviceShaderDrawParametersFeatures, PhysicalDeviceVulkan12Features},
 };
-use jeriya_shared::{
-    log::{info, trace},
-    winit::window::Window,
+
+use crate::{
+    instance::Instance, physical_device::PhysicalDevice, queue_plan::QueuePlan, AsRawVulkan, Error, Extensions, PhysicalDeviceFeature,
 };
-use jeriya_test::create_window;
+use jeriya_shared::log::{info, trace};
 
 pub struct Device {
     device: ash::Device,
@@ -232,16 +227,18 @@ impl AsRawVulkan for Device {
 /// Test fixture for a [`Device`] and all its dependencies
 #[cfg(test)]
 pub struct TestFixtureDevice {
-    pub window: Window,
-    pub entry: Arc<Entry>,
+    pub window: jeriya_shared::winit::window::Window,
+    pub entry: Arc<crate::entry::Entry>,
     pub instance: Arc<Instance>,
-    pub surface: Arc<Surface>,
+    pub surface: Arc<crate::surface::Surface>,
     pub device: Arc<Device>,
 }
 
 #[cfg(test)]
 impl TestFixtureDevice {
     pub fn new() -> crate::Result<Self> {
+        use crate::{entry::Entry, surface::Surface};
+        use jeriya_test::create_window;
         let window = create_window();
         let entry = Entry::new()?;
         let instance = Instance::new(&entry, "my_application", true)?;
