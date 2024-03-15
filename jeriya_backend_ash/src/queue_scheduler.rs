@@ -1,7 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use jeriya_backend_ash_base as base;
-use jeriya_backend_ash_base::{device::Device, queue::Queue};
+use crate::{device::Device, queue::Queue};
 use jeriya_shared::{
     debug_info,
     log::info,
@@ -36,7 +35,7 @@ pub struct QueueScheduler {
 }
 
 impl QueueScheduler {
-    pub fn new(device: &Arc<Device>) -> base::Result<Self> {
+    pub fn new(device: &Arc<Device>) -> crate::Result<Self> {
         let presentation_queues = device
             .queue_plan
             .presentation_queues

@@ -1,7 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use jeriya_backend_ash_base as base;
-use jeriya_backend_ash_base::{
+use crate::{
     compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig},
     device::Device,
     graphics_pipeline::GenericGraphicsPipeline,
@@ -91,7 +90,7 @@ impl VulkanResourceCoordinator {
         })
     }
 
-    pub fn recreate(&mut self, swapchain: &Swapchain) -> base::Result<()> {
+    pub fn recreate(&mut self, swapchain: &Swapchain) -> crate::Result<()> {
         self.swapchain_depth_buffers = SwapchainDepthBuffers::new(&self.device, swapchain)?;
         self.swapchain_render_pass = SwapchainRenderPass::new(&self.device, swapchain)?;
         self.swapchain_framebuffers =
@@ -99,7 +98,7 @@ impl VulkanResourceCoordinator {
         Ok(())
     }
 
-    pub fn update_shader(&mut self, shader_asset: Asset<ShaderAsset>) -> base::Result<()> {
+    pub fn update_shader(&mut self, shader_asset: Asset<ShaderAsset>) -> crate::Result<()> {
         info!("Updating shader {}", shader_asset.asset_key().as_str());
         if let Some(graphics_pipeline_handles) = self.shader_asset_graphics_pipeline_mapping.get(shader_asset.asset_key()).cloned() {
             for handle in graphics_pipeline_handles.iter() {
@@ -126,7 +125,7 @@ impl VulkanResourceCoordinator {
         Ok(())
     }
 
-    pub fn query_graphics_pipeline(&mut self, config: &GenericGraphicsPipelineConfig) -> base::Result<Arc<GenericGraphicsPipeline>> {
+    pub fn query_graphics_pipeline(&mut self, config: &GenericGraphicsPipelineConfig) -> crate::Result<Arc<GenericGraphicsPipeline>> {
         if self.graphics_pipeline_mapping.contains_key(config) {
             let handle = &self.graphics_pipeline_mapping[config];
             let pipeline = self
@@ -140,13 +139,13 @@ impl VulkanResourceCoordinator {
         }
     }
 
-    fn try_build_graphics_pipeline(&mut self, config: &GenericGraphicsPipelineConfig) -> base::Result<Arc<GenericGraphicsPipeline>> {
+    fn try_build_graphics_pipeline(&mut self, config: &GenericGraphicsPipelineConfig) -> crate::Result<Arc<GenericGraphicsPipeline>> {
         let vertex_shader = config.vertex_shader.as_ref().expect("vertex shader not set");
         let fragment_shader = config.fragment_shader.as_ref().expect("fragment shader not set");
         let vertex_shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(vertex_shader) {
             shader_asset
                 .value()
-                .ok_or(base::Error::AssetNotFound {
+                .ok_or(crate::Error::AssetNotFound {
                     asset_key: vertex_shader.clone(),
                     // This means that the asset was explicitly dropped after being imported
                     details: "Asset found via the `get` method but the value is None".to_owned(),
@@ -156,14 +155,14 @@ impl VulkanResourceCoordinator {
         } else {
             self.asset_importer
                 .import::<ShaderAsset>(vertex_shader)
-                .map_err(|error| base::Error::AssetNotFound {
+                .map_err(|error| crate::Error::AssetNotFound {
                     asset_key: vertex_shader.clone(),
                     details: format!(
                         "Asset not found via the get method. Starting and import if it's not already running. {}",
                         error
                     ),
                 })?;
-            return Err(base::Error::AssetNotFound {
+            return Err(crate::Error::AssetNotFound {
                 asset_key: vertex_shader.clone(),
                 details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
             });
@@ -171,7 +170,7 @@ impl VulkanResourceCoordinator {
         let fragment_shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(fragment_shader) {
             shader_asset
                 .value()
-                .ok_or(base::Error::AssetNotFound {
+                .ok_or(crate::Error::AssetNotFound {
                     asset_key: fragment_shader.clone(),
                     // This means that the asset was explicitly dropped after being imported
                     details: "Asset found via the `get` method but the value is None".to_owned(),
@@ -181,14 +180,14 @@ impl VulkanResourceCoordinator {
         } else {
             self.asset_importer
                 .import::<ShaderAsset>(fragment_shader)
-                .map_err(|error| base::Error::AssetNotFound {
+                .map_err(|error| crate::Error::AssetNotFound {
                     asset_key: fragment_shader.clone(),
                     details: format!(
                         "Asset not found via the get method. Starting and import if it's not already running. {}",
                         error
                     ),
                 })?;
-            return Err(base::Error::AssetNotFound {
+            return Err(crate::Error::AssetNotFound {
                 asset_key: fragment_shader.clone(),
                 details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
             });
@@ -215,7 +214,7 @@ impl VulkanResourceCoordinator {
         Ok(pipeline)
     }
 
-    pub fn query_compute_pipeline(&mut self, config: &GenericComputePipelineConfig) -> base::Result<Arc<GenericComputePipeline>> {
+    pub fn query_compute_pipeline(&mut self, config: &GenericComputePipelineConfig) -> crate::Result<Arc<GenericComputePipeline>> {
         if self.compute_pipelines_mapping.contains_key(config) {
             let handle = &self.compute_pipelines_mapping[config];
             let pipeline = self
@@ -229,11 +228,11 @@ impl VulkanResourceCoordinator {
         }
     }
 
-    fn try_build_compute_pipeline(&mut self, config: &GenericComputePipelineConfig) -> base::Result<Arc<GenericComputePipeline>> {
+    fn try_build_compute_pipeline(&mut self, config: &GenericComputePipelineConfig) -> crate::Result<Arc<GenericComputePipeline>> {
         let shader_spirv = if let Some(shader_asset) = self.asset_importer.get::<ShaderAsset>(&config.shader) {
             shader_asset
                 .value()
-                .ok_or(base::Error::AssetNotFound {
+                .ok_or(crate::Error::AssetNotFound {
                     asset_key: config.shader.clone(),
                     // This means that the asset was explicitly dropped after being imported
                     details: "Asset found via the `get` method but the value is None".to_owned(),
@@ -243,14 +242,14 @@ impl VulkanResourceCoordinator {
         } else {
             self.asset_importer
                 .import::<ShaderAsset>(&config.shader)
-                .map_err(|error| base::Error::AssetNotFound {
+                .map_err(|error| crate::Error::AssetNotFound {
                     asset_key: config.shader.clone(),
                     details: format!(
                         "Asset not found via the get method. Starting and import if it's not already running. {}",
                         error
                     ),
                 })?;
-            return Err(base::Error::AssetNotFound {
+            return Err(crate::Error::AssetNotFound {
                 asset_key: config.shader.clone(),
                 details: "Asset not found via the get method. Starting and import if it's not already running.".to_owned(),
             });
@@ -288,7 +287,7 @@ impl VulkanResourceCoordinator {
 mod tests {
     use super::*;
 
-    use jeriya_backend_ash_base::{device::TestFixtureDevice, swapchain::Swapchain};
+    use crate::{device::TestFixtureDevice, swapchain::Swapchain};
 
     #[test]
     fn smoke() {

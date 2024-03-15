@@ -1,26 +1,27 @@
 use std::{collections::VecDeque, mem, sync::Arc};
 
-use base::{
+use crate::{
+    backend_shared::BackendShared,
+    buffer::BufferUsageFlags,
+    command_buffer_builder::CommandBufferBuilder,
+    command_buffer_builder::PipelineBindPoint,
     command_pool::{CommandPool, CommandPoolCreateFlags},
+    descriptor_set_layout::DescriptorSetLayout,
+    device_visible_buffer::DeviceVisibleBuffer,
     fence::Fence,
     frame_local_buffer::FrameLocalBuffer,
+    host_visible_buffer::HostVisibleBuffer,
     push_descriptors::PushDescriptors,
+    semaphore::Semaphore,
+    shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
 };
 use jeriya_backend::{
     elements::{camera, point_cloud, rigid_mesh},
     instances::{camera_instance, point_cloud_instance, rigid_mesh_instance},
     transactions::{self, Transaction},
 };
-use jeriya_backend_ash_base as base;
-use jeriya_backend_ash_base::{
-    buffer::BufferUsageFlags, command_buffer_builder::CommandBufferBuilder, command_buffer_builder::PipelineBindPoint,
-    descriptor_set_layout::DescriptorSetLayout, device_visible_buffer::DeviceVisibleBuffer, host_visible_buffer::HostVisibleBuffer,
-    semaphore::Semaphore, shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
-};
 use jeriya_macros::profile;
 use jeriya_shared::{debug_info, log::info, winit::window::WindowId};
-
-use crate::backend_shared::BackendShared;
 
 pub struct PersistentFrameState {
     pub presenter_index: usize,
@@ -74,7 +75,7 @@ pub struct PersistentFrameState {
 
 #[profile]
 impl PersistentFrameState {
-    pub fn new(presenter_index: usize, window_id: &WindowId, backend_shared: &BackendShared) -> base::Result<Self> {
+    pub fn new(presenter_index: usize, window_id: &WindowId, backend_shared: &BackendShared) -> crate::Result<Self> {
         let per_frame_data_buffer = HostVisibleBuffer::new(
             &backend_shared.device,
             &[shader_interface::PerFrameData::default(); 1],
@@ -325,7 +326,7 @@ impl PersistentFrameState {
     }
 
     /// Processes the [`Transaction`]s pushed to the frame.
-    pub fn process_transactions(&mut self) -> base::Result<()> {
+    pub fn process_transactions(&mut self) -> crate::Result<()> {
         use transactions::Event;
         let drain = self.transactions.drain(..).collect::<Vec<_>>();
         for transaction in drain {
@@ -361,7 +362,7 @@ impl PersistentFrameState {
     }
 
     /// Processes a [`rigid_mesh::Event`].
-    fn process_rigid_mesh_event(&mut self, event: rigid_mesh::Event) -> base::Result<()> {
+    fn process_rigid_mesh_event(&mut self, event: rigid_mesh::Event) -> crate::Result<()> {
         use rigid_mesh::Event;
         match event {
             Event::Insert(rigid_mesh) => {
@@ -378,7 +379,7 @@ impl PersistentFrameState {
         Ok(())
     }
 
-    fn process_point_cloud_event(&mut self, event: point_cloud::Event) -> base::Result<()> {
+    fn process_point_cloud_event(&mut self, event: point_cloud::Event) -> crate::Result<()> {
         use point_cloud::Event;
         match event {
             Event::Insert(point_cloud) => {
@@ -396,7 +397,7 @@ impl PersistentFrameState {
     }
 
     /// Processes a [`rigid_mesh_instance::Event`].
-    fn process_rigid_mesh_instance_event(&mut self, event: rigid_mesh_instance::Event) -> base::Result<()> {
+    fn process_rigid_mesh_instance_event(&mut self, event: rigid_mesh_instance::Event) -> crate::Result<()> {
         use rigid_mesh_instance::Event;
         match event {
             Event::Noop => {}
@@ -415,7 +416,7 @@ impl PersistentFrameState {
     }
 
     /// Processes a [`point_cloud_instance::Event`].
-    fn process_point_cloud_instance_event(&mut self, event: point_cloud_instance::Event) -> base::Result<()> {
+    fn process_point_cloud_instance_event(&mut self, event: point_cloud_instance::Event) -> crate::Result<()> {
         use point_cloud_instance::Event;
         match event {
             Event::Noop => {}
@@ -434,7 +435,7 @@ impl PersistentFrameState {
     }
 
     /// Processes a [`camera::Event`].
-    fn process_camera_event(&mut self, event: camera::Event) -> base::Result<()> {
+    fn process_camera_event(&mut self, event: camera::Event) -> crate::Result<()> {
         use camera::Event;
         match event {
             Event::Noop => {}
@@ -466,7 +467,7 @@ impl PersistentFrameState {
     }
 
     /// Processes a [`camera_instance::Event`].
-    fn process_camera_instance_event(&mut self, event: camera_instance::Event) -> base::Result<()> {
+    fn process_camera_instance_event(&mut self, event: camera_instance::Event) -> crate::Result<()> {
         use camera_instance::Event;
         match event {
             Event::Noop => {}
@@ -502,7 +503,7 @@ impl PersistentFrameState {
         descriptor_set_layout: &DescriptorSetLayout,
         backend_shared: &BackendShared,
         command_buffer_builder: &mut CommandBufferBuilder,
-    ) -> base::Result<()> {
+    ) -> crate::Result<()> {
         let push_descriptors = &PushDescriptors::builder(descriptor_set_layout)
             .push_uniform_buffer(0, &self.per_frame_data_buffer)
             .push_storage_buffer(1, &self.camera_buffer)
@@ -542,7 +543,7 @@ impl PersistentFrameState {
 mod tests {
     use std::sync::mpsc::channel;
 
-    use base::device::TestFixtureDevice;
+    use crate::device::TestFixtureDevice;
     use jeriya_backend::{elements::camera::Camera, gpu_index_allocator::GpuIndexAllocation, transactions::PushEvent};
     use jeriya_content::asset_importer::AssetImporter;
     use jeriya_shared::Handle;

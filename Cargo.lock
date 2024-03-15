@@ -1325,19 +1325,6 @@ dependencies = [
 name = "jeriya_backend_ash"
 version = "0.6.0"
 dependencies = [
- "jeriya",
- "jeriya_backend",
- "jeriya_backend_ash_base",
- "jeriya_content",
- "jeriya_macros",
- "jeriya_shared",
- "jeriya_test",
-]
-
-[[package]]
-name = "jeriya_backend_ash_base"
-version = "0.6.0"
-dependencies = [
  "ash",
  "jeriya",
  "jeriya_backend",

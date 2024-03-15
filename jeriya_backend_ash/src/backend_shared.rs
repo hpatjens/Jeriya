@@ -3,6 +3,10 @@ use std::{
     sync::{mpsc::Sender, Arc},
 };
 
+use crate::{
+    buffer::BufferUsageFlags, device::Device, host_visible_buffer::HostVisibleBuffer, page_buffer::PageBuffer,
+    queue_scheduler::QueueScheduler, shader_interface, staged_push_only_buffer::StagedPushOnlyBuffer,
+};
 use jeriya_backend::{
     elements::{self, point_cloud::PointCloud, rigid_mesh::RigidMesh},
     gpu_index_allocator::GpuIndexAllocator,
@@ -13,14 +17,8 @@ use jeriya_backend::{
         ResourceEvent,
     },
 };
-use jeriya_backend_ash_base::{
-    buffer::BufferUsageFlags, device::Device, host_visible_buffer::HostVisibleBuffer, page_buffer::PageBuffer, shader_interface,
-    staged_push_only_buffer::StagedPushOnlyBuffer,
-};
 use jeriya_content::asset_importer::AssetImporter;
 use jeriya_shared::{debug_info, log::info, nalgebra::Vector4, parking_lot::Mutex, Handle, RendererConfig};
-
-use crate::queue_scheduler::QueueScheduler;
 
 /// Elements of the backend that are shared between all [`Presenter`]s.
 pub struct BackendShared {

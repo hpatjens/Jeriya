@@ -10,14 +10,19 @@ use std::{
 
 use crate::{
     backend_shared::BackendShared,
-    presenter::{Presenter, PresenterEvent},
-};
-use base::{
     command_buffer::CommandBuffer,
     command_buffer_builder::CommandBufferBuilder,
     command_pool::{CommandPool, CommandPoolCreateFlags},
+    debug::{set_panic_on_message, ValidationLayerCallback},
+    device::Device,
+    entry::Entry,
+    instance::Instance,
+    physical_device::PhysicalDevice,
+    presenter::{Presenter, PresenterEvent},
     queue_plan::QueuePlan,
     shader_interface,
+    surface::Surface,
+    Config, ValidationLayerConfig,
 };
 use jeriya_backend::{
     elements::{self, point_cloud::PointCloud, rigid_mesh::RigidMesh},
@@ -33,16 +38,6 @@ use jeriya_backend::{
     },
     transactions::{self, PushEvent, Transaction, TransactionProcessor},
     Backend,
-};
-use jeriya_backend_ash_base as base;
-use jeriya_backend_ash_base::{
-    debug::{set_panic_on_message, ValidationLayerCallback},
-    device::Device,
-    entry::Entry,
-    instance::Instance,
-    physical_device::PhysicalDevice,
-    surface::Surface,
-    Config, ValidationLayerConfig,
 };
 use jeriya_content::{asset_importer::AssetImporter, model::Meshlet, point_cloud::clustered_point_cloud::Page, shader::ShaderAsset};
 use jeriya_macros::profile;
@@ -250,7 +245,7 @@ impl Backend for AshBackend {
                 let surface = Surface::new(&entry, &instance, window)?;
                 Ok((window_id, surface))
             })
-            .collect::<base::Result<HashMap<WindowId, Arc<Surface>>>>()?;
+            .collect::<crate::Result<HashMap<WindowId, Arc<Surface>>>>()?;
 
         info!("Creating PhysicalDevice");
         let physical_device = PhysicalDevice::new(&instance)?;

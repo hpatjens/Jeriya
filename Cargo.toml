@@ -2,7 +2,6 @@
 members = [
     "jeriya",
     "jeriya_backend_ash",
-    "jeriya_backend_ash_base",
     "jeriya_shared",
     "jeriya_test",
     "jeriya_macros",
