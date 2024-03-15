@@ -15,8 +15,6 @@ mod compiled_frame_graph;
 mod compute_pipeline;
 mod debug;
 mod descriptor;
-mod descriptor_pool;
-mod descriptor_set;
 mod descriptor_set_layout;
 mod device;
 mod device_visible_buffer;
