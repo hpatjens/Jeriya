@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, mem, sync::Arc};
 
-use jeriya_backend::immediate::{self, ImmediateCommand, ImmediateRenderingFrameTask};
-use jeriya_backend_ash_base as base;
-use jeriya_backend_ash_base::{
+use crate::{
+    backend_shared::BackendShared,
     buffer::BufferUsageFlags,
     command_buffer::CommandBuffer,
     command_buffer_builder::CommandBufferBuilder,
@@ -11,12 +10,13 @@ use jeriya_backend_ash_base::{
     graphics_pipeline::PrimitiveTopology,
     graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, PushConstants},
     host_visible_buffer::HostVisibleBuffer,
+    persistent_frame_state::PersistentFrameState,
+    presenter_shared::PresenterShared,
     shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
 };
+use jeriya_backend::immediate::{self, ImmediateCommand, ImmediateRenderingFrameTask};
 use jeriya_content::common::AssetKey;
 use jeriya_shared::{debug_info, nalgebra::Matrix4, plot_with_index, tracy_client::plot, winit::window::WindowId};
-
-use crate::{backend_shared::BackendShared, persistent_frame_state::PersistentFrameState, presenter_shared::PresenterShared};
 
 pub struct CompiledFrameGraph {
     command_buffer: Option<CommandBuffer>,
@@ -58,7 +58,7 @@ impl CompiledFrameGraph {
             presenter_shared.vulkan_resource_coordinator.query_graphics_pipeline(&config)?
         };
 
-        let mut create_immediate_graphics_pipeline = |primitive_topology| -> base::Result<_> {
+        let mut create_immediate_graphics_pipeline = |primitive_topology| -> crate::Result<_> {
             let config = GenericGraphicsPipelineConfig {
                 vertex_shader: Some(AssetKey::new("shaders/color.vert")),
                 fragment_shader: Some(AssetKey::new("shaders/color.frag")),
@@ -602,7 +602,7 @@ impl CompiledFrameGraph {
         backend_shared: &BackendShared,
         command_buffer_builder: &mut CommandBufferBuilder,
         immediate_rendering_frames: &BTreeMap<&'static str, ImmediateRenderingFrameTask>,
-    ) -> base::Result<()> {
+    ) -> crate::Result<()> {
         if immediate_rendering_frames.is_empty() {
             return Ok(());
         }

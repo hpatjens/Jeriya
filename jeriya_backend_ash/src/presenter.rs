@@ -6,17 +6,15 @@ use std::{
 };
 
 use crate::{
-    backend_shared::BackendShared, compiled_frame_graph::CompiledFrameGraph, persistent_frame_state::PersistentFrameState,
-    presenter_shared::PresenterShared,
+    backend_shared::BackendShared, compiled_frame_graph::CompiledFrameGraph, fence::Fence, persistent_frame_state::PersistentFrameState,
+    presenter_shared::PresenterShared, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec,
 };
-
 use jeriya_backend::{
     immediate::{CommandBuffer, ImmediateRenderingFrame, ImmediateRenderingFrameTask},
     instances::camera_instance::CameraInstance,
     resources::ResourceEvent,
     transactions::Transaction,
 };
-use jeriya_backend_ash_base::{fence::Fence, semaphore::Semaphore, surface::Surface, swapchain_vec::SwapchainVec};
 use jeriya_content::{asset_importer::Asset, shader::ShaderAsset};
 use jeriya_macros::profile;
 use jeriya_shared::{

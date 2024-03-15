@@ -3,14 +3,18 @@ name = "jeriya_backend_ash"
 version = "0.6.0"
 edition = "2021"
 
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3.9", features = ["windef", "winuser"] }
+
 [dependencies]
-jeriya_backend_ash_base = { path = "../jeriya_backend_ash_base" }
 jeriya_test = { path = "../jeriya_test" }
 jeriya = { path = "../jeriya" }
 jeriya_shared = { path = "../jeriya_shared" }
-jeriya_macros = { path = "../jeriya_macros" }
 jeriya_backend = { path = "../jeriya_backend" }
+jeriya_macros = { path = "../jeriya_macros" }
 jeriya_content = { path = "../jeriya_content" }
+ash = "0.37"
+lazy_static = "1.4.0"
 
 [dev-dependencies]
 jeriya_backend = { path = "../jeriya_backend", features = ["test-utils"] }
