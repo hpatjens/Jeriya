@@ -58,11 +58,13 @@ impl SpecializationConstants {
     }
 
     /// Returns the number of specialization constants
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.map_entries.len()
     }
 
     /// Returns `true` if the specialization constants are empty
+    #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.map_entries.is_empty()
     }
@@ -70,6 +72,7 @@ impl SpecializationConstants {
     // Returns the value of the specialization constant with the given ID
     //
     // This function returns `None` if the specialization constant with the given ID does not exist and an `Err` might be returned if the data is corrupted.
+    #[cfg(test)]
     pub fn read_u32(&self, constant_id: u32) -> Option<io::Result<u32>> {
         self.map_entries.iter().find(|entry| entry.constant_id == constant_id).map(|entry| {
             let offset = entry.offset as usize;
