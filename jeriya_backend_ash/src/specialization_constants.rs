@@ -1,10 +1,7 @@
-use std::{
-    io::{self, Cursor},
-    mem,
-};
+use std::mem;
 
 use ash::vk;
-use jeriya_shared::byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use jeriya_shared::byteorder::{LittleEndian, WriteBytesExt};
 
 pub trait PushSpecializationConstant {
     /// Writes the specialization constant to the given vector and returns the offset in the vector
@@ -73,7 +70,9 @@ impl SpecializationConstants {
     //
     // This function returns `None` if the specialization constant with the given ID does not exist and an `Err` might be returned if the data is corrupted.
     #[cfg(test)]
-    pub fn read_u32(&self, constant_id: u32) -> Option<io::Result<u32>> {
+    pub fn read_u32(&self, constant_id: u32) -> Option<std::io::Result<u32>> {
+        use jeriya_shared::byteorder::ReadBytesExt;
+        use std::io::Cursor;
         self.map_entries.iter().find(|entry| entry.constant_id == constant_id).map(|entry| {
             let offset = entry.offset as usize;
             let end = offset + entry.size;
