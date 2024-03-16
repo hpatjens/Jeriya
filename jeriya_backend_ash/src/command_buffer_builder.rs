@@ -1,4 +1,4 @@
-use std::{mem, sync::Arc};
+use std::{cell::RefCell, ffi::CString, mem, sync::Arc};
 
 use ash::vk;
 use jeriya_shared::{features, parking_lot::Mutex};
@@ -7,6 +7,7 @@ use crate::{
     buffer::{Buffer, VertexBuffer},
     command_buffer::{CommandBuffer, CommandBufferState, FinishedOperation},
     compute_pipeline::ComputePipeline,
+    debug_label_guard::DebugLabelGuard,
     device::Device,
     device_visible_buffer::DeviceVisibleBuffer,
     graphics_pipeline::GraphicsPipeline,
@@ -39,7 +40,7 @@ pub struct CommandBufferBuilder<'buf> {
     device: Arc<Device>,
 
     /// Layout of the last pipeline that was bound if any
-    bound_pipeline_layout: Option<vk::PipelineLayout>,
+    bound_pipeline_layout: RefCell<Option<vk::PipelineLayout>>,
 }
 
 impl<'buf> CommandBufferBuilder<'buf> {
@@ -48,7 +49,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         Ok(Self {
             command_buffer,
             device: device.clone(),
-            bound_pipeline_layout: None,
+            bound_pipeline_layout: RefCell::new(None),
         })
     }
 
@@ -144,7 +145,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 graphics_pipeline.graphics_pipeline(),
             );
         }
-        self.bound_pipeline_layout = Some(graphics_pipeline.pipeline_layout());
+        *self.bound_pipeline_layout.borrow_mut() = Some(graphics_pipeline.pipeline_layout());
         self
     }
 
@@ -156,7 +157,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 compute_pipeline.compute_pipeline(),
             );
         }
-        self.bound_pipeline_layout = Some(compute_pipeline.pipeline_layout());
+        *self.bound_pipeline_layout.borrow_mut() = Some(compute_pipeline.pipeline_layout());
         self
     }
 
@@ -503,7 +504,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
 
     /// Pushes the given `push_constants` to the command buffer
     pub fn push_constants<C>(&mut self, push_constants: &[C]) -> crate::Result<()> {
-        let bound_pipeline_layout = self.bound_pipeline_layout.ok_or(Error::NoPipelineBound)?;
+        let bound_pipeline_layout = self.bound_pipeline_layout.borrow().ok_or(Error::NoPipelineBound)?;
         unsafe {
             self.device.as_raw_vulkan().cmd_push_constants(
                 *self.command_buffer.as_raw_vulkan(),
@@ -532,7 +533,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
         pipeline_bind_point: PipelineBindPoint,
         push_descriptors: &PushDescriptors,
     ) -> crate::Result<()> {
-        let bound_pipeline_layout = self.bound_pipeline_layout.ok_or(Error::NoPipelineBound)?;
+        let bound_pipeline_layout = self.bound_pipeline_layout.borrow().ok_or(Error::NoPipelineBound)?;
         unsafe {
             self.device.extensions.push_descriptor.cmd_push_descriptor_set(
                 *self.command_buffer.as_raw_vulkan(),
@@ -563,6 +564,28 @@ impl<'buf> CommandBufferBuilder<'buf> {
                 .cmd_dispatch_indirect(*self.command_buffer.as_raw_vulkan(), *buffer.as_raw_vulkan(), offset)
         };
         self.command_buffer.push_dependency(buffer.clone());
+        self
+    }
+
+    /// Begins a debug label scope
+    pub fn begin_label_scope(&mut self, label: &'static str, color: &[f32; 4]) -> DebugLabelGuard {
+        if features::LABELING {
+            if let Some(debug_utils) = self.device.instance().debug_utils.as_ref() {
+                let label = CString::new(label).expect("must be a valid label");
+                let label_info = vk::DebugUtilsLabelEXT::builder().label_name(&label).color(*color).build();
+                unsafe { debug_utils.cmd_begin_debug_utils_label(*self.command_buffer.as_raw_vulkan(), &label_info) }
+            }
+        }
+        DebugLabelGuard::new(label)
+    }
+
+    /// Ends a debug label scope
+    pub fn end_label_scope(&mut self) -> &mut Self {
+        if features::LABELING {
+            if let Some(debug_utils) = self.device.instance().debug_utils.as_ref() {
+                unsafe { debug_utils.cmd_end_debug_utils_label(*self.command_buffer.as_raw_vulkan()) }
+            }
+        }
         self
     }
 }

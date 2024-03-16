@@ -26,6 +26,7 @@ mod graphics_pipeline;
 mod host_visible_buffer;
 mod instance;
 // PageBuffer is currently not used fully
+mod debug_label_guard;
 #[allow(dead_code)]
 mod page_buffer;
 mod persistent_frame_state;
