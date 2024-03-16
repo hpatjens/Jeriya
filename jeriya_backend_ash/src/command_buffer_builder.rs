@@ -1,7 +1,7 @@
 use std::{mem, sync::Arc};
 
 use ash::vk;
-use jeriya_shared::parking_lot::Mutex;
+use jeriya_shared::{features, parking_lot::Mutex};
 
 use crate::{
     buffer::{Buffer, VertexBuffer},
