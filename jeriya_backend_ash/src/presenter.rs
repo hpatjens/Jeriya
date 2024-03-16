@@ -124,8 +124,14 @@ fn run_presenter_thread(
     // Immediate rendering frames
     //
     // The immediate rendering frames are stored per update loop name. When a newer frame is received, the
-    // current one is replaced. When a command buffer in received that belongs to the current frame, it is
+    // current one is replaced. When a command buffer is received that belongs to the current frame, it is
     // inserted into the `ImmediateRenderingFrameTask`.
+    //
+    // Background: Since the Renderer is running independently from the UpdateLoop, it's unclear how long
+    // immediate rendering commands should be displayed. Therefore, it's necessary to keep track of the
+    // update loop in which the commands were generated to display the commands as long as the update
+    // loop is still in the same iteration in case the rendering happens at a higher frame rate compared
+    // to the update loop.
     let mut immediate_rendering_frames = BTreeMap::<&'static str, ImmediateRenderingFrameTask>::new();
 
     let mut interval = match frame_rate {
