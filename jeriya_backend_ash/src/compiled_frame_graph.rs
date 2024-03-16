@@ -6,14 +6,17 @@ use crate::{
     command_buffer::CommandBuffer,
     command_buffer_builder::{CommandBufferBuilder, PipelineBindPoint},
     compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig},
-    debug_label_guard::label_color_red,
+    debug_label_guard::{label_color_blue, label_color_green, label_color_magenta, label_color_red, label_color_yellow},
     graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, PrimitiveTopology, PushConstants},
     host_visible_buffer::HostVisibleBuffer,
     persistent_frame_state::PersistentFrameState,
     presenter_shared::PresenterShared,
     shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
 };
-use jeriya_backend::immediate::{self, ImmediateCommand, ImmediateRenderingFrameTask};
+use jeriya_backend::{
+    elements::point_cloud,
+    immediate::{self, ImmediateCommand, ImmediateRenderingFrameTask},
+};
 use jeriya_content::common::AssetKey;
 use jeriya_shared::{debug_info, nalgebra::Matrix4, plot_with_index, tracy_client::plot, winit::window::WindowId};
 
@@ -237,6 +240,9 @@ impl CompiledFrameGraph {
         builder.fill_buffer(&persistent_frame_state.device_local_debug_lines_buffer, 0, byte_size, 0);
         builder.bottom_to_top_pipeline_barrier();
 
+        let culling_span = jeriya_shared::span!("culling");
+        let culling_scope = builder.begin_label_scope("Culling", &label_color_magenta(0.8));
+
         // Rigid Mesh Culling
         //
         // The culling of the rigid mesh instances is done in two steps:
@@ -255,45 +261,47 @@ impl CompiledFrameGraph {
         //    meshlets of the `RigidMeshInstance` writing the indices of the visible meshlets to the
         //    buffer.
 
-        let _label_scope_cull_rigid_mesh_instances = builder.begin_label_scope("CullRigidMeshInstances", &label_color_red(0.8));
-
-        // 1. Cull RigidMeshInstances
         let cull_rigid_mesh_instances_span = jeriya_shared::span!("cull rigid mesh instances");
-        let pipeline = &self.cull_rigid_mesh_instances_compute_pipeline;
-        builder.bind_compute_pipeline(pipeline.as_ref());
-        persistent_frame_state.push_descriptors(
-            PipelineBindPoint::Compute,
-            &pipeline.descriptor_set_layout,
-            backend_shared,
-            &mut builder,
-        )?;
+        let cull_rigid_mesh_instances_scope = builder.begin_label_scope("CullRigidMeshInstances", &label_color_red(1.0));
+        {
+            // 1. Cull RigidMeshInstances
+            let pipeline = &self.cull_rigid_mesh_instances_compute_pipeline;
+            builder.bind_compute_pipeline(pipeline.as_ref());
+            persistent_frame_state.push_descriptors(
+                PipelineBindPoint::Compute,
+                &pipeline.descriptor_set_layout,
+                backend_shared,
+                &mut builder,
+            )?;
 
-        // Make sure that all indirect read operations are finished before writing to the buffer
-        builder.indirect_to_compute_command_pipeline_barrier();
-        builder.indirect_to_transfer_command_pipeline_barrier();
-        builder.compute_to_compute_pipeline_barrier();
+            // Make sure that all indirect read operations are finished before writing to the buffer
+            builder.indirect_to_compute_command_pipeline_barrier();
+            builder.indirect_to_transfer_command_pipeline_barrier();
+            builder.compute_to_compute_pipeline_barrier();
 
-        // Clear counter and VkDispatchIndirectCommand for the visible rigid mesh instances
-        // that will be rendered with the meshlet representation.
-        let clear_bytes_count = mem::size_of::<DispatchIndirectCommand>() + mem::size_of::<u32>();
-        builder.transfer_to_transfer_command_barrier();
-        builder.fill_buffer(&persistent_frame_state.visible_rigid_mesh_instances, 0, clear_bytes_count as u64, 0);
+            // Clear counter and VkDispatchIndirectCommand for the visible rigid mesh instances
+            // that will be rendered with the meshlet representation.
+            let clear_bytes_count = mem::size_of::<DispatchIndirectCommand>() + mem::size_of::<u32>();
+            builder.transfer_to_transfer_command_barrier();
+            builder.fill_buffer(&persistent_frame_state.visible_rigid_mesh_instances, 0, clear_bytes_count as u64, 0);
 
-        // Clear counter for the visible rigid mesh instances that will be rendered with the
-        // simple mesh representation.
-        let clear_bytes_count = mem::size_of::<u32>();
-        builder.transfer_to_transfer_command_barrier();
-        builder.fill_buffer(
-            &persistent_frame_state.visible_rigid_mesh_instances_simple_buffer,
-            0,
-            clear_bytes_count as u64,
-            0,
-        );
+            // Clear counter for the visible rigid mesh instances that will be rendered with the
+            // simple mesh representation.
+            let clear_bytes_count = mem::size_of::<u32>();
+            builder.transfer_to_transfer_command_barrier();
+            builder.fill_buffer(
+                &persistent_frame_state.visible_rigid_mesh_instances_simple_buffer,
+                0,
+                clear_bytes_count as u64,
+                0,
+            );
 
-        // Dispatch compute shader for every rigid mesh instance
-        builder.transfer_to_compute_pipeline_barrier();
-        builder.dispatch(cull_compute_shader_group_count, 1, 1);
+            // Dispatch compute shader for every rigid mesh instance
+            builder.transfer_to_compute_pipeline_barrier();
+            builder.dispatch(cull_compute_shader_group_count, 1, 1);
+        }
         drop(cull_rigid_mesh_instances_span);
+        cull_rigid_mesh_instances_scope.end(&mut builder);
 
         // {
         //     let mut queues = backend_shared.queue_scheduler.queues();
@@ -308,36 +316,38 @@ impl CompiledFrameGraph {
         //     eprintln!("instances: {count}, work_group: ({work_group_x}, {work_group_y}, {work_group_z})",);
         // }
 
-        _label_scope_cull_rigid_mesh_instances.end(&mut builder);
-
         // Cull Meshlets
         let cull_meshlets_span = jeriya_shared::span!("cull meshlets");
-        let pipeline = &self.cull_rigid_mesh_meshlets_compute_pipeline;
-        builder.bind_compute_pipeline(pipeline.as_ref());
-        persistent_frame_state.push_descriptors(
-            PipelineBindPoint::Compute,
-            &pipeline.descriptor_set_layout,
-            backend_shared,
-            &mut builder,
-        )?;
+        let cull_meshlets_scope = builder.begin_label_scope("CullMeshlets", &label_color_red(0.8));
+        {
+            let pipeline = &self.cull_rigid_mesh_meshlets_compute_pipeline;
+            builder.bind_compute_pipeline(pipeline.as_ref());
+            persistent_frame_state.push_descriptors(
+                PipelineBindPoint::Compute,
+                &pipeline.descriptor_set_layout,
+                backend_shared,
+                &mut builder,
+            )?;
 
-        // Clear counter for the visible meshlets
-        builder.fill_buffer(
-            &persistent_frame_state.visible_rigid_mesh_meshlets,
-            0,
-            mem::size_of::<u32>() as u64,
-            0,
-        );
+            // Clear counter for the visible meshlets
+            builder.fill_buffer(
+                &persistent_frame_state.visible_rigid_mesh_meshlets,
+                0,
+                mem::size_of::<u32>() as u64,
+                0,
+            );
 
-        builder.transfer_to_indirect_command_barrier();
-        builder.transfer_to_compute_pipeline_barrier();
-        builder.compute_to_indirect_command_pipeline_barrier();
-        builder.compute_to_compute_pipeline_barrier();
+            builder.transfer_to_indirect_command_barrier();
+            builder.transfer_to_compute_pipeline_barrier();
+            builder.compute_to_indirect_command_pipeline_barrier();
+            builder.compute_to_compute_pipeline_barrier();
 
-        // Dispatch compute shader for every visible rigid mesh instance
-        builder.dispatch_indirect(&persistent_frame_state.visible_rigid_mesh_instances, 0);
-        builder.compute_to_indirect_command_pipeline_barrier();
+            // Dispatch compute shader for every visible rigid mesh instance
+            builder.dispatch_indirect(&persistent_frame_state.visible_rigid_mesh_instances, 0);
+            builder.compute_to_indirect_command_pipeline_barrier();
+        }
         drop(cull_meshlets_span);
+        cull_meshlets_scope.end(&mut builder);
 
         // {
         //     let mut queues = backend_shared.queue_scheduler.queues();
@@ -360,45 +370,49 @@ impl CompiledFrameGraph {
         // to the `visible_point_cloud_instances` buffer. The number of visible point cloud instances
         // is written to the front of the buffer as in the culling of the rigid mesh instances.
         let cull_point_cloud_instances_span = jeriya_shared::span!("cull point cloud instances");
-        let pipeline = &self.cull_point_cloud_instances_compute_pipeline;
-        builder.bind_compute_pipeline(pipeline.as_ref());
-        persistent_frame_state.push_descriptors(
-            PipelineBindPoint::Compute,
-            &pipeline.descriptor_set_layout,
-            backend_shared,
-            &mut builder,
-        )?;
+        let cull_point_cloud_instances_scope = builder.begin_label_scope("CullPointCloudInstances", &label_color_blue(1.0));
+        {
+            let pipeline = &self.cull_point_cloud_instances_compute_pipeline;
+            builder.bind_compute_pipeline(pipeline.as_ref());
+            persistent_frame_state.push_descriptors(
+                PipelineBindPoint::Compute,
+                &pipeline.descriptor_set_layout,
+                backend_shared,
+                &mut builder,
+            )?;
 
-        // Clear counter for the visible point cloud instances without clusters
-        builder.fill_buffer(
-            &persistent_frame_state.visible_point_cloud_instances_simple,
-            0,
-            mem::size_of::<u32>() as u64,
-            0,
-        );
-        builder.transfer_to_compute_pipeline_barrier();
+            // Clear counter for the visible point cloud instances without clusters
+            builder.fill_buffer(
+                &persistent_frame_state.visible_point_cloud_instances_simple,
+                0,
+                mem::size_of::<u32>() as u64,
+                0,
+            );
+            builder.transfer_to_compute_pipeline_barrier();
 
-        // Clear counter for the visible point cloud instances with clusters
-        let offset = mem::size_of::<DispatchIndirectCommand>() as u64;
-        builder.fill_buffer(
-            &persistent_frame_state.visible_point_cloud_instances,
-            offset,
-            mem::size_of::<u32>() as u64,
-            0,
-        );
-        builder.transfer_to_compute_pipeline_barrier();
+            // Clear counter for the visible point cloud instances with clusters
+            let offset = mem::size_of::<DispatchIndirectCommand>() as u64;
+            builder.fill_buffer(
+                &persistent_frame_state.visible_point_cloud_instances,
+                offset,
+                mem::size_of::<u32>() as u64,
+                0,
+            );
+            builder.transfer_to_compute_pipeline_barrier();
 
-        // Dispatch
-        let cull_point_cloud_instances_group_count = {
-            const LOCAL_SIZE_X: u32 = 128;
-            (persistent_frame_state.point_cloud_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X
-        };
-        builder.transfer_to_indirect_command_barrier();
-        builder.transfer_to_compute_pipeline_barrier();
-        builder.dispatch(cull_point_cloud_instances_group_count, 1, 1);
+            // Dispatch
+            let cull_point_cloud_instances_group_count = {
+                const LOCAL_SIZE_X: u32 = 128;
+                (persistent_frame_state.point_cloud_instance_buffer.high_water_mark() as u32 + LOCAL_SIZE_X - 1) / LOCAL_SIZE_X
+            };
+            builder.transfer_to_indirect_command_barrier();
+            builder.transfer_to_compute_pipeline_barrier();
+            builder.dispatch(cull_point_cloud_instances_group_count, 1, 1);
 
-        builder.compute_to_indirect_command_pipeline_barrier();
+            builder.compute_to_indirect_command_pipeline_barrier();
+        }
         drop(cull_point_cloud_instances_span);
+        cull_point_cloud_instances_scope.end(&mut builder);
 
         // {
         //     let mut queues = backend_shared.queue_scheduler.queues();
@@ -415,38 +429,47 @@ impl CompiledFrameGraph {
         // }
 
         let cull_point_cloud_clusters_span = jeriya_shared::span!("cull point cloud clusters");
-        let pipeline = &self.cull_point_cloud_clusters_compute_pipeline;
-        builder.bind_compute_pipeline(pipeline.as_ref());
-        persistent_frame_state.push_descriptors(
-            PipelineBindPoint::Compute,
-            &pipeline.descriptor_set_layout,
-            backend_shared,
-            &mut builder,
-        )?;
+        let cull_point_cloud_clusters_scope = builder.begin_label_scope("CullPointCloudClusters", &label_color_blue(0.9));
+        {
+            let pipeline = &self.cull_point_cloud_clusters_compute_pipeline;
+            builder.bind_compute_pipeline(pipeline.as_ref());
+            persistent_frame_state.push_descriptors(
+                PipelineBindPoint::Compute,
+                &pipeline.descriptor_set_layout,
+                backend_shared,
+                &mut builder,
+            )?;
 
-        // Clear counter for the visible point cloud clusters
-        builder.fill_buffer(
-            &persistent_frame_state.visible_point_cloud_clusters,
-            0,
-            mem::size_of::<u32>() as u64,
-            0,
-        );
+            // Clear counter for the visible point cloud clusters
+            builder.fill_buffer(
+                &persistent_frame_state.visible_point_cloud_clusters,
+                0,
+                mem::size_of::<u32>() as u64,
+                0,
+            );
 
-        // Dispatch
-        builder.transfer_to_compute_pipeline_barrier();
-        builder.transfer_to_indirect_command_barrier();
-        builder.compute_to_indirect_command_pipeline_barrier();
-        builder.compute_to_compute_pipeline_barrier();
+            // Dispatch
+            builder.transfer_to_compute_pipeline_barrier();
+            builder.transfer_to_indirect_command_barrier();
+            builder.compute_to_indirect_command_pipeline_barrier();
+            builder.compute_to_compute_pipeline_barrier();
 
-        // Dispatch compute shader for culling the point cloud clusters
-        builder.dispatch_indirect(&persistent_frame_state.visible_point_cloud_instances, 0);
-        builder.compute_to_indirect_command_pipeline_barrier();
+            // Dispatch compute shader for culling the point cloud clusters
+            builder.dispatch_indirect(&persistent_frame_state.visible_point_cloud_instances, 0);
+            builder.compute_to_indirect_command_pipeline_barrier();
 
-        drop(cull_point_cloud_clusters_span);
+            drop(cull_point_cloud_clusters_span);
+            cull_point_cloud_clusters_scope.end(&mut builder);
 
-        // This barrier exists because the device local debug lines buffer is used
-        // in the render pass. The barrier shouldn't be active in production code.
-        builder.bottom_to_top_pipeline_barrier();
+            // This barrier exists because the device local debug lines buffer is used
+            // in the render pass. The barrier shouldn't be active in production code.
+            builder.bottom_to_top_pipeline_barrier();
+        }
+        drop(culling_span);
+        culling_scope.end(&mut builder);
+
+        let rendering_span = jeriya_shared::span!("rendering");
+        let rendering_scope = builder.begin_label_scope("Rendering", &label_color_green(0.8));
 
         // Render Pass
         let swapchain_image_index = presenter_shared
@@ -464,119 +487,152 @@ impl CompiledFrameGraph {
 
         // Render with IndirectSimpleGraphicsPipeline
         let indirect_simple_span = jeriya_shared::span!("record indirect simple commands");
-        let pipeline = &self.indirect_simple_graphics_pipeline;
-        builder.bind_graphics_pipeline(pipeline.as_ref());
-        persistent_frame_state.push_descriptors(
-            PipelineBindPoint::Graphics,
-            &pipeline.descriptor_set_layout,
-            backend_shared,
-            &mut builder,
-        )?;
-        builder.draw_indirect_count(
-            &persistent_frame_state.visible_rigid_mesh_instances_simple_buffer,
-            mem::size_of::<u32>() as u64,
-            &persistent_frame_state.visible_rigid_mesh_instances_simple_buffer,
-            0,
-            persistent_frame_state.rigid_mesh_instance_buffer.high_water_mark(),
-        );
+        let indirect_simple_scope = builder.begin_label_scope("IndirectSimple", &label_color_red(1.0));
+        {
+            let pipeline = &self.indirect_simple_graphics_pipeline;
+            builder.bind_graphics_pipeline(pipeline.as_ref());
+            persistent_frame_state.push_descriptors(
+                PipelineBindPoint::Graphics,
+                &pipeline.descriptor_set_layout,
+                backend_shared,
+                &mut builder,
+            )?;
+            builder.draw_indirect_count(
+                &persistent_frame_state.visible_rigid_mesh_instances_simple_buffer,
+                mem::size_of::<u32>() as u64,
+                &persistent_frame_state.visible_rigid_mesh_instances_simple_buffer,
+                0,
+                persistent_frame_state.rigid_mesh_instance_buffer.high_water_mark(),
+            );
+        }
         drop(indirect_simple_span);
+        indirect_simple_scope.end(&mut builder);
 
         // Render with IndirectMeshletGraphicsPipeline
         let indirect_meshlet_span = jeriya_shared::span!("record indirect meshlet commands");
-        let pipeline = &self.indirect_meshlet_graphics_pipeline;
-        builder.bind_graphics_pipeline(pipeline.as_ref());
-        persistent_frame_state.push_descriptors(
-            PipelineBindPoint::Graphics,
-            &pipeline.descriptor_set_layout,
-            backend_shared,
-            &mut builder,
-        )?;
-        builder.draw_indirect_count(
-            &persistent_frame_state.visible_rigid_mesh_meshlets,
-            mem::size_of::<u32>() as u64,
-            &persistent_frame_state.visible_rigid_mesh_meshlets,
-            0,
-            backend_shared.static_meshlet_buffer.lock().len(),
-        );
+        let indirect_meshlet_scope = builder.begin_label_scope("IndirectMeshlet", &label_color_red(0.9));
+        {
+            let pipeline = &self.indirect_meshlet_graphics_pipeline;
+            builder.bind_graphics_pipeline(pipeline.as_ref());
+            persistent_frame_state.push_descriptors(
+                PipelineBindPoint::Graphics,
+                &pipeline.descriptor_set_layout,
+                backend_shared,
+                &mut builder,
+            )?;
+            builder.draw_indirect_count(
+                &persistent_frame_state.visible_rigid_mesh_meshlets,
+                mem::size_of::<u32>() as u64,
+                &persistent_frame_state.visible_rigid_mesh_meshlets,
+                0,
+                backend_shared.static_meshlet_buffer.lock().len(),
+            );
+        }
         drop(indirect_meshlet_span);
+        indirect_meshlet_scope.end(&mut builder);
 
         // Render Point Clouds
         let point_cloud_span = jeriya_shared::span!("record point cloud commands");
-        let pipeline = &self.point_cloud_graphics_pipeline;
-        builder.bind_graphics_pipeline(pipeline.as_ref());
-        persistent_frame_state.push_descriptors(
-            PipelineBindPoint::Graphics,
-            &pipeline.descriptor_set_layout,
-            backend_shared,
-            &mut builder,
-        )?;
-        builder.draw_indirect_count(
-            &persistent_frame_state.visible_point_cloud_instances_simple,
-            mem::size_of::<u32>() as u64,
-            &persistent_frame_state.visible_point_cloud_instances_simple,
-            0,
-            persistent_frame_state.point_cloud_instance_buffer.high_water_mark(),
-        );
+        let point_cloud_scope = builder.begin_label_scope("PointCloud", &label_color_blue(1.0));
+        {
+            let pipeline = &self.point_cloud_graphics_pipeline;
+            builder.bind_graphics_pipeline(pipeline.as_ref());
+            persistent_frame_state.push_descriptors(
+                PipelineBindPoint::Graphics,
+                &pipeline.descriptor_set_layout,
+                backend_shared,
+                &mut builder,
+            )?;
+            builder.draw_indirect_count(
+                &persistent_frame_state.visible_point_cloud_instances_simple,
+                mem::size_of::<u32>() as u64,
+                &persistent_frame_state.visible_point_cloud_instances_simple,
+                0,
+                persistent_frame_state.point_cloud_instance_buffer.high_water_mark(),
+            );
+        }
         drop(point_cloud_span);
+        point_cloud_scope.end(&mut builder);
 
         // Render with SimpleGraphicsPipeline
         let simple_span = jeriya_shared::span!("record simple commands");
-        let pipeline = &self.simple_graphics_pipeline;
-        builder.bind_graphics_pipeline(pipeline.as_ref());
-        persistent_frame_state.push_descriptors(
-            PipelineBindPoint::Graphics,
-            &pipeline.descriptor_set_layout,
-            backend_shared,
-            &mut builder,
-        )?;
+        let simple_scope = builder.begin_label_scope("Simple", &label_color_green(0.5));
+        {
+            let pipeline = &self.simple_graphics_pipeline;
+            builder.bind_graphics_pipeline(pipeline.as_ref());
+            persistent_frame_state.push_descriptors(
+                PipelineBindPoint::Graphics,
+                &pipeline.descriptor_set_layout,
+                backend_shared,
+                &mut builder,
+            )?;
+        }
         drop(simple_span);
+        simple_scope.end(&mut builder);
 
         // Render with PointCloudClusterGraphicsPipeline
         let indirect_meshlet_span = jeriya_shared::span!("record point cloud cluster commands");
-        let pipeline = &self.point_cloud_clusters_graphics_pipeline;
-        builder.bind_graphics_pipeline(pipeline.as_ref());
-        persistent_frame_state.push_descriptors(
-            PipelineBindPoint::Graphics,
-            &pipeline.descriptor_set_layout,
-            backend_shared,
-            &mut builder,
-        )?;
-        builder.draw_indirect_count(
-            &persistent_frame_state.visible_point_cloud_clusters,
-            std::mem::size_of::<u32>() as u64,
-            &persistent_frame_state.visible_point_cloud_clusters,
-            0,
-            backend_shared.renderer_config.maximum_number_of_visible_point_cloud_clusters,
-        );
+        let indirect_meshlet_scope = builder.begin_label_scope("PointCloudCluster", &label_color_blue(0.8));
+        {
+            let pipeline = &self.point_cloud_clusters_graphics_pipeline;
+            builder.bind_graphics_pipeline(pipeline.as_ref());
+            persistent_frame_state.push_descriptors(
+                PipelineBindPoint::Graphics,
+                &pipeline.descriptor_set_layout,
+                backend_shared,
+                &mut builder,
+            )?;
+            builder.draw_indirect_count(
+                &persistent_frame_state.visible_point_cloud_clusters,
+                std::mem::size_of::<u32>() as u64,
+                &persistent_frame_state.visible_point_cloud_clusters,
+                0,
+                backend_shared.renderer_config.maximum_number_of_visible_point_cloud_clusters,
+            );
+        }
         drop(indirect_meshlet_span);
+        indirect_meshlet_scope.end(&mut builder);
 
         // Render with ImmediateRenderingPipeline
         self.append_immediate_rendering_commands(persistent_frame_state, backend_shared, &mut builder, immediate_rendering_frames)?;
 
         // Render device local debug lines
         let device_local_debug_lines_span = jeriya_shared::span!("record device local debug lines commands");
-        let pipeline = &self.device_local_debug_lines_pipeline;
-        builder.bind_graphics_pipeline(pipeline.as_ref());
-        persistent_frame_state.push_descriptors(
-            PipelineBindPoint::Graphics,
-            &pipeline.descriptor_set_layout,
-            backend_shared,
-            &mut builder,
-        )?;
-        builder.draw_indirect(
-            &persistent_frame_state.device_local_debug_lines_buffer,
-            mem::size_of::<u32>() as u64,
-            1,
-        );
+        let device_local_debug_lines_scope = builder.begin_label_scope("DeviceLocalDebugLines", &label_color_yellow(0.8));
+        {
+            let pipeline = &self.device_local_debug_lines_pipeline;
+            builder.bind_graphics_pipeline(pipeline.as_ref());
+            persistent_frame_state.push_descriptors(
+                PipelineBindPoint::Graphics,
+                &pipeline.descriptor_set_layout,
+                backend_shared,
+                &mut builder,
+            )?;
+            builder.draw_indirect(
+                &persistent_frame_state.device_local_debug_lines_buffer,
+                mem::size_of::<u32>() as u64,
+                1,
+            );
+        }
         drop(device_local_debug_lines_span);
+        device_local_debug_lines_scope.end(&mut builder);
 
         builder.end_render_pass()?;
 
+        drop(rendering_span);
+        rendering_scope.end(&mut builder);
+
         // Write the frame telemetry data to the buffer
-        let pipeline = &self.frame_telemetry_compute_pipeline;
-        builder.bind_compute_pipeline(pipeline.as_ref());
-        builder.bottom_to_top_pipeline_barrier();
-        builder.dispatch(1, 1, 1);
+        let frame_telemetry_span = jeriya_shared::span!("frame telemetry");
+        let frame_telemetry_scope = builder.begin_label_scope("CollectFrameTelemetry", &label_color_yellow(1.0));
+        {
+            let pipeline = &self.frame_telemetry_compute_pipeline;
+            builder.bind_compute_pipeline(pipeline.as_ref());
+            builder.bottom_to_top_pipeline_barrier();
+            builder.dispatch(1, 1, 1);
+        }
+        drop(frame_telemetry_span);
+        frame_telemetry_scope.end(&mut builder);
 
         builder.end_command_buffer()?;
 
@@ -609,6 +665,9 @@ impl CompiledFrameGraph {
         if immediate_rendering_frames.is_empty() {
             return Ok(());
         }
+
+        let span = jeriya_shared::span!("immediate rendering commands");
+        let scope = command_buffer_builder.begin_label_scope("ImmediateRendering", &label_color_yellow(1.0));
 
         // Collect vertex attributes for all immediate rendering requests
         let mut data = Vec::new();
@@ -738,6 +797,9 @@ impl CompiledFrameGraph {
                 }
             }
         }
+
+        drop(span);
+        scope.end(command_buffer_builder);
 
         Ok(())
     }

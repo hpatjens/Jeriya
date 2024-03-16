@@ -41,6 +41,7 @@ pub struct CommandBufferBuilder<'buf> {
 
     /// Layout of the last pipeline that was bound if any
     bound_pipeline_layout: RefCell<Option<vk::PipelineLayout>>,
+    label_stack: Vec<&'static str>,
 }
 
 impl<'buf> CommandBufferBuilder<'buf> {
@@ -50,6 +51,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
             command_buffer,
             device: device.clone(),
             bound_pipeline_layout: RefCell::new(None),
+            label_stack: Vec::new(),
         })
     }
 
@@ -571,6 +573,7 @@ impl<'buf> CommandBufferBuilder<'buf> {
     pub fn begin_label_scope(&mut self, label: &'static str, color: &[f32; 4]) -> DebugLabelGuard {
         if features::LABELING {
             if let Some(debug_utils) = self.device.instance().debug_utils.as_ref() {
+                self.label_stack.push(label);
                 let label = CString::new(label).expect("must be a valid label");
                 let label_info = vk::DebugUtilsLabelEXT::builder().label_name(&label).color(*color).build();
                 unsafe { debug_utils.cmd_begin_debug_utils_label(*self.command_buffer.as_raw_vulkan(), &label_info) }
@@ -580,9 +583,12 @@ impl<'buf> CommandBufferBuilder<'buf> {
     }
 
     /// Ends a debug label scope
-    pub fn end_label_scope(&mut self) -> &mut Self {
+    pub fn end_label_scope(&mut self, label: &'static str) -> &mut Self {
         if features::LABELING {
             if let Some(debug_utils) = self.device.instance().debug_utils.as_ref() {
+                if self.label_stack.pop() != Some(label) {
+                    panic!("Unexpected label");
+                }
                 unsafe { debug_utils.cmd_end_debug_utils_label(*self.command_buffer.as_raw_vulkan()) }
             }
         }

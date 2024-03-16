@@ -3,7 +3,23 @@ use jeriya_shared::features;
 use crate::command_buffer_builder::CommandBufferBuilder;
 
 pub fn label_color_red(value: f32) -> [f32; 4] {
-    [value, 0.0, 0.0, 1.0]
+    [value, 0.5, 0.5, 1.0]
+}
+
+pub fn label_color_blue(value: f32) -> [f32; 4] {
+    [0.5, 0.5, value, 1.0]
+}
+
+pub fn label_color_green(value: f32) -> [f32; 4] {
+    [0.5, value, 0.5, 1.0]
+}
+
+pub fn label_color_magenta(value: f32) -> [f32; 4] {
+    [value, 0.5, value, 1.0]
+}
+
+pub fn label_color_yellow(value: f32) -> [f32; 4] {
+    [value, value, 0.5, 1.0]
 }
 
 /// Makes sure that a debug label is correctly ended.
@@ -24,7 +40,7 @@ impl DebugLabelGuard {
 
     /// Ends the label scope. This must be called or the `LabelGuard` will panic on drop.
     pub fn end(mut self, command_buffer_builder: &mut CommandBufferBuilder) {
-        command_buffer_builder.end_label_scope();
+        command_buffer_builder.end_label_scope(self.label);
         self.correctly_dropped = true;
     }
 }
