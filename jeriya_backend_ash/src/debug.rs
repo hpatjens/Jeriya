@@ -21,21 +21,26 @@ pub fn set_panic_on_message(value: bool) {
 /// Represents the callback of the validation layer
 pub struct ValidationLayerCallback {
     messenger: vk::DebugUtilsMessengerEXT,
-    debug_utils: DebugUtils,
     _instance: Arc<Instance>,
     _entry: Arc<Entry>,
 }
 
 impl Drop for ValidationLayerCallback {
     fn drop(&mut self) {
-        unsafe { self.debug_utils.destroy_debug_utils_messenger(self.messenger, None) };
+        unsafe {
+            // The DebugUtils are only set in the instance when the validation layer is enabled
+            self._instance
+                .debug_utils
+                .as_ref()
+                .expect("DebugUtils must be Some when Dropping the ValidationLayerCallback")
+                .destroy_debug_utils_messenger(self.messenger, None)
+        };
     }
 }
 
 impl ValidationLayerCallback {
     /// Sets up the validation layer callback that logs the validation layer messages
     pub fn new(entry: &Arc<Entry>, instance: &Arc<Instance>) -> Result<ValidationLayerCallback> {
-        let debug_utils = DebugUtils::new(entry.as_raw_vulkan(), instance.as_raw_vulkan());
         let create_info = vk::DebugUtilsMessengerCreateInfoEXT {
             flags: vk::DebugUtilsMessengerCreateFlagsEXT::empty(),
             message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
@@ -48,10 +53,16 @@ impl ValidationLayerCallback {
             pfn_user_callback: Some(debug_utils_messenger_callback),
             ..Default::default()
         };
-        let messenger = unsafe { debug_utils.create_debug_utils_messenger(&create_info, None)? };
+        let messenger = unsafe {
+            // The DebugUtils are only set in the instance when the validation layer is enabled
+            instance
+                .debug_utils
+                .as_ref()
+                .expect("DebugUtils must be Some when Dropping the ValidationLayerCallback")
+                .create_debug_utils_messenger(&create_info, None)?
+        };
         Ok(ValidationLayerCallback {
             messenger,
-            debug_utils,
             _entry: entry.clone(),
             _instance: instance.clone(),
         })

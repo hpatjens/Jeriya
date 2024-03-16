@@ -19,6 +19,7 @@ pub struct Instance {
     pub available_layers: Vec<String>,
     pub active_layers: Vec<String>,
     pub active_extensions: Vec<String>,
+    pub debug_utils: Option<DebugUtils>,
     ash_instance: ash::Instance,
     _entry: Arc<Entry>,
 }
@@ -92,12 +93,19 @@ impl Instance {
 
         let ash_instance = unsafe { entry.as_raw_vulkan().create_instance(&create_info, None).into_jeriya()? };
 
+        let debug_utils = if enable_validation_layer {
+            Some(DebugUtils::new(entry.as_raw_vulkan(), &ash_instance))
+        } else {
+            None
+        };
+
         Ok(Arc::new(Instance {
             _entry: entry.clone(),
             ash_instance,
             available_layers,
             active_layers,
             active_extensions,
+            debug_utils,
         }))
     }
 }
