@@ -5,7 +5,10 @@ edition = "2021"
 
 [features]
 default = []
+# Assertions in performance critical code are activated
 assertions = []
+# Labeling of Vulkan objects and command buffers is activated
+labeling = []
 profile = ["tracy-client/default"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 

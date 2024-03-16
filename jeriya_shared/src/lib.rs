@@ -72,6 +72,9 @@ pub mod features {
     /// Determines whether the profiling is compiled into the code
     pub const PROFILE: bool = cfg!(feature = "profile");
 
+    /// Determines whether the labeling of Vulkan objects and command buffers is compiled into the code
+    pub const LABELING: bool = cfg!(feature = "labeling");
+
     /// Prints the features of the current build to the log with info level
     pub fn info_log_features() {
         let message = formatdoc! {"
