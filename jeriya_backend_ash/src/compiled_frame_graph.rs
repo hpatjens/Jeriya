@@ -23,7 +23,6 @@ use jeriya_shared::{debug_info, nalgebra::Matrix4, plot_with_index, tracy_client
 pub struct CompiledFrameGraph {
     command_buffer: Option<CommandBuffer>,
 
-    simple_graphics_pipeline: Arc<GenericGraphicsPipeline>,
     immediate_graphics_pipeline_line_list: Arc<GenericGraphicsPipeline>,
     immediate_graphics_pipeline_line_strip: Arc<GenericGraphicsPipeline>,
     immediate_graphics_pipeline_triangle_list: Arc<GenericGraphicsPipeline>,
@@ -48,16 +47,6 @@ impl CompiledFrameGraph {
             framebuffer_width: presenter_shared.swapchain.extent().width,
             framebuffer_height: presenter_shared.swapchain.extent().height,
             ..Default::default()
-        };
-
-        let simple_graphics_pipeline = {
-            let config = GenericGraphicsPipelineConfig {
-                vertex_shader: Some(AssetKey::new("shaders/red_triangle.vert")),
-                fragment_shader: Some(AssetKey::new("shaders/red_triangle.frag")),
-                primitive_topology: PrimitiveTopology::TriangleList,
-                ..graphics_pipeline_default.clone()
-            };
-            presenter_shared.vulkan_resource_coordinator.query_graphics_pipeline(&config)?
         };
 
         let mut create_immediate_graphics_pipeline = |primitive_topology| -> crate::Result<_> {
@@ -163,7 +152,6 @@ impl CompiledFrameGraph {
 
         Ok(CompiledFrameGraph {
             command_buffer: None,
-            simple_graphics_pipeline,
             immediate_graphics_pipeline_line_list,
             immediate_graphics_pipeline_line_strip,
             immediate_graphics_pipeline_triangle_list,
@@ -553,22 +541,6 @@ impl CompiledFrameGraph {
         }
         drop(point_cloud_span);
         point_cloud_scope.end(&mut builder);
-
-        // Render with SimpleGraphicsPipeline
-        let simple_span = jeriya_shared::span!("record simple commands");
-        let simple_scope = builder.begin_label_scope("Simple", &label_color_green(0.5));
-        {
-            let pipeline = &self.simple_graphics_pipeline;
-            builder.bind_graphics_pipeline(pipeline.as_ref());
-            persistent_frame_state.push_descriptors(
-                PipelineBindPoint::Graphics,
-                &pipeline.descriptor_set_layout,
-                backend_shared,
-                &mut builder,
-            )?;
-        }
-        drop(simple_span);
-        simple_scope.end(&mut builder);
 
         // Render with PointCloudClusterGraphicsPipeline
         let indirect_meshlet_span = jeriya_shared::span!("record point cloud cluster commands");
