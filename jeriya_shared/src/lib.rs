@@ -272,7 +272,7 @@ impl RendererConfig {
     pub fn minimal() -> Self {
         Self {
             application_name: None,
-            default_desired_swapchain_length: 2,
+            default_desired_swapchain_length: 3,
             maximum_number_of_mesh_attributes: 32,
             maximum_number_of_point_cloud_attributes: 32,
             maximum_number_of_cameras: 4,
@@ -293,7 +293,7 @@ impl RendererConfig {
     pub fn normal() -> Self {
         Self {
             application_name: None,
-            default_desired_swapchain_length: 2,
+            default_desired_swapchain_length: 3,
             maximum_number_of_mesh_attributes: 2usize.pow(10),
             maximum_number_of_point_cloud_attributes: 2usize.pow(10),
             maximum_number_of_cameras: 16,
