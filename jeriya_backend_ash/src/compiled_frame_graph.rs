@@ -13,10 +13,7 @@ use crate::{
     presenter_shared::PresenterShared,
     shader_interface, DispatchIndirectCommand, DrawIndirectCommand,
 };
-use jeriya_backend::{
-    elements::point_cloud,
-    immediate::{self, ImmediateCommand, ImmediateRenderingFrameTask},
-};
+use jeriya_backend::immediate::{self, ImmediateCommand, ImmediateRenderingFrameTask};
 use jeriya_content::common::AssetKey;
 use jeriya_shared::{debug_info, nalgebra::Matrix4, plot_with_index, tracy_client::plot, winit::window::WindowId};
 

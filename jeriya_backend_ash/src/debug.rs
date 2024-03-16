@@ -6,10 +6,10 @@ use std::{
     },
 };
 
-use ash::{extensions::ext::DebugUtils, vk};
+use ash::vk;
 use jeriya_shared::log::{error, info, warn};
 
-use crate::{entry::Entry, instance::Instance, AsRawVulkan, Result};
+use crate::{entry::Entry, instance::Instance, Result};
 
 static PANIC_ON_MESSAGE: AtomicBool = AtomicBool::new(true);
 
