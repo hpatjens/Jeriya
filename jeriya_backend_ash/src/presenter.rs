@@ -162,51 +162,12 @@ fn run_presenter_thread(
             task.is_timed_out = task.immediate_rendering_frame.timeout().is_timed_out(&task.start_time);
         }
 
-        // Handle the incoming events for the presenter
-        let mut event_queue = event_queue.lock().take();
-        while let Some(new_events) = event_queue.pop() {
-            match new_events {
-                PresenterEvent::RenderImmediateCommandBuffer {
-                    command_buffer,
-                    immediate_rendering_frame,
-                } => {
-                    // Check if the newly received immediate rendering frame is newer than the one that is already rendering
-                    let mut remove_frame = false;
-                    if let Some(task) = immediate_rendering_frames.get_mut(&immediate_rendering_frame.update_loop_name()) {
-                        if immediate_rendering_frame.index() > task.immediate_rendering_frame.index() {
-                            remove_frame = true;
-                        }
-                    }
-                    if remove_frame {
-                        immediate_rendering_frames.remove(&immediate_rendering_frame.update_loop_name());
-                    }
-
-                    // Insert the newly received command buffer
-                    if let Some(task) = immediate_rendering_frames.get_mut(&immediate_rendering_frame.update_loop_name()) {
-                        task.command_buffers.push(command_buffer);
-                    } else {
-                        let task = ImmediateRenderingFrameTask {
-                            start_time: Instant::now(),
-                            is_timed_out: false,
-                            immediate_rendering_frame: immediate_rendering_frame.clone(),
-                            command_buffers: vec![command_buffer],
-                        };
-                        immediate_rendering_frames.insert(immediate_rendering_frame.update_loop_name(), task);
-                    }
-                }
-                PresenterEvent::ProcessTransaction(transaction) => {
-                    let len = persistent_frame_states.len();
-                    for (index, frame) in persistent_frame_states.iter_mut().enumerate() {
-                        if index == len - 1 {
-                            frame.push_transaction(transaction);
-                            break;
-                        }
-                        frame.push_transaction(transaction.clone());
-                    }
-                }
-                PresenterEvent::ShaderImported(shader_asset) => presenter_shared.vulkan_resource_coordinator.update_shader(shader_asset)?,
-            }
-        }
+        handle_events(
+            &event_queue,
+            &mut immediate_rendering_frames,
+            &mut persistent_frame_states,
+            &mut presenter_shared,
+        )?;
 
         // Finish command buffer execution
         let mut queues = backend_shared.queue_scheduler.queues();
@@ -215,81 +176,16 @@ fn run_presenter_thread(
 
         // Render the frame
         match CompiledFrameGraph::new(&mut presenter_shared) {
-            Ok(mut compiled_frame_graph) => {
-                // Setup synchronization primitives for the next frame
-                let image_available_semaphore = Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?;
-                let rendering_complete_semaphore = Semaphore::new(&backend_shared.device, debug_info!("rendering-complete-Semaphore"))?;
-                let rendering_complete_fence = Fence::new(&backend_shared.device, debug_info!("rendering-complete-Fence"))?;
-
-                // Acquire the next swapchain image
-                let acquire_span = jeriya_shared::span!("acquire swapchain image");
-                let swapchain_image_index = loop {
-                    match presenter_shared.swapchain.acquire_next_image(&image_available_semaphore) {
-                        Ok(index) => break index,
-                        Err(_) => {
-                            info!("Failed to acquire next swapchain image. Recreating swapchain.");
-                            presenter_shared.recreate(&backend_shared)?;
-                        }
-                    }
-                };
-                presenter_shared.frame_index.set_swapchain_index(swapchain_image_index as usize);
-                drop(acquire_span);
-
-                let persistent_frame_state = persistent_frame_states.get_mut(&presenter_shared.frame_index);
-
-                let wait_span = jeriya_shared::span!("wait for rendering complete");
-                persistent_frame_state.rendering_complete_fence.wait()?;
-                drop(wait_span);
-
-                // Process Transactions which update the persistent frame state
-                persistent_frame_state.process_transactions()?;
-
-                // Reset CommandPool
-                persistent_frame_state.command_pool.reset()?;
-
-                // Free the frame graph of the frame that was previously rendered in this position
-                let previous_frame_graph = compiled_frame_graphs.get_mut(&presenter_shared.frame_index).take();
-                drop(previous_frame_graph);
-
-                // Update the synchronization primitives for the next frame
-                persistent_frame_state.image_available_semaphore = image_available_semaphore;
-                persistent_frame_state.rendering_complete_semaphore = rendering_complete_semaphore;
-                persistent_frame_state.rendering_complete_fence = rendering_complete_fence;
-
-                compiled_frame_graph.execute(
-                    persistent_frame_state,
+            Ok(compiled_frame_graph) => {
+                render_frame(
+                    compiled_frame_graph,
                     &window_id,
-                    &backend_shared,
+                    &mut compiled_frame_graphs,
+                    &mut immediate_rendering_frames,
+                    &mut persistent_frame_states,
                     &mut presenter_shared,
-                    &immediate_rendering_frames,
+                    &backend_shared,
                 )?;
-                // Set the compiled frame graph for the current frame
-                assert!(compiled_frame_graphs.get(&presenter_shared.frame_index).is_none());
-                compiled_frame_graphs
-                    .get_mut(&presenter_shared.frame_index)
-                    .replace(compiled_frame_graph);
-
-                // Present
-                let mut queues = backend_shared.queue_scheduler.queues();
-                let result = presenter_shared.swapchain.present(
-                    &presenter_shared.frame_index,
-                    &persistent_frame_state.rendering_complete_semaphore,
-                    queues.presentation_queue(window_id),
-                );
-                // The queues must be dropped before `recreate` is called to prevent a deadlock.
-                drop(queues);
-                match result {
-                    Ok(is_suboptimal) => {
-                        if is_suboptimal {
-                            info!("Swapchain is suboptimal. Recreating swapchain.");
-                            presenter_shared.recreate(&backend_shared)?;
-                        }
-                    }
-                    Err(_err) => {
-                        info!("Failed to present swapchain image. Recreating swapchain.");
-                        presenter_shared.recreate(&backend_shared)?;
-                    }
-                }
             }
             Err(err) => {
                 trace!("Failed to compile frame graph: {err:?}");
@@ -304,4 +200,143 @@ fn run_presenter_thread(
             interval.tick();
         }
     }
+}
+
+fn render_frame(
+    mut compiled_frame_graph: CompiledFrameGraph,
+    window_id: &WindowId,
+    compiled_frame_graphs: &mut SwapchainVec<Option<CompiledFrameGraph>>,
+    immediate_rendering_frames: &mut BTreeMap<&'static str, ImmediateRenderingFrameTask>,
+    persistent_frame_states: &mut SwapchainVec<PersistentFrameState>,
+    presenter_shared: &mut PresenterShared,
+    backend_shared: &BackendShared,
+) -> jeriya_backend::Result<()> {
+    // Setup synchronization primitives for the next frame
+    let image_available_semaphore = Semaphore::new(&backend_shared.device, debug_info!("image-available-Semaphore"))?;
+    let rendering_complete_semaphore = Semaphore::new(&backend_shared.device, debug_info!("rendering-complete-Semaphore"))?;
+    let rendering_complete_fence = Fence::new(&backend_shared.device, debug_info!("rendering-complete-Fence"))?;
+
+    // Acquire the next swapchain image
+    let acquire_span = jeriya_shared::span!("acquire swapchain image");
+    let swapchain_image_index = loop {
+        match presenter_shared.swapchain.acquire_next_image(&image_available_semaphore) {
+            Ok(index) => break index,
+            Err(_) => {
+                info!("Failed to acquire next swapchain image. Recreating swapchain.");
+                presenter_shared.recreate(&backend_shared)?;
+            }
+        }
+    };
+    presenter_shared.frame_index.set_swapchain_index(swapchain_image_index as usize);
+    drop(acquire_span);
+
+    let persistent_frame_state = persistent_frame_states.get_mut(&presenter_shared.frame_index);
+
+    let wait_span = jeriya_shared::span!("wait for rendering complete");
+    persistent_frame_state.rendering_complete_fence.wait()?;
+    drop(wait_span);
+
+    // Process Transactions which update the persistent frame state
+    persistent_frame_state.process_transactions()?;
+
+    // Reset CommandPool
+    persistent_frame_state.command_pool.reset()?;
+
+    // Free the frame graph of the frame that was previously rendered in this position
+    let previous_frame_graph = compiled_frame_graphs.get_mut(&presenter_shared.frame_index).take();
+    drop(previous_frame_graph);
+
+    // Update the synchronization primitives for the next frame
+    persistent_frame_state.image_available_semaphore = image_available_semaphore;
+    persistent_frame_state.rendering_complete_semaphore = rendering_complete_semaphore;
+    persistent_frame_state.rendering_complete_fence = rendering_complete_fence;
+
+    compiled_frame_graph.execute(
+        persistent_frame_state,
+        window_id,
+        backend_shared,
+        presenter_shared,
+        immediate_rendering_frames,
+    )?;
+    // Set the compiled frame graph for the current frame
+    assert!(compiled_frame_graphs.get(&presenter_shared.frame_index).is_none());
+    compiled_frame_graphs
+        .get_mut(&presenter_shared.frame_index)
+        .replace(compiled_frame_graph);
+
+    // Present
+    let mut queues = backend_shared.queue_scheduler.queues();
+    let result = presenter_shared.swapchain.present(
+        &presenter_shared.frame_index,
+        &persistent_frame_state.rendering_complete_semaphore,
+        queues.presentation_queue(*window_id),
+    );
+    // The queues must be dropped before `recreate` is called to prevent a deadlock.
+    drop(queues);
+    match result {
+        Ok(is_suboptimal) => {
+            if is_suboptimal {
+                info!("Swapchain is suboptimal. Recreating swapchain.");
+                presenter_shared.recreate(&backend_shared)?;
+            }
+        }
+        Err(_err) => {
+            info!("Failed to present swapchain image. Recreating swapchain.");
+            presenter_shared.recreate(&backend_shared)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn handle_events(
+    event_queue: &Arc<Mutex<EventQueue<PresenterEvent>>>,
+    immediate_rendering_frames: &mut BTreeMap<&str, ImmediateRenderingFrameTask>,
+    persistent_frame_states: &mut SwapchainVec<PersistentFrameState>,
+    presenter_shared: &mut PresenterShared,
+) -> Result<(), jeriya_backend::Error> {
+    let mut event_queue = event_queue.lock().take();
+    Ok(while let Some(new_events) = event_queue.pop() {
+        match new_events {
+            PresenterEvent::RenderImmediateCommandBuffer {
+                command_buffer,
+                immediate_rendering_frame,
+            } => {
+                // Check if the newly received immediate rendering frame is newer than the one that is already rendering
+                let mut remove_frame = false;
+                if let Some(task) = immediate_rendering_frames.get_mut(&immediate_rendering_frame.update_loop_name()) {
+                    if immediate_rendering_frame.index() > task.immediate_rendering_frame.index() {
+                        remove_frame = true;
+                    }
+                }
+                if remove_frame {
+                    immediate_rendering_frames.remove(&immediate_rendering_frame.update_loop_name());
+                }
+
+                // Insert the newly received command buffer
+                if let Some(task) = immediate_rendering_frames.get_mut(&immediate_rendering_frame.update_loop_name()) {
+                    task.command_buffers.push(command_buffer);
+                } else {
+                    let task = ImmediateRenderingFrameTask {
+                        start_time: Instant::now(),
+                        is_timed_out: false,
+                        immediate_rendering_frame: immediate_rendering_frame.clone(),
+                        command_buffers: vec![command_buffer],
+                    };
+                    immediate_rendering_frames.insert(immediate_rendering_frame.update_loop_name(), task);
+                }
+            }
+            PresenterEvent::ProcessTransaction(transaction) => {
+                let len = persistent_frame_states.len();
+                for (index, frame) in persistent_frame_states.iter_mut().enumerate() {
+                    if index == len - 1 {
+                        frame.push_transaction(transaction);
+                        break;
+                    }
+                    frame.push_transaction(transaction.clone());
+                }
+            }
+            PresenterEvent::ShaderImported(shader_asset) => presenter_shared.vulkan_resource_coordinator.update_shader(shader_asset)?,
+        }
+    })
 }
