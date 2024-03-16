@@ -4,11 +4,10 @@ use crate::{
     backend_shared::BackendShared,
     buffer::BufferUsageFlags,
     command_buffer::CommandBuffer,
-    command_buffer_builder::CommandBufferBuilder,
-    command_buffer_builder::PipelineBindPoint,
+    command_buffer_builder::{CommandBufferBuilder, PipelineBindPoint},
     compute_pipeline::{GenericComputePipeline, GenericComputePipelineConfig},
-    graphics_pipeline::PrimitiveTopology,
-    graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, PushConstants},
+    debug_label_guard::label_color_red,
+    graphics_pipeline::{GenericGraphicsPipeline, GenericGraphicsPipelineConfig, PrimitiveTopology, PushConstants},
     host_visible_buffer::HostVisibleBuffer,
     persistent_frame_state::PersistentFrameState,
     presenter_shared::PresenterShared,
@@ -256,6 +255,8 @@ impl CompiledFrameGraph {
         //    meshlets of the `RigidMeshInstance` writing the indices of the visible meshlets to the
         //    buffer.
 
+        let _label_scope_cull_rigid_mesh_instances = builder.begin_label_scope("CullRigidMeshInstances", &label_color_red(0.8));
+
         // 1. Cull RigidMeshInstances
         let cull_rigid_mesh_instances_span = jeriya_shared::span!("cull rigid mesh instances");
         let pipeline = &self.cull_rigid_mesh_instances_compute_pipeline;
@@ -306,6 +307,8 @@ impl CompiledFrameGraph {
         //     let count = buffer.get_memory_unaligned_index(4).unwrap();
         //     eprintln!("instances: {count}, work_group: ({work_group_x}, {work_group_y}, {work_group_z})",);
         // }
+
+        _label_scope_cull_rigid_mesh_instances.end(&mut builder);
 
         // Cull Meshlets
         let cull_meshlets_span = jeriya_shared::span!("cull meshlets");
