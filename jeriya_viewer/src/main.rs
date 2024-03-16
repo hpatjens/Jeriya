@@ -41,7 +41,7 @@ use jeriya_shared::{
     parking_lot::Mutex,
     spin_sleep_util,
     winit::{
-        dpi::LogicalSize,
+        dpi::{LogicalSize, PhysicalPosition, Position},
         event::{ElementState, Event, MouseButton, MouseScrollDelta, WindowEvent},
         event_loop::{ControlFlow, EventLoop},
         keyboard::{Key, NamedKey},
@@ -227,6 +227,10 @@ struct CommandLineArguments {
     /// Scale of the model
     #[arg(long, short, default_value_t = 1.0)]
     scale: f32,
+
+    /// Whether to open one or two windows
+    #[arg(long, short)]
+    single_window: bool,
 }
 
 fn main() -> ey::Result<()> {
@@ -252,35 +256,47 @@ fn main() -> ey::Result<()> {
     // Create Windows
     let event_loop = EventLoop::new().wrap_err("Failed to create EventLoop")?;
     event_loop.set_control_flow(ControlFlow::Poll);
-    let window1 = WindowBuilder::new()
-        .with_title("Window 1")
+    let mut windows = vec![WindowBuilder::new()
+        .with_title("Jeria Viewer")
         .with_inner_size(LogicalSize::new(1000.0, 1000.0))
         .build(&event_loop)
-        .wrap_err("Failed to create window 1")?;
-    let window2 = WindowBuilder::new()
-        .with_title("Window 2")
-        .with_inner_size(LogicalSize::new(1000.0, 1000.0))
-        .build(&event_loop)
-        .wrap_err("Failed to create window 2")?;
+        .wrap_err("Failed to create window 1")?];
+    if !command_line_arguments.single_window {
+        let x = windows[0].outer_position().unwrap().x;
+        let y = windows[0].outer_position().unwrap().y;
+        let width = windows[0].outer_size().width;
+        let position = Position::Physical(PhysicalPosition::new(x + width as i32, y));
+        windows.push(
+            WindowBuilder::new()
+                .with_title("Jeriya Viewer - Window 2")
+                .with_position(position)
+                .with_inner_size(LogicalSize::new(1000.0, 1000.0))
+                .build(&event_loop)
+                .wrap_err("Failed to create window 2")?,
+        );
+    }
 
     // Setup Content Pipeline
     let _asset_processor = setup_asset_processor()?;
     let asset_importer = Arc::new(AssetImporter::default_from("assets/processed").wrap_err("Failed to create AssetImporter")?);
 
+    // Prepare WindowConfigs
+    let mut window_configs = vec![WindowConfig {
+        window: &windows[0],
+        frame_rate: FrameRate::Limited(60),
+    }];
+    if !command_line_arguments.single_window {
+        window_configs.push(WindowConfig {
+            window: &windows[1],
+            frame_rate: FrameRate::Unlimited,
+        });
+    }
+
     // Create Renderer
     let renderer = jeriya::Renderer::<AshBackend>::builder()
         .add_renderer_config(RendererConfig::normal())
         .add_asset_importer(asset_importer)
-        .add_windows(&[
-            WindowConfig {
-                window: &window1,
-                frame_rate: FrameRate::Unlimited,
-            },
-            WindowConfig {
-                window: &window2,
-                frame_rate: FrameRate::Limited(60),
-            },
-        ])
+        .add_windows(&window_configs)
         .build()
         .wrap_err("Failed to create renderer")?;
 
@@ -319,6 +335,17 @@ fn main() -> ey::Result<()> {
     // properties of the camera. To create a view onto the scene a CameraInstance must be created that
     // references a Camera.
     let camera1_builder = Camera::builder()
+        .with_projection(CameraProjection::Perspective {
+            fov: 90.0,
+            aspect: 1.0,
+            near: 0.1,
+            far: 100.0,
+        })
+        .with_debug_info(debug_info!("my_camera2"));
+    let camera1_handle = element_group.cameras().mutate_via(&mut transaction).insert_with(camera1_builder)?;
+
+    // Create Camera for Window 2
+    let camera2_builder = Camera::builder()
         .with_projection(CameraProjection::Orthographic {
             left: -5.0,
             right: 5.0,
@@ -328,17 +355,6 @@ fn main() -> ey::Result<()> {
             far: 5.0,
         })
         .with_debug_info(debug_info!("my_camera1"));
-    let camera1_handle = element_group.cameras().mutate_via(&mut transaction).insert_with(camera1_builder)?;
-
-    // Create Camera for Window 2
-    let camera2_builder = Camera::builder()
-        .with_projection(CameraProjection::Perspective {
-            fov: 90.0,
-            aspect: 1.0,
-            near: 0.1,
-            far: 100.0,
-        })
-        .with_debug_info(debug_info!("my_camera2"));
     let camera2_handle = element_group.cameras().mutate_via(&mut transaction).insert_with(camera2_builder)?;
 
     // Create CameraInstance for Window1
@@ -354,24 +370,26 @@ fn main() -> ey::Result<()> {
         .get(&camera1_instance_handle)
         .wrap_err("Failed to find camera instance")?;
     renderer
-        .set_active_camera(window1.id(), camera1_instance)
+        .set_active_camera(windows[0].id(), camera1_instance)
         .wrap_err("Failed to set active camera")?;
 
     // Create CameraInstance for Window2
-    let camera2_instance_builder = CameraInstance::builder()
-        .with_camera(element_group.cameras().get(&camera2_handle).wrap_err("Failed to find camera")?)
-        .with_debug_info(debug_info!("my_camera_instance"));
-    let camera2_instance_handle = instance_group
-        .camera_instances()
-        .mutate_via(&mut transaction)
-        .insert_with(camera2_instance_builder)?;
-    let camera2_instance = instance_group
-        .camera_instances()
-        .get(&camera2_instance_handle)
-        .wrap_err("Failed to find camera instance")?;
-    renderer
-        .set_active_camera(window2.id(), camera2_instance)
-        .wrap_err("Failed to set active camera")?;
+    if !command_line_arguments.single_window {
+        let camera2_instance_builder = CameraInstance::builder()
+            .with_camera(element_group.cameras().get(&camera2_handle).wrap_err("Failed to find camera")?)
+            .with_debug_info(debug_info!("my_camera_instance"));
+        let camera2_instance_handle = instance_group
+            .camera_instances()
+            .mutate_via(&mut transaction)
+            .insert_with(camera2_instance_builder)?;
+        let camera2_instance = instance_group
+            .camera_instances()
+            .get(&camera2_instance_handle)
+            .wrap_err("Failed to find camera instance")?;
+        renderer
+            .set_active_camera(windows[1].id(), camera2_instance)
+            .wrap_err("Failed to set active camera")?;
+    }
 
     // Create RigidMesh
     //
@@ -503,7 +521,7 @@ fn main() -> ey::Result<()> {
                 ..
             } => event_loop_window_target.exit(),
             Event::WindowEvent { window_id, event } => {
-                if window_id == window2.id() {
+                if window_id == windows[0].id() {
                     match event {
                         WindowEvent::CloseRequested => event_loop_window_target.exit(),
                         WindowEvent::KeyboardInput { event, .. } => match event.logical_key {
@@ -519,7 +537,7 @@ fn main() -> ey::Result<()> {
                             camera_controller2.set_cursor_position(Vector2::new(position.x as f32, position.y as f32));
                         }
                         WindowEvent::MouseWheel { delta, .. } => {
-                            if window_id == window2.id() {
+                            if window_id == windows[0].id() {
                                 match delta {
                                     MouseScrollDelta::LineDelta(_x, y) => camera_controller2.zoom_out(-y),
                                     MouseScrollDelta::PixelDelta(delta) => camera_controller2.zoom_out(-delta.y as f32),
@@ -541,7 +559,7 @@ fn main() -> ey::Result<()> {
                 let mut transaction = Transaction::record(&renderer);
 
                 camera_controller2
-                    .update(dt, &mut transaction, &mut instance_group.lock(), camera2_instance_handle)
+                    .update(dt, &mut transaction, &mut instance_group.lock(), camera1_instance_handle)
                     .expect("Failed to update camera controller");
 
                 if mesh_count < 10 && (t - last_mesh_insert_t).as_secs() > 1 {
