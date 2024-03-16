@@ -224,10 +224,6 @@ struct CommandLineArguments {
     #[arg(long, short, default_value = "model")]
     file_type: FileType,
 
-    /// Enable meshlet rendering
-    #[arg(long, short, default_value_t = true)]
-    enable_meshlet_rendering: bool,
-
     /// Scale of the model
     #[arg(long, short, default_value_t = 1.0)]
     scale: f32,
