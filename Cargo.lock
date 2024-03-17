@@ -1395,6 +1395,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+ "serde_yaml",
  "spin_sleep",
  "spin_sleep_util",
  "thiserror",
@@ -1440,6 +1441,7 @@ dependencies = [
  "jeriya_content",
  "jeriya_shared",
  "jeriya_test",
+ "serde",
 ]
 
 [[package]]

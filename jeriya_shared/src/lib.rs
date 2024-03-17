@@ -47,6 +47,7 @@ pub use rand;
 pub use raw_window_handle;
 pub use rayon;
 pub use serde_json;
+pub use serde_yaml;
 pub use spin_sleep;
 pub use spin_sleep_util;
 pub use thiserror;

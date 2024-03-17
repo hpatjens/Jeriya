@@ -1,0 +1,5 @@
+rigid_mesh_instances:
+  - path: "models/armadillo.glb"
+    position: [0, 0, 0]
+  - path: "models/armadillo.glb"
+    position: [2, 0, 0]

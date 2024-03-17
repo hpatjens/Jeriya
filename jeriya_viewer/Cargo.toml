@@ -4,10 +4,7 @@ version = "0.6.0"
 edition = "2021"
 
 [features]
-default = [
-    "jeriya_shared/assertions",
-    "jeriya_shared/deadlock_detection",
-]
+default = ["jeriya_shared/assertions", "jeriya_shared/deadlock_detection"]
 
 [dependencies]
 jeriya = { path = "../jeriya" }
@@ -20,3 +17,4 @@ fern = "0.6.2"
 color-eyre = "0.6.2"
 gltf = "1.4.0"
 clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }

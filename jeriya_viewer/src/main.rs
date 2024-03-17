@@ -1,8 +1,11 @@
 mod camera_controller;
+mod scene;
 
 use std::{
+    collections::{BTreeMap, HashSet},
     f32::consts::TAU,
     io,
+    path::Path,
     sync::Arc,
     thread,
     time::{Duration, Instant},
@@ -36,7 +39,7 @@ use jeriya_content::{
 };
 use jeriya_shared::{
     debug_info,
-    log::{self, error, info},
+    log::{self, error, info, trace},
     nalgebra::{self, Matrix4, Scale3, Translation3, Vector2, Vector3, Vector4},
     parking_lot::Mutex,
     spin_sleep_util,
@@ -50,7 +53,7 @@ use jeriya_shared::{
     FrameRate, RendererConfig, WindowConfig,
 };
 
-use crate::camera_controller::CameraController;
+use crate::{camera_controller::CameraController, scene::Scene};
 
 /// Shows how the immediate rendering API can be used.
 fn immediate_rendering<B>(
@@ -208,6 +211,7 @@ fn setup_asset_processor() -> ey::Result<AssetProcessor> {
 
 #[derive(ValueEnum, Debug, Clone)]
 enum FileType {
+    Scene,
     Model,
     PointCloud,
 }
@@ -419,6 +423,69 @@ fn main() -> ey::Result<()> {
     let instance_group2 = Arc::clone(&instance_group);
     thread::spawn(move || {
         match command_line_arguments.file_type {
+            FileType::Scene => {
+                let scene_base_path = Path::new(&command_line_arguments.path)
+                    .parent()
+                    .expect("failed to get parent path of scene");
+                let scene = Scene::import(&command_line_arguments.path).unwrap();
+                info!("Scene to view: {scene:?}");
+
+                let mut resource_group = resource_group2.lock();
+                let mut element_group = element_group2.lock();
+                let mut instance_group = instance_group2.lock();
+
+                let rigid_meshes = scene
+                    .rigid_mesh_instances
+                    .iter()
+                    .map(|instance| {
+                        let absolute_path = if instance.path.is_absolute() {
+                            instance.path.clone()
+                        } else {
+                            scene_base_path.join(&instance.path)
+                        };
+                        (instance.path.clone(), absolute_path)
+                    })
+                    .collect::<BTreeMap<_, _>>();
+                trace!("RigidMesh count in Scene: {}", rigid_meshes.len());
+                let rigid_mesh_collections = rigid_meshes
+                    .iter()
+                    .map(|(path, absolute_path)| {
+                        let model = ModelAsset::import(absolute_path).unwrap();
+                        let rigid_mesh_collection = RigidMeshCollection::from_model(
+                            &model,
+                            &mut resource_group,
+                            &mut element_group,
+                            &mut Transaction::record(&renderer2),
+                        )
+                        .unwrap();
+                        (path, rigid_mesh_collection)
+                    })
+                    .collect::<BTreeMap<_, _>>();
+                trace!("RigidMeshCollection count in Scene: {}", rigid_mesh_collections.len());
+
+                let mut transaction = Transaction::record(&renderer2);
+
+                for rigid_mesh_instance in &scene.rigid_mesh_instances {
+                    let rigid_mesh_collection = rigid_mesh_collections
+                        .get(&rigid_mesh_instance.path)
+                        .expect("Failed to find rigid mesh collection");
+                    let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
+                        &rigid_mesh_collection,
+                        element_group.rigid_meshes(),
+                        &mut instance_group,
+                        &mut transaction,
+                        &nalgebra::convert(Translation3::new(
+                            rigid_mesh_instance.position.x,
+                            rigid_mesh_instance.position.y,
+                            rigid_mesh_instance.position.z,
+                        )),
+                    )
+                    .expect("Failed to create RigidMeshInstanceCollection");
+                }
+                trace!("RigidMeshInstanceCollection count in Scene: {}", rigid_mesh_collections.len());
+
+                transaction.finish();
+            }
             FileType::Model => {
                 let main_model = ModelAsset::import(command_line_arguments.path)
                     .wrap_err("Failed to import model")
