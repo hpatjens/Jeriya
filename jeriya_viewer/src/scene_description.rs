@@ -13,11 +13,11 @@ pub struct RigidMeshInstance {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Scene {
+pub struct SceneDescription {
     pub rigid_mesh_instances: Vec<RigidMeshInstance>,
 }
 
-impl Scene {
+impl SceneDescription {
     /// Import a scene from the given `path`.
     pub fn import(path: impl AsRef<Path>) -> io::Result<Self> {
         let path = path.as_ref();

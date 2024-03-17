@@ -1,11 +1,10 @@
 mod camera_controller;
-mod scene;
+mod scene_description;
+mod scene_loading;
 
 use std::{
-    collections::{BTreeMap, HashSet},
     f32::consts::TAU,
     io,
-    path::Path,
     sync::Arc,
     thread,
     time::{Duration, Instant},
@@ -19,28 +18,20 @@ use jeriya_backend::{
     elements::{
         camera::{Camera, CameraProjection},
         element_group::ElementGroup,
-        helper::{rigid_mesh_collection::RigidMeshCollection, rigid_mesh_instance_collection::RigidMeshInstanceCollection},
-        point_cloud,
         rigid_mesh::{MeshRepresentation, RigidMesh},
     },
     immediate::{ImmediateRenderingFrame, LineConfig, LineList, LineStrip, Timeout, TriangleConfig, TriangleList, TriangleStrip},
-    instances::{
-        camera_instance::CameraInstance, instance_group::InstanceGroup, point_cloud_instance::PointCloudInstance,
-        rigid_mesh_instance::RigidMeshInstance,
-    },
-    resources::{mesh_attributes::MeshAttributes, point_cloud_attributes::PointCloudAttributes, resource_group::ResourceGroup},
+    instances::{camera_instance::CameraInstance, instance_group::InstanceGroup, rigid_mesh_instance::RigidMeshInstance},
+    resources::{mesh_attributes::MeshAttributes, resource_group::ResourceGroup},
     transactions::Transaction,
     Backend,
 };
 use jeriya_backend_ash::AshBackend;
-use jeriya_content::{
-    asset_importer::AssetImporter, asset_processor::AssetProcessor, common::Directories, model::ModelAsset,
-    point_cloud::clustered_point_cloud::ClusteredPointCloudAsset,
-};
+use jeriya_content::{asset_importer::AssetImporter, asset_processor::AssetProcessor, common::Directories, model::ModelAsset};
 use jeriya_shared::{
     debug_info,
-    log::{self, error, info, trace},
-    nalgebra::{self, Matrix4, Scale3, Translation3, Vector2, Vector3, Vector4},
+    log::{self, error},
+    nalgebra::{self, Matrix4, Translation3, Vector2, Vector3, Vector4},
     parking_lot::Mutex,
     spin_sleep_util,
     winit::{
@@ -53,7 +44,7 @@ use jeriya_shared::{
     FrameRate, RendererConfig, WindowConfig,
 };
 
-use crate::{camera_controller::CameraController, scene::Scene};
+use crate::{camera_controller::CameraController, scene_loading::load_scene};
 
 /// Shows how the immediate rendering API can be used.
 fn immediate_rendering<B>(
@@ -422,147 +413,15 @@ fn main() -> ey::Result<()> {
     let element_group2 = Arc::clone(&element_group);
     let instance_group2 = Arc::clone(&instance_group);
     thread::spawn(move || {
-        match command_line_arguments.file_type {
-            FileType::Scene => {
-                let scene_base_path = Path::new(&command_line_arguments.path)
-                    .parent()
-                    .expect("failed to get parent path of scene");
-                let scene = Scene::import(&command_line_arguments.path).unwrap();
-                info!("Scene to view: {scene:?}");
-
-                let mut resource_group = resource_group2.lock();
-                let mut element_group = element_group2.lock();
-                let mut instance_group = instance_group2.lock();
-
-                let rigid_meshes = scene
-                    .rigid_mesh_instances
-                    .iter()
-                    .map(|instance| {
-                        let absolute_path = if instance.path.is_absolute() {
-                            instance.path.clone()
-                        } else {
-                            scene_base_path.join(&instance.path)
-                        };
-                        (instance.path.clone(), absolute_path)
-                    })
-                    .collect::<BTreeMap<_, _>>();
-                trace!("RigidMesh count in Scene: {}", rigid_meshes.len());
-                let rigid_mesh_collections = rigid_meshes
-                    .iter()
-                    .map(|(path, absolute_path)| {
-                        let model = ModelAsset::import(absolute_path).unwrap();
-                        let rigid_mesh_collection = RigidMeshCollection::from_model(
-                            &model,
-                            &mut resource_group,
-                            &mut element_group,
-                            &mut Transaction::record(&renderer2),
-                        )
-                        .unwrap();
-                        (path, rigid_mesh_collection)
-                    })
-                    .collect::<BTreeMap<_, _>>();
-                trace!("RigidMeshCollection count in Scene: {}", rigid_mesh_collections.len());
-
-                let mut transaction = Transaction::record(&renderer2);
-
-                for rigid_mesh_instance in &scene.rigid_mesh_instances {
-                    let rigid_mesh_collection = rigid_mesh_collections
-                        .get(&rigid_mesh_instance.path)
-                        .expect("Failed to find rigid mesh collection");
-                    let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
-                        &rigid_mesh_collection,
-                        element_group.rigid_meshes(),
-                        &mut instance_group,
-                        &mut transaction,
-                        &nalgebra::convert(Translation3::new(
-                            rigid_mesh_instance.position.x,
-                            rigid_mesh_instance.position.y,
-                            rigid_mesh_instance.position.z,
-                        )),
-                    )
-                    .expect("Failed to create RigidMeshInstanceCollection");
-                }
-                trace!("RigidMeshInstanceCollection count in Scene: {}", rigid_mesh_collections.len());
-
-                transaction.finish();
-            }
-            FileType::Model => {
-                let main_model = ModelAsset::import(command_line_arguments.path)
-                    .wrap_err("Failed to import model")
-                    .expect("Failed to import model");
-
-                let mut resource_group = resource_group2.lock();
-                let mut element_group = element_group2.lock();
-                let mut instance_group = instance_group2.lock();
-
-                let mut transaction = Transaction::record(&renderer2);
-
-                // Create a RigidMesh from model
-                //
-                // A RigidMeshCollection can be used to create multiple RigidMeshes from a single Model. To display
-                // the RigidMeshes in the scene, RigidMeshInstances must be created that reference the RigidMeshes.
-                // A RigidMeshInstanceCollection can be used for that.
-                let rigid_mesh_collection =
-                    RigidMeshCollection::from_model(&main_model, &mut resource_group, &mut element_group, &mut transaction)
-                        .expect("Failed to create RigidMeshCollection");
-                let _rigid_mesh_instance_collection = RigidMeshInstanceCollection::from_rigid_mesh_collection(
-                    &rigid_mesh_collection,
-                    element_group.rigid_meshes(),
-                    &mut instance_group,
-                    &mut transaction,
-                    &nalgebra::convert(Translation3::new(0.0, 0.0, 0.0)),
-                )
-                .expect("Failed to create RigidMeshInstanceCollection");
-
-                transaction.finish();
-            }
-            FileType::PointCloud => {
-                let clustered_point_cloud = ClusteredPointCloudAsset::deserialize_from_file(&command_line_arguments.path)
-                    .wrap_err("Failed to deserialize PointCloud")
-                    .expect("Failed to deserialize PointCloud");
-                info!("PointCloud to view: {clustered_point_cloud:?}");
-
-                let mut resource_group = resource_group2.lock();
-                let mut element_group = element_group2.lock();
-                let mut instance_group = instance_group2.lock();
-
-                // Create PointCloudAttributes
-                let point_cloud_attributes_builder = PointCloudAttributes::builder()
-                    .with_debug_info(debug_info!("my_point_cloud_attributes"))
-                    .with_pages(clustered_point_cloud.pages().to_vec())
-                    .with_root_cluster_index(clustered_point_cloud.root_cluster_index().clone());
-                let point_cloud_attributes = resource_group
-                    .point_cloud_attributes()
-                    .insert_with(point_cloud_attributes_builder)
-                    .expect("Failed to insert PointCloudAttributes");
-
-                let mut transaction = Transaction::record(&renderer2);
-
-                // Create PointCloud
-                let point_cloud_builder = point_cloud::PointCloud::builder()
-                    .with_point_cloud_attributes(point_cloud_attributes)
-                    .with_debug_info(debug_info!("my_point_cloud"));
-                let point_cloud = element_group
-                    .point_clouds()
-                    .mutate_via(&mut transaction)
-                    .insert_with(point_cloud_builder)
-                    .expect("Failed to insert PointCloud");
-
-                // Create PointCloudInstance
-                let s = command_line_arguments.scale;
-                let point_cloud_instance_builder = PointCloudInstance::builder()
-                    .with_point_cloud(element_group.point_clouds().get(&point_cloud).unwrap())
-                    .with_transform(Scale3::new(s, s, s).into())
-                    .with_debug_info(debug_info!("my_point_cloud_instance"));
-                let _point_cloud_instance = instance_group
-                    .point_cloud_instances()
-                    .mutate_via(&mut transaction)
-                    .insert_with(point_cloud_instance_builder)
-                    .expect("Failed to insert PointCloudInstance");
-
-                transaction.finish();
-            }
-        }
+        load_scene(
+            command_line_arguments.path,
+            command_line_arguments.file_type,
+            command_line_arguments.scale,
+            &renderer2,
+            &resource_group2,
+            &element_group2,
+            &instance_group2,
+        )
     });
 
     let mut camera_controller2 = CameraController::new(camera_controller::Config {
