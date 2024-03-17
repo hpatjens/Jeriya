@@ -84,7 +84,7 @@ fn insert_attributes_and_mesh(
 
     // Insert the RigidMesh
     let rigid_mesh_builder = RigidMesh::builder()
-        .with_preferred_mesh_representation(MeshRepresentation::Meshlets)
+        .with_preferred_mesh_representation(MeshRepresentation::Simple)
         .with_debug_info(debug_info!(format!("RigidMesh-Model-{}-Mesh-{}", model_name, mesh_index)))
         .with_mesh_attributes(mesh_attributes.clone());
     let handle = element_group
