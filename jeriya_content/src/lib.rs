@@ -21,6 +21,7 @@ use std::path::PathBuf;
 
 use jeriya_shared::thiserror;
 
+pub mod asset_file;
 pub mod asset_importer;
 pub mod asset_processor;
 pub mod common;

@@ -53,6 +53,7 @@ pub use spin_sleep_util;
 pub use thiserror;
 pub use thread_id;
 pub use tracy_client;
+pub use uuid;
 pub use walkdir;
 pub use winit;
 
