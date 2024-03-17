@@ -216,8 +216,8 @@ struct CommandLineArguments {
     path: String,
 
     /// Type of the file to open
-    #[arg(long, short, default_value = "model")]
-    file_type: FileType,
+    #[arg(long, short)]
+    file_type: Option<FileType>,
 
     /// Scale of the model
     #[arg(long, short, default_value_t = 1.0)]

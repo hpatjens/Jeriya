@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, path::Path, sync::Arc};
 
 use color_eyre as ey;
 use color_eyre::eyre::Context;
+use ey::eyre::eyre;
 use jeriya::Renderer;
 use jeriya_backend::{
     elements::{
@@ -26,17 +27,26 @@ use crate::{scene_description::SceneDescription, FileType};
 
 pub fn load_scene<B: Backend>(
     path: impl AsRef<Path>,
-    file_type: FileType,
+    file_type: Option<FileType>,
     scale: f32,
     renderer: &Arc<Renderer<B>>,
     resource_group: &Arc<Mutex<ResourceGroup>>,
     element_group: &Arc<Mutex<ElementGroup>>,
     instance_group: &Arc<Mutex<InstanceGroup>>,
 ) -> ey::Result<()> {
-    match file_type {
-        FileType::Scene => load_scene_description(&path, resource_group, element_group, instance_group, renderer),
-        FileType::Model => load_model(&path, resource_group, element_group, instance_group, renderer),
-        FileType::PointCloud => load_point_cloud(path, resource_group, element_group, instance_group, renderer, scale),
+    if let Some(file_type) = file_type {
+        match file_type {
+            FileType::Scene => load_scene_description(&path, resource_group, element_group, instance_group, renderer),
+            FileType::Model => load_model(&path, resource_group, element_group, instance_group, renderer),
+            FileType::PointCloud => load_point_cloud(path, resource_group, element_group, instance_group, renderer, scale),
+        }
+    } else {
+        match path.as_ref().extension().and_then(|ext| ext.to_str()) {
+            Some("yaml") => load_scene_description(&path, resource_group, element_group, instance_group, renderer),
+            Some("glb" | "gltf") => load_model(&path, resource_group, element_group, instance_group, renderer),
+            Some(extension) => Err(eyre!("Unknown file extension: {:?}", extension)),
+            None => Err(eyre!("Failed to determine file type from path: {:?}", path.as_ref())),
+        }
     }
 }
 
